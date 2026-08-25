@@ -339,9 +339,17 @@ type TabId = (typeof TABS)[number]["id"];
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<TabId>("profile");
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   const ActiveComponent = SECTION_COMPONENTS[activeTab];
   const activeTabInfo = TABS.find((t) => t.id === activeTab);
+
+  // Progressive disclosure: hide advanced groups until user opts in
+  const ADVANCED_GROUP_LABELS = new Set(["Data & Sync", "Data & Privacy"]);
+  const visibleGroups = showAdvanced
+    ? TAB_GROUPS
+    : TAB_GROUPS.filter((g) => !ADVANCED_GROUP_LABELS.has(g.label));
+  const hiddenGroupCount = TAB_GROUPS.length - visibleGroups.length;
 
   return (
     <div className="flex h-[calc(100vh-4rem)] flex-col">
@@ -366,7 +374,7 @@ export default function SettingsPage() {
         {/* Sidebar Navigation */}
         <nav className="w-64 shrink-0 border-r border-border bg-muted/30 overflow-y-auto">
           <div className="space-y-6 p-3">
-            {TAB_GROUPS.map((group) => (
+            {visibleGroups.map((group) => (
               <div key={group.label}>
                 <p className="px-3 mb-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                   {group.label}
@@ -400,6 +408,26 @@ export default function SettingsPage() {
                 </div>
               </div>
             ))}
+            {!showAdvanced && hiddenGroupCount > 0 && (
+              <button
+                type="button"
+                onClick={() => setShowAdvanced(true)}
+                className="flex w-full items-center gap-2 rounded-lg border border-dashed border-border px-3 py-2 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+              >
+                <Settings className="h-3.5 w-3.5" />
+                <span>Show advanced settings</span>
+              </button>
+            )}
+            {showAdvanced && (
+              <button
+                type="button"
+                onClick={() => setShowAdvanced(false)}
+                className="flex w-full items-center gap-2 rounded-lg border border-dashed border-border px-3 py-2 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+              >
+                <Settings className="h-3.5 w-3.5" />
+                <span>Hide advanced settings</span>
+              </button>
+            )}
           </div>
         </nav>
 

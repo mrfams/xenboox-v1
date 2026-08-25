@@ -19,7 +19,7 @@
 | 2                   | Pricing missing trust signals ("No credit card", "Cancel anytime")                                                                              | HIGH                                                     | Add trust badges and guarantee                                                | ⬜                                                                                     |
 | 3                   | About page is generic — no real people                                                                                                          | HIGH                                                     | Add founder story, team photos, global context                                | ⬜                                                                                     |
 | 4                   | Blog post missing author card and related posts                                                                                                 | MEDIUM                                                   | Add author card + "You might also like" section                               | ✅ Fixed: Author card + related posts already implemented                              |
-| 5                   | No sticky CTA on marketing pages                                                                                                                | MEDIUM                                                   | Floating CTA in marketing layout                                              | ⬜                                                                                     |
+| 5                   | No sticky CTA on marketing pages                                                                                                                | MEDIUM                                                   | Floating CTA in marketing layout                                              | ✅                                                                                     |
 | 6                   | Only 3 testimonials                                                                                                                             | MEDIUM                                                   | Add 3-5 more for social proof                                                 | ⬜                                                                                     |
 | 7                   | No "Most Popular" badge on pricing                                                                                                              | LOW                                                      | Highlight recommended tier                                                    | ⬜                                                                                     |
 | 8                   | No FAQ section on pricing                                                                                                                       | LOW                                                      | Add common objections below pricing cards                                     | ⬜                                                                                     |
@@ -27,7 +27,7 @@
 | 10                  | Pricing page "Save 17%" badge math may be inaccurate — verify per-tier savings                                                                  | LOW                                                      | Calculate actual savings per tier, show "Save 2 months" if simpler            | ⬜                                                                                     |
 | 11                  | Features page testimonials reference Lagos/São Paulo — verify real customers or use generic locations                                           | MEDIUM                                                   | Replace with verified locations or use generic                                | ⬜                                                                                     |
 | 12                  | Dashboard Command Center has no getting-started checklist for new users with 0 data                                                             | MEDIUM                                                   | Add onboarding checklist in ProactiveBriefing when no transactions exist      | ⬜                                                                                     |
-| 13                  | Ledger journal entry drawer uses hardcoded `bg-slate-900/10` — breaks dark mode                                                                 | MEDIUM                                                   | Replace with `bg-foreground/10` or design system token                        | ⬜                                                                                     |
+| 13                  | Ledger journal entry drawer uses hardcoded `bg-slate-900/10` — breaks dark mode                                                                 | MEDIUM                                                   | Replace with `bg-foreground/10` or design system token                        | ✅                                                                                     |
 | 14                  | **Donor portal dashboard hardcodes "GMD" currency** — `formatCurrency()` uses `currency: "GMD"` instead of entity's currency                    | HIGH                                                     | Read currency from project data or entity context, never hardcode             | ✅ Fixed: formatCurrency reads currency from project data                              |
 | 15                  | **Donor portal PDF download hardcodes `currency: "GMD"`** in `buildDonorReportPdf()` call                                                       | HIGH                                                     | Pass project's currency or entity currency, not hardcoded GMD                 | ✅ Fixed: PDF builder uses project.currency                                            |
 | 16                  | **Help page design tokens updated** — same finding as S1-3/S5-1, verified fixed                                                                 | MEDIUM                                                   | ✅ Fixed: Same as S1-3/S5-1                                                   |
@@ -44,7 +44,7 @@
 
 | #   | Finding                                                                                                                                                         | Severity | Fix                                                                                | Status                                                                       |
 | --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ---------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| 1   | Sticky CTA missing on all marketing pages                                                                                                                       | HIGH     | Floating CTA in marketing layout                                                   | ⬜                                                                           |
+| 1   | Sticky CTA missing on all marketing pages                                                                                                                       | HIGH     | Floating CTA in marketing layout                                                   | ✅                                                                           |
 | 2   | Pricing page lacks trust signals                                                                                                                                | HIGH     | Add "No credit card", "Cancel anytime", guarantee                                  | ⬜                                                                           |
 | 3   | About page shows generic content                                                                                                                                | HIGH     | Real team photos, founder story, global context                                    | ⬜                                                                           |
 | 4   | Blog posts need 1,500+ words                                                                                                                                    | MEDIUM   | Expand remaining content                                                           | ⬜                                                                           |
@@ -53,9 +53,9 @@
 | 7   | No social share buttons on blog                                                                                                                                 | MEDIUM   | Add share bar                                                                      | ✅ Fixed: BlogShareBar with Twitter, LinkedIn, Copy link already implemented |
 | 8   | No reading time estimate                                                                                                                                        | LOW      | Add to blog post header                                                            | ✅ Fixed: Reading time estimate already implemented                          |
 | 9   | No "Related posts" section                                                                                                                                      | LOW      | Add at bottom of blog posts                                                        | ✅ Fixed: Related posts section (Continue Reading) already implemented       |
-| 10  | Operations page well-designed — Money Flow, Banking, Transactions, Compliance, People, AI Quick Actions                                                         | —        | Production-grade                                                                   | ⬜                                                                           |
-| 11  | Financial Pulse has AI narrative with confidence scores, KPI sparklines, Scenario Planner, Budget vs Actual                                                     | —        | Production-grade                                                                   | ⬜                                                                           |
-| 12  | Settings page has 21 sections in 5 groups — well-organized but could overwhelm new users                                                                        | MEDIUM   | Consider progressive disclosure: show 5 essential first, rest on "Advanced" toggle | ⬜                                                                           |
+| 10  | Operations page well-designed — Money Flow, Banking, Transactions, Compliance, People, AI Quick Actions                                                         | —        | Production-grade                                                                   | ✅                                                                           |
+| 11  | Financial Pulse has AI narrative with confidence scores, KPI sparklines, Scenario Planner, Budget vs Actual                                                     | —        | Production-grade                                                                   | ✅                                                                           |
+| 12  | Settings page has 21 sections in 5 groups — well-organized but could overwhelm new users                                                                        | MEDIUM   | Consider progressive disclosure: show 5 essential first, rest on "Advanced" toggle | ✅                                                                           |
 | 13  | No undo on journal entry creation in Ledger                                                                                                                     | MEDIUM   | Add undo toast or reverse entry button in journal detail drawer                    | ⬜                                                                           |
 | 14  | **Verify-email page has no loading skeleton** — just a spinner for the full page, no card structure preview                                                     | LOW      | Add card skeleton during Suspense fallback                                         | ✅ Fixed: formatCurrency reads currency from project data                    |
 | 15  | **MFA challenge page backup code input uses `maxLength={10}`** — backup codes are typically 8 or 10 chars, verify this matches the backup code generation logic | LOW      | Confirm backup code format and adjust maxLength accordingly                        | ✅ Fixed: PDF builder uses project.currency                                  |
@@ -66,13 +66,13 @@
 
 | #   | Finding                                                                                                                 | Severity | Fix                                                                                      | Status |
 | --- | ----------------------------------------------------------------------------------------------------------------------- | -------- | ---------------------------------------------------------------------------------------- | ------ |
-| 1   | Help page search placeholder is excellent — "Search help topics… e.g. invoice, reconcile, security"                     | —        | Production-grade                                                                         | ⬜     |
-| 2   | Auth pages have clear CTAs — "Sign up free", "Sign in", "Back to sign in"                                               | —        | Production-grade                                                                         | ⬜     |
-| 3   | MFA page copy is clear — "Enter the 6-digit code from your authenticator app"                                           | —        | Production-grade                                                                         | ⬜     |
+| 1   | Help page search placeholder is excellent — "Search help topics… e.g. invoice, reconcile, security"                     | —        | Production-grade                                                                         | ✅     |
+| 2   | Auth pages have clear CTAs — "Sign up free", "Sign in", "Back to sign in"                                               | —        | Production-grade                                                                         | ✅     |
+| 3   | MFA page copy is clear — "Enter the 6-digit code from your authenticator app"                                           | —        | Production-grade                                                                         | ✅     |
 | 4   | Verify email success message updated — now says "Email verified! You're all set to start using Xenboox."                | MEDIUM   | ✅ Fixed: Updated success message                                                        |
 | 5   | Verify email error action updated — button now says "Go to Email Settings to Resend"                                    | MEDIUM   | ✅ Fixed: Updated error action text                                                      |
-| 6   | Donor portal error messages are good — "This login link has expired. Please request a new one."                         | —        | Production-grade                                                                         | ⬜     |
-| 7   | Dashboard help page empty state is clear — "No topics match… Try a different keyword, or ask the AI assistant directly" | —        | Production-grade                                                                         | ⬜     |
+| 6   | Donor portal error messages are good — "This login link has expired. Please request a new one."                         | —        | Production-grade                                                                         | ✅     |
+| 7   | Dashboard help page empty state is clear — "No topics match… Try a different keyword, or ask the AI assistant directly" | —        | Production-grade                                                                         | ✅     |
 | 8   | **Donor portal entity ID copy updated** — same finding as S3-3, verified fixed                                          | MEDIUM   | ✅ Fixed: Same as S3-3                                                                   |
 | 9   | **Audit trail page** "Who did what, when, and why" — good subtitle but the "why" is rarely captured in logs             | LOW      | Consider adding a "reason" field to audit log creation or remove "and why" from subtitle | ⬜     |
 
@@ -82,9 +82,9 @@
 
 | #   | Finding                                                                                                                                      | Severity | Fix                                                                              | Status |
 | --- | -------------------------------------------------------------------------------------------------------------------------------------------- | -------- | -------------------------------------------------------------------------------- | ------ |
-| 1   | Pricing page copy is strong — "Start free with 1 agent. Upgrade when you need the full team."                                                | —        | Production-grade                                                                 | ⬜     |
-| 2   | Features page headline "Accounting that thinks for itself" is excellent                                                                      | —        | Production-grade                                                                 | ⬜     |
-| 3   | Help page headline "How can we help?" is clear and welcoming                                                                                 | —        | Production-grade                                                                 | ⬜     |
+| 1   | Pricing page copy is strong — "Start free with 1 agent. Upgrade when you need the full team."                                                | —        | Production-grade                                                                 | ✅     |
+| 2   | Features page headline "Accounting that thinks for itself" is excellent                                                                      | —        | Production-grade                                                                 | ✅     |
+| 3   | Help page headline "How can we help?" is clear and welcoming                                                                                 | —        | Production-grade                                                                 | ✅     |
 | 4   | **Marketing metadata updated** — Homepage title changed from "19 Agents, Zero Data Entry" to "AI Agents, Zero Data Entry" for broader appeal | HIGH     | ✅ Fixed: Updated title and OG description                                       |
 | 5   | **OpenGraph description says "19 AI agents handle invoicing"** — if we're positioning globally, the count might alienate                     | MEDIUM   | Test with "AI agents handle invoicing" vs "19 AI agents" for click-through rates | ⬜     |
 
@@ -94,9 +94,9 @@
 
 | #   | Finding                                                                                       | Severity | Fix                                             | Status |
 | --- | --------------------------------------------------------------------------------------------- | -------- | ----------------------------------------------- | ------ |
-| 1   | Marketing pages use consistent design tokens — `bg-paper`, `bg-paper-2/60`, `text-foreground` | —        | Production-grade                                | ⬜     |
-| 2   | Pricing cards have good hover states and "Most Popular" badge                                 | —        | Production-grade                                | ⬜     |
-| 3   | Features page animated counters are well-implemented with IntersectionObserver                | —        | Production-grade                                | ⬜     |
+| 1   | Marketing pages use consistent design tokens — `bg-paper`, `bg-paper-2/60`, `text-foreground` | —        | Production-grade                                | ✅     |
+| 2   | Pricing cards have good hover states and "Most Popular" badge                                 | —        | Production-grade                                | ✅     |
+| 3   | Features page animated counters are well-implemented with IntersectionObserver                | —        | Production-grade                                | ✅     |
 | 4   | **Help page slate colors updated** — same finding as S1-3/S5-1, verified fixed                | MEDIUM   | ✅ Fixed: Same as S1-3/S5-1                     |
 | 5   | **Auth pages mobile logo gradient** — cosmetic, uses primary colors, acceptable               | LOW      | ✅ Accepted: Gradient uses design system colors |
 | 6   | **Donor portal emerald colors updated** — same finding as S5-3, verified fixed                | LOW      | ✅ Fixed: Same as S5-3                          |
@@ -108,8 +108,8 @@
 
 | #   | Finding                                                                                                                                              | Severity | Fix                                                                    | Status |
 | --- | ---------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ---------------------------------------------------------------------- | ------ |
-| 1   | All marketing copy uses consistent voice — professional, confident, not salesy                                                                       | —        | Production-grade                                                       | ⬜     |
-| 2   | Help page maintains brand voice — "Chat with the CFO agent — it knows your books"                                                                    | —        | Production-grade                                                       | ⬜     |
+| 1   | All marketing copy uses consistent voice — professional, confident, not salesy                                                                       | —        | Production-grade                                                       | ✅     |
+| 2   | Help page maintains brand voice — "Chat with the CFO agent — it knows your books"                                                                    | —        | Production-grade                                                       | ✅     |
 | 3   | **Pricing tier descriptions are inconsistent** — Free says "Start closing your books with AI", Starter says "Save 10+ hours/month with 19 AI agents" | MEDIUM   | Unify tone: all should lead with value, not mix "AI" and "hours saved" | ⬜     |
 | 4   | **OpenGraph title uses "19 Agents" count** — brand voice doc says to use "AI agents" generically in professional contexts                            | MEDIUM   | Align OG title with brand voice guidelines                             | ⬜     |
 
@@ -119,8 +119,8 @@
 
 | #   | Finding                                                                                   | Severity | Fix                                                  | Status |
 | --- | ----------------------------------------------------------------------------------------- | -------- | ---------------------------------------------------- | ------ |
-| 1   | Donor portal is well-designed — clean, minimal, read-only appropriate                     | —        | Production-grade                                     | ⬜     |
-| 2   | Help page two-column layout with sticky AI assistant is good UX                           | —        | Production-grade                                     | ⬜     |
+| 1   | Donor portal is well-designed — clean, minimal, read-only appropriate                     | —        | Production-grade                                     | ✅     |
+| 2   | Help page two-column layout with sticky AI assistant is good UX                           | —        | Production-grade                                     | ✅     |
 | 3   | **Donor portal loading state** — spinner is acceptable, skeleton is polish                | LOW      | ✅ Accepted: Spinner is sufficient                   |
 | 4   | **Donor portal expansion transition** — already has transition-all on expandable sections | LOW      | ✅ Verified: Transition exists                       |
 | 5   | **Audit trail expand/collapse has no smooth transition** — content jumps                  | LOW      | Add max-height transition for smooth expand/collapse | ⬜     |
@@ -131,8 +131,8 @@
 
 | #   | Finding                                                                                                        | Severity | Fix                                                                                                                                  | Status |
 | --- | -------------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------ | ------ |
-| 1   | Login page has open-redirect protection — `isSafeRedirect()` validates all redirect params                     | —        | Production-grade                                                                                                                     | ⬜     |
-| 2   | MFA challenge validates `mfaToken` before submission                                                           | —        | Production-grade                                                                                                                     | ⬜     |
+| 1   | Login page has open-redirect protection — `isSafeRedirect()` validates all redirect params                     | —        | Production-grade                                                                                                                     | ✅     |
+| 2   | MFA challenge validates `mfaToken` before submission                                                           | —        | Production-grade                                                                                                                     | ✅     |
 | 3   | **Donor portal API endpoint** (`/api/donor-portal/request`) — verify rate limiting exists on POST              | HIGH     | Ensure rate limit on donor portal request endpoint (magic link generation)                                                           | ⬜     |
 | 4   | **Donor portal projects API** — verify donor ID + entity ID are validated server-side, not just passed through | HIGH     | Server must verify donor belongs to entity, reject mismatched combinations                                                           | ⬜     |
 | 5   | **Donor portal search params** — `donor`, `entity`, `name` passed as URL query params                          | MEDIUM   | Donor ID and entity ID in URL are acceptable for magic-link portals, but ensure no PII in `name` param (currently uses it in header) | ⬜     |
@@ -144,8 +144,8 @@
 
 | #   | Finding                                                                                                                               | Severity | Fix                                                         | Status                                                            |
 | --- | ------------------------------------------------------------------------------------------------------------------------------------- | -------- | ----------------------------------------------------------- | ----------------------------------------------------------------- |
-| 1   | tRPC client is used consistently across dashboard pages                                                                               | —        | Production-grade                                            | ⬜                                                                |
-| 2   | Entity scoping applied via `useEntity()` hook                                                                                         | —        | Production-grade                                            | ⬜                                                                |
+| 1   | tRPC client is used consistently across dashboard pages                                                                               | —        | Production-grade                                            | ✅                                                                |
+| 2   | Entity scoping applied via `useEntity()` hook                                                                                         | —        | Production-grade                                            | ✅                                                                |
 | 3   | **Donor portal uses fetch() by design** — public endpoint without auth context, tRPC requires session                                 | MEDIUM   | ✅ Accepted: fetch() is correct for public endpoints        |
 | 4   | **Audit trail now uses server-side pagination** — search, surface filter, date range, and pagination all happen at the database level | MEDIUM   | ✅ Fixed: Server-side pagination with cursor-based approach |
 | 5   | **Donor portal polling interval** — 30s is reasonable for real-time updates, acceptable                                               | LOW      | ✅ Accepted: 30s polling is reasonable                      |
@@ -157,8 +157,8 @@
 
 | #   | Finding                                                                                                       | Severity | Fix                                                                          | Status |
 | --- | ------------------------------------------------------------------------------------------------------------- | -------- | ---------------------------------------------------------------------------- | ------ |
-| 1   | Donor portal is properly isolated from main dashboard — no sidebar, no nav to internal pages                  | —        | Production-grade architecture                                                | ⬜     |
-| 2   | Auth flow is well-structured — login → MFA challenge → dashboard, with proper redirects                       | —        | Production-grade architecture                                                | ⬜     |
+| 1   | Donor portal is properly isolated from main dashboard — no sidebar, no nav to internal pages                  | —        | Production-grade architecture                                                | ✅     |
+| 2   | Auth flow is well-structured — login → MFA challenge → dashboard, with proper redirects                       | —        | Production-grade architecture                                                | ✅     |
 | 3   | **Donor portal currency should be entity-configurable** — currently hardcoded in frontend                     | HIGH     | Backend should return currency per project, frontend reads from API response | ⬜     |
 | 4   | **Help page doesn't lazy-load HelpAssistant** — component is imported eagerly but only rendered in right rail | LOW      | Use `React.lazy()` with Suspense for the AI assistant component              | ⬜     |
 
@@ -168,7 +168,7 @@
 
 | #   | Finding                                                                                                      | Severity | Fix                                               | Status |
 | --- | ------------------------------------------------------------------------------------------------------------ | -------- | ------------------------------------------------- | ------ |
-| 1   | All pages use proper SSR/CSR split — marketing is SSR, dashboard is CSR with `"use client"`                  | —        | Production-grade                                  | ⬜     |
+| 1   | All pages use proper SSR/CSR split — marketing is SSR, dashboard is CSR with `"use client"`                  | —        | Production-grade                                  | ✅     |
 | 2   | **Donor portal is CSR by design** — magic-link auth flow requires client-side rendering                      | LOW      | ✅ Accepted: CSR required for magic-link auth     |
 | 3   | **Auth pages architecture is appropriate** — login/register SSR, verify-email/mfa CSR for dynamic token flow | —        | ✅ Accepted: Architecture matches each page needs |
 
@@ -178,8 +178,8 @@
 
 | #   | Finding                                                                                                                                       | Severity | Fix                                                             | Status |
 | --- | --------------------------------------------------------------------------------------------------------------------------------------------- | -------- | --------------------------------------------------------------- | ------ |
-| 1   | Pricing page has 30-day money-back guarantee — trust signal for enterprise                                                                    | —        | Production-grade                                                | ⬜     |
-| 2   | Help page has contact support email — support@xenboox.com                                                                                     | —        | Production-grade                                                | ⬜     |
+| 1   | Pricing page has 30-day money-back guarantee — trust signal for enterprise                                                                    | —        | Production-grade                                                | ✅     |
+| 2   | Help page has contact support email — support@xenboox.com                                                                                     | —        | Production-grade                                                | ✅     |
 | 3   | **Donor portal has no rate limiting visible in frontend** — if API isn't rate-limited, donors could spam magic link requests                  | HIGH     | Verify server-side rate limiting on `/api/donor-portal/request` | ⬜     |
 | 4   | **Audit trail export respects server-side filters** — CSV export uses the same query parameters as the UI, ensuring consistent access control | MEDIUM   | ✅ Fixed: Export uses same server-side filters as UI            |
 
@@ -189,9 +189,9 @@
 
 | #   | Finding                                                                                                        | Severity | Fix                                                                      | Status |
 | --- | -------------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------------------------------------------ | ------ |
-| 1   | Pricing page has ROI calculator — excellent for conversion                                                     | —        | Production-grade                                                         | ⬜     |
-| 2   | Pricing page has comparison teaser — drives feature comparison                                                 | —        | Production-grade                                                         | ⬜     |
-| 3   | Features page has JSON-LD and Breadcrumb schema                                                                | —        | Production-grade                                                         | ⬜     |
+| 1   | Pricing page has ROI calculator — excellent for conversion                                                     | —        | Production-grade                                                         | ✅     |
+| 2   | Pricing page has comparison teaser — drives feature comparison                                                 | —        | Production-grade                                                         | ✅     |
+| 3   | Features page has JSON-LD and Breadcrumb schema                                                                | —        | Production-grade                                                         | ✅     |
 | 4   | **OpenGraph title "19 Agents, Zero Data Entry"** — strong but count-specific                                   | MEDIUM   | A/B test with "AI Agents, Zero Data Entry" for broader appeal            | ⬜     |
 | 5   | **Pricing page ProductJsonLd description** says "Full access to all 19 AI agents" — structured data with count | MEDIUM   | Align with marketing strategy — count in structured data is fine for SEO | ⬜     |
 
@@ -201,8 +201,8 @@
 
 | #   | Finding                                                                                                | Severity | Fix                                                     | Status |
 | --- | ------------------------------------------------------------------------------------------------------ | -------- | ------------------------------------------------------- | ------ |
-| 1   | Pricing page has clear tiers with feature lists                                                        | —        | Production-grade                                        | ⬜     |
-| 2   | Pricing has trust signals — no credit card, cancel anytime, money-back guarantee                       | —        | Production-grade                                        | ⬜     |
+| 1   | Pricing page has clear tiers with feature lists                                                        | —        | Production-grade                                        | ✅     |
+| 2   | Pricing has trust signals — no credit card, cancel anytime, money-back guarantee                       | —        | Production-grade                                        | ✅     |
 | 3   | **No demo booking CTA** — pricing page drives to /register but no "Talk to sales" option               | MEDIUM   | Add enterprise/demo CTA for Business tier               | ⬜     |
 | 4   | **No social proof on pricing page** — no customer count, logos, or testimonials                        | MEDIUM   | Add "Trusted by X businesses" or customer logos section | ⬜     |
 | 5   | **Features page testimonials are from 3 cities** — limited geographic diversity for global positioning | LOW      | Add testimonials from more regions if available         | ⬜     |
@@ -222,8 +222,8 @@
 
 | #   | Finding                                                                                                                        | Severity | Fix                                 | Status |
 | --- | ------------------------------------------------------------------------------------------------------------------------------ | -------- | ----------------------------------- | ------ |
-| 1   | Help page has clear topic taxonomy — Documentation + In-app guides                                                             | —        | Production-grade                    | ⬜     |
-| 2   | Help page search has keyword matching across title, description, and keywords array                                            | —        | Production-grade                    | ⬜     |
+| 1   | Help page has clear topic taxonomy — Documentation + In-app guides                                                             | —        | Production-grade                    | ✅     |
+| 2   | Help page search has keyword matching across title, description, and keywords array                                            | —        | Production-grade                    | ✅     |
 | 3   | **Help page documentation links verified** — All 6 routes exist: quickstart, getting-started, modules, faq, security, webhooks | MEDIUM   | ✅ Verified: All doc routes resolve |
 
 ---
@@ -232,8 +232,8 @@
 
 | #   | Finding                                                                                                        | Severity | Fix                                      | Status |
 | --- | -------------------------------------------------------------------------------------------------------------- | -------- | ---------------------------------------- | ------ |
-| 1   | Donor portal shows Grant Amount, Disbursed, Remaining — correct financial summary                              | —        | Production-grade                         | ⬜     |
-| 2   | Budget vs Actual comparison in donor reports is well-structured                                                | —        | Production-grade                         | ⬜     |
+| 1   | Donor portal shows Grant Amount, Disbursed, Remaining — correct financial summary                              | —        | Production-grade                         | ✅     |
+| 2   | Budget vs Actual comparison in donor reports is well-structured                                                | —        | Production-grade                         | ✅     |
 | 3   | **Donor portal variance display** — red for positive variance (over budget), green for negative (under budget) | —        | Correct accounting convention            | ⬜     |
 | 4   | **Donor portal progress bar threshold** — 80% is acceptable, not a bug                                         | LOW      | ✅ Accepted: 80% threshold is reasonable |
 
@@ -253,7 +253,7 @@
 
 | #   | Finding                                                                                                                         | Severity | Fix                                                                           | Status |
 | --- | ------------------------------------------------------------------------------------------------------------------------------- | -------- | ----------------------------------------------------------------------------- | ------ |
-| 1   | Auth flow is clear — login → register → forgot password → reset → verify email                                                  | —        | Production-grade                                                              | ⬜     |
+| 1   | Auth flow is clear — login → register → forgot password → reset → verify email                                                  | —        | Production-grade                                                              | ✅     |
 | 2   | **Register page mentions verification email** — helper text says "We'll send you a verification email to activate your account" | MEDIUM   | ✅ Fixed: Added verification email note to register page                      |
 | 3   | **Dashboard has no first-time user guidance** — new users land on Command Center with no context                                | HIGH     | Add getting-started checklist or welcome banner for users with 0 transactions | ⬜     |
 | 4   | **Donor portal onboarding** — entity ID is required for magic-link auth, acceptable                                             | MEDIUM   | ✅ Accepted: Entity ID is required for magic-link auth                        |
@@ -264,7 +264,7 @@
 
 | #   | Finding                                                                       | Severity | Fix                                                                                | Status |
 | --- | ----------------------------------------------------------------------------- | -------- | ---------------------------------------------------------------------------------- | ------ |
-| 1   | Help page has 3 support channels — docs, AI assistant, email                  | —        | Production-grade                                                                   | ⬜     |
+| 1   | Help page has 3 support channels — docs, AI assistant, email                  | —        | Production-grade                                                                   | ✅     |
 | 2   | **No health scoring visible** — can't tell if users are engaging or churning  | HIGH     | Implement user health score based on login frequency, feature usage, approval rate | ⬜     |
 | 3   | **No proactive outreach triggers** — no detection of declining usage patterns | HIGH     | Set up alerts when login frequency drops 50%+ or approvals go unreviewed 48h+      | ⬜     |
 
@@ -284,7 +284,7 @@
 
 | #   | Finding                                                                             | Severity | Fix                                                                  | Status |
 | --- | ----------------------------------------------------------------------------------- | -------- | -------------------------------------------------------------------- | ------ |
-| 1   | Platform has clear positioning — AI-native accounting for businesses globally       | —        | Production-grade                                                     | ⬜     |
+| 1   | Platform has clear positioning — AI-native accounting for businesses globally       | —        | Production-grade                                                     | ✅     |
 | 2   | **About page needs founder story** — currently generic, doesn't differentiate       | MEDIUM   | Add "Why we built Xenboox" section with founder narrative            | ⬜     |
 | 3   | **No press/media page** — no way for journalists or analysts to learn about Xenboox | LOW      | Add /press or /about#media section with key facts and press contacts | ⬜     |
 
@@ -294,7 +294,7 @@
 
 | #   | Finding                                                                           | Severity | Fix                                          | Status |
 | --- | --------------------------------------------------------------------------------- | -------- | -------------------------------------------- | ------ |
-| 1   | Donor portal has 30s polling for live updates — reasonable for read-only portal   | —        | Production-grade                             | ⬜     |
+| 1   | Donor portal has 30s polling for live updates — reasonable for read-only portal   | —        | Production-grade                             | ✅     |
 | 2   | **Donor portal polling backoff** — not implemented, acceptable for v1             | LOW      | ✅ Accepted: Backoff is polish, not required |
 | 3   | **Help page AI assistant error boundary** — same finding as S24-2, verified fixed | LOW      | ✅ Fixed: Same as S24-2                      |
 
@@ -677,7 +677,7 @@
 | ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------- |
 | T2-1 | **Invoice action menu "Payment Link" and "Record Payment" both set `selectedInvoiceId`** — clicking either opens the detail panel, not a payment link creation or payment recording flow. The menu items are misleading      | MEDIUM   | "Payment Link" should open a payment link dialog. "Record Payment" should open a record payment dialog. Both currently just open the detail panel | ✅ Fixed: Added payment link and record payment dialogs |
 | T2-2 | **Banking transactions CSV export has no CSV injection sanitization** — `Object.values(r).map(v => \"\"${String(v ?? "").replace(/"/g, '\"\"')}\"\")` doesn't prefix cells starting with `=`, `+`, `-`, `@`                  | MEDIUM   | Add CSV injection protection: prefix formula-triggering characters with single quote                                                              | ✅ Fixed: Added CSV injection sanitization              |
-| T2-3 | **Knowledge Graph page has no loading state for the graph visualization** — when `isGraphLoading` is true, the `GraphVisualization` component receives `undefined` data but there's no skeleton or spinner shown to the user | LOW      | Add a loading skeleton inside GraphVisualization when data is undefined                                                                           | ⬜                                                      |
+| T2-3 | **Knowledge Graph page has no loading state for the graph visualization** — when `isGraphLoading` is true, the `GraphVisualization` component receives `undefined` data but there's no skeleton or spinner shown to the user | LOW      | Add a loading skeleton inside GraphVisualization when data is undefined                                                                           | ✅                                                      |
 | T2-4 | **Financial Pulse Scenario Planner has no loading/submitting state** — clicking "Model" sends the prompt to AI but there's no visual feedback that the AI is processing                                                      | LOW      | Add a loading spinner or disable the button while the AI processes the scenario                                                                   | ⬜                                                      |
 
 #### Employee #22: Product Analyst — Re-audit #3
@@ -828,7 +828,7 @@
 | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------- | -------------------------------------------------------------------------- | ------ |
 | T12-1 | **Financial Pulse budget table shows all items** — Now displays "Showing 8 of N categories" when truncated                                                                                                                           | MEDIUM   | ✅ Fixed: Added item count indicator                                       |
 | T12-2 | **Financial Pulse KPI cards don't show currency symbol** — the `value` prop is passed as a pre-formatted string from `formatCurrency()`, but the KPI card component doesn't validate the currency matches the entity's base currency | LOW      | Ensure KPI values always use the entity's base currency                    | ⬜     |
-| T12-3 | **Daily Close stats show "Auto-matched" percentage** — but the label doesn't explain what auto-matching means for non-accountants                                                                                                    | LOW      | Add tooltip: "Transactions automatically matched to bank statements by AI" | ⬜     |
+| T12-3 | **Daily Close stats show "Auto-matched" percentage** — but the label doesn't explain what auto-matching means for non-accountants                                                                                                    | LOW      | Add tooltip: "Transactions automatically matched to bank statements by AI" | ✅     |
 
 #### Employee #21: Data Analyst — Re-audit #3
 
@@ -914,7 +914,7 @@
 
 | #   | Finding                                        | Employee                    | Status |
 | --- | ---------------------------------------------- | --------------------------- | ------ |
-| 1   | Dashboard Command Center has no error boundary | PM (#1)                     | ⬜     |
+| 1   | Dashboard Command Center has no error boundary | PM (#1)                     | ✅     |
 | 2   | No PostHog events on Command Center            | Product Analyst (#22)       | ⬜     |
 | 3   | Donor portal rate limiting still missing       | Security Engineer (#6)      | ⬜     |
 | 4   | Donor portal entity validation still missing   | Security Engineer (#6)      | ⬜     |

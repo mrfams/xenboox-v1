@@ -920,8 +920,11 @@ export default function FinancialPulsePage() {
             <div className="text-lg font-bold text-emerald-500">
               {stats ? Math.round(stats.autoMatchRate * 100) : 0}%
             </div>
-            <div className="text-[10px] text-muted-foreground">
+            <div className="group relative text-[10px] text-muted-foreground">
               Auto-matched
+              <div className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 -translate-x-1/2 whitespace-nowrap rounded-lg bg-popover px-3 py-1.5 text-xs text-popover-foreground shadow-md opacity-0 transition-opacity group-hover:opacity-100">
+                Transactions automatically matched to bank statements by AI
+              </div>
             </div>
           </div>
         </div>
