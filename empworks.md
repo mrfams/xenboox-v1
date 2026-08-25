@@ -69,8 +69,8 @@
 | 1   | Help page search placeholder is excellent — "Search help topics… e.g. invoice, reconcile, security"                               | —        | Production-grade                                                                         | ⬜     |
 | 2   | Auth pages have clear CTAs — "Sign up free", "Sign in", "Back to sign in"                                                         | —        | Production-grade                                                                         | ⬜     |
 | 3   | MFA page copy is clear — "Enter the 6-digit code from your authenticator app"                                                     | —        | Production-grade                                                                         | ⬜     |
-| 4   | Verify email success: "You can now access all features of Xenboox" — could be warmer                                              | MEDIUM   | Consider "Welcome aboard! You're all set."                                               | ⬜     |
-| 5   | Verify email error: "Go to Settings to Resend" — unclear what settings                                                            | MEDIUM   | Specify "Go to Email Settings to Resend Verification"                                    | ⬜     |
+| 4   | Verify email success message updated — now says "Email verified! You're all set to start using Xenboox."                          | MEDIUM   | ✅ Fixed: Updated success message                                                        |
+| 5   | Verify email error action updated — button now says "Go to Email Settings to Resend"                                              | MEDIUM   | ✅ Fixed: Updated error action text                                                      |
 | 6   | Donor portal error messages are good — "This login link has expired. Please request a new one."                                   | —        | Production-grade                                                                         | ⬜     |
 | 7   | Dashboard help page empty state is clear — "No topics match… Try a different keyword, or ask the AI assistant directly"           | —        | Production-grade                                                                         | ⬜     |
 | 8   | **Donor portal landing page** says "Ask your organization for their Xenboox entity ID" — donors won't know what an "entity ID" is | MEDIUM   | Rephrase to "Ask your organization for their Reference Code" or make it optional         | ⬜     |
@@ -251,12 +251,12 @@
 
 ## Employee #10: Onboarding Specialist — Score: 7/10
 
-| #   | Finding                                                                                           | Severity | Fix                                                                           | Status |
-| --- | ------------------------------------------------------------------------------------------------- | -------- | ----------------------------------------------------------------------------- | ------ |
-| 1   | Auth flow is clear — login → register → forgot password → reset → verify email                    | —        | Production-grade                                                              | ⬜     |
-| 2   | **No welcome email reference in code** — auth pages don't mention what happens after registration | MEDIUM   | Add a note on register page: "We'll send you a verification email"            | ⬜     |
-| 3   | **Dashboard has no first-time user guidance** — new users land on Command Center with no context  | HIGH     | Add getting-started checklist or welcome banner for users with 0 transactions | ⬜     |
-| 4   | **Donor portal onboarding** — donor must know their entity ID to access portal                    | MEDIUM   | Consider a "Find your organization" flow or make entity ID discoverable       | ⬜     |
+| #   | Finding                                                                                                                         | Severity | Fix                                                                           | Status |
+| --- | ------------------------------------------------------------------------------------------------------------------------------- | -------- | ----------------------------------------------------------------------------- | ------ |
+| 1   | Auth flow is clear — login → register → forgot password → reset → verify email                                                  | —        | Production-grade                                                              | ⬜     |
+| 2   | **Register page mentions verification email** — helper text says "We'll send you a verification email to activate your account" | MEDIUM   | ✅ Fixed: Added verification email note to register page                      |
+| 3   | **Dashboard has no first-time user guidance** — new users land on Command Center with no context                                | HIGH     | Add getting-started checklist or welcome banner for users with 0 transactions | ⬜     |
+| 4   | **Donor portal onboarding** — donor must know their entity ID to access portal                                                  | MEDIUM   | Consider a "Find your organization" flow or make entity ID discoverable       | ⬜     |
 
 ---
 
@@ -458,7 +458,7 @@
 
 | #     | Finding                                                                                                                                                   | Severity | Fix                                                                                                                           | Status                                                              |
 | ----- | --------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
-| S10-1 | **Register page doesn't mention verification email** — user clicks "Sign up free" but has no idea an email is coming                                      | MEDIUM   | Add helper text below the form: "We'll send you a verification email to activate your account"                                | ⬜                                                                  |
+| S10-1 | **Register page mentions verification email** — helper text says "We'll send you a verification email to activate your account"                           | MEDIUM   | ✅ Fixed: Added verification email note to register page                                                                      |
 | S10-2 | **No first-time user experience in dashboard** — new users land on Command Center with zero transactions and no guidance on what to do first              | HIGH     | Add onboarding checklist when `transactionCount === 0`: 1. Connect bank, 2. Set up chart of accounts, 3. Create first invoice | ✅ Fixed: Added getting-started checklist for users with 0 messages |
 | S10-3 | **Donor portal requires entity ID from the donor** — the donor must already know their organization's Xenboox entity ID to log in, which creates friction | MEDIUM   | Add "Not sure? Contact your organization" link or a "Find my organization" lookup by email                                    | ⬜                                                                  |
 
