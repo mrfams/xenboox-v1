@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import Link from "next/link";
 import {
   Search,
@@ -27,6 +27,7 @@ import {
 import { cn } from "@/lib/utils";
 import { AiSimulationTrigger } from "@/components/ai-ux/simulation-trigger";
 import { HelpAssistant } from "@/components/dashboard/help-assistant";
+import { ErrorBoundary } from "@/components/shared/error-boundary";
 
 // ─── Data ──────────────────────────────────────────────────────────────────
 
@@ -190,6 +191,13 @@ function TopicCard({ topic }: { topic: HelpTopic }) {
 
 export default function HelpPage() {
   const [query, setQuery] = useState("");
+  const [isHealthy, setIsHealthy] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    fetch("/api/health/ready")
+      .then((res) => setIsHealthy(res.ok))
+      .catch(() => setIsHealthy(false));
+  }, []);
 
   const filteredTopics = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -216,12 +224,27 @@ export default function HelpPage() {
               Guides, documentation, and support for every part of Xenboox
             </p>
           </div>
-          <span className="hidden items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700 sm:inline-flex dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-400">
+          <span
+            className={cn(
+              "hidden items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium sm:inline-flex",
+              isHealthy === false
+                ? "border border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-400"
+                : "border border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-400",
+            )}
+          >
             <span className="relative flex h-2 w-2">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+              {isHealthy === false ? (
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-amber-500" />
+              ) : (
+                <>
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+                </>
+              )}
             </span>
-            All systems operational
+            {isHealthy === false
+              ? "Some systems may be degraded"
+              : "All systems operational"}
           </span>
         </div>
       </div>
@@ -443,7 +466,9 @@ export default function HelpPage() {
 
             {/* Help Assistant — sticky right rail */}
             <div className="h-[560px] rounded-2xl border border-border bg-card shadow-sm lg:sticky lg:top-6 dark:border-border/60">
-              <HelpAssistant />
+              <ErrorBoundary surface="help-assistant">
+                <HelpAssistant />
+              </ErrorBoundary>
             </div>
           </div>
         </div>
