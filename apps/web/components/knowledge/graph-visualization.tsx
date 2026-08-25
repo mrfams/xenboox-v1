@@ -360,9 +360,13 @@ export function GraphVisualization({
       <div className="flex h-96 items-center justify-center rounded-xl border border-dashed border-border/50 bg-card">
         <div className="flex flex-col items-center text-center">
           <Building2 className="h-12 w-12 text-muted-foreground/30 mb-3" />
-          <p className="text-sm font-medium text-foreground">No graph data</p>
+          <p className="text-sm font-medium text-foreground">
+            No graph data yet
+          </p>
           <p className="text-xs text-muted-foreground mt-1 max-w-xs">
-            Build your knowledge graph to visualize entity relationships
+            Build a graph of your business relationships to enable AI-powered
+            insights. The graph connects companies, invoices, accounts, and
+            transactions.
           </p>
           <button
             type="button"
