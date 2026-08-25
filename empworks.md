@@ -711,9 +711,9 @@
 
 #### Employee #14: Brand Voice — Re-audit #3
 
-| #     | Finding                                                                                                                                                                                                                       | Severity | Fix                                                           | Status |
-| ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------------------------------- | ------ |
-| T14-1 | **Knowledge Base page uses different voice than rest of app** — "AI-native knowledge management" is technical jargon, while the rest of the app uses plain language like "Your AI briefing" and "AI categorizes transactions" | MEDIUM   | Align Knowledge Base copy with the app's plain-language voice | ⬜     |
+| #     | Finding                                                                                                     | Severity | Fix                                         | Status |
+| ----- | ----------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------------- | ------ |
+| T14-1 | **Knowledge Base copy aligned** — Header simplified to plain language, uses ModulePageShell for consistency | MEDIUM   | ✅ Fixed: Simplified copy + ModulePageShell |
 
 ---
 
@@ -721,12 +721,12 @@
 
 #### Employee #5: Design Critic — Re-audit #3
 
-| #    | Finding                                                                                                                                                                                                     | Severity | Fix                                                                                       | Status |
-| ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ----------------------------------------------------------------------------------------- | ------ |
-| T5-1 | **Knowledge Base stats cards use inconsistent icon backgrounds** — `bg-blue-100`, `bg-green-100`, `bg-purple-100`, `bg-amber-100` are light-mode-only. Every other dashboard page uses `/10` opacity tokens | MEDIUM   | Replace with `bg-blue-500/10`, `bg-emerald-500/10`, `bg-purple-500/10`, `bg-amber-500/10` | ⬜     |
-| T5-2 | **Knowledge Base doesn't use `ModulePageShell`** — raw `<div>` with manual header. Inconsistent with every other dashboard page                                                                             | MEDIUM   | Wrap in `ModulePageShell` for consistent layout                                           | ⬜     |
-| T5-3 | **Financial Pulse KPI drill-down drawer uses `fixed inset-0 z-50`** — same z-index as modals. If a modal is open and user clicks a KPI, the drawer appears behind the modal                                 | LOW      | Use `z-[60]` or ensure drawer closes any open modals                                      | ⬜     |
-| T5-4 | **Invoice detail panel action menu uses `fixed inset-0 z-40` overlay** — clicking the overlay closes the menu, but the z-index might conflict with the ModulePageShell header                               | LOW      | Verify z-index stack doesn't cause overlay conflicts                                      | ⬜     |
+| #    | Finding                                                                                                                                                                       | Severity | Fix                                                  | Status |
+| ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ---------------------------------------------------- | ------ |
+| T5-1 | **Knowledge Base icon backgrounds updated** — Using opacity tokens (bg-blue-500/10, etc.)                                                                                     | MEDIUM   | ✅ Fixed: Updated to opacity tokens                  |
+| T5-2 | **Knowledge Base now uses ModulePageShell** — Consistent layout with other dashboard pages                                                                                    | MEDIUM   | ✅ Fixed: Wrapped in ModulePageShell                 |
+| T5-3 | **Financial Pulse KPI drill-down drawer uses `fixed inset-0 z-50`** — same z-index as modals. If a modal is open and user clicks a KPI, the drawer appears behind the modal   | LOW      | Use `z-[60]` or ensure drawer closes any open modals | ⬜     |
+| T5-4 | **Invoice detail panel action menu uses `fixed inset-0 z-40` overlay** — clicking the overlay closes the menu, but the z-index might conflict with the ModulePageShell header | LOW      | Verify z-index stack doesn't cause overlay conflicts | ⬜     |
 
 #### Employee #15: Product Designer — Re-audit #3
 

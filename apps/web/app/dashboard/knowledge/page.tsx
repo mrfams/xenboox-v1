@@ -18,6 +18,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui";
 import { Badge } from "@/components/ui";
 import { KnowledgeSearch } from "@/components/knowledge/knowledge-search";
 import { DocumentProcessor } from "@/components/knowledge/document-processor";
+import { ModulePageShell } from "@/components/module/module-page-shell";
 import {
   Search,
   Upload,
@@ -46,15 +47,23 @@ export default function KnowledgeBasePage() {
     });
 
   return (
-    <div className="space-y-6 p-3 pb-20">
-      {/* Page Header */}
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Knowledge Base</h1>
-        <p className="text-muted-foreground">
-          Search and process your business documents with AI.
-        </p>
-      </div>
-
+    <ModulePageShell
+      title="Knowledge Base"
+      description="Search and process your business documents with AI."
+      icon={Database}
+      aiSuggestions={[
+        {
+          label: "Search my documents",
+          prompt:
+            "Search my knowledge base for information about vendors, invoices, or accounts",
+        },
+        {
+          label: "What documents do I have?",
+          prompt:
+            "Show me what documents are in my knowledge base and their status",
+        },
+      ]}
+    >
       {/* Onboarding Banner — shown when no documents exist */}
       {!statsLoading && (stats?.documentCount ?? 0) === 0 && (
         <KnowledgeBaseOnboarding
@@ -215,7 +224,7 @@ export default function KnowledgeBasePage() {
           </Card>
         </TabsContent>
       </Tabs>
-    </div>
+    </ModulePageShell>
   );
 }
 
