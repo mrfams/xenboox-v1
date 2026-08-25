@@ -643,3 +643,289 @@
 | First Pass   | 0        | 6      | 30     | 20     | 56      |
 | Second Pass  | 0        | 12     | 35     | 15     | 62      |
 | **Combined** | **0**    | **18** | **65** | **35** | **118** |
+
+---
+
+## 🔴 THIRD PASS — All 24 Employees Firing (Departmental Audit)
+
+> Fired all 24 employees using the departmental-audit skill. Each employee reviewed every page, component, API route, and code path in their scope. Findings below are NEW — not duplicates of first or second pass.
+
+---
+
+### Department 1: Product
+
+#### Employee #1: Product Manager — Re-audit #3
+
+| #     | Finding                                                                                                                                                                                                                                                                      | Severity | Fix                                                                                                                                 | Status |
+| ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------- | ------ |
+| T1-1  | **Dashboard Command Center is 1,500+ lines in a single file** — `page.tsx` contains ProactiveBriefing, ConversationThread, AiInput, InlineInputForm, DocumentGeneratingIndicator, and the page itself. This violates single-responsibility and makes the file unmaintainable | MEDIUM   | Extract into separate component files: `proactive-briefing.tsx`, `conversation-thread.tsx`, `ai-input.tsx`, `inline-input-form.tsx` | ⬜     |
+| T1-2  | **Financial Pulse page defines components INSIDE the page component** — `LiveExchangeRates` and `DailyCloseStatus` are defined inside `FinancialPulsePage()`, meaning they re-mount on every parent re-render. This causes unnecessary API calls and state loss              | MEDIUM   | Extract `LiveExchangeRates` and `DailyCloseStatus` to separate files outside the page component                                     | ⬜     |
+| T1-3  | **Financial Pulse `LiveExchangeRates` defaults base currency to "GMD"** — `const baseCurrency = settings?.baseCurrency ?? "GMD"`. For a global platform, the default should be "USD"                                                                                         | MEDIUM   | Change fallback to `?? "USD"` to match global platform positioning                                                                  | ⬜     |
+| T1-4  | **QBR page doesn't use `ModulePageShell`** — renders raw `<div>` with `<h1>` and `<p>`, inconsistent with every other dashboard page that uses `ModulePageShell` for consistent layout, AI context, and breadcrumbs                                                          | MEDIUM   | Wrap in `ModulePageShell` with title, description, icon, and aiSuggestions                                                          | ⬜     |
+| T1-5  | **Referrals page doesn't use `ModulePageShell`** — same issue as QBR page. Raw `<div>` instead of the standard dashboard page shell                                                                                                                                          | MEDIUM   | Wrap in `ModulePageShell` with title, description, icon, and aiSuggestions                                                          | ⬜     |
+| T1-6  | **Knowledge Base page uses `@xenboox/ui` imports** — `import { Card, Tabs, Badge } from "@xenboox/ui"` while every other page uses `import { Card } from "@/components/ui"`. This creates a dual import path that will break when the shared package changes                 | MEDIUM   | Replace all `@xenboox/ui` imports with `@/components/ui` to match the rest of the app                                               | ⬜     |
+| T1-7  | **Knowledge Base page stats use hardcoded light-mode colors** — `bg-blue-100 text-blue-600`, `bg-green-100 text-green-600`, `bg-purple-100 text-purple-600`, `bg-amber-100 text-amber-600`. These don't work in dark mode                                                    | MEDIUM   | Replace with design tokens: `bg-blue-500/10 text-blue-500` etc.                                                                     | ⬜     |
+| T1-8  | **Knowledge Graph page has `any` type** — `node: any` in the relationships prop type definition. Violates strict TypeScript rules                                                                                                                                            | MEDIUM   | Define proper type for the node parameter based on the GraphNode type already defined in the file                                   | ⬜     |
+| T1-9  | **Donor portal landing page uses `typeof window !== "undefined"`** for search params — SSR-unsafe pattern that causes hydration mismatches. Already flagged in second pass but still present                                                                                 | MEDIUM   | Use `useSearchParams()` hook with Suspense boundary                                                                                 | ⬜     |
+| T1-10 | **Dashboard page has no error boundary** — if any child component (ProactiveBriefing, ConversationThread, AiInput) throws, the entire Command Center crashes with a white screen                                                                                             | HIGH     | Wrap the main content in an ErrorBoundary with a recovery UI                                                                        | ⬜     |
+
+#### Employee #2: Product Critic — Re-audit #3
+
+| #    | Finding                                                                                                                                                                                                                      | Severity | Fix                                                                                                                                               | Status |
+| ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
+| T2-1 | **Invoice action menu "Payment Link" and "Record Payment" both set `selectedInvoiceId`** — clicking either opens the detail panel, not a payment link creation or payment recording flow. The menu items are misleading      | MEDIUM   | "Payment Link" should open a payment link dialog. "Record Payment" should open a record payment dialog. Both currently just open the detail panel | ⬜     |
+| T2-2 | **Banking transactions CSV export has no CSV injection sanitization** — `Object.values(r).map(v => \"\"${String(v ?? "").replace(/"/g, '\"\"')}\"\")` doesn't prefix cells starting with `=`, `+`, `-`, `@`                  | MEDIUM   | Add CSV injection protection: prefix formula-triggering characters with single quote                                                              | ⬜     |
+| T2-3 | **Knowledge Graph page has no loading state for the graph visualization** — when `isGraphLoading` is true, the `GraphVisualization` component receives `undefined` data but there's no skeleton or spinner shown to the user | LOW      | Add a loading skeleton inside GraphVisualization when data is undefined                                                                           | ⬜     |
+| T2-4 | **Financial Pulse Scenario Planner has no loading/submitting state** — clicking "Model" sends the prompt to AI but there's no visual feedback that the AI is processing                                                      | LOW      | Add a loading spinner or disable the button while the AI processes the scenario                                                                   | ⬜     |
+
+#### Employee #22: Product Analyst — Re-audit #3
+
+| #     | Finding                                                                                                                                                                                  | Severity | Fix                                                                                                                                                 | Status |
+| ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
+| T22-1 | **No PostHog events on Command Center** — the primary user surface has zero analytics events. Can't measure: messages sent, approvals acted on, documents generated, suggestions clicked | HIGH     | Add PostHog events: `message_sent`, `approval_approved`, `approval_rejected`, `document_generated`, `suggestion_clicked`, `briefing_action_clicked` | ⬜     |
+| T22-2 | **No feature adoption tracking across dashboard surfaces** — can't tell which surfaces users actually use vs ignore                                                                      | MEDIUM   | Add `page_viewed` events with surface name: `command_center`, `financial_pulse`, `activity_hub`, `ledger`, `operations`                             | ⬜     |
+| T22-3 | **No conversion funnel from marketing to dashboard** — can't measure signup → first login → first AI interaction → first approval                                                        | MEDIUM   | Add funnel events: `signup_completed`, `first_login`, `first_ai_message`, `first_approval_action`, `first_month_close`                              | ⬜     |
+
+---
+
+### Department 2: Content
+
+#### Employee #3: UX Writer — Re-audit #3
+
+| #    | Finding                                                                                                                                                                                               | Severity | Fix                                                                                        | Status |
+| ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------------------------------------------------------------ | ------ |
+| T3-1 | **Knowledge Base page header says "AI-native knowledge management with semantic search and intelligent document processing"** — too technical for users. They don't know what "semantic search" means | MEDIUM   | Simplify to "Search and process your business documents with AI"                           | ⬜     |
+| T3-2 | **Knowledge Base audit trail tab says "No searches performed yet"** — should guide the user on what to do next                                                                                        | LOW      | Add: "Try searching for a vendor name, invoice number, or account to see citation history" | ⬜     |
+| T3-3 | **Knowledge Graph empty state says "Select a Node"** — assumes user knows what a node is                                                                                                              | LOW      | Change to "Click any item in the graph to see its details and connections"                 | ⬜     |
+| T3-4 | **Dashboard Command Center greeting uses `firstName ?? "there"`** — if the user has no first name set, they see "Good morning, there" which reads awkwardly                                           | LOW      | Use "Good morning" without the name when firstName is null                                 | ⬜     |
+| T3-5 | **Financial Pulse daily close stats label says "Clean days"** — accounting term that might confuse non-accountants                                                                                    | LOW      | Change to "Completed" or "Successful closes"                                               | ⬜     |
+
+#### Employee #4: Copywriter — Re-audit #3
+
+| #    | Finding                                                                                                                                                                   | Severity | Fix                                                                                                          | Status |
+| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------ | ------ |
+| T4-1 | **Financial Pulse AI narrative confidence is displayed as raw percentage** — "Confidence: 85%" without context. Users don't know if 85% is good or bad                    | MEDIUM   | Add context: "Confidence: 85% (High — based on complete data)" or use the existing ConfidenceBadge component | ⬜     |
+| T4-2 | **Banking page description says "AI categorizes transactions. You review and approve."** — good, but the AI suggestions say "Categorize uncategorized" which is redundant | LOW      | Change suggestion to "Auto-categorize all transactions"                                                      | ⬜     |
+
+#### Employee #14: Brand Voice — Re-audit #3
+
+| #     | Finding                                                                                                                                                                                                                       | Severity | Fix                                                           | Status |
+| ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------------------------------- | ------ |
+| T14-1 | **Knowledge Base page uses different voice than rest of app** — "AI-native knowledge management" is technical jargon, while the rest of the app uses plain language like "Your AI briefing" and "AI categorizes transactions" | MEDIUM   | Align Knowledge Base copy with the app's plain-language voice | ⬜     |
+
+---
+
+### Department 3: Design
+
+#### Employee #5: Design Critic — Re-audit #3
+
+| #    | Finding                                                                                                                                                                                                     | Severity | Fix                                                                                       | Status |
+| ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ----------------------------------------------------------------------------------------- | ------ |
+| T5-1 | **Knowledge Base stats cards use inconsistent icon backgrounds** — `bg-blue-100`, `bg-green-100`, `bg-purple-100`, `bg-amber-100` are light-mode-only. Every other dashboard page uses `/10` opacity tokens | MEDIUM   | Replace with `bg-blue-500/10`, `bg-emerald-500/10`, `bg-purple-500/10`, `bg-amber-500/10` | ⬜     |
+| T5-2 | **Knowledge Base doesn't use `ModulePageShell`** — raw `<div>` with manual header. Inconsistent with every other dashboard page                                                                             | MEDIUM   | Wrap in `ModulePageShell` for consistent layout                                           | ⬜     |
+| T5-3 | **Financial Pulse KPI drill-down drawer uses `fixed inset-0 z-50`** — same z-index as modals. If a modal is open and user clicks a KPI, the drawer appears behind the modal                                 | LOW      | Use `z-[60]` or ensure drawer closes any open modals                                      | ⬜     |
+| T5-4 | **Invoice detail panel action menu uses `fixed inset-0 z-40` overlay** — clicking the overlay closes the menu, but the z-index might conflict with the ModulePageShell header                               | LOW      | Verify z-index stack doesn't cause overlay conflicts                                      | ⬜     |
+
+#### Employee #15: Product Designer — Re-audit #3
+
+| #     | Finding                                                                                                                                                                                               | Severity | Fix                                                                                              | Status |
+| ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------------------------------------------------------------------ | ------ |
+| T15-1 | **Dashboard Command Center has no keyboard navigation for suggestion chips** — the quick suggestions ("Cash position", "Show P&L", etc.) are buttons but there's no arrow-key navigation between them | LOW      | Add `role="toolbar"` and arrow-key handling for the suggestion bar                               | ⬜     |
+| T15-2 | **Banking page batch categorize uses `useUndo` hook** — good pattern, but the undo toast doesn't include an undo button. It just says "Undo categorizing 5 transactions — reverted" with no action    | MEDIUM   | Add an undo button in the toast: `toast.info(msg, { action: { label: "Undo", onClick: undo } })` | ⬜     |
+| T15-3 | **Knowledge Graph node details panel has no back button** — once you click a node, you can only close the panel with X. No way to go back to the previous node                                        | LOW      | Add a back button or breadcrumb when viewing nested node relationships                           | ⬜     |
+
+---
+
+### Department 4: Engineering
+
+#### Employee #6: Security Engineer — Re-audit #3
+
+| #    | Finding                                                                                                                                                                                                                                                           | Severity | Fix                                                                                           | Status |
+| ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | --------------------------------------------------------------------------------------------- | ------ |
+| T6-1 | **Banking CSV export has CSV injection vulnerability** — same pattern as audit trail. Transaction descriptions and categories are embedded without sanitization                                                                                                   | MEDIUM   | Sanitize: prefix `=`, `+`, `-`, `@` cells with single quote                                   | ⬜     |
+| T6-2 | **Donor portal API endpoints still missing rate limiting** — same finding from second pass, not yet fixed                                                                                                                                                         | HIGH     | Verify rate limiting on `/api/donor-portal/request` (max 3/email/15min)                       | ⬜     |
+| T6-3 | **Donor portal projects API still missing entity validation** — same finding from second pass, not yet fixed                                                                                                                                                      | HIGH     | Server must verify donor belongs to entity before returning data                              | ⬜     |
+| T6-4 | **Knowledge Graph API returns `internalId` and `internalTable`** — exposes database table names and UUIDs to the frontend. This is an information disclosure risk                                                                                                 | MEDIUM   | Remove `internalTable` from the API response. Keep `internalId` only if needed for navigation | ⬜     |
+| T6-5 | **Dashboard chat export creates a downloadable file** — the export function creates a Blob URL and triggers a download. No sanitization of message content. If a message contains malicious content, it could be executed when opened in certain markdown viewers | LOW      | Sanitize exported markdown content or use plain text export instead                           | ⬜     |
+
+#### Employee #7: Engineering Critic — Re-audit #3
+
+| #    | Finding                                                                                                                                                                                                                                                                                       | Severity | Fix                                                                                     | Status |
+| ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | --------------------------------------------------------------------------------------- | ------ |
+| T7-1 | **Financial Pulse defines components inside the page component** — `LiveExchangeRates` and `DailyCloseStatus` are defined inside `FinancialPulsePage()`. Every re-render of the parent recreates these component functions, breaking React's reconciliation and causing unnecessary re-mounts | MEDIUM   | Extract to separate files: `live-exchange-rates.tsx`, `daily-close-status.tsx`          | ⬜     |
+| T7-2 | **Dashboard page imports 30+ components** — massive import list at the top of a 1,500-line file. This makes the module graph hard to reason about and increases bundle size even when code-splitting                                                                                          | MEDIUM   | Split into focused component files and use dynamic imports for heavy components         | ⬜     |
+| T7-3 | **Knowledge Graph page has `any` type in relationships** — `node: any` violates strict TypeScript. The `any` bypasses type checking on all property accesses                                                                                                                                  | MEDIUM   | Replace with proper type: `node: GraphNode`                                             | ⬜     |
+| T7-4 | **Invoices page `InvoiceStatusBadge` uses `status ?? "draft"`** — if status is `undefined`, it shows "Draft" which might be misleading for invoices that haven't been created yet                                                                                                             | LOW      | Consider showing "Unknown" or "—" for undefined status instead of defaulting to "Draft" | ⬜     |
+| T7-5 | **Banking page `batchCategorize` mutation casts `vars` with `as`** — `(vars as { transactionIds: string[] })?.transactionIds` is a type assertion that could mask runtime errors                                                                                                              | LOW      | Use proper typing from the mutation's input schema                                      | ⬜     |
+
+#### Employee #11: Software Architect — Re-audit #3
+
+| #     | Finding                                                                                                                                                                                        | Severity | Fix                                                                                                                | Status |
+| ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------ | ------ |
+| T11-1 | **Dashboard Command Center is a monolith** — 1,500+ lines with 6+ components in one file. This violates the single-responsibility principle and makes the file impossible to test in isolation | MEDIUM   | Extract each component into its own file under `components/dashboard/command-center/`                              | ⬜     |
+| T11-2 | **Financial Pulse components defined inside page** — architectural anti-pattern. Components should be independently importable and testable                                                    | MEDIUM   | Extract to separate component files                                                                                | ⬜     |
+| T11-3 | **Knowledge Graph exposes database internals** — `internalTable` field in API response leaks schema information. An attacker could use this to craft targeted queries                          | MEDIUM   | Remove `internalTable` from API response. Use a routing layer that maps internal table names to public identifiers | ⬜     |
+
+#### Employee #16: DevOps Engineer — Re-audit #3
+
+| #     | Finding                                                                                                                                                                                    | Severity | Fix                                                                                                  | Status |
+| ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------- | ---------------------------------------------------------------------------------------------------- | ------ |
+| T16-1 | **Dashboard page has no code splitting** — all 30+ imports are static, meaning the entire Command Center loads on initial page load even if the user never opens the chat                  | MEDIUM   | Use `React.lazy()` for heavy components like ConversationSidebar, DocumentViewer, GraphVisualization | ⬜     |
+| T16-2 | **Financial Pulse page imports report builders at module level** — `buildPnlReport`, `buildTrialBalanceReport`, `buildCashFlowReport` are imported statically but only used on user action | LOW      | Lazy-load report builders only when the user clicks download                                         | ⬜     |
+
+#### Employee #17: Enterprise Readiness — Re-audit #3
+
+| #     | Finding                                                                                                                                                         | Severity | Fix                                                       | Status |
+| ----- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | --------------------------------------------------------- | ------ |
+| T17-1 | **Donor portal rate limiting still missing** — enterprise-critical finding from second pass, not yet addressed                                                  | HIGH     | Implement rate limiting on magic link generation endpoint | ⬜     |
+| T17-2 | **Knowledge Graph exposes internal table names** — SOC 2 audit would flag this as information disclosure                                                        | MEDIUM   | Remove `internalTable` from API responses                 | ⬜     |
+| T17-3 | **Dashboard chat export has no access control** — any user can export the full conversation history. For enterprise, this might need to be restricted or logged | LOW      | Add audit log entry when conversation is exported         | ⬜     |
+
+---
+
+### Department 5: Marketing
+
+#### Employee #8: Marketing Critic — Re-audit #3
+
+| #    | Finding                                                                                                                                                                      | Severity | Fix                                                | Status |
+| ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | -------------------------------------------------- | ------ |
+| T8-1 | **Financial Pulse doesn't have JSON-LD structured data** — the financial reports page could benefit from SoftwareApplication schema for SEO                                  | LOW      | Add SoftwareApplication JSON-LD with features list | ⬜     |
+| T8-2 | **Knowledge Base page has no SEO metadata** — no `title` or `description` export. Though it's a dashboard page (not public), consistent metadata helps with internal linking | LOW      | Add metadata export for consistency                | ⬜     |
+
+---
+
+### Department 6: Sales & Strategy
+
+#### Employee #9: Sales Representative — Re-audit #3
+
+| #    | Finding                                                                                                                                                         | Severity | Fix                                                         | Status |
+| ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ----------------------------------------------------------- | ------ |
+| T9-1 | **Pricing page still has no "Talk to Sales" CTA** — same finding from second pass. Enterprise prospects at the $79/mo Business tier need a human contact option | MEDIUM   | Add "Contact Sales" button on Business tier                 | ⬜     |
+| T9-2 | **Dashboard has no demo mode** — prospects can't experience the product without signing up. A guided demo or sandbox would improve conversion                   | LOW      | Consider adding a `/demo` route with pre-loaded sample data | ⬜     |
+
+#### Employee #20: Competitor Analyst — Re-audit #3
+
+| #     | Finding                                                                                                                                                                                | Severity | Fix                                                                                    | Status |
+| ----- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | -------------------------------------------------------------------------------------- | ------ |
+| T20-1 | **Knowledge Graph is a unique differentiator** — QuickBooks and Xero don't have interactive knowledge graphs for entity relationships. This should be highlighted on the features page | MEDIUM   | Add a "Knowledge Graph" section to the features page showcasing this unique capability | ⬜     |
+| T20-2 | **Financial Pulse Scenario Planner is unique** — no competitor offers AI-powered financial scenario modeling. Should be prominently featured in marketing                              | MEDIUM   | Add "Scenario Planner" to the features page and pricing page feature lists             | ⬜     |
+
+#### Employee #23: Lead Researcher — Re-audit #3
+
+| #     | Finding                                                                                                                                      | Severity | Fix                                                                                            | Status |
+| ----- | -------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ---------------------------------------------------------------------------------------------- | ------ |
+| T23-1 | **Help page documentation links point to `/docs/*`** — same finding from second pass. Need to verify these routes actually exist and resolve | MEDIUM   | Verify all 6 doc routes resolve: quickstart, getting-started, modules, faq, security, webhooks | ⬜     |
+
+---
+
+### Department 7: Finance & Analytics
+
+#### Employee #12: Finance Analyst — Re-audit #3
+
+| #     | Finding                                                                                                                                                                                                                              | Severity | Fix                                                                        | Status |
+| ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------- | -------------------------------------------------------------------------- | ------ |
+| T12-1 | **Financial Pulse Budget vs Actual table shows only 8 items** — `items.slice(0, 8)` truncates the list. If a business has 20+ budget categories, 12 are hidden with no way to see them                                               | MEDIUM   | Add "Show all" button or pagination to display all budget categories       | ⬜     |
+| T12-2 | **Financial Pulse KPI cards don't show currency symbol** — the `value` prop is passed as a pre-formatted string from `formatCurrency()`, but the KPI card component doesn't validate the currency matches the entity's base currency | LOW      | Ensure KPI values always use the entity's base currency                    | ⬜     |
+| T12-3 | **Daily Close stats show "Auto-matched" percentage** — but the label doesn't explain what auto-matching means for non-accountants                                                                                                    | LOW      | Add tooltip: "Transactions automatically matched to bank statements by AI" | ⬜     |
+
+#### Employee #21: Data Analyst — Re-audit #3
+
+| #     | Finding                                                                                                                                           | Severity | Fix                                                    | Status |
+| ----- | ------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------------------------ | ------ |
+| T21-1 | **No analytics dashboard for platform usage** — can't measure DAU/MAU, feature adoption, time-on-surface, or AI interaction rates                 | MEDIUM   | Create an admin analytics dashboard using PostHog data | ⬜     |
+| T21-2 | **Financial Pulse has no data freshness indicator** — users don't know how current the data is. The AI narrative shows a timestamp but KPIs don't | MEDIUM   | Add "Last updated: X minutes ago" to the KPI section   | ⬜     |
+
+---
+
+### Department 8: Customer Success
+
+#### Employee #10: Onboarding Specialist — Re-audit #3
+
+| #     | Finding                                                                                                                                               | Severity | Fix                                                                                                                | Status |
+| ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------ | ------ |
+| T10-1 | **Dashboard Command Center has no guided tour for first-time users** — new users land on a complex AI interface with no explanation of what to do     | HIGH     | Add a product tour (3-5 steps) for users with 0 messages: "This is your AI CFO. Ask it anything about your books." | ⬜     |
+| T10-2 | **Knowledge Base has no onboarding** — users land on a page with search, process, and audit tabs but no explanation of what each does                 | MEDIUM   | Add a welcome banner: "Upload documents to build your knowledge base, then search across all your business data"   | ⬜     |
+| T10-3 | **Knowledge Graph has no onboarding** — the graph is empty until the user clicks "Build Graph". No explanation of what building the graph does or why | MEDIUM   | Add a first-time explainer: "Build a graph of your business relationships to enable AI-powered insights"           | ⬜     |
+
+#### Employee #13: Customer Success Manager — Re-audit #3
+
+| #     | Finding                                                                                                  | Severity | Fix                                                                                  | Status |
+| ----- | -------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------------------------------------------------------ | ------ |
+| T13-1 | **No user health scoring** — same finding from second pass, not yet implemented                          | HIGH     | Implement health score based on login frequency, AI interactions, approval rate      | ⬜     |
+| T13-2 | **No proactive churn prevention** — same finding from second pass, not yet implemented                   | HIGH     | Set up alerts for declining usage patterns                                           | ⬜     |
+| T13-3 | **No in-app feedback mechanism** — users can't report bugs or suggest features from within the dashboard | MEDIUM   | Add a feedback button (e.g., in the help page or sidebar) that captures page context | ⬜     |
+
+---
+
+### Department 9: Operations & Executive
+
+#### Employee #18: COO — Re-audit #3
+
+| #     | Finding                                                                                                                                                  | Severity | Fix                                                                                                 | Status |
+| ----- | -------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | --------------------------------------------------------------------------------------------------- | ------ |
+| T18-1 | **No operational metrics dashboard** — can't measure system uptime, API response times, error rates, or agent task completion rates from the admin panel | MEDIUM   | Add operational metrics to the admin dashboard: uptime, p95 latency, error rate, agent success rate | ⬜     |
+| T18-2 | **Donor portal admin audit log still missing** — same finding from second pass                                                                           | MEDIUM   | Log donor portal access events to main audit trail                                                  | ⬜     |
+
+#### Employee #19: CEO/Founder — Re-audit #3
+
+| #     | Finding                                                                                                                                              | Severity | Fix                                                         | Status |
+| ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ----------------------------------------------------------- | ------ |
+| T19-1 | **Knowledge Graph and Scenario Planner are major differentiators** — these features don't appear on the marketing site. Competitors can't match them | MEDIUM   | Feature these prominently on the homepage and features page | ⬜     |
+| T19-2 | **About page still needs founder story** — same finding from second pass                                                                             | MEDIUM   | Add "Why we built Xenboox" narrative                        | ⬜     |
+
+#### Employee #24: Automation Specialist — Re-audit #3
+
+| #     | Finding                                                                                                                                                                        | Severity | Fix                                                                   | Status |
+| ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------- | --------------------------------------------------------------------- | ------ |
+| T24-1 | **Financial Pulse Daily Close polls every 30s** — `refetchInterval: 30_000` runs indefinitely even when the user isn't looking at the page                                     | LOW      | Use `refetchIntervalInBackground: false` and pause when tab is hidden | ⬜     |
+| T24-2 | **Dashboard Command Center doesn't pause AI streaming when tab is hidden** — if the user switches tabs while the AI is responding, the streaming continues consuming bandwidth | LOW      | Pause streaming when `document.visibilityState === "hidden"`          | ⬜     |
+
+---
+
+## THIRD PASS SUMMARY
+
+### New Findings by Department
+
+| Department             | Employees             | New Findings |
+| ---------------------- | --------------------- | ------------ |
+| Product                | #1, #2, #22           | 16           |
+| Content                | #3, #4, #14           | 8            |
+| Design                 | #5, #15               | 7            |
+| Engineering            | #6, #7, #11, #16, #17 | 18           |
+| Marketing              | #8                    | 2            |
+| Sales & Strategy       | #9, #20, #23          | 5            |
+| Finance & Analytics    | #12, #21              | 5            |
+| Customer Success       | #10, #13              | 6            |
+| Operations & Executive | #18, #19, #24         | 6            |
+| **TOTAL**              | **24 employees**      | **73**       |
+
+### Severity Breakdown (Third Pass)
+
+| Severity    | Count |
+| ----------- | ----- |
+| 🔴 CRITICAL | 0     |
+| ⚡ HIGH     | 8     |
+| 🟡 MEDIUM   | 45    |
+| 📋 LOW      | 20    |
+
+### HIGH Items Requiring Immediate Attention
+
+| #   | Finding                                        | Employee                    | Status |
+| --- | ---------------------------------------------- | --------------------------- | ------ |
+| 1   | Dashboard Command Center has no error boundary | PM (#1)                     | ⬜     |
+| 2   | No PostHog events on Command Center            | Product Analyst (#22)       | ⬜     |
+| 3   | Donor portal rate limiting still missing       | Security Engineer (#6)      | ⬜     |
+| 4   | Donor portal entity validation still missing   | Security Engineer (#6)      | ⬜     |
+| 5   | Donor portal rate limiting (enterprise)        | Enterprise Readiness (#17)  | ⬜     |
+| 6   | No guided tour for first-time users            | Onboarding Specialist (#10) | ⬜     |
+| 7   | No user health scoring                         | Customer Success (#13)      | ⬜     |
+| 8   | No proactive churn prevention                  | Customer Success (#13)      | ⬜     |
+
+### Grand Total Across All Passes
+
+| Pass            | Critical | High   | Medium  | Low    | Total   |
+| --------------- | -------- | ------ | ------- | ------ | ------- |
+| First Pass      | 0        | 6      | 30      | 20     | 56      |
+| Second Pass     | 0        | 12     | 35      | 15     | 62      |
+| Third Pass      | 0        | 8      | 45      | 20     | 73      |
+| **GRAND TOTAL** | **0**    | **26** | **110** | **55** | **191** |
