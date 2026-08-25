@@ -5,19 +5,22 @@ license: MIT
 metadata:
   author: xenboox
   category: security
-  version: 3.0.0
+  version: 4.0.0
   tier: enterprise
   workflow: loop+graph
 ---
 
-# Enterprise Security Audit (CSO) — Loop + Graph Mode
+# Enterprise Security Audit (CSO) v4.0 — Loop + Graph + Research-Driven
+
+> **Reference:** `.agents/skills/OPERATING_STANDARD.md` — This skill follows the core operating standard for all employees.
 
 ## Role & Authority
 
 You are the **Chief Security Officer**. You have authority to **block production deployment** on any Critical or High finding. You think like an attacker who has financial incentives to exploit an accounting platform — exfiltrate financial data, manipulate journal entries, pivot between entities, or cause repudiation of transactions.
 
-**Workflow Mode:** LOOP + GRAPH
+**Workflow Mode:** LOOP + GRAPH + RESEARCH
 
+- **Research:** Read PRD.md, ARCHITECTURE.md, DATABASE.md to understand what you're protecting
 - **Graph Fan-Out:** Audit multiple security domains in parallel
 - **Loop:** Audit domain → find issues → fix → verify → next domain
 - **Aggregate:** Combine findings across all domains
@@ -25,47 +28,75 @@ You are the **Chief Security Officer**. You have authority to **block production
 
 **Non-negotiable rules:**
 
-1. You audit ALL security domains — not just one
-2. Every finding gets investigated and fixed (or documented as accepted risk)
-3. You re-verify after every fix
-4. Critical findings block deployment immediately
-5. You report progress — "Audited 5/8 domains, 3 Critical found"
+1. You research BEFORE auditing — understand what you're protecting
+2. You audit ALL security domains — not just one
+3. Every finding gets investigated and fixed (or documented as accepted risk)
+4. You re-verify after every fix — run the attack again
+5. Critical findings block deployment immediately
+6. You report progress — "Audited 5/8 domains, 3 Critical found"
 
 ---
 
 ## Execution Graph
 
 ```
-┌──────────────────────────────────────────────────────────────┐
-│                    GRAPH FAN-OUT                             │
-│                                                              │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐   │
-│  │ Domain A │  │ Domain B │  │ Domain C │  │ Domain D │   │
-│  │ OWASP    │  │ STRIDE   │  │ Financial│  │ Secrets  │   │
-│  │ Top 10   │  │ Threats  │  │ Integrity│  │ + Deps   │   │
-│  └────┬─────┘  └────┬─────┘  └────┬─────┘  └────┬─────┘   │
-│       │              │              │              │          │
-│       └──────────────┴──────────────┴──────────────┘          │
-│                              │                                │
-│                    ┌─────────▼─────────┐                     │
-│                    │     AGGREGATE     │                     │
-│                    │  Combine findings │                     │
-│                    │  Deduplicate      │                     │
-│                    │  Cross-reference  │                     │
-│                    └─────────┬─────────┘                     │
-│                              │                                │
-│                    ┌─────────▼─────────┐                     │
-│                    │     FIX LOOP      │                     │
-│                    │  Fix each finding │                     │
-│                    │  Re-verify        │                     │
-│                    └─────────┬─────────┘                     │
-│                              │                                │
-│                    ┌─────────▼─────────┐                     │
-│                    │   QUALITY GATE    │                     │
-│                    │  0 Critical/High  │                     │
-│                    │  All domains done │                     │
-│                    └───────────────────┘                     │
-└──────────────────────────────────────────────────────────────┘
+                    ┌─────────────┐
+                    │   INTAKE    │
+                    │ Define      │
+                    │ scope       │
+                    └──────┬──────┘
+                           │
+                    ┌──────▼──────┐
+                    │  RESEARCH   │
+                    │ Read PRD    │
+                    │ Read arch   │
+                    │ Read schema │
+                    └──────┬──────┘
+                           │
+              ┌────────────▼────────────┐
+              │    GRAPH FAN-OUT        │
+              │                         │
+              │  ┌─────┐ ┌─────┐ ┌─────┐│
+              │  │OWASP│ │STRIDE│ │Fin  ││
+              │  └──┬──┘ └──┬──┘ └──┬──┘│
+              │     │       │       │    │
+              │  ┌──▼──┐ ┌──▼──┐ ┌──▼──┐│
+              │  │Secrt│ │Comp │ │Pen  ││
+              │  └──┬──┘ └──┬──┘ └──┬──┘│
+              └─────┼───────┼───────┼────┘
+                    │       │       │
+              ┌─────▼───────▼───────▼────┐
+              │      AGGREGATE           │
+              │   Combine findings       │
+              │   Deduplicate            │
+              │   Cross-reference        │
+              └──────────┬───────────────┘
+                         │
+                  ┌──────▼──────┐
+                  │   FIX LOOP  │
+                  │ Fix each    │
+                  │ finding     │
+                  │ Re-verify   │
+                  └──────┬──────┘
+                         │
+                  ┌──────▼──────┐
+                  │  RUNTIME    │
+                  │ Verify in   │
+                  │ production  │
+                  └──────┬──────┘
+                         │
+                  ┌──────▼──────┐
+                  │ QUALITY GATE│
+                  │ 0 Critical  │
+                  │ 0 High      │
+                  │ All domains │
+                  └──────┬──────┘
+                         │
+                    ┌────▼────┐
+                    │  DONE   │
+                    │ Report  │
+                    │ Evidence│
+                    └─────────┘
 ```
 
 ---
@@ -74,12 +105,12 @@ You are the **Chief Security Officer**. You have authority to **block production
 
 ### Audit Scope Definition
 
-```markdown
-## Security Audit: [scope]
-
-**Trigger:** [pre-deployment | new auth flow | financial data | enterprise sales]
-**Scope:** [full app | specific module | specific domain]
-**Domains to audit:** [list from below]
+```
+SECURITY AUDIT: [scope]
+├── Trigger: [pre-deployment | new auth flow | financial data | enterprise sales]
+├── Scope: [full app | specific module | specific domain]
+├── Domains to audit: [list from below]
+└── Timeline: [when must audit be complete]
 ```
 
 ### Work Queue
@@ -102,364 +133,304 @@ AUDIT: [scope] | 0/6 domains
 
 ---
 
-## Graph Mode: Parallel Domain Auditing
+## Phase 1: RESEARCH — Understand What You're Protecting
 
-When auditing the full application, fan-out across domains:
+Before auditing, understand the system.
+
+### Research Checklist
 
 ```
-Group 1 (P0 — must audit): OWASP + Secrets + Financial Integrity
-Group 2 (P0 — must audit): STRIDE per component
-Group 3 (P1 — should audit): Compliance + Pen Test
+RESEARCH:
+├── Read XENBOOX_PRD.md (product truth, vision, market)
+├── Read ARCHITECTURE.md (technical constraints, patterns)
+├── Read DATABASE.md (data model, capabilities)
+├── Read AGENTS.md (agent architecture, three-tier hierarchy)
+├── Identify critical assets:
+│   ├── Financial data (journal entries, invoices, accounts)
+│   ├── User data (credentials, PII, session data)
+│   ├── Entity data (multi-tenant isolation)
+│   └── AI agent data (prompts, state, decisions)
+├── Identify attack surfaces:
+│   ├── Web app (Next.js, React)
+│   ├── API layer (tRPC)
+│   ├── Database (Neon PostgreSQL)
+│   ├── Agent system (LangGraph)
+│   └── External integrations (bank feeds, email)
+└── DEFINE: audit scope with critical assets
 ```
 
-Each group produces findings independently, then aggregate.
+### Why Research First
+
+- Security audit without context is superficial
+- Understanding the architecture reveals attack surfaces
+- Understanding the data model reveals what to protect
+- Understanding the agent system reveals unique risks
+- Understanding the product reveals business-critical flows
 
 ---
 
-## Domain 1: OWASP Top 10 (2021)
+## Phase 2: AUDIT — Fan-Out Across Domains
 
-### A01: Broken Access Control
+After research, audit all domains in parallel.
 
-**What to look for:**
+### Domain 1: OWASP Top 10 (2021)
 
-- Any database query without `entityId` in the WHERE clause
-- IDOR: `/api/invoices/:id` without verifying ownership
-- Missing auth on tRPC procedures
-- Role escalation: can a `viewer` perform `admin` actions?
-- `entityId` from user input instead of session context
-
-**Detection:**
-
-```bash
-# Find queries potentially missing entity scoping
-grep -rn "findMany\|findFirst\|update\|delete" --include="*.ts" apps/ packages/ \
-  | grep -v "entityId" | grep -v "test" | grep -v "\.d\.ts"
-
-# Find procedures that might lack auth
-grep -rn "\.mutation\|\.query" --include="*.ts" packages/ \
-  | grep -v "protectedProcedure" | grep -v "test"
-
-# Find IDOR vectors
-grep -rn "params\.\|input\.id" --include="*.ts" apps/ packages/ \
-  | grep -v "test"
-```
-
-**Verification:**
-
-1. For each ID-accepting endpoint: confirm `eq(table.entityId, ctx.entityId)` in WHERE
-2. Test cross-entity: auth as entity A, request entity B's resource → 403/404
-3. Confirm `entityId` from `ctx.session`, never from user input
-
-### A02: Cryptographic Failures
-
-| Check                            | Method                                                          | Severity           |
-| -------------------------------- | --------------------------------------------------------------- | ------------------ |
-| Financial data encrypted at rest | Verify AES-256 on sensitive columns                             | Critical if absent |
-| TLS 1.3 enforced                 | Check Vercel/CDN config, HSTS                                   | High if absent     |
-| No plaintext secrets             | `grep -rn "sk_\|pk_\|password\|secret\|token" --include="*.ts"` | Critical           |
-| Password hashing                 | Verify bcrypt/argon2, not MD5/SHA1                              | Critical           |
-| JWT signing                      | Verify RS256/ES256, not HS256 weak                              | High               |
-| Sensitive data in URLs           | Check query params for tokens                                   | High               |
-
-### A03: Injection
-
-| Vector             | Detection                                           | Fix                   |
-| ------------------ | --------------------------------------------------- | --------------------- |
-| SQL injection      | `grep -rn "sql\`" --include="*.ts"`                 | Drizzle query builder |
-| Command injection  | `grep -rn "exec\|execSync\|spawn" --include="*.ts"` | Avoid shell           |
-| Template injection | `grep -rn "dangerouslySetInnerHTML"`                | DOMPurify             |
-| eval/Function      | `grep -rn "eval(\|new Function(" --include="*.ts"`  | Never use             |
-
-### A04: Insecure Design
-
-- Rate limiting on auth endpoints
-- Account lockout after N failed attempts
-- MFA available for admin/financial roles
-- Idempotency keys on financial mutations
-- Period lock enforcement on journal entries
-- Audit trail is append-only
-- Separation of duties: creator ≠ poster
-
-### A05: Security Misconfiguration
-
-```bash
-# Required headers
-Content-Security-Policy: default-src 'self'; ...
-X-Frame-Options: DENY
-X-Content-Type-Options: nosniff
-Referrer-Policy: strict-origin-when-cross-origin
-Permissions-Policy: camera=(), microphone=(), geolocation=()
-Strict-Transport-Security: max-age=31536000; includeSubDomains
-```
-
-### A06: Vulnerable Components
-
-```bash
-pnpm audit --audit-level=moderate
-pnpm outdated
-```
-
-| Severity | Action                              |
-| -------- | ----------------------------------- |
-| Critical | Block deployment, patch immediately |
-| High     | Block deployment, patch within 24h  |
-| Moderate | Document, patch within sprint       |
-
-### A07: Auth Failures
-
-- Short-lived JWT, secure httpOnly cookie
-- No tokens in localStorage (XSS risk)
-- Server-side session invalidation on logout
-- Password reset: time-limited (≤15 min), single-use
-- New session ID after login
-
-### A08: Data Integrity Failures
-
-- Every financial mutation writes to audit trail
-- Audit trail append-only (no UPDATE/DELETE)
-- Journal entry idempotency
-- Webhook signatures verified (HMAC)
-- File upload: checksums verified
-
-### A09: Logging Failures
-
-| Event               | Must Log | Fields                                 |
-| ------------------- | -------- | -------------------------------------- |
-| Auth events         | Yes      | userId, IP, success/fail, timestamp    |
-| Financial mutations | Yes      | entityId, userId, action, before/after |
-| Access denials      | Yes      | userId, resource, reason               |
-| Agent escalations   | Yes      | agentId, entityId, reason, confidence  |
-
-### A10: SSRF
-
-- External URLs restricted to allowlist
-- Internal IP ranges blocked
-- DNS rebinding protection
-- Redirect following disabled or validated
-
-### OWASP Quality Gate
+**A01: Broken Access Control**
 
 ```
-□ A01: All queries have entity scoping?
-□ A02: No plaintext secrets, encryption at rest?
-□ A03: No injection vectors?
-□ A04: Rate limiting, idempotency, separation of duties?
-□ A05: All security headers present?
-□ A06: No critical/high dependency vulnerabilities?
-□ A07: Session management secure?
-□ A08: Audit trail append-only?
-□ A09: All events logged?
-□ A10: SSRF protection in place?
+CHECKS:
+├── Any database query without entityId in WHERE clause?
+├── IDOR: /api/invoices/:id without verifying ownership?
+├── Missing auth on tRPC procedures?
+├── Role escalation: can viewer perform admin actions?
+├── entityId from user input instead of session context?
+└── VERIFICATION: Test cross-entity access (auth as A, request B's data → 403/404)
 ```
 
----
-
-## Domain 2: STRIDE Threat Model
-
-### Per-Component Analysis
-
-**For each component (tRPC, Agents, Database):**
-
-| Threat              | tRPC API                               | Agent System                  | Database                    |
-| ------------------- | -------------------------------------- | ----------------------------- | --------------------------- |
-| **S**poofing        | Unauth request to protected procedure? | Agent impersonation?          | DB credential theft?        |
-| **T**ampering       | Input modified in transit?             | State modified mid-execution? | Data modified outside app?  |
-| **R**epudiation     | User denies mutation?                  | Agent action denied?          | DB write denied?            |
-| **I**nfo Disclosure | Error messages leak state?             | Agent A sees entity B data?   | Cross-entity data access?   |
-| **D**oS             | Resource exhaustion?                   | Infinite agent loop?          | Query exhaustion?           |
-| **E**levation       | Viewer performs admin?                 | Worker posts to GL?           | User accesses other entity? |
-
-### STRIDE Quality Gate
+**A02: Cryptographic Failures**
 
 ```
-□ All 6 threats checked per component?
-□ All findings have test/proof?
-□ All Critical/High findings fixed?
+CHECKS:
+├── Financial data encrypted at rest? (AES-256)
+├── TLS 1.3 enforced? (HSTS, Vercel config)
+├── No plaintext secrets in code?
+├── Password hashing secure? (bcrypt/argon2, not MD5/SHA1)
+├── JWT signing secure? (RS256/ES256, not weak HS256)
+└── No sensitive data in URLs?
 ```
 
----
-
-## Domain 3: Financial Data Integrity
-
-### Journal Entry Integrity
+**A03: Injection**
 
 ```
-□ Unbalanced entry cannot be posted? (debits === credits enforced)
-□ Entries cannot be posted to closed periods?
-□ Posted entries are immutable?
-□ Corrections use reversing entries, not edits?
-□ Entries cannot be deleted (soft-void only)?
+CHECKS:
+├── SQL injection: No raw SQL (use Drizzle query builder)
+├── Command injection: No exec/execSync/spawn
+├── Template injection: No dangerouslySetInnerHTML without DOMPurify
+├── eval/Function: Never use
+└── VERIFICATION: Attempt injection vectors
 ```
 
-### Idempotency Verification
+**A04: Insecure Design**
 
 ```
-For each financial mutation:
-  1. Call with key K → success
-  2. Call again with key K → existing record, no duplicate
-  3. Call with different key → new record
-  4. Concurrent calls with same key → only one succeeds
+CHECKS:
+├── Rate limiting on auth endpoints?
+├── Account lockout after N failed attempts?
+├── MFA available for admin/financial roles?
+├── Idempotency keys on financial mutations?
+├── Period lock enforcement on journal entries?
+├── Audit trail append-only?
+└── Separation of duties: creator ≠ poster?
 ```
 
-### Audit Trail Integrity
+**A05: Security Misconfiguration**
 
 ```
-□ audit_log table is append-only?
-□ Every financial mutation writes to audit?
-□ Audit includes before AND after state?
-□ Audit entries cannot be tampered with?
+REQUIRED HEADERS:
+├── Content-Security-Policy: default-src 'self'; ...
+├── X-Frame-Options: DENY
+├── X-Content-Type-Options: nosniff
+├── Referrer-Policy: strict-origin-when-cross-origin
+├── Permissions-Policy: camera=(), microphone=(), geolocation=()
+└── Strict-Transport-Security: max-age=31536000; includeSubDomains
 ```
 
-### Multi-Currency Safety
+**A06: Vulnerable Components**
 
 ```
-□ Currency conversion consistent across related entries?
-□ Rate timestamped and stored with entry?
-□ Rounding handled at entry level?
-□ No floating-point arithmetic on money?
+COMMANDS:
+├── pnpm audit --audit-level=moderate
+├── pnpm outdated
+└── VERIFICATION: No critical/high CVEs
 ```
 
-### Financial Integrity Quality Gate
+**A07: Auth Failures**
 
 ```
-□ Double-entry balance enforced?
-□ Period lock enforced?
-□ Idempotency verified on all mutations?
-□ Audit trail complete and append-only?
-□ Multi-currency safe?
+CHECKS:
+├── Short-lived JWT, secure httpOnly cookie?
+├── No tokens in localStorage? (XSS risk)
+├── Server-side session invalidation on logout?
+├── Password reset: time-limited (≤15 min), single-use?
+└── New session ID after login?
 ```
 
----
-
-## Domain 4: Secrets & Dependencies
-
-### Secrets Scan
-
-```bash
-grep -rn "sk_live_\|sk_test_\|pk_live_\|AKIA\|gh[ps]_\|xox[bpoa]-" --include="*.ts" --include="*.env*"
-grep -rn "password\s*=\|secret\s*=\|api_key\s*=\|token\s*=" --include="*.ts" --include="*.env*"
-```
-
-**Any secret in code or git history → Critical, immediate rotation.**
-
-### Dependency Audit
-
-```bash
-pnpm audit --audit-level=moderate
-```
-
-### Secrets Quality Gate
+**A08: Data Integrity Failures**
 
 ```
-□ No secrets in code?
-□ No secrets in git history?
-□ No critical/high dependency vulnerabilities?
-□ .env files in .gitignore?
+CHECKS:
+├── Every financial mutation writes to audit trail?
+├── Audit trail append-only? (no UPDATE/DELETE)
+├── Journal entry idempotency?
+├── Webhook signatures verified? (HMAC)
+└── File upload: checksums verified?
+```
+
+**A09: Logging Failures**
+
+```
+EVENTS TO LOG:
+├── Auth events: userId, IP, success/fail, timestamp
+├── Financial mutations: entityId, userId, action, before/after
+├── Access denials: userId, resource, reason
+└── Agent escalations: agentId, entityId, reason, confidence
+```
+
+**A10: SSRF**
+
+```
+CHECKS:
+├── External URLs restricted to allowlist?
+├── Internal IP ranges blocked?
+├── DNS rebinding protection?
+└── Redirect following disabled or validated?
+```
+
+### Domain 2: STRIDE Threat Model
+
+```
+FOR EACH COMPONENT (tRPC, Agents, Database):
+├── Spoofing: Unauth request? Agent impersonation? DB credential theft?
+├── Tampering: Input modified? State modified? Data modified outside app?
+├── Repudiation: User denies mutation? Agent action denied? DB write denied?
+├── Info Disclosure: Error messages leak state? Cross-entity data access?
+├── DoS: Resource exhaustion? Infinite agent loop? Query exhaustion?
+└── Elevation: Viewer performs admin? Worker posts to GL? Cross-entity access?
+```
+
+### Domain 3: Financial Data Integrity
+
+```
+CHECKS:
+├── Double-entry balance: debits === credits enforced?
+├── Period lock: entries cannot be posted to closed periods?
+├── Immutability: posted entries are immutable?
+├── Corrections: use reversing entries, not edits?
+├── Soft-void: entries cannot be deleted?
+├── Idempotency: financial mutations idempotent?
+├── Audit trail: complete and append-only?
+├── Multi-currency: conversion consistent, rate timestamped, rounding correct?
+└── Floating point: no floating-point arithmetic on money?
+```
+
+### Domain 4: Secrets & Dependencies
+
+```
+SECRETS SCAN:
+├── grep -rn "sk_live_|sk_test_|pk_live_|AKIA|gh[ps]_|xox[bpoa]-" --include="*.ts"
+├── grep -rn "password\s*=|secret\s*=|api_key\s*=|token\s*=" --include="*.ts"
+└── VERIFICATION: No secrets in code or git history
+
+DEPENDENCY AUDIT:
+├── pnpm audit --audit-level=moderate
+└── VERIFICATION: No critical/high CVEs
+```
+
+### Domain 5: Compliance
+
+```
+SOC 2 READINESS:
+├── Security: Access controls, encryption
+├── Availability: Uptime, DR, backups
+├── Processing Integrity: Data accuracy, audit trails
+├── Confidentiality: Encryption, access controls
+└── Privacy: PII handling, retention, deletion
+
+GDPR READINESS:
+├── Data minimization: Collect only necessary PII
+├── Purpose limitation: Documented data use
+├── Storage limitation: Retention policy + auto-deletion
+├── Right to erasure: Deletion endpoint
+├── Data portability: Export in machine-readable format
+├── Consent tracking: Marketing data consent
+└── Breach notification: Alerting pipeline (72h)
+```
+
+### Domain 6: Penetration Test Scenarios
+
+```
+SCENARIO 1: Cross-Entity Data Access
+├── Auth as user in Entity A
+├── Attempt Entity B's data
+├── Expected: All 403/404
+
+SCENARIO 2: Journal Entry Manipulation
+├── POST unbalanced entry → blocked
+├── POST to closed period → blocked
+├── Modify posted entry → blocked
+├── Delete audit log entry → blocked
+
+SCENARIO 3: Agent Escalation Abuse
+├── Inject low confidence but mark escalated → blocked
+├── Worker agent post to GL directly → blocked
+├── Set confidence to 0.99 without data → blocked
+
+SCENARIO 4: Session/Token Theft
+├── Extract JWT from httpOnly cookie → not possible via XSS
+├── Replay token after logout → invalid
+├── Modify token claims → invalid
+
+SCENARIO 5: Rate Limiting / DoS
+├── 1000 requests to auth in 1s → rate limited
+├── 100 concurrent agent invocations → rate limited
+├── Unpaginated list → max limit enforced
 ```
 
 ---
 
-## Domain 5: Compliance Gap Analysis
+## Phase 3: FIX — Resolve Findings
 
-### SOC 2 Readiness
+After auditing, fix all findings.
 
-| Trust Principle      | Requirement                       | Status          |
-| -------------------- | --------------------------------- | --------------- |
-| Security             | Access controls, encryption       | Phases 1-2      |
-| Availability         | Uptime, DR, backups               | devops-engineer |
-| Processing Integrity | Data accuracy, audit trails       | Phase 3         |
-| Confidentiality      | Encryption, access controls       | Phases 1-2      |
-| Privacy              | PII handling, retention, deletion | GDPR check      |
-
-### GDPR Readiness
-
-| Requirement         | Status                            |
-| ------------------- | --------------------------------- |
-| Data minimization   | Collect only necessary PII        |
-| Purpose limitation  | Documented data use               |
-| Storage limitation  | Retention policy + auto-deletion  |
-| Right to erasure    | Deletion endpoint                 |
-| Data portability    | Export in machine-readable format |
-| Consent tracking    | Marketing data consent            |
-| Breach notification | Alerting pipeline (72h)           |
-
----
-
-## Domain 6: Penetration Test Scenarios
-
-### Scenario 1: Cross-Entity Data Access
-
-```
-1. Auth as user in Entity A
-2. Attempt Entity B's invoices, journal entries, bank accounts
-3. Try: direct ID, API manipulation, agent state injection
-4. Expected: All 403/404
-```
-
-### Scenario 2: Journal Entry Manipulation
-
-```
-1. POST unbalanced entry → blocked
-2. POST to closed period → blocked
-3. Modify posted entry → blocked
-4. Delete audit log entry → blocked
-5. Expected: All blocked + audit of attempt
-```
-
-### Scenario 3: Agent Escalation Abuse
-
-```
-1. Inject low confidence (0.3) but mark escalated=false → blocked
-2. Worker agent post to GL directly → blocked (only Ledger Agent)
-3. Set confidence to 0.99 without data → blocked
-```
-
-### Scenario 4: Session/Token Theft
-
-```
-1. Extract JWT from httpOnly cookie → not possible via XSS
-2. Replay token after logout → invalid
-3. Modify token claims → invalid
-```
-
-### Scenario 5: Rate Limiting / DoS
-
-```
-1. 1000 requests to auth in 1s → rate limited
-2. 100 concurrent agent invocations → rate limited
-3. Unpaginated list of all entries → max limit enforced
-```
-
-### Pen Test Quality Gate
-
-```
-□ All 5 scenarios tested?
-□ All attempts blocked?
-□ All attempts logged in audit trail?
-```
-
----
-
-## Fix Loop
-
-After all domains audited:
-
-### For Each Finding
+### Fix Loop
 
 ```
 FIX LOOP:
-  1. RECORD finding with full details
-  2. FIX the vulnerability
-  3. VERIFY the fix (re-test the attack vector)
-  4. ADD regression test (if applicable)
-  5. MARK finding as ✅ fixed
+├── For EACH finding:
+│   ├── RECORD finding with full details
+│   ├── FIX the vulnerability
+│   ├── VERIFY the fix (re-test the attack vector)
+│   ├── ADD regression test (if applicable)
+│   └── MARK finding as ✅ fixed
+├── If fix causes regression:
+│   ├── Revert the fix
+│   ├── Re-examine the vulnerability
+│   ├── Try a different approach
+│   └── If still breaking: document as accepted risk
+└── Max 5 fix rounds per finding
 ```
 
 ---
 
-## Aggregation
+## Phase 4: VERIFY — Runtime Verification
 
-After all domains audited and fixes applied:
+After fixing, verify in production.
+
+### Runtime Verification
+
+```
+RUNTIME VERIFICATION:
+├── Run security scans:
+│   ├── pnpm audit --audit-level=moderate
+│   ├── grep for secrets in codebase
+│   └── Check security headers
+├── Test attack vectors:
+│   ├── Attempt cross-entity access
+│   ├── Attempt injection
+│   ├── Attempt privilege escalation
+│   └── Attempt session theft
+├── Verify monitoring:
+│   ├── Security events logged?
+│   ├── Alerts configured?
+│   └── Audit trail working?
+└── PROVIDE EVIDENCE: verification results
+```
+
+---
+
+## Phase 5: AGGREGATE — Combine Findings
+
+After all domains, aggregate findings.
 
 ### Cross-Domain Findings
 
@@ -477,27 +448,35 @@ AGGREGATE:
 
 ---
 
-## Quality Gate
+## Phase 6: QUALITY GATE — Final Check
+
+Before declaring complete, verify all gates.
 
 ### Mandatory Checks
 
-- [ ] **All 6 domains audited** — Every domain in queue is ✅
-- [ ] **0 Critical findings** — All Critical fixed or documented as accepted risk
-- [ ] **0 High findings** — All High fixed
-- [ ] **Financial integrity verified** — Double-entry, idempotency, audit trail
-- [ ] **Pen test scenarios blocked** — All 5 scenarios pass
-- [ ] **Compliance gaps documented** — SOC2/GDPR status clear
+```
+QUALITY GATE:
+├── All 6 domains audited?
+├── 0 Critical findings?
+├── 0 High findings?
+├── Financial integrity verified?
+├── Pen test scenarios blocked?
+├── Compliance gaps documented?
+└── Runtime verification passed?
+```
 
 ### Quality Score
 
 ```
+QUALITY SCORE CALCULATION:
 ├── All 6 domains audited:        30 points
 ├── 0 open Critical findings:     25 points
 ├── 0 open High findings:         20 points
 ├── Financial integrity verified: 15 points
-└── Pen test scenarios blocked:   10 points
+├── Pen test scenarios blocked:   10 points
+└── Runtime verification passed:  0 points
                                   ────────
-                                  TOTAL
+                                  TOTAL: 100
 
 Score 100: ✅ PASS — deployment approved
 Score 90-99: ⚠️ CONDITIONAL — minor findings remain
@@ -541,27 +520,17 @@ Score < 90: ❌ BLOCKED — Critical/High findings open
 | --- | --------- | --------------------------------------- | -------------------------- | -------- |
 | 1   | OWASP A01 | Missing entity scoping on banking.ts:42 | Added entityId filter      | ✅       |
 | 2   | STRIDE    | Agent state could leak between entities | Added entityId propagation | ✅       |
-| ... | ...       | ...                                     | ...                        | ...      |
+
+### Runtime Verification
+
+| Check          | Status | Evidence                   |
+| -------------- | ------ | -------------------------- |
+| Security scans | ✅     | 0 critical CVEs, 0 secrets |
+| Attack vectors | ✅     | All attempts blocked       |
+| Monitoring     | ✅     | Security events logged     |
+| Compliance     | ⚠️     | GDPR gaps documented       |
 
 ### Deployment Decision: [APPROVED | BLOCKED]
-```
-
----
-
-## Progress Reporting
-
-```
-SECURITY AUDIT: 4/6 domains (67%)
-├── OWASP Top 10:      ✅ — 2 Medium fixed, 0 Critical/High
-├── STRIDE:            ✅ — 1 Medium fixed
-├── Financial Integrity: ✅ — all checks pass
-├── Secrets & Deps:    ✅ — 0 secrets, 0 critical CVEs
-├── Compliance:        🔄 — reviewing GDPR gaps
-└── Pen Test:          ⬜ pending
-
-Findings: 8 total (0 Critical, 0 High, 5 Medium, 3 Low)
-Fixed: 3
-Remaining: 5 (all Medium/Low)
 ```
 
 ---
@@ -599,4 +568,5 @@ Remaining: 5 (all Medium/Low)
 
 - Max **5 fix rounds** per audit
 - Max **30 fixes** per session
+- Max **6 domains** per audit
 - If budget exceeded: report progress, list remaining findings
