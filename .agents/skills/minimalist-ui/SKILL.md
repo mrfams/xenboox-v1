@@ -85,7 +85,52 @@ Motion should feel invisible — present but never distracting. The goal is quie
 - Background Ambient Motion: Optional. A single, very slow-moving radial gradient blob (`animation-duration: 20s+`, `opacity: 0.02-0.04`) drifting behind hero sections. Must be applied to a `position: fixed; pointer-events: none` layer. Never on scrolling containers.
 - Performance: Animate exclusively via `transform` and `opacity`. No layout-triggering properties (`top`, `left`, `width`, `height`). Use `will-change: transform` sparingly and only on actively animating elements.
 
-## 8. Execution Protocol
+## 8. AI-NATIVE DESIGN PRINCIPLES
+
+### The Rule
+
+Xenboox is AI-native, not SaaS. Every design decision must pass this test:
+"Does this make the AI more capable, or does it add SaaS-style complexity?"
+
+### AI-Native Design Patterns
+
+| Pattern                   | Description                                                         |
+| ------------------------- | ------------------------------------------------------------------- |
+| **Confidence Indicators** | Visual representation of AI confidence (0-1) — glow, pulse, opacity |
+| **Agent Activity**        | Real-time visualization of agent work — dots, waves, progress       |
+| **Decision Cards**        | Human-in-the-loop approval UI — clear yes/no, not buried in menus   |
+| **Narrative Flow**        | AI explains what it's doing — not just showing results              |
+| **Proactive Alerts**      | AI surfaces what needs attention — not waiting for user to find it  |
+
+### SaaS Anti-Patterns (Never Build)
+
+- Complex navigation menus (use 5 surfaces instead)
+- Multi-step forms for data entry (AI handles this)
+- Manual workflows that AI should handle
+- Dashboard overload with 20+ charts
+- Settings pages with 50+ toggles
+
+### Visual Language for AI-Native
+
+| Element            | AI-Native Pattern                                            |
+| ------------------ | ------------------------------------------------------------ |
+| **Loading States** | Agent thinking visualization (dots, waves, pulse)            |
+| **Success States** | AI confidence confirmation (glow, checkmark with confidence) |
+| **Error States**   | Agent explaining what went wrong and next steps              |
+| **Empty States**   | AI suggesting what to do next                                |
+| **Progress**       | Agent activity timeline (what it's doing, what's done)       |
+
+### 5-Surface Awareness
+
+| Surface         | Design Priority                           |
+| --------------- | ----------------------------------------- |
+| Command Center  | Chat-first, AI handles ALL actions        |
+| Activity Hub    | Decision cards, approval flows            |
+| Financial Pulse | AI-narrated charts, confidence indicators |
+| Ledger          | Clean data display, search-focused        |
+| Operations      | Approval queues, status flows             |
+
+## 9. Execution Protocol
 
 When tasked with writing frontend code (HTML, React, Tailwind, Vue) or designing a layout:
 
@@ -95,4 +140,6 @@ When tasked with writing frontend code (HTML, React, Tailwind, Vue) or designing
 4. Ensure every card, divider, and border adheres strictly to the `1px solid #EAEAEA` rule.
 5. Add scroll-entry animations to all major content blocks.
 6. Ensure sections have visual depth through imagery, ambient gradients, or subtle textures — no empty flat backgrounds.
-7. Provide code that reflects this high-end, uncluttered, editorial aesthetic natively without requiring manual adjustments.
+7. Ensure AI-native design patterns are present (confidence indicators, agent activity, decision cards).
+8. Ensure no SaaS anti-patterns are present (complex nav, multi-step forms, dashboard overload).
+9. Provide code that reflects this high-end, uncluttered, editorial aesthetic natively without requiring manual adjustments.

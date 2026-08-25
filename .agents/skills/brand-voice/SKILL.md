@@ -21,6 +21,7 @@ Xenboox is:
 - **Confident but not arrogant** — We know our stuff, but we don't talk down
 - **Direct but not blunt** — We say what we mean, with warmth
 - **Technical but not jargon-y** — We explain complex things simply
+- **AI-Native, not SaaS** — The AI IS the product, not a feature
 
 ### Voice Attributes (ranked by importance)
 
@@ -91,6 +92,38 @@ Xenboox is:
 **Tone:** Helpful, transparent about confidence, human
 **Energy:** Medium
 **Example:** "I categorized this as 'Office Supplies' (94% confident). The description mentions 'paper and toner' — does that look right?"
+
+### AI-Native Voice Patterns
+
+#### Confidence Communication
+
+- "AI is 94% confident this is Office Supplies"
+- "AI isn't sure about this one (67% confidence)"
+- "AI is very confident this is a vendor payment (98%)"
+
+#### Agent Activity
+
+- "AI is categorizing 127 transactions..."
+- "AI found 3 anomalies in your expenses"
+- "AI is preparing your quarterly report"
+
+#### Decision Communication
+
+- "AI recommends approving this payment. Approve?"
+- "AI found a duplicate invoice. Ignore?"
+- "AI suggests categorizing this as Office Supplies. Correct?"
+
+#### Narrative Communication
+
+- "AI categorized 47 transactions. Here's what it found:"
+- "AI detected an unusual expense pattern. Let me explain:"
+- "AI is ready to reconcile your bank statement. Starting now..."
+
+#### Proactive Communication
+
+- "AI noticed your cash flow is low. Here's what to do:"
+- "AI found 3 bills due this week. Want to pay them?"
+- "AI detected a potential duplicate payment. Review?"
 
 ## Messaging Hierarchy
 

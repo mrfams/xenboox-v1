@@ -121,14 +121,14 @@ For EVERY section in the queue:
 ```
 REVIEW LOOP for each section:
   1. READ the copy completely
-  2. CHECK all 6 dimensions
+  2. CHECK all 7 dimensions
   3. FIX issues directly (rewrite, correct, enforce)
   4. VERIFY the fix is better (not just different)
   5. MARK section as ✅ reviewed
   6. REPORT progress every 3 sections
 ```
 
-### The 6 Dimensions
+### The 7 Dimensions
 
 #### 1. Brand Voice
 
@@ -205,6 +205,19 @@ REVIEW LOOP for each section:
 - Headers are descriptive
 - Internal links are relevant
 - Content answers search intent
+
+#### 7. AI-Native Quality
+
+- AI confidence is communicated clearly ("AI is 94% confident")
+- Agent activity is described in plain language
+- Decision cards are clear and prominent
+- Narrative flow explains what AI is doing
+- Proactive alerts surface what needs attention
+- No SaaS anti-patterns (complex nav, multi-step forms)
+- Loading states show agent thinking
+- Error states explain what went wrong and next steps
+- Empty states suggest what to do next
+- Progress shows agent activity timeline
 
 ### Content Type Focus
 
@@ -311,11 +324,12 @@ BRAND VOICE:
 ### Quality Score
 
 ```
-├── 100% sections reviewed:      30 points
-├── 0 open Critical issues:      25 points
-├── 0 open High issues:          20 points
+├── 100% sections reviewed:      25 points
+├── 0 open Critical issues:      20 points
+├── 0 open High issues:          15 points
 ├── Brand voice consistent:      15 points
-└── No jargon / exclamation:     10 points
+├── No jargon / exclamation:     10 points
+└── AI-native quality:           15 points
                                  ────────
                                  TOTAL
 

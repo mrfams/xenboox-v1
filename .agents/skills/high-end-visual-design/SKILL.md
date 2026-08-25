@@ -100,9 +100,56 @@ When generating UI code, follow this exact sequence:
 4. **[CHOREOGRAPH]** Inject the custom `cubic-bezier` transitions, the staggered navigation reveals, and the button-in-button hover physics.
 5. **[OUTPUT]** Deliver flawless, pixel-perfect React/Tailwind/HTML code. Do not include basic, generic fallbacks.
 
-## 8. PRE-OUTPUT CHECKLIST
+## 8. AI-NATIVE DESIGN PRINCIPLES
+
+### The Rule
+
+Xenboox is AI-native, not SaaS. Every design decision must pass this test:
+"Does this make the AI more capable, or does it add SaaS-style complexity?"
+
+### AI-Native Design Patterns
+
+| Pattern                   | Description                                                         |
+| ------------------------- | ------------------------------------------------------------------- |
+| **Confidence Indicators** | Visual representation of AI confidence (0-1) — glow, pulse, opacity |
+| **Agent Activity**        | Real-time visualization of agent work — dots, waves, progress       |
+| **Decision Cards**        | Human-in-the-loop approval UI — clear yes/no, not buried in menus   |
+| **Narrative Flow**        | AI explains what it's doing — not just showing results              |
+| **Proactive Alerts**      | AI surfaces what needs attention — not waiting for user to find it  |
+
+### SaaS Anti-Patterns (Never Build)
+
+- Complex navigation menus (use 5 surfaces instead)
+- Multi-step forms for data entry (AI handles this)
+- Manual workflows that AI should handle
+- Dashboard overload with 20+ charts
+- Settings pages with 50+ toggles
+
+### Visual Language for AI-Native
+
+| Element            | AI-Native Pattern                                            |
+| ------------------ | ------------------------------------------------------------ |
+| **Loading States** | Agent thinking visualization (dots, waves, pulse)            |
+| **Success States** | AI confidence confirmation (glow, checkmark with confidence) |
+| **Error States**   | Agent explaining what went wrong and next steps              |
+| **Empty States**   | AI suggesting what to do next                                |
+| **Progress**       | Agent activity timeline (what it's doing, what's done)       |
+
+### 5-Surface Awareness
+
+| Surface         | Design Priority                           |
+| --------------- | ----------------------------------------- |
+| Command Center  | Chat-first, AI handles ALL actions        |
+| Activity Hub    | Decision cards, approval flows            |
+| Financial Pulse | AI-narrated charts, confidence indicators |
+| Ledger          | Clean data display, search-focused        |
+| Operations      | Approval queues, status flows             |
+
+## 9. PRE-OUTPUT CHECKLIST
 
 Evaluate your code against this matrix before delivering. This is the last filter.
+
+### Visual Quality
 
 - [ ] No banned fonts, icons, borders, shadows, layouts, or motion patterns from Section 2 are present
 - [ ] A Vibe Archetype and Layout Archetype from Section 3 were consciously selected and applied
@@ -115,3 +162,16 @@ Evaluate your code against this matrix before delivering. This is the last filte
 - [ ] All animations use only `transform` and `opacity` — no layout-triggering properties
 - [ ] `backdrop-blur` is only applied to fixed/sticky elements, never to scrolling content
 - [ ] The overall impression reads as "$150k agency build", not "template with nice fonts"
+
+### AI-Native Quality
+
+- [ ] AI confidence is visually represented (glow, pulse, opacity)
+- [ ] Agent activity is visualized (dots, waves, progress)
+- [ ] Decision cards are clear and prominent (not buried in menus)
+- [ ] AI narrative flow is present (explains what it's doing)
+- [ ] Proactive alerts surface what needs attention
+- [ ] No SaaS anti-patterns (complex nav, multi-step forms, dashboard overload)
+- [ ] Loading states show agent thinking
+- [ ] Error states explain what went wrong and next steps
+- [ ] Empty states suggest what to do next
+- [ ] Progress shows agent activity timeline

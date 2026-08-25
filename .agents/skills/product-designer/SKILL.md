@@ -176,12 +176,60 @@ For EACH design:
 - **Progressive Disclosure**: Show only what's needed now
 - **Delight in Details**: Small touches that make the experience memorable
 
+### AI-Native Design Principles
+
+#### The Rule
+
+Xenboox is AI-native, not SaaS. Every design decision must pass this test:
+"Does this make the AI more capable, or does it add SaaS-style complexity?"
+
+#### AI-Native Design Patterns
+
+| Pattern                   | Description                                                         |
+| ------------------------- | ------------------------------------------------------------------- |
+| **Confidence Indicators** | Visual representation of AI confidence (0-1) — glow, pulse, opacity |
+| **Agent Activity**        | Real-time visualization of agent work — dots, waves, progress       |
+| **Decision Cards**        | Human-in-the-loop approval UI — clear yes/no, not buried in menus   |
+| **Narrative Flow**        | AI explains what it's doing — not just showing results              |
+| **Proactive Alerts**      | AI surfaces what needs attention — not waiting for user to find it  |
+
+#### SaaS Anti-Patterns (Never Build)
+
+- Complex navigation menus (use 5 surfaces instead)
+- Multi-step forms for data entry (AI handles this)
+- Manual workflows that AI should handle
+- Dashboard overload with 20+ charts
+- Settings pages with 50+ toggles
+
+#### Visual Language for AI-Native
+
+| Element            | AI-Native Pattern                                            |
+| ------------------ | ------------------------------------------------------------ |
+| **Loading States** | Agent thinking visualization (dots, waves, pulse)            |
+| **Success States** | AI confidence confirmation (glow, checkmark with confidence) |
+| **Error States**   | Agent explaining what went wrong and next steps              |
+| **Empty States**   | AI suggesting what to do next                                |
+| **Progress**       | Agent activity timeline (what it's doing, what's done)       |
+
+#### 5-Surface Awareness
+
+| Surface         | Design Priority                           |
+| --------------- | ----------------------------------------- |
+| Command Center  | Chat-first, AI handles ALL actions        |
+| Activity Hub    | Decision cards, approval flows            |
+| Financial Pulse | AI-narrated charts, confidence indicators |
+| Ledger          | Clean data display, search-focused        |
+| Operations      | Approval queues, status flows             |
+
 ### Component Patterns
 
 - Cards: Clean, minimal, subtle shadows, clear hierarchy
 - Forms: Clear labels, helpful placeholders, inline validation
 - Navigation: Sidebar for main, breadcrumbs for depth, search for discovery
 - AI Interface: Chat-based, clear agent status, confidence indicators
+- Decision Cards: Human-in-the-loop approval UI with clear yes/no
+- Agent Activity: Real-time visualization of agent work
+- Confidence Indicators: Visual representation of AI confidence
 
 ---
 
