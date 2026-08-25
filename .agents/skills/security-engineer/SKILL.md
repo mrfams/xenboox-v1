@@ -890,3 +890,63 @@ Before any security work:
 3. Update dependency if fix available
 4. If no fix: implement compensating control
 5. Monitor for exploitation
+
+---
+
+## AI-Native Security
+
+Since Xenboox is AI-native, security must account for AI-specific attack surfaces.
+
+### AI-Native Security Principles
+
+1. **Agent communication is a trust boundary** — Agent-to-agent state transfer must be validated
+2. **Confidence manipulation** — Attackers may try to inflate confidence scores to bypass escalation
+3. **Entity isolation is critical** — Cross-entity data leaks are the #1 risk in a multi-tenant AI system
+4. **Audit trail integrity** — Audit logs must be tamper-proof (append-only)
+5. **LLM injection** — User inputs that reach LLM prompts must be sanitized
+6. **Escalation bypass** — Attackers may try to bypass human-in-the-loop approval flows
+
+### AI-Native Security Checklist
+
+When performing security review:
+
+```
+AI-NATIVE SECURITY CHECK:
+□ Agent communication validated (state schema, no injection)?
+□ Confidence scores cannot be manipulated by external input?
+□ Entity isolation enforced at database layer (not just app layer)?
+□ Audit trail is append-only (no UPDATE/DELETE on audit rows)?
+□ User inputs reaching LLM prompts are sanitized?
+□ Escalation paths cannot be bypassed?
+□ Decision card actions are server-validated (not client-trusted)?
+□ Agent tools have proper authorization checks?
+□ LangFuse traces don't expose sensitive data?
+□ Model tier usage is correct (Haiku/Sonnet boundary)?
+```
+
+### AI-Native Threat Model
+
+| Threat                        | Attack Vector                                 | Mitigation                                  |
+| ----------------------------- | --------------------------------------------- | ------------------------------------------- |
+| **Confidence Inflation**      | User manipulates input to get high confidence | Validate confidence calculation server-side |
+| **Entity Hop**                | Cross-entity data access via agent            | Entity scoping at DB layer, not just app    |
+| **Escalation Bypass**         | Skip human approval for high-risk actions     | Server-side enforcement, not client-side    |
+| **Prompt Injection**          | Malicious input reaching LLM                  | Input sanitization, output validation       |
+| **Audit Tampering**           | Modify or delete audit logs                   | Append-only, no UPDATE/DELETE               |
+| **Agent State Poisoning**     | Corrupt agent state between nodes             | State schema validation, reducers           |
+| **Model Tier Escalation**     | Force Haiku for tasks needing Sonnet          | Server-side model selection                 |
+| **Tool Authorization Bypass** | Agent tools execute without auth              | Auth middleware on all tool executions      |
+
+### Evidence-Based Completion
+
+```
+EVIDENCE PACKAGE:
+├── AI-native threat model: [created/updated]
+├── Agent communication: [validated]
+├── Confidence manipulation: [tested, cannot be inflated]
+├── Entity isolation: [verified at DB layer]
+├── Audit trail: [append-only verified]
+├── Prompt injection: [sanitization in place]
+├── Escalation bypass: [cannot be bypassed]
+└── Security gate: [PASS]
+```

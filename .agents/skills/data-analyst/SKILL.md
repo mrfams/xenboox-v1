@@ -614,3 +614,57 @@ To prevent infinite loops:
 - Max **2 validation rounds** per finding
 - Max **5 questions** per session
 - If budget exceeded: report progress, list incomplete items, ask for guidance
+
+---
+
+## AI-Native Data Analysis
+
+Since Xenboox is AI-native, data analysis must account for AI agent performance and confidence.
+
+### AI-Native Analysis Principles
+
+1. **Agent performance = data** — Analyze agent throughput, confidence, escalation patterns
+2. **Confidence calibration = quality** — Ensure confidence scores reflect actual accuracy
+3. **Entity isolation = security** — Verify no cross-entity data leaks in analysis
+4. **Audit trail = compliance** — Every analysis must be traceable and auditable
+5. **AI insights = value** — Analysis should surface AI-generated insights, not just raw data
+
+### AI-Native Metrics to Analyze
+
+| Metric                    | What to Analyze                          | Why It Matters         |
+| ------------------------- | ---------------------------------------- | ---------------------- |
+| **Agent throughput**      | Transactions processed per agent per day | Operational efficiency |
+| **Confidence accuracy**   | High confidence = correct outcome?       | Trust calibration      |
+| **Escalation rate**       | Low escalation = agents confident        | Agent reliability      |
+| **First-pass accuracy**   | Agent gets it right without retry        | Quality measure        |
+| **Entity isolation**      | Cross-entity data leaks?                 | Security measure       |
+| **Audit completeness**    | Every action logged?                     | Compliance measure     |
+| **AI insight engagement** | Do users act on AI insights?             | Value measure          |
+| **Time saved**            | Hours saved by AI per user               | ROI measure            |
+
+### AI-Native Analysis Checklist
+
+When performing data analysis:
+
+```
+AI-NATIVE ANALYSIS CHECK:
+□ Are we analyzing AI agent performance metrics?
+□ Are we measuring confidence calibration accuracy?
+□ Are we verifying entity isolation in data?
+□ Are we checking audit trail completeness?
+□ Are we analyzing AI insight engagement?
+□ Are we measuring time saved by AI?
+□ Are we avoiding SaaS-style analysis (manual workflow metrics)?
+```
+
+### Evidence-Based Completion
+
+```
+EVIDENCE PACKAGE:
+├── Question: [what was analyzed]
+├── Data: [what data was used]
+├── AI-native metrics: [agent performance, confidence, escalation]
+├── Findings: [what was discovered]
+├── Confidence: [analysis confidence level]
+└── Recommendation: [what to do next]
+```

@@ -650,3 +650,63 @@ To prevent infinite loops:
 - Max **2 full passes** on quality gate
 - Max **2 rollback cycles** per deployment
 - If budget exceeded: report progress, list incomplete items, ask for guidance
+
+---
+
+## AI-Native DevOps
+
+Since Xenboox is AI-native, DevOps must account for AI-specific infrastructure needs.
+
+### AI-Native DevOps Principles
+
+1. **Agent infrastructure** — LangGraph agents need proper resource allocation and monitoring
+2. **LLM cost management** — Token usage must be tracked, alerted on, and budgeted
+3. **Confidence-based scaling** — Low-confidence paths may need more compute (escalation, human review)
+4. **Audit trail reliability** — Infrastructure must ensure audit logs are never lost
+5. **Entity isolation** — Deployment must preserve entity isolation across all environments
+6. **Observability** — LangFuse traces must be captured in all environments
+
+### AI-Native DevOps Checklist
+
+When performing DevOps tasks:
+
+```
+AI-NATIVE DEVOPS CHECK:
+□ Agent infrastructure properly resourced (memory, CPU, timeouts)?
+□ LLM token usage tracked and alerted on?
+□ LangFuse observability configured in all environments?
+□ Audit trail infrastructure is durable (append-only, no data loss)?
+□ Entity isolation preserved across environments?
+□ Agent graph compilation verified in CI/CD?
+□ Model tier configuration correct (Haiku/Sonnet routing)?
+□ Escalation paths tested in staging?
+□ Decision card rendering tested in all environments?
+□ Confidence scoring verified in deployed agents?
+```
+
+### AI-Native Infrastructure Patterns
+
+| Pattern                | Infrastructure Requirement                         | Why It Matters                      |
+| ---------------------- | -------------------------------------------------- | ----------------------------------- |
+| **Agent Resources**    | Proper timeout, memory, retry config for LangGraph | Agents may run long, need resources |
+| **LLM Cost Tracking**  | Token usage monitoring, budget alerts              | Prevent runaway LLM costs           |
+| **LangFuse Deploy**    | Traces captured in prod, staging, dev              | Debugging agent behavior            |
+| **Audit Durability**   | Append-only storage, backup, retention             | Financial compliance                |
+| **Entity Isolation**   | Environment variables, DB connections per entity   | Multi-tenant security               |
+| **Agent CI/CD**        | Graph compilation check in pipeline                | Catch broken graphs before deploy   |
+| **Model Config**       | Haiku/Sonnet routing configured per environment    | Cost and quality optimization       |
+| **Escalation Testing** | Staging tests for low-confidence paths             | Verify human-in-the-loop works      |
+
+### Evidence-Based Completion
+
+```
+EVIDENCE PACKAGE:
+├── Infrastructure: [what was deployed/changed]
+├── Agent resources: [properly configured]
+├── LLM costs: [tracked, alerted]
+├── LangFuse: [configured in all environments]
+├── Audit trail: [durable, append-only]
+├── Entity isolation: [preserved]
+├── CI/CD: [agent graph compilation verified]
+└── AI-native gate: [PASS]
+```

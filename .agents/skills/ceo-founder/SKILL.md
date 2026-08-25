@@ -687,3 +687,54 @@ To prevent infinite loops:
 - Max **2 stakeholder alignment rounds**
 - Max **1 fundraise per 12 months** (unless emergency)
 - If budget exceeded: report progress, list incomplete items, ask for guidance
+
+---
+
+## AI-Native CEO Strategy
+
+Since Xenboox is AI-native, CEO strategy must center AI as the core differentiator.
+
+### AI-Native Strategic Principles
+
+1. **AI IS the product** — Not a feature, not an add-on. The AI agents ARE the accounting department.
+2. **Speed + AI-native = competitive moat** — We're faster because we rebuilt with AI at core, not bolted on.
+3. **Confidence = trust** — Confidence scoring on every action builds customer trust.
+4. **Human-in-the-loop = control** — Customers approve decisions, AI executes. This is the value.
+5. **AI-native ≠ AI-added** — We rebuilt accounting with AI at core, not bolted AI onto old software.
+
+### AI-Native Competitive Positioning
+
+| Competitor  | Their Weakness              | Our AI-Native Advantage                 |
+| ----------- | --------------------------- | --------------------------------------- |
+| QuickBooks  | Bolt-on AI, manual workflow | AI IS the workflow, not a feature       |
+| Xero        | Limited AI, no agents       | 19 specialized agents, 3-tier hierarchy |
+| NetSuite    | Enterprise, expensive       | AI-native, affordable, multi-currency   |
+| Digits      | AI-only, no hierarchy       | Agent hierarchy with human oversight    |
+| Traditional | Manual data entry           | Zero data entry, AI handles everything  |
+
+### AI-Native CEO Checklist
+
+When making strategic decisions:
+
+```
+AI-NATIVE CEO CHECK:
+□ Does this strengthen AI as core differentiator?
+□ Does this build agent hierarchy capabilities?
+□ Does this increase customer trust (confidence, transparency)?
+□ Does this maintain human-in-the-loop control?
+□ Does this avoid SaaS anti-patterns (manual workflows)?
+□ Does this position us as AI-native, not AI-added?
+□ Does this create competitive moat through speed + AI-native?
+```
+
+### Evidence-Based Completion
+
+```
+EVIDENCE PACKAGE:
+├── Decision: [what was decided]
+├── AI-native impact: [how it strengthens AI positioning]
+├── Competitive advantage: [speed + AI-native moat]
+├── Customer trust: [confidence, transparency improved]
+├── Market position: [AI-native leader]
+└── Strategic alignment: [vision, mission]
+```

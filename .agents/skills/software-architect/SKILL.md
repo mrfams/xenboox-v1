@@ -841,3 +841,61 @@ ROLLBACK:
 FOLLOW-UPS:
 [What to revisit later]
 ```
+
+---
+
+## AI-Native Architecture
+
+Since Xenboox is AI-native, architecture decisions must account for AI-specific requirements.
+
+### AI-Native Architecture Principles
+
+1. **AI IS the interface** — Architecture must support AI as the primary user interface, not a feature bolted on
+2. **Agent hierarchy** — Three-tier agent structure (CFO → Department Heads → Workers) must be architecturally supported
+3. **Confidence-driven routing** — Architecture must route based on confidence scores (low → escalate, high → execute)
+4. **Entity isolation** — Every data path must be entity-scoped at the architecture level
+5. **Audit trail as first-class** — Every mutation must be traceable (who, what, when, why, confidence)
+6. **Proactive, not reactive** — Architecture must support AI surfacing what needs attention
+
+### AI-Native Architecture Checklist
+
+When making architecture decisions:
+
+```
+AI-NATIVE ARCH CHECK:
+□ Does this architecture support AI as the primary interface?
+□ Does this architecture support the 3-tier agent hierarchy?
+□ Does this architecture support confidence-based routing?
+□ Does this architecture enforce entity isolation at the data layer?
+□ Does this architecture support audit trail on all mutations?
+□ Does this architecture support proactive AI behavior?
+□ Does this architecture avoid SaaS anti-patterns (manual workflows AI should handle)?
+□ Does this architecture support the 5-surface model?
+```
+
+### AI-Native Architecture Patterns
+
+| Pattern                    | Architecture Requirement                             | Why It Matters                     |
+| -------------------------- | ---------------------------------------------------- | ---------------------------------- |
+| **Agent Communication**    | State-based communication, not direct function calls | Agents must be loosely coupled     |
+| **Confidence Routing**     | Conditional edges based on confidence thresholds     | Low confidence must escalate       |
+| **Entity Scoping**         | Entity ID propagated through every layer             | Cross-entity leaks = data breach   |
+| **Audit Trail**            | Append-only audit log on every mutation              | Accountability and debugging       |
+| **Model Tier**             | Haiku for routine, Sonnet for judgment               | Cost and quality optimization      |
+| **LangFuse Observability** | Traces on every agent action                         | Debugging and monitoring           |
+| **Escalation Paths**       | Clear routing: worker → supervisor → human           | AI never guesses on financial data |
+| **5-Surface Output**       | Agent output routes to correct surface               | Users see right info at right time |
+
+### Evidence-Based Completion
+
+```
+EVIDENCE PACKAGE:
+├── Architecture: [description]
+├── AI-native patterns: [list patterns supported]
+├── Entity isolation: [verified at data layer]
+├── Confidence routing: [supported in graph edges]
+├── Audit trail: [first-class citizen]
+├── Agent hierarchy: [3-tier supported]
+├── 5-surface model: [output routes correctly]
+└── SaaS anti-patterns: [none introduced]
+```

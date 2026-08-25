@@ -11,6 +11,8 @@ metadata:
 
 # Create Agent — Loop Mode (Create → Typecheck → Compile → Eval → Verify)
 
+> **Reference:** `.agents/skills/OPERATING_STANDARD.md` — This skill follows the core operating standard for all employees.
+
 ## Role
 
 You are an **Agent Builder** at Xenboox. You don't just scaffold agent files and declare done. You create each file, typecheck it, compile the graph, test with evals, verify confidence calibration, and only move to the next file when the current one is solid. Each layer must pass its gate before you build the next.
@@ -724,3 +726,66 @@ Sonnet: Complex tasks — judgment, strategy, multi-step reasoning
 - Max **3 eval runs** (fix between each)
 - Max **2 full passes** on integration gate
 - If budget exceeded: report progress, list remaining layers
+
+---
+
+## AI-Native Agent Design
+
+Since Xenboox is AI-native, every agent must follow the AI-native design standard.
+
+### AI-Native Agent Principles
+
+1. **AI IS the product** — The agent handles work, not just displays data
+2. **Proactive, not reactive** — Agent surfaces what needs attention, not waiting for user to ask
+3. **Confidence-driven** — Every output carries calibrated confidence (0-1)
+4. **Human-in-the-loop** — Low confidence triggers decision cards for human approval
+5. **Audit trail** — Every action logged with who, what, when, why, confidence
+6. **Entity-scoped** — Every query scoped to entity, no exceptions
+
+### AI-Native Agent Patterns
+
+| Pattern              | Implementation                               | Quality Gate                         |
+| -------------------- | -------------------------------------------- | ------------------------------------ |
+| **Confidence Field** | Every output includes `confidence: 0.0-1.0`  | Present, calibrated, not hardcoded   |
+| **Escalation**       | confidence < 0.7 → supervisor, < 0.4 → human | Routes correctly, includes context   |
+| **Decision Cards**   | Human approval UI with approve/reject        | Renders, actions work, state updates |
+| **Narrative Flow**   | reasoning field explains what AI did and why | Populated, clear, plain English      |
+| **Agent Activity**   | LangFuse traces for every action             | Traces appear, include entityId      |
+| **Entity Isolation** | Every DB query scoped to entityId            | Wrong entityId returns empty         |
+| **Audit Trail**      | Every mutation logs to audit_log             | Entries present with correct fields  |
+| **Model Tier**       | Haiku for routine, Sonnet for judgment       | Right model for task complexity      |
+
+### AI-Native Agent Quality Gate
+
+Before declaring agent complete:
+
+```
+AI-NATIVE AGENT GATE:
+□ Confidence field present in ALL outputs (not just some)?
+□ Confidence is calibrated (range 0.3-0.95, not always 0.9)?
+□ Escalation works for low confidence (< 0.7)?
+□ Decision card renders and actions work?
+□ Narrative/reasoning field populated in all outputs?
+□ Entity scoping verified on ALL tools and queries?
+□ Audit trail populated on ALL actions?
+□ LangFuse traces appear for all nodes?
+□ No SaaS anti-patterns (manual workflows AI should handle)?
+□ Model tier correct (Haiku for routine, Sonnet for judgment)?
+□ Eval suite tests AI-native behaviors (not just happy path)?
+```
+
+### Evidence-Based Completion
+
+```
+EVIDENCE PACKAGE:
+├── Agent: [name]
+├── Layers: [7/7 complete]
+├── Typecheck: [0 errors]
+├── Eval suite: [X/X pass]
+├── Confidence: [calibrated, range X-X]
+├── Escalation: [works for low confidence]
+├── Entity scoping: [verified on all tools]
+├── Audit trail: [populated on all actions]
+├── LangFuse: [traces appear]
+└── AI-native gate: [PASS]
+```

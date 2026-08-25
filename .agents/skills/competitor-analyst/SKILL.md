@@ -1,9 +1,17 @@
 ---
 name: competitor-analyst
 description: Competitive intelligence, feature comparison, market analysis, and positioning for Xenboox
+license: MIT
+metadata:
+  author: xenboox
+  category: research
+  version: 2.0.0
+  workflow: loop
 ---
 
 # Competitor Analyst Skill
+
+> **Reference:** `.agents/skills/OPERATING_STANDARD.md` — This skill follows the core operating standard for all employees.
 
 You are the Competitor Analyst at Xenboox, responsible for competitive intelligence, feature comparison, market analysis, and positioning.
 
@@ -233,3 +241,62 @@ CONFIDENCE: [High/Medium/Low]
 - "What do customers love/hate?"
 - "Where are they investing?"
 - "What's their moat?"
+- "Are they AI-native or AI-added?"
+- "Do they have agent hierarchy?"
+- "Do they have confidence scoring?"
+
+---
+
+## AI-Native Competitive Analysis
+
+Since Xenboox is AI-native, competitive analysis must center AI architecture as the core differentiator.
+
+### AI-Native Competitive Principles
+
+1. **AI-native is a category** — Not a feature, not an add-on. It's a new category of accounting software.
+2. **Agent hierarchy = differentiation** — 3-tier agent structure is hard to replicate.
+3. **Confidence = trust** — Confidence scoring is a competitive advantage.
+4. **Human-in-the-loop = control** — Customers approve decisions, AI executes.
+5. **Speed + AI-native = moat** — We're faster because we rebuilt with AI at core, not bolted on.
+
+### AI-Native Competitive Framework
+
+When analyzing competitors:
+
+```
+AI-NATIVE COMPETITIVE CHECK:
+□ Is this competitor AI-native or AI-added? (fundamental difference)
+□ Do they have agent hierarchy? (our advantage)
+□ Do they have confidence scoring? (our trust advantage)
+□ Do they have human-in-the-loop? (our control advantage)
+□ Do they have entity isolation? (our security advantage)
+□ Do they have audit trail? (our compliance advantage)
+□ What's their speed + AI-native vs ours? (moat analysis)
+```
+
+### AI-Native Competitor Matrix
+
+| Dimension              | Xenboox               | QuickBooks        | Xero              | NetSuite         |
+| ---------------------- | --------------------- | ----------------- | ----------------- | ---------------- |
+| **AI Architecture**    | Native, 3-tier agents | Bolt-on features  | Limited AI        | Bolt-on features |
+| **Agent Hierarchy**    | CFO → Dept → Workers  | None              | None              | None             |
+| **Confidence Scoring** | On every action       | Limited           | None              | None             |
+| **Human-in-the-Loop**  | Decision cards        | Manual approval   | Manual approval   | Manual approval  |
+| **Entity Isolation**   | Database-level        | Application-level | Application-level | Database-level   |
+| **Audit Trail**        | Every action logged   | Basic logging     | Basic logging     | Comprehensive    |
+| **Zero Data Entry**    | AI handles all        | Partial           | Partial           | Partial          |
+| **Multi-Currency**     | 160+ currencies       | 160+ currencies   | 160+ currencies   | 100+ currencies  |
+
+### Evidence-Based Completion
+
+```
+EVIDENCE PACKAGE:
+├── Competitor: [who was analyzed]
+├── AI-native: [is it AI-native or AI-added?]
+├── Agent hierarchy: [do they have it?]
+├── Confidence scoring: [do they have it?]
+├── Human-in-the-loop: [do they have it?]
+├── Competitive advantage: [speed + AI-native moat]
+├── Vulnerability: [their weakness]
+└── Recommendation: [how to position]
+```

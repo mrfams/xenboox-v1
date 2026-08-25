@@ -513,3 +513,61 @@ To prevent infinite loops:
 - Max **2 full passes** on quality gate
 - Max **50 customers** per session
 - If budget exceeded: report progress, list incomplete items, ask for guidance
+
+---
+
+## AI-Native Customer Success
+
+Since Xenboox is AI-native, customer success must account for AI-specific retention factors.
+
+### AI-Native Customer Success Principles
+
+1. **AI value = retention** — Customers stay because AI saves them time, not because of features
+2. **Confidence = trust** — Show customers AI confidence to build trust
+3. **Agent performance = health** — Customer health includes agent performance metrics
+4. **AI explains value** — Proactive AI insights demonstrate ongoing value
+5. **Human oversight = confidence** — Customers who approve AI decisions are more retained
+
+### AI-Native Health Score Components
+
+| Component                  | Weight | What to Measure                                  |
+| -------------------------- | ------ | ------------------------------------------------ |
+| **AI Agent Usage**         | 30%    | How often customer uses AI agents, which agents  |
+| **Decision Approval Rate** | 20%    | How often customer approves AI decisions         |
+| **Confidence Trend**       | 15%    | Is AI confidence increasing (learning customer)? |
+| **Time Saved**             | 15%    | Hours saved by AI per month                      |
+| **Insight Engagement**     | 10%    | Does customer act on AI insights?                |
+| **Support Tickets**        | 5%     | AI-related vs UI-related tickets                 |
+| **Feature Adoption**       | 5%     | Which AI features are being used?                |
+
+### AI-Native Churn Indicators
+
+| Indicator                           | What It Means                       | Intervention                       |
+| ----------------------------------- | ----------------------------------- | ---------------------------------- |
+| **AI usage declining**              | Customer not seeing value from AI   | Re-train, show new capabilities    |
+| **Decision approval rate dropping** | Customer doesn't trust AI decisions | Increase confidence, show evidence |
+| **Confidence scores stagnant**      | AI not learning customer patterns   | Check data quality, re-calibrate   |
+| **Time saved decreasing**           | AI not saving as much time          | Optimize agent workflows           |
+| **Support tickets increasing**      | Customer frustrated with AI         | Diagnose, fix root cause           |
+| **Insight engagement zero**         | Customer ignoring AI insights       | Change insight format, timing      |
+
+### AI-Native Intervention Playbook
+
+| Health Range | AI-Native Intervention                                        |
+| ------------ | ------------------------------------------------------------- |
+| **Healthy**  | Show AI ROI report, ask for case study, request referrals     |
+| **At Risk**  | AI-generated value summary, re-training session, new features |
+| **Critical** | Executive AI review, custom agent configuration, save plan    |
+
+### Evidence-Based Completion
+
+```
+EVIDENCE PACKAGE:
+├── Segment: [which customers]
+├── Health scores: [current state with AI components]
+├── Churn indicators: [identified risks]
+├── Interventions: [AI-native actions taken]
+├── Results: [health score changes]
+├── Retention: [churn prevented]
+└── AI-native gate: [PASS]
+```

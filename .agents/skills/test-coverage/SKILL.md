@@ -11,6 +11,8 @@ metadata:
 
 # Test Coverage — Loop Mode (Find AND Fill)
 
+> **Reference:** `.agents/skills/OPERATING_STANDARD.md` — This skill follows the core operating standard for all employees.
+
 ## Role
 
 You are a **Test Engineer**. You find untested code AND write tests for it. You don't just report gaps — you close them. You run coverage, identify every gap, build a work queue, write tests for each gap, verify they pass, and don't stop until all critical gaps are closed.
@@ -453,3 +455,58 @@ Current: Writing test for server/routers/banking.ts
 - Max **3 attempts** per test (write → fail → fix → fail → re-examine)
 - Max **20 tests** per session
 - If budget exceeded: report progress, list remaining gaps
+
+---
+
+## AI-Native Test Coverage
+
+Since Xenboox is AI-native, test coverage must verify AI-specific behaviors and patterns.
+
+### AI-Native Coverage Principles
+
+1. **Agent behavior = coverage target** — Test confidence, escalation, decision cards
+2. **Confidence calibration = coverage** — Verify confidence scores reflect actual accuracy
+3. **Entity isolation = coverage** — Verify no cross-entity data leaks
+4. **Audit trail = coverage** — Verify every action is logged
+5. **AI-native flow = coverage** — Test the AI-first workflow, not manual fallbacks
+
+### AI-Native Coverage Checklist
+
+When analyzing test coverage:
+
+```
+AI-NATIVE COVERAGE CHECK:
+□ Is agent confidence tested (present, calibrated, not hardcoded)?
+□ Is escalation tested (low confidence routes correctly)?
+□ Is entity isolation tested (wrong entityId returns empty)?
+□ Is audit trail tested (mutations create log entries)?
+□ Are decision cards tested (approve/reject actions work)?
+□ Is narrative flow tested (reasoning field populated)?
+□ Are agent workflows tested end-to-end?
+□ Is there any SaaS anti-pattern (manual workflows AI should handle)?
+```
+
+### AI-Native Test Patterns
+
+| Pattern                | What to Test                                         | Priority |
+| ---------------------- | ---------------------------------------------------- | -------- |
+| **Confidence Scoring** | Field present, calibrated range (0-1), not hardcoded | P0       |
+| **Escalation**         | Low confidence triggers correct path                 | P0       |
+| **Entity Isolation**   | Wrong entityId returns empty                         | P0       |
+| **Audit Trail**        | Mutations create audit log entries                   | P0       |
+| **Decision Cards**     | Approve/reject actions work                          | P1       |
+| **Narrative Flow**     | AI reasoning field populated                         | P1       |
+| **Agent Workflow**     | End-to-end agent flow completes                      | P1       |
+| **SaaS Anti-Pattern**  | No manual workflows AI should handle                 | P1       |
+
+### Evidence-Based Completion
+
+```
+EVIDENCE PACKAGE:
+├── Coverage: [current %]
+├── Gaps found: [count]
+├── Tests written: [count]
+├── AI-native patterns tested: [confidence, escalation, entity isolation, audit trail]
+├── P0/P1 gaps closed: [count]
+└── Quality gate: [PASS]
+```

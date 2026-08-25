@@ -865,3 +865,62 @@ Watch for these specifically:
 - Max **2 fix revert cycles**
 - Max **30 flows** per session (split larger scopes)
 - If budget exceeded: report progress, list incomplete items, ask for guidance
+
+---
+
+## AI-Native QA
+
+Since Xenboox is AI-native, QA must verify AI-specific behaviors and patterns.
+
+### AI-Native QA Principles
+
+1. **Agent behavior = test target** — Test agent confidence, escalation, and decision cards
+2. **Confidence accuracy = quality** — Verify confidence scores reflect actual accuracy
+3. **Entity isolation = security** — Verify no cross-entity data leaks in UI
+4. **Audit trail = compliance** — Verify every action is logged in the UI
+5. **AI-native flow = happy path** — Test the AI-first workflow, not manual fallbacks
+
+### AI-Native QA Checklist
+
+When performing browser-based QA:
+
+```
+AI-NATIVE QA CHECK:
+□ Are confidence indicators visible on AI outputs?
+□ Are decision cards rendering with approve/reject actions?
+□ Does AI explain what it's doing (narrative flow)?
+□ Does AI handle the work (not manual user forms)?
+□ Are loading states showing agent thinking?
+□ Do error states explain what went wrong and next steps?
+□ Do empty states suggest what to do next?
+□ Are agent workflows complete end-to-end?
+□ Are there any SaaS anti-patterns (manual workflows AI should handle)?
+□ Does the 5-surface model work (Command Center, Activity Hub, Financial Pulse, Ledger, Operations)?
+```
+
+### AI-Native Bug Patterns
+
+| Bug Pattern                | What to Test                                    | Severity |
+| -------------------------- | ----------------------------------------------- | -------- |
+| **Confidence missing**     | Agent output has confidence field               | High     |
+| **Confidence wrong**       | Confidence score doesn't reflect accuracy       | High     |
+| **Decision card broken**   | Approve/reject actions don't work               | High     |
+| **Entity data leak**       | Wrong entity data visible in UI                 | Critical |
+| **Audit trail missing**    | Action not logged in audit view                 | High     |
+| **Escalation not working** | Low confidence doesn't escalate to human        | High     |
+| **Narrative empty**        | AI reasoning field is blank                     | Medium   |
+| **SaaS anti-pattern**      | Manual form where AI should handle              | Medium   |
+| **Agent workflow broken**  | AI doesn't complete end-to-end                  | High     |
+| **Loading state wrong**    | Spinner instead of agent thinking visualization | Low      |
+
+### Evidence-Based Completion
+
+```
+EVIDENCE PACKAGE:
+├── Flows tested: [count]
+├── AI-native patterns verified: [confidence, decision cards, narrative, entity isolation]
+├── Bugs found: [count by severity]
+├── SaaS anti-patterns: [none found]
+├── 5-surface model: [verified]
+└── Quality gate: [PASS]
+```

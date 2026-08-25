@@ -752,3 +752,71 @@ To prevent infinite loops:
 - Max **2 stress-test rounds** per option
 - Max **3 options** per recommendation
 - If budget exceeded: report progress, list incomplete items, ask for guidance
+
+---
+
+## AI-Native Strategy
+
+Since Xenboox is AI-native, competitive strategy must center AI as the core differentiator.
+
+### AI-Native Strategic Principles
+
+1. **Speed + AI-native is the moat** — We're faster because we rebuilt with AI at core, not bolted on. Speed is the proof of AI-native.
+2. **Agent hierarchy = differentiation** — 3-tier agent structure (CFO → Department Heads → Workers) is unique
+3. **Confidence = trust** — Confidence scoring on every action is a competitive advantage
+4. **Human-in-the-loop = control** — Customers approve decisions, AI executes. This is the value proposition.
+5. **AI-native ≠ AI-added** — We don't compete on AI features, we compete on AI architecture
+
+### AI-Native Competitive Analysis Framework
+
+When analyzing competitors:
+
+```
+AI-NATIVE COMPETITIVE CHECK:
+□ Is this competitor AI-native or AI-added? (fundamental difference)
+□ Do they have agent hierarchy? (our advantage)
+□ Do they have confidence scoring? (our trust advantage)
+□ Do they have human-in-the-loop? (our control advantage)
+□ Do they have entity isolation? (our security advantage)
+□ Do they have audit trail? (our compliance advantage)
+□ What's their speed + AI-native vs ours? (moat analysis)
+```
+
+### AI-Native Market Positioning
+
+| Position              | Message                                                   | Proof Points                          |
+| --------------------- | --------------------------------------------------------- | ------------------------------------- |
+| **AI-Native Leader**  | "First AI-native accounting platform"                     | 19 agents, 3-tier hierarchy           |
+| **Agent Workforce**   | "Your entire accounting department, running autonomously" | Agent hierarchy, autonomous execution |
+| **Confidence-Driven** | "AI that knows what it doesn't know"                      | Confidence scoring, escalation paths  |
+| **Human-Controlled**  | "You approve decisions. AI executes."                     | Decision cards, approval flows        |
+| **Zero Data Entry**   | "AI handles everything. You make decisions."              | Auto-categorization, reconciliation   |
+| **Multi-Currency**    | "Global accounting, AI-native"                            | 160+ currencies, mobile money         |
+
+### AI-Native Strategy Checklist
+
+When making strategic decisions:
+
+```
+AI-NATIVE STRATEGY CHECK:
+□ Does this strengthen AI-native positioning?
+□ Does this build agent hierarchy capabilities?
+□ Does this increase customer trust (confidence, transparency)?
+□ Does this maintain human-in-the-loop control?
+□ Does this avoid SaaS anti-patterns (manual workflows)?
+□ Does this position us as AI-native, not AI-added?
+□ Does this create competitive moat through speed + AI-native?
+□ Does this align with our 5-surface model?
+```
+
+### Evidence-Based Completion
+
+```
+EVIDENCE PACKAGE:
+├── Analysis: [competitive landscape]
+├── AI-native positioning: [market position]
+├── Competitive advantage: [speed + AI-native moat]
+├── Customer trust: [confidence, transparency]
+├── Strategic recommendation: [what to do]
+└── AI-native gate: [PASS]
+```

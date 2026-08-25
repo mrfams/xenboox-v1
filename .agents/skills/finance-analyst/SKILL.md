@@ -949,3 +949,56 @@ Before any financial analysis:
 3. Re-validate
 4. Update recommendation if needed
 5. Document what changed and why
+
+---
+
+## AI-Native Finance Analysis
+
+Since Xenboox is AI-native, finance analysis must account for AI agent performance and confidence.
+
+### AI-Native Finance Principles
+
+1. **Agent confidence = financial accuracy** — Low confidence transactions need human review
+2. **AI throughput = efficiency** — Measure time saved by AI, not just hours worked
+3. **Entity isolation = compliance** — Every financial analysis must be entity-scoped
+4. **Audit trail = accountability** — Every financial decision must be traceable
+5. **AI insights = value** — Analysis should surface AI-generated financial insights
+
+### AI-Native Finance Metrics
+
+| Metric                        | What It Measures                            | Why It Matters         |
+| ----------------------------- | ------------------------------------------- | ---------------------- |
+| **Agent confidence accuracy** | High confidence = correct financial outcome | Trust calibration      |
+| **Time saved by AI**          | Hours saved per user per month              | ROI measure            |
+| **Entity isolation**          | No cross-entity financial data leaks        | Compliance measure     |
+| **Audit completeness**        | Every financial action logged               | Accountability measure |
+| **AI insight engagement**     | Do users act on AI financial insights?      | Value measure          |
+| **Financial accuracy**        | Agent-categorized transactions correct?     | Quality measure        |
+| **Escalation rate**           | Low confidence = escalated to human         | Agent reliability      |
+
+### AI-Native Finance Checklist
+
+When performing finance analysis:
+
+```
+AI-NATIVE FINANCE CHECK:
+□ Are we measuring agent confidence accuracy?
+□ Are we measuring time saved by AI?
+□ Are we verifying entity isolation in financial data?
+□ Are we checking audit trail completeness?
+□ Are we analyzing AI insight engagement?
+□ Are we measuring financial accuracy of agent work?
+□ Are we avoiding SaaS-style analysis (manual workflow metrics)?
+```
+
+### Evidence-Based Completion
+
+```
+EVIDENCE PACKAGE:
+├── Analysis: [what was analyzed]
+├── AI-native metrics: [confidence, time saved, entity isolation]
+├── Financial accuracy: [agent work verified]
+├── Findings: [what was discovered]
+├── Confidence: [analysis confidence level]
+└── Recommendation: [what to do next]
+```

@@ -1,6 +1,7 @@
 ---
 name: copywriting
 description: When the user wants to write, rewrite, or improve marketing copy for any page — including homepage, landing pages, pricing pages, feature pages, about pages, or product pages. Also use when the user says "write copy for," "improve this copy," "rewrite this page," "marketing copy," "headline help," "CTA copy," "value proposition," "tagline," "subheadline," "hero section copy," "above the fold," "this copy is weak," "make this more compelling," or "help me describe my product." Use this whenever someone is working on website text that needs to persuade or convert. For email copy, see emails. For popup copy, see popups. For editing existing copy, see copy-editing. For the offer underneath the copy (bonuses, guarantees, value framing), see offers.
+license: MIT
 metadata:
   author: xenboox
   version: 3.0.0
@@ -8,6 +9,8 @@ metadata:
 ---
 
 # Copywriting — Loop Mode (Draft → Critique → Revise → Verify)
+
+> **Reference:** `.agents/skills/OPERATING_STANDARD.md` — This skill follows the core operating standard for all employees.
 
 ## Role
 
@@ -526,3 +529,79 @@ Voice: consistent
 - Max **3 rounds** per section (draft + 2 revisions)
 - Max **15 sections** per session
 - If budget exceeded: present best version with improvement notes
+
+---
+
+## AI-Native Copywriting
+
+Since Xenboox is AI-native, all copy must reflect the AI-native positioning.
+
+### AI-Native Copy Principles
+
+1. **Lead with AI capability** — "AI agents handle your books" not "powerful automation"
+2. **Quantify AI value** — "Save 10+ hours/month" not "improve efficiency"
+3. **Address AI fear** — "Confidence scoring on every action" builds trust
+4. **Show AI trust** — "You approve decisions. AI executes." gives control
+5. **Never sell SaaS** — Position as AI-native, not traditional software
+6. **Use agent language** — "Agents" not "tools" or "features"
+
+### AI-Native Copy Checklist
+
+When writing copy for Xenboox:
+
+```
+AI-NATIVE COPY CHECK:
+□ Leading with AI capability (not vague benefits)?
+□ Quantifying AI value (hours saved, specific numbers)?
+□ Addressing AI fear (confidence, escalation, human control)?
+□ Showing AI trust (you approve, AI executes)?
+□ Not selling SaaS (positioning as AI-native)?
+□ Using agent language (agents, not tools)?
+□ Avoiding SaaS anti-patterns (manual workflows AI should handle)?
+□ Showing the 3-tier agent hierarchy (CFO → Department Heads → Workers)?
+```
+
+### AI-Native Copy Patterns
+
+| Element                 | SaaS Anti-Pattern              | AI-Native Pattern                                    |
+| ----------------------- | ------------------------------ | ---------------------------------------------------- |
+| **Headline**            | "The best accounting software" | "Your books. On autopilot."                          |
+| **Value Prop**          | "Powerful automation"          | "AI agents close your month in 10 minutes"           |
+| **Feature Description** | "Automated categorization"     | "AI categorizes 99% of transactions. You approve."   |
+| **CTA**                 | "Start free trial"             | "Let AI handle your books"                           |
+| **Social Proof**        | "Trusted by 500+ businesses"   | "500+ businesses let AI close their books"           |
+| **Objection Handling**  | "Easy to use"                  | "AI knows what it doesn't know. Confidence scoring." |
+| **Trust Signal**        | "SOC 2 compliant"              | "Every action logged. Full accountability."          |
+
+### AI-Native Anti-Patterns (Never Write)
+
+```
+❌ "Leverage our AI-powered solution to optimize your financial workflows"
+✅ "AI agents handle your books. You approve decisions."
+
+❌ "Seamlessly integrate your accounting processes"
+✅ "Connect your bank. AI does the rest."
+
+❌ "Unlock the power of automated bookkeeping"
+✅ "99% of transactions auto-categorized."
+
+❌ "Revolutionary AI-driven accounting platform"
+✅ "Your entire accounting department, running autonomously."
+
+❌ "Utilize our cutting-edge technology"
+✅ "Agents do the work. You make the decisions."
+```
+
+### Evidence-Based Completion
+
+```
+EVIDENCE PACKAGE:
+├── Page type: [homepage, landing, pricing, feature, about]
+├── Sections written: [count]
+├── AI-native: [led with AI capability, not features]
+├── Value quantified: [hours saved, specific numbers]
+├── Fear addressed: [confidence, escalation, human control]
+├── Trust shown: [you approve, AI executes]
+├── Agent language: [used throughout]
+└── Brand voice: [consistent]
+```

@@ -1,9 +1,17 @@
 ---
 name: technical-writer
 description: Documentation, API docs, tutorials, and technical content for Xenboox
+license: MIT
+metadata:
+  author: xenboox
+  category: content
+  version: 2.0.0
+  workflow: loop+graph
 ---
 
 # Technical Writer Skill
+
+> **Reference:** `.agents/skills/OPERATING_STANDARD.md` — This skill follows the core operating standard for all employees.
 
 You are the Technical Writer at Xenboox, responsible for documentation, API docs, tutorials, and technical content.
 

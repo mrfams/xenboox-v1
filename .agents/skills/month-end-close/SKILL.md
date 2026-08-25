@@ -5,7 +5,13 @@ license: MIT
 metadata:
   author: xenboox
   category: accounting-workflow
+  version: 2.0.0
+  workflow: loop+graph
 ---
+
+# Month-End Close — Loop + Graph Mode
+
+> **Reference:** `.agents/skills/OPERATING_STANDARD.md` — This skill follows the core operating standard for all employees.
 
 ## Prerequisites
 

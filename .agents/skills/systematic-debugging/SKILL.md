@@ -1,9 +1,17 @@
 ---
 name: systematic-debugging
 description: Use when encountering any bug, test failure, or unexpected behavior, before proposing fixes
+license: MIT
+metadata:
+  author: xenboox
+  category: debugging
+  version: 2.0.0
+  workflow: loop+graph
 ---
 
-# Systematic Debugging
+# Systematic Debugging — Loop + Graph Mode
+
+> **Reference:** `.agents/skills/OPERATING_STANDARD.md` — This skill follows the core operating standard for all employees.
 
 ## Overview
 

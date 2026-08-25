@@ -494,3 +494,56 @@ To prevent infinite loops:
 - Max **2 full passes** on quality gate
 - Max **5 user tests** per iteration
 - If budget exceeded: report progress, list incomplete items, ask for guidance
+
+---
+
+## AI-Native Onboarding
+
+Since Xenboox is AI-native, onboarding must account for AI-specific user experiences.
+
+### AI-Native Onboarding Principles
+
+1. **AI handles setup** — Agent should do initial configuration, not manual forms
+2. **First value = AI insight** — User's first "aha" moment should be AI-generated
+3. **Confidence builds trust** — Show AI confidence on first interactions
+4. **Human approves, AI executes** — Onboarding should demonstrate this flow
+5. **Agent explains itself** — AI should narrate what it's doing during onboarding
+
+### AI-Native Onboarding Checklist
+
+When designing onboarding flows:
+
+```
+AI-NATIVE ONBOARDING CHECK:
+□ Does AI handle initial setup (not manual user forms)?
+□ Is the first value moment AI-generated (insight, categorization, etc.)?
+□ Does onboarding show confidence scoring in action?
+□ Does onboarding demonstrate human-in-the-loop approval flow?
+□ Does AI explain what it's doing during onboarding?
+□ Does onboarding avoid SaaS anti-patterns (multi-step manual forms)?
+□ Does onboarding show the 5-surface model in action?
+□ Does onboarding set expectations about AI capabilities?
+```
+
+### AI-Native First Value Moments
+
+| Moment                   | What AI Does                                          | User Experience                             |
+| ------------------------ | ----------------------------------------------------- | ------------------------------------------- |
+| **First Transaction**    | AI auto-categorizes transaction with confidence score | "See? AI already knows what this is."       |
+| **First Reconciliation** | AI matches bank feed to transactions                  | "AI matched 47 transactions automatically." |
+| **First Insight**        | AI generates financial insight                        | "AI noticed your expenses increased 12%."   |
+| **First Decision Card**  | AI surfaces decision for human approval               | "AI recommends this. You approve."          |
+| **First Month-End**      | AI closes the month with confidence                   | "AI closed your books in 10 minutes."       |
+
+### Evidence-Based Completion
+
+```
+EVIDENCE PACKAGE:
+├── Onboarding flow: [design]
+├── First value moment: [AI-generated]
+├── Confidence shown: [yes/no]
+├── Human-in-the-loop: [demonstrated]
+├── Activation rate: [measured]
+├── Time to first value: [measured]
+└── AI-native gate: [PASS]
+```

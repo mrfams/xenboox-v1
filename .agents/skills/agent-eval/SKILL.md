@@ -5,7 +5,13 @@ license: MIT
 metadata:
   author: xenboox
   category: testing
+  version: 2.0.0
+  workflow: loop+graph
 ---
+
+# Agent Eval — Loop + Graph Mode
+
+> **Reference:** `.agents/skills/OPERATING_STANDARD.md` — This skill follows the core operating standard for all employees.
 
 ## Prerequisites
 
@@ -17,9 +23,19 @@ metadata:
 
 Every agent is evaluated against a golden dataset of verified correct accounting scenarios. Tests run before every deployment. Scores are logged to LangFuse for tracking over time.
 
-```
-Golden Dataset → Agent Input → Agent Output → Compare to Expected → Score → Log
-```
+**Workflow Mode:** LOOP + GRAPH
+
+- **Loop:** Iterate through evaluation → analysis → fixing → re-evaluation until all agents pass
+- **Graph:** For large scopes (>10 agents), fan-out across agents, fan-in to aggregate
+- **Quality Gate:** Cannot declare PASS until all agents meet quality thresholds
+
+**Non-negotiable rules:**
+
+1. Every agent must be evaluated against golden dataset
+2. Every failure must be investigated and fixed
+3. Every fix must have a regression test
+4. Evaluation must be AI-native, not SaaS-style
+5. You provide evidence of evaluation quality, not just claims
 
 ## Steps
 
@@ -330,3 +346,59 @@ export async function trackEvalResult(report: EvalReport) {
 3. Check LangFuse dashboard for eval traces
 4. Compare pass rate to previous run — should not decrease
 5. All scenarios with `shouldEscalate: true` actually escalate
+
+---
+
+## AI-Native Agent Evaluation
+
+Since Xenboox is AI-native, agent evaluation must verify AI-specific behaviors and calibration.
+
+### AI-Native Eval Principles
+
+1. **Confidence calibration = eval quality** — Verify confidence scores reflect actual accuracy
+2. **Escalation accuracy = safety** — Low confidence must escalate to human, not guess
+3. **Entity isolation = security** — Verify no cross-entity data leaks in agent output
+4. **Audit trail = compliance** — Verify every agent action is logged
+5. **AI-native behavior = success** — Agent handles work, not manual workflows
+
+### AI-Native Eval Metrics
+
+| Metric                     | Target | What It Measures                      |
+| -------------------------- | ------ | ------------------------------------- |
+| **Confidence calibration** | ≥0.85  | High confidence = correct outcome     |
+| **Escalation accuracy**    | 100%   | Low confidence always escalates       |
+| **Entity isolation**       | 100%   | No cross-entity data leaks            |
+| **Audit completeness**     | 100%   | Every action logged                   |
+| **AI-native behavior**     | 100%   | Agent handles work, not manual forms  |
+| **Decision card accuracy** | ≥0.90  | Approve/reject actions work correctly |
+| **Narrative quality**      | ≥0.80  | AI reasoning is clear and accurate    |
+
+### AI-Native Eval Checklist
+
+When creating and running agent evals:
+
+```
+AI-NATIVE EVAL CHECK:
+□ Confidence calibration tested (high = correct, low = escalate)?
+□ Escalation accuracy tested (low confidence routes correctly)?
+□ Entity isolation tested (wrong entityId returns empty)?
+□ Audit completeness tested (every action logged)?
+□ AI-native behavior tested (agent handles work)?
+□ Decision card accuracy tested (approve/reject work)?
+□ Narrative quality tested (reasoning field populated)?
+□ No SaaS anti-patterns in agent behavior?
+```
+
+### Evidence-Based Completion
+
+```
+EVIDENCE PACKAGE:
+├── Agents evaluated: [count]
+├── Golden dataset: [scenarios]
+├── Confidence calibration: [score]
+├── Escalation accuracy: [score]
+├── Entity isolation: [verified]
+├── Audit completeness: [verified]
+├── AI-native behavior: [verified]
+└── Quality gate: [PASS]
+```

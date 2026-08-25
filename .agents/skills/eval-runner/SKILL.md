@@ -11,6 +11,8 @@ metadata:
 
 # Eval Runner — Loop Mode (Run → Fail → Fix → Re-Run)
 
+> **Reference:** `.agents/skills/OPERATING_STANDARD.md` — This skill follows the core operating standard for all employees.
+
 ## Role
 
 You are an **Eval Engineer** at Xenboox. You don't just run evals and report results. You run evals, find every failure, investigate each one, fix the root cause, add a regression test, re-run, and loop until every test passes. You treat every failure as a bug to be fixed, not a number to be reported.
@@ -451,3 +453,58 @@ If calibration < 0.85:
 - Max **5 fix rounds** per session
 - Max **30 fixes** per session
 - If budget exceeded: report progress, list remaining failures
+
+---
+
+## AI-Native Eval Running
+
+Since Xenboox is AI-native, eval must verify AI-specific behaviors and calibration.
+
+### AI-Native Eval Principles
+
+1. **Confidence calibration = quality** — Eval must verify confidence scores reflect actual accuracy
+2. **Escalation accuracy = safety** — Low confidence must escalate to human, not guess
+3. **Entity isolation = security** — Eval must verify no cross-entity data leaks
+4. **Audit trail = compliance** — Eval must verify every action is logged
+5. **AI-native behavior = success** — Eval must verify AI handles work, not manual workflows
+
+### AI-Native Eval Metrics
+
+| Metric                     | Target | What It Measures                      |
+| -------------------------- | ------ | ------------------------------------- |
+| **Confidence calibration** | ≥0.85  | High confidence = correct outcome     |
+| **Escalation accuracy**    | 100%   | Low confidence always escalates       |
+| **Entity isolation**       | 100%   | No cross-entity data leaks            |
+| **Audit completeness**     | 100%   | Every action logged                   |
+| **AI-native behavior**     | 100%   | Agent handles work, not manual forms  |
+| **Decision card accuracy** | ≥0.90  | Approve/reject actions work correctly |
+| **Narrative quality**      | ≥0.80  | AI reasoning is clear and accurate    |
+
+### AI-Native Eval Checklist
+
+When running eval suite:
+
+```
+AI-NATIVE EVAL CHECK:
+□ Confidence calibration verified (≥0.85)?
+□ Escalation accuracy verified (100%)?
+□ Entity isolation verified (no leaks)?
+□ Audit completeness verified (every action logged)?
+□ AI-native behavior verified (agent handles work)?
+□ Decision card accuracy verified (≥0.90)?
+□ Narrative quality verified (≥0.80)?
+□ No SaaS anti-patterns in agent behavior?
+```
+
+### Evidence-Based Completion
+
+```
+EVIDENCE PACKAGE:
+├── Eval suite: [X/X pass]
+├── Confidence calibration: [score]
+├── Escalation accuracy: [score]
+├── Entity isolation: [verified]
+├── Audit completeness: [verified]
+├── AI-native behavior: [verified]
+└── Quality gate: [PASS]
+```

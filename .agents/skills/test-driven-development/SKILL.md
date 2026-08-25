@@ -1,9 +1,17 @@
 ---
 name: test-driven-development
 description: Use when implementing any feature or bugfix, before writing implementation code
+license: MIT
+metadata:
+  author: xenboox
+  category: testing
+  version: 2.0.0
+  workflow: loop
 ---
 
-# Test-Driven Development (TDD)
+# Test-Driven Development (TDD) — Loop Mode
+
+> **Reference:** `.agents/skills/OPERATING_STANDARD.md` — This skill follows the core operating standard for all employees.
 
 ## Overview
 
@@ -336,3 +344,88 @@ Otherwise → not TDD
 ```
 
 No exceptions without your human partner's permission.
+
+---
+
+## AI-Native TDD
+
+Since Xenboox is AI-native, TDD must cover AI-specific behaviors that traditional SaaS testing misses.
+
+### AI-Native Test Dimensions
+
+| Dimension                   | What to Test                                         | Why It Matters                              |
+| --------------------------- | ---------------------------------------------------- | ------------------------------------------- |
+| **Confidence Calibration**  | Confidence field present, range 0-1, not always 0.9  | Wrong confidence = wrong escalation         |
+| **Escalation Paths**        | Low confidence routes to supervisor or human         | Missing escalation = AI guesses on finances |
+| **Decision Cards**          | Approve/reject actions work, state updates correctly | Broken cards = human can't control AI       |
+| **Entity Isolation**        | Wrong entityId returns empty, no cross-entity leaks  | Entity leak = financial data breach         |
+| **Audit Trail**             | Every mutation logs who, what, when, why, confidence | Missing audit = no accountability           |
+| **Narrative Flow**          | AI reasoning is populated and clear                  | Empty reasoning = user can't trust AI       |
+| **Agent Handoff**           | State transfers correctly between agents             | Broken handoff = workflow drops             |
+| **SaaS Anti-Pattern Check** | No manual workflows that AI should handle            | Regression to SaaS = product degradation    |
+
+### AI-Native Test Examples
+
+```typescript
+// Confidence calibration test
+it('returns calibrated confidence, not hardcoded', async () => {
+  const highConfResult = await agent.invoke({
+    input: { description: 'OFFICE SUPPLIES STAPLES', amount: 25.00 },
+    entityId: testEntityId,
+  });
+  expect(highConfResult.confidence).toBeGreaterThanOrEqual(0.7);
+
+  const lowConfResult = await agent.invoke({
+    input: { description: 'UNCLEAR PAYMENT XYZ', amount: 5000.00 },
+    entityId: testEntityId,
+  });
+  expect(lowConfResult.confidence).toBeLessThan(0.7);
+  expect(lowConfResult.escalatedTo).toBeDefined();
+});
+
+// Entity isolation test
+it('does not leak data across entities', async () => {
+  const result = await agent.invoke({
+    entityId: 'wrong-entity-id',
+    taskType: 'get_balance',
+    input: { accountCode: '1000' },
+  });
+  expect(result.result).toBeNull();
+  expect(result.confidence).toBeLessThan(0.4);
+});
+
+// Decision card test
+it('renders decision card for human approval', () => {
+  render(<DecisionCard decision={mockDecision} />);
+  expect(screen.getByRole('button', {name: /approve/i})).toBeInTheDocument();
+  expect(screen.getByRole('button', {name: /reject/i})).toBeInTheDocument();
+  expect(screen.getByText(/confidence/i)).toBeInTheDocument();
+});
+```
+
+### AI-Native Quality Gate
+
+Before declaring TDD complete for any Xenboox feature:
+
+```
+AI-NATIVE TDD GATE:
+□ Confidence field tested (present, calibrated, not hardcoded)?
+□ Escalation tested (low confidence triggers correct path)?
+□ Entity isolation tested (wrong entityId returns empty)?
+□ Audit trail tested (mutations create log entries)?
+□ Decision card tested (approve/reject actions work)?
+□ Narrative flow tested (reasoning field populated)?
+□ No SaaS anti-patterns introduced (manual workflows AI should handle)?
+```
+
+### Evidence-Based Completion
+
+```
+EVIDENCE PACKAGE:
+├── Tests written: [count]
+├── All failing before impl: [verified]
+├── All passing after impl: [verified]
+├── AI-native patterns tested: [list dimensions]
+├── Entity isolation verified: [yes/no]
+└── Confidence calibration verified: [yes/no]
+```

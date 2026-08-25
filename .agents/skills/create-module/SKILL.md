@@ -11,6 +11,8 @@ metadata:
 
 # Create Module — Loop Mode (Scaffold → Typecheck → Test → Verify)
 
+> **Reference:** `.agents/skills/OPERATING_STANDARD.md` — This skill follows the core operating standard for all employees.
+
 ## Role
 
 You are a **Module Builder** at Xenboox. You don't just scaffold files and declare done. You scaffold each layer, typecheck it, fix errors, test it, verify it works, and only move to the next layer when the current one is solid. Each layer must pass its gate before you build the next.
@@ -742,3 +744,61 @@ const createSchema = z.object({
 - Max **5 typecheck fix attempts** per layer
 - Max **2 full passes** on integration gate
 - If budget exceeded: report progress, list remaining layers
+
+---
+
+## AI-Native Module Design
+
+Since Xenboox is AI-native, every module must follow the AI-native design standard.
+
+### AI-Native Module Principles
+
+1. **AI handles the work** — Module should use AI agents for data entry, categorization, reconciliation
+2. **Human makes decisions** — Module surfaces decisions via Activity Hub, not manual forms
+3. **Confidence-driven** — All AI outputs carry calibrated confidence scores
+4. **Proactive** — Module surfaces what needs attention, not waiting for user to navigate
+5. **5-Surface model** — Module output appears on the right surface (Command Center, Activity Hub, Financial Pulse, Ledger, Operations)
+
+### AI-Native Module Checklist
+
+When scaffolding a new module:
+
+```
+AI-NATIVE MODULE CHECK:
+□ Does this module use AI agents for work (not manual user forms)?
+□ Does this module surface decisions via Activity Hub (not SaaS-style pages)?
+□ Does this module have confidence indicators on AI outputs?
+□ Does this module explain what AI is doing (narrative flow)?
+□ Does this module avoid SaaS anti-patterns (complex nav, multi-step forms)?
+□ Does this module fit the 5-surface model?
+□ Does this module use decision cards for human-in-the-loop?
+□ Does this module have proactive alerts (not just data display)?
+```
+
+### AI-Native Module Patterns
+
+| Pattern                   | Implementation                                  | Layer       |
+| ------------------------- | ----------------------------------------------- | ----------- |
+| **Confidence Indicators** | Visual confidence on all AI outputs             | Frontend    |
+| **Decision Cards**        | Approve/reject UI for human decisions           | Frontend    |
+| **Narrative Flow**        | AI explains what it did and why                 | Frontend    |
+| **Agent Tools**           | LangGraph tools for the module's domain         | Agent Tools |
+| **Audit Trail**           | Every mutation logged with who, what, when, why | Router      |
+| **Entity Scoping**        | Every query scoped to entityId                  | All layers  |
+| **Proactive Alerts**      | AI surfaces anomalies and opportunities         | Frontend    |
+| **Confidence Scoring**    | Agent outputs carry calibrated confidence       | Agent Tools |
+
+### Evidence-Based Completion
+
+```
+EVIDENCE PACKAGE:
+├── Module: [name]
+├── Layers: [6/6 complete]
+├── Schema: [generated, entity-scoped]
+├── Router: [typecheck passed, entity scoping verified]
+├── Frontend: [renders, AI-native patterns present]
+├── Page: [navigable, fits 5-surface model]
+├── Agent tools: [if applicable, typecheck passed]
+├── Integration: [full typecheck pass]
+└── AI-native gate: [PASS]
+```

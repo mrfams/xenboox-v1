@@ -753,3 +753,57 @@ To prevent infinite loops:
 - Max **2 full passes** on quality gate
 - Max **10 operational areas** per session
 - If budget exceeded: report progress, list incomplete items, ask for guidance
+
+---
+
+## AI-Native Operations
+
+Since Xenboox is AI-native, operations must optimize AI agent performance, not just human processes.
+
+### AI-Native Operations Principles
+
+1. **AI agent performance = operational efficiency** — Optimize agent throughput, not human workflows
+2. **Confidence calibration = quality** — Ensure agent confidence scores are accurate
+3. **Escalation paths = reliability** — Low-confidence paths must work reliably
+4. **Audit trail = compliance** — Every agent action logged for financial compliance
+5. **Entity isolation = security** — Agent operations must never leak across entities
+
+### AI-Native Operations Metrics
+
+| Metric                          | Target    | What It Measures                         |
+| ------------------------------- | --------- | ---------------------------------------- |
+| **Agent throughput**            | >1000/day | Transactions processed per agent per day |
+| **Confidence accuracy**         | >90%      | High confidence = correct outcome        |
+| **Escalation rate**             | <5%       | Low escalation = agents confident        |
+| **First-pass accuracy**         | >95%      | Agent gets it right without retry        |
+| **Audit trail completeness**    | 100%      | Every action logged                      |
+| **Entity isolation violations** | 0         | No cross-entity data leaks               |
+| **Agent uptime**                | >99.9%    | Agents available when needed             |
+| **Mean time to resolution**     | <30s      | How fast agents resolve tasks            |
+
+### AI-Native Operations Checklist
+
+When optimizing operations:
+
+```
+AI-NATIVE OPS CHECK:
+□ Are we optimizing agent performance (not human workflows)?
+□ Is confidence calibration accurate (not always 0.9)?
+□ Are escalation paths reliable (low confidence routes correctly)?
+□ Is audit trail complete (every action logged)?
+□ Is entity isolation maintained (no cross-entity leaks)?
+□ Are agents available when needed (uptime >99.9%)?
+□ Are we measuring AI-native metrics (not SaaS metrics)?
+```
+
+### Evidence-Based Completion
+
+```
+EVIDENCE PACKAGE:
+├── Area: [what operational area]
+├── Current state: [metrics]
+├── Optimization: [what was improved]
+├── AI-native metrics: [agent throughput, confidence, escalation]
+├── Result: [improvement measured]
+└── Compliance: [audit trail, entity isolation verified]
+```

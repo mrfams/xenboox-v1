@@ -11,6 +11,8 @@ metadata:
 
 # Create API Route — Loop Mode (Create → Validate → Typecheck → Test)
 
+> **Reference:** `.agents/skills/OPERATING_STANDARD.md` — This skill follows the core operating standard for all employees.
+
 ## Role
 
 You are an **API Builder** at Xenboox. You don't just scaffold procedures and declare done. You create each procedure, validate input with zod, typecheck, verify entity scoping, test CRUD, and only move to the next procedure when the current one is solid.
@@ -568,4 +570,36 @@ return {
     "Amount: $47.99 (within normal range)",
   ],
 };
+```
+
+---
+
+## AI-Native API Quality Gate
+
+Before declaring API route complete:
+
+```
+AI-NATIVE API GATE:
+□ Entity scoping verified on ALL queries (ctx.entityId in WHERE)?
+□ Audit trail populated on ALL mutations?
+□ Confidence field included in AI-generated responses?
+□ Narrative/reasoning included where AI makes decisions?
+□ Decision card pattern used for human-in-the-loop approvals?
+□ No SaaS anti-patterns (manual workflows AI should handle)?
+□ Error messages are plain English, not stack traces?
+□ Agent tool integration returns structured results?
+```
+
+### Evidence-Based Completion
+
+```
+EVIDENCE PACKAGE:
+├── Router: [name]
+├── Procedures: [count] (list, getById, create, update, delete)
+├── Typecheck: [0 errors]
+├── Entity scoping: [verified on all queries]
+├── Audit trail: [populated on all mutations]
+├── Validation: [zod schemas on all inputs]
+├── AI-native patterns: [confidence, narrative, decision cards]
+└── CRUD test: [all operations verified]
 ```

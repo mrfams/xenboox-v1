@@ -481,3 +481,58 @@ To prevent infinite loops:
 - Max **2 escalation rounds** per issue
 - Max **50 tickets** per session
 - If budget exceeded: report progress, list incomplete items, ask for guidance
+
+---
+
+## AI-Native Support
+
+Since Xenboox is AI-native, customer support must account for AI-specific issues.
+
+### AI-Native Support Principles
+
+1. **AI handles first-line support** — Agent should answer common questions before human escalation
+2. **Confidence-based escalation** — Low confidence support answers escalate to human
+3. **AI explains its answers** — Support responses include reasoning and confidence
+4. **Agent workflow issues** — Support must diagnose AI agent problems, not just UI bugs
+5. **Audit trail for support** — Every support action logged with context
+
+### AI-Native Support Checklist
+
+When handling support tickets:
+
+```
+AI-NATIVE SUPPORT CHECK:
+□ Is this an AI agent issue (not just a UI bug)?
+□ Does the ticket involve confidence scoring or escalation?
+□ Is the issue related to entity scoping or data isolation?
+□ Does the resolution preserve AI-native patterns?
+□ Is the fix compatible with agent workflows?
+□ Does the resolution avoid introducing SaaS anti-patterns?
+□ Is the root cause documented for AI-specific issues?
+```
+
+### AI-Native Issue Categories
+
+| Category                   | What to Check                                          | Common Root Cause                             |
+| -------------------------- | ------------------------------------------------------ | --------------------------------------------- |
+| **Agent Not Responding**   | Agent state, communication channels, graph compilation | State schema mismatch, broken graph edges     |
+| **Confidence Wrong**       | Confidence calculation logic, threshold triggers       | Hardcoded values, missing calibration         |
+| **Decision Card Broken**   | Rendering, action handlers, state updates              | Missing action handlers, broken state updates |
+| **Entity Data Leak**       | Cross-entity queries, wrong entity context             | Missing entityId filter, wrong context source |
+| **Audit Trail Missing**    | Logging completeness, action attribution               | Missing audit inserts, wrong userId           |
+| **Escalation Not Working** | Low-confidence routing, supervisor dispatch            | Wrong threshold, missing escalation path      |
+| **Narrative Empty**        | AI reasoning quality, explanation generation           | Missing reasoning field, empty explanations   |
+| **SaaS Anti-Pattern**      | Manual workflows AI should handle                      | Design regression, feature creep              |
+
+### Evidence-Based Completion
+
+```
+EVIDENCE PACKAGE:
+├── Ticket: [what was reported]
+├── AI-native issue: [category]
+├── Root cause: [description]
+├── Resolution: [what was fixed]
+├── Verification: [confirmed working]
+├── KB article: [created/updated]
+└── Prevention: [how to prevent recurrence]
+```

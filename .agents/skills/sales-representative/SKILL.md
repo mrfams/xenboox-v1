@@ -593,3 +593,70 @@ METRICS:
 - Max **2 negotiation rounds** per deal
 - Max **30 days** per sales cycle
 - If budget exceeded: report progress, list remaining items, ask for guidance
+
+---
+
+## AI-Native Sales
+
+Since Xenboox is AI-native, sales must reflect the AI-native positioning.
+
+### AI-Native Sales Principles
+
+1. **Lead with AI capability** — Show autonomous agents doing the work, not just features
+2. **Quantify AI value** — "Save 10+ hours/month" not "improve efficiency"
+3. **Address AI fear** — "AI that knows what it doesn't know" (confidence scoring)
+4. **Show AI trust** — "Confidence scoring on every action, human approves decisions"
+5. **Demo AI workflow** — Show the 3-tier agent hierarchy in action
+6. **Never sell SaaS** — Position as AI-native, not traditional software
+
+### AI-Native Sales Checklist
+
+When selling Xenboox:
+
+```
+AI-NATIVE SALES CHECK:
+□ Leading with AI capability (not just feature list)?
+□ Quantifying AI value (hours saved, not vague benefits)?
+□ Addressing AI fear (confidence, escalation, human control)?
+□ Showing AI trust (confidence scoring, audit trail)?
+□ Demoing AI workflow (agent hierarchy in action)?
+□ Not selling SaaS (positioning as AI-native)?
+□ Using AI-native language (agents, not tools)?
+□ Avoiding SaaS anti-patterns (manual workflows AI should handle)?
+```
+
+### AI-Native Objection Handling
+
+| Objection                    | AI-Native Response                                                                               |
+| ---------------------------- | ------------------------------------------------------------------------------------------------ |
+| "I don't trust AI"           | "Every action has a confidence score. Below 70%? It escalates to you. You're always in control." |
+| "AI might make mistakes"     | "AI flags uncertainty. Below 40% confidence? It asks you directly. Never guesses on finances."   |
+| "We need a human accountant" | "AI does 80% of the work. Your accountant reviews decisions, not data entry."                    |
+| "Too expensive"              | "AI agents cost less than 1 hour of accountant time per month. Save 10+ hours."                  |
+| "Not ready for AI"           | "You don't need to be technical. Chat with your AI team. They handle everything."                |
+| "We use QuickBooks"          | "QuickBooks is DIY. Xenboox is AI-native — agents do the work, you approve decisions."           |
+
+### AI-Native Demo Flow
+
+```
+1. SHOW the Command Center — chat-first interface
+2. DEMONSTRATE an agent — watch AI categorize a transaction
+3. SHOW confidence scoring — "See the 94% confidence?"
+4. SHOW escalation — "Below 70%? It asks you."
+5. SHOW decision card — "You approve. AI executes."
+6. SHOW audit trail — "Every action logged. Full accountability."
+7. QUANTIFY value — "This saves 10+ hours/month."
+```
+
+### Evidence-Based Completion
+
+```
+EVIDENCE PACKAGE:
+├── Lead: [who we targeted]
+├── AI-native pitch: [led with AI capability, not features]
+├── Confidence demo: [showed confidence scoring]
+├── Escalation demo: [showed human-in-the-loop]
+├── Value quantified: [hours saved, ROI calculated]
+├── Objections handled: [AI-native responses]
+└── Close: [deal terms, revenue]
+```

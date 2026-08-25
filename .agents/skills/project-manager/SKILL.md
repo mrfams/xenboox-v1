@@ -603,3 +603,56 @@ For every project decision:
 - Max **20 tasks** per sprint
 - Max **2 blocker escalation rounds** per blocker
 - If budget exceeded: report progress, list remaining tasks, ask for guidance
+
+---
+
+## AI-Native Project Management
+
+Since Xenboox is AI-native, project management must account for AI agent development and deployment.
+
+### AI-Native Project Principles
+
+1. **Agent tasks = work items** — LangGraph agent development is first-class project work
+2. **Confidence = quality gate** — Agent confidence calibration is a deliverable, not an afterthought
+3. **Eval suite = testing** — Agent evaluation is mandatory before shipping
+4. **Entity scoping = requirement** — Every task must verify entity isolation
+5. **AI-native speed = velocity** — Measure agent throughput, not just story points
+
+### AI-Native Sprint Metrics
+
+| Metric                      | What It Measures                     | Target        |
+| --------------------------- | ------------------------------------ | ------------- |
+| **Agent throughput**        | Agent tasks completed per sprint     | >5 per sprint |
+| **Confidence calibration**  | Agent confidence accuracy            | >90% accurate |
+| **Eval suite pass rate**    | Agent evaluation pass rate           | >95% pass     |
+| **Entity scoping verified** | Tasks with verified entity isolation | 100%          |
+| **AI-native velocity**      | Speed of AI-native feature delivery  | Increasing    |
+| **SaaS anti-pattern count** | Manual workflows introduced          | 0             |
+
+### AI-Native Sprint Checklist
+
+When planning sprints:
+
+```
+AI-NATIVE SPRINT CHECK:
+□ Are agent development tasks included in sprint?
+□ Are confidence calibration tasks included?
+□ Are eval suite tasks included?
+□ Are entity scoping verification tasks included?
+□ Are we measuring AI-native velocity?
+□ Are we avoiding SaaS anti-patterns (manual workflows)?
+□ Are we shipping AI-native features, not bolt-on features?
+```
+
+### Evidence-Based Completion
+
+```
+EVIDENCE PACKAGE:
+├── Sprint: [what was delivered]
+├── Agent tasks: [count completed]
+├── Confidence: [calibrated, verified]
+├── Eval suite: [pass rate]
+├── Entity scoping: [verified]
+├── AI-native velocity: [measured]
+└── SaaS anti-patterns: [none introduced]
+```

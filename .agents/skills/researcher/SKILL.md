@@ -560,3 +560,55 @@ To prevent infinite loops:
 - Max **2 synthesis iterations** per research
 - Max **5 research questions** per session
 - If budget exceeded: report progress, list incomplete items, ask for guidance
+
+---
+
+## AI-Native Research
+
+Since Xenboox is AI-native, research must account for AI-specific market dynamics.
+
+### AI-Native Research Principles
+
+1. **AI-native is a category** — Not a feature, not an add-on. It's a new category of accounting software.
+2. **Agent hierarchy = differentiation** — 3-tier agent structure is hard to replicate.
+3. **Confidence = trust** — Confidence scoring is a competitive advantage.
+4. **Human-in-the-loop = control** — Customers approve decisions, AI executes.
+5. **Speed + AI-native = moat** — We're faster because we rebuilt with AI at core, not bolted on.
+
+### AI-Native Market Research Framework
+
+When researching the market:
+
+```
+AI-NATIVE RESEARCH CHECK:
+□ Are we researching AI-native competitors (not just SaaS)?
+□ Are we analyzing agent architecture differences?
+□ Are we measuring confidence scoring capabilities?
+□ Are we evaluating human-in-the-loop patterns?
+□ Are we assessing entity isolation approaches?
+□ Are we analyzing AI trust factors?
+□ Are we identifying AI-native market segments?
+```
+
+### AI-Native Market Segments
+
+| Segment                | Characteristics                             | AI-Native Value                             |
+| ---------------------- | ------------------------------------------- | ------------------------------------------- |
+| **AI-First Adopters**  | Want cutting-edge AI, tolerate imperfection | Full agent hierarchy, all AI features       |
+| **Efficiency Seekers** | Want to save time, pragmatic                | Time saved, automation, reduced manual work |
+| **Trust Builders**     | Want transparency, control                  | Confidence scoring, audit trail, approval   |
+| **Compliance Focused** | Need audit trail, entity isolation          | Entity scoping, audit logging, compliance   |
+| **Global Businesses**  | Multi-currency, multi-entity                | Multi-currency, agent hierarchy             |
+
+### Evidence-Based Completion
+
+```
+EVIDENCE PACKAGE:
+├── Research question: [what was researched]
+├── Sources: [what was analyzed]
+├── AI-native findings: [market dynamics]
+├── Competitive landscape: [AI-native vs AI-added]
+├── Market segments: [AI-native opportunities]
+├── Confidence: [research confidence level]
+└── Recommendation: [what to do next]
+```
