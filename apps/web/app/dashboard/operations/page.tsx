@@ -45,14 +45,16 @@ function MoneyFlowSummary() {
   const { entityId } = useEntity();
   const { openWithFocus } = useModuleAi();
 
-  const { data: dashboardData } = trpc.dashboard.getDashboardData.useQuery(
-    {},
-    { enabled: !!entityId },
-  );
-  const { data: cashPosition } = trpc.banking.getCashPosition.useQuery(
-    {},
-    { enabled: !!entityId },
-  );
+  const {
+    data: dashboardData,
+    isError: isDashboardError,
+    refetch: refetchDashboard,
+  } = trpc.dashboard.getDashboardData.useQuery({}, { enabled: !!entityId });
+  const {
+    data: cashPosition,
+    isError: isCashPositionError,
+    refetch: refetchCashPosition,
+  } = trpc.banking.getCashPosition.useQuery({}, { enabled: !!entityId });
 
   const businessHealth = dashboardData?.businessHealth;
   const cashBalance = businessHealth?.cashBalance ?? 0;
@@ -62,6 +64,47 @@ function MoneyFlowSummary() {
   const incoming = cashPosition?.incoming ?? 0;
   const outgoing = cashPosition?.outgoing ?? 0;
   const netChange = cashPosition?.netChange ?? 0;
+
+  if (isDashboardError || isCashPositionError) {
+    return (
+      <div className="rounded-2xl border border-border/40 bg-card/30 p-4 sm:p-5">
+        <div className="flex items-center gap-2.5 mb-3">
+          <div
+            className="flex h-6 w-6 items-center justify-center rounded-md bg-primary/8"
+            aria-hidden="true"
+          >
+            <ArrowLeftRight className="h-3.5 w-3.5 text-primary" />
+          </div>
+          <h2 className="text-sm font-semibold tracking-tight text-foreground">
+            Money Flow
+          </h2>
+        </div>
+        <div className="rounded-lg bg-destructive/5 p-4 text-center">
+          <AlertTriangle
+            className="h-5 w-5 text-destructive mx-auto mb-2"
+            aria-hidden="true"
+          />
+          <p className="text-sm font-medium text-foreground">
+            Unable to load money flow data
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Check your connection and try again.
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              refetchDashboard();
+              refetchCashPosition();
+            }}
+            className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/5 px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/10 transition-colors"
+          >
+            <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="rounded-2xl border border-border/40 bg-card/30 p-4 sm:p-5">
@@ -172,9 +215,12 @@ function MoneyFlowSummary() {
 function BankingCards() {
   const { entityId } = useEntity();
   const { openWithFocus } = useModuleAi();
-  const { data: bankData } = trpc.banking.getOverview.useQuery(undefined, {
-    enabled: !!entityId,
-  });
+  const { data: bankData, isLoading } = trpc.banking.getOverview.useQuery(
+    undefined,
+    {
+      enabled: !!entityId,
+    },
+  );
   const accounts = bankData?.accounts ?? [];
 
   return (
@@ -220,7 +266,17 @@ function BankingCards() {
         </button>
       </div>
       <div className="grid gap-3 sm:grid-cols-3">
-        {accounts && accounts.length > 0 ? (
+        {isLoading ? (
+          <div className="col-span-3 flex items-center justify-center py-6">
+            <Loader2
+              className="h-5 w-5 text-muted-foreground animate-spin"
+              aria-hidden="true"
+            />
+            <span className="ml-2 text-xs text-muted-foreground">
+              Loading accounts...
+            </span>
+          </div>
+        ) : accounts && accounts.length > 0 ? (
           accounts.slice(0, 3).map((account) => (
             <button
               key={account.id}
@@ -236,7 +292,8 @@ function BankingCards() {
                       {
                         label: "Balance",
                         value: formatCurrency(
-                          parseFloat(account.currentBalance ?? "0"),
+                          Number(account.currentBalance ?? 0),
+                          account.currency ?? "USD",
                         ),
                       },
                       {
@@ -254,7 +311,10 @@ function BankingCards() {
                 {account.name}
               </p>
               <p className="mt-1 text-lg font-bold text-foreground">
-                {formatCurrency(parseFloat(account.currentBalance ?? "0"))}
+                {formatCurrency(
+                  Number(account.currentBalance ?? 0),
+                  account.currency ?? "USD",
+                )}
               </p>
               <div className="mt-1 flex items-center gap-1">
                 {account.isActive ? (
@@ -543,11 +603,11 @@ function PeopleGrid() {
       count: customers?.totalCount ?? 0,
       icon: Users,
       color: "text-blue-500",
-      href: "/dashboard/operations/invoices",
+      href: "/dashboard/operations/customers",
       prompt: "Show me my customer list. Who has outstanding invoices?",
     },
     {
-      label: "Vendors",
+      label: "Bills",
       count: billsOverview?.statusCounts.all ?? 0,
       icon: CreditCard,
       color: "text-amber-500",
@@ -556,7 +616,7 @@ function PeopleGrid() {
     },
     {
       label: "Employees",
-      count: 0,
+      count: null,
       icon: Users,
       color: "text-emerald-500",
       prompt: "Show me my employee list and payroll status",
@@ -579,7 +639,9 @@ function PeopleGrid() {
                   {person.label}
                 </p>
                 <p className="text-[10px] text-muted-foreground">
-                  {person.count} total
+                  {person.count === null
+                    ? "Coming soon"
+                    : `${person.count} total`}
                 </p>
               </div>
             </>
@@ -642,11 +704,6 @@ function AiQuickActions() {
       label: "Reconcile accounts",
       icon: RefreshCw,
       prompt: "Help me reconcile my bank transactions",
-    },
-    {
-      label: "Run payroll",
-      icon: Users,
-      prompt: "Help me run payroll for this period",
     },
     {
       label: "Close month-end",
@@ -788,9 +845,10 @@ export default function OperationsPage() {
                       Banking & Feeds
                     </span>
                   </div>
-                  <span className="text-xs text-muted-foreground">
-                    AI-categorized
-                  </span>
+                  <ChevronRight
+                    className="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors"
+                    aria-hidden="true"
+                  />
                 </Link>
                 <button
                   type="button"
@@ -808,27 +866,10 @@ export default function OperationsPage() {
                       Expenses
                     </span>
                   </div>
-                  <span className="text-xs text-muted-foreground">
-                    AI-tracked
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() =>
-                    openWithFocus(
-                      { kind: "Payroll", name: "Payroll" },
-                      "Help me run payroll for this period. Show me the pending run.",
-                    )
-                  }
-                  className="w-full flex items-center justify-between rounded-lg bg-background/50 px-3 py-2 text-left transition-colors hover:bg-accent group"
-                >
-                  <div className="flex items-center gap-2">
-                    <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-                    <span className="text-xs text-foreground group-hover:text-primary transition-colors">
-                      Payroll
-                    </span>
-                  </div>
-                  <span className="text-xs text-muted-foreground">Period</span>
+                  <Sparkles
+                    className="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors"
+                    aria-hidden="true"
+                  />
                 </button>
               </div>
             </div>
