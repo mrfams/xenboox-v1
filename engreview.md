@@ -1569,3 +1569,63 @@ AI-native donor reporting for NGOs and development organizations. Tracks donor-f
 | --- | ------------------------------------------------------------------------------------------------------------------------------------------------ | -------- | ------------------------------------------------- | ------ |
 | 1   | **Budget utilization shown as simple percentage** — no trend (is utilization increasing or decreasing?), no forecast (when will funds run out?). | MEDIUM   | Add trend indicator and projected depletion date. | ⬜     |
 | 2   | **No donor retention metrics** — can't track repeat donors, funding continuity.                                                                  | LOW      | Donor lifetime value and retention rate cards.    | ⬜     |
+
+# PAGE: /dashboard/help
+
+Help center with search, topic cards, documentation links, AI assistant, and health status badge.
+
+---
+
+## DEPARTMENT: PRODUCT
+
+### Employee: Product Manager
+
+| #   | Finding                                                                                                                                                                                                                                                   | Severity | Fix                                                                  | Status |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | -------------------------------------------------------------------- | ------ |
+| 1   | **Health check is decorative** — badge checks /api/health/ready but doesn't verify any specific system. "All systems operational" implies comprehensive monitoring; one endpoint ping proves almost nothing. Same false-status class as CC's "AI active". | HIGH     | Wire to real service health (DB, AI, storage) or remove badge.       | ⬜     |
+| 2   | **"Run payroll" help guide links to /dashboard** — payroll module doesn't exist yet; link sends users to Command Center with no context. Dead-end for users seeking help with a promised feature.                                                         | MEDIUM   | Gate behind feature availability or link to AI with payroll context. | ⬜     |
+| 3   | **"Create an invoice" help guide links to /dashboard** — should link to /dashboard/operations/invoices where invoices actually live.                                                                                                                      | MEDIUM   | Update href to /dashboard/operations/invoices.                       | ⬜     |
+| 4   | **Search is client-side only** — filters static TOPICS array; no server-side search for actual help content, docs, or knowledge base. Users searching for topics not in the hardcoded list get zero results.                                              | MEDIUM   | Server-side search across docs + knowledge base when available.      | ⬜     |
+| 5   | **No keyboard shortcut for search** — common help center pattern is Cmd+K or / to focus search input. Power users expect this.                                                                                                                            | LOW      | Add global keyboard shortcut to focus help search.                   | ⬜     |
+| 6   | **No analytics on search queries** — can't track what users are searching for; the most valuable product feedback (what are users confused about?) is invisible.                                                                                          | MEDIUM   | Track search queries with results count.                             | ⬜     |
+
+### Employee: UX Writer
+
+| #   | Finding                                                                                                                                                                           | Severity | Fix                                                            | Status |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | -------------------------------------------------------------- | ------ |
+| 1   | **"Some systems may be degraded" is vague** — when health check fails, users get uncertain language. In a financial product, uncertainty about system status is itself a problem. | MEDIUM   | "We're investigating a connectivity issue. Your data is safe." | ⬜     |
+| 2   | **Quick chips are static** — "Getting started", "Invoices", "Payroll", "Security" never change based on user behavior or time. New users see the same chips as power users.       | LOW      | Personalize based on modules used or time since signup.        | ⬜     |
+
+---
+
+## DEPARTMENT: DESIGN
+
+### Employee: Design Critic
+
+| #   | Finding                                                                                                                                                                          | Severity | Fix                                                           | Status |
+| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------------------------------- | ------ |
+| 1   | **Health badge has no focus-visible treatment** — the status span is not interactive but the visual treatment suggests it might be.                                              | LOW      | Remove interactive appearance or add focus ring if clickable. | ⬜     |
+| 2   | **Hero gradient is hardcoded** — from-indigo-600 via-indigo-500 to-purple-600 doesn't respect theme tokens. Dark mode relies on opacity adjustments rather than semantic colors. | LOW      | Map to theme gradient tokens.                                 | ⬜     |
+| 3   | **Topic cards have inconsistent hover states** — documentation cards have indigo hover border; "Still stuck" section cards have same treatment but different content hierarchy.  | LOW      | Differentiate card types visually.                            | ⬜     |
+
+---
+
+## DEPARTMENT: ENGINEERING
+
+### Employee: Engineering Critic
+
+| #   | Finding                                                                                                                                                                     | Severity | Fix                                           | Status |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | --------------------------------------------- | ------ |
+| 1   | **Health check fetches on every mount** — no caching, no debouncing; rapid navigation triggers multiple /api/health/ready requests.                                         | LOW      | Cache health status in localStorage with TTL. | ⬜     |
+| 2   | **HelpAssistant dynamic import has no error fallback** — if chunk fails to load, the entire right rail is blank. ErrorBoundary catches render errors but not load failures. | MEDIUM   | Add error state for dynamic import failure.   | ⬜     |
+
+---
+
+## DEPARTMENT: DATA
+
+### Employee: Data Analyst
+
+| #   | Finding                                                                                                                                                                           | Severity | Fix                                        | Status |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------------ | ------ |
+| 1   | **Zero analytics on help usage** — no events for search queries, topic clicks, AI assistant opens, or external doc navigation. Can't measure help effectiveness or identify gaps. | MEDIUM   | Instrument search/click/navigation events. | ⬜     |
+| 2   | **No help-to-support conversion tracking** — can't measure how many users go from help → AI → email support. Critical funnel for support cost optimization.                       | LOW      | Track progression through help surfaces.   | ⬜     |

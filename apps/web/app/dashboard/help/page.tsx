@@ -126,7 +126,7 @@ const TOPICS: HelpTopic[] = [
     title: "Create an invoice",
     description:
       "Bill customers, track payments, and convert quotes to invoices.",
-    href: "/dashboard",
+    href: "/dashboard/operations/invoices",
     icon: Receipt,
     group: "In-app guides",
     keywords: ["invoice", "bill customer", "sales", "receivables", "quote"],
@@ -254,8 +254,8 @@ export default function HelpPage() {
               )}
             </span>
             {isHealthy === false
-              ? "Some systems may be degraded"
-              : "All systems operational"}
+              ? "Connection issue detected"
+              : "API connected"}
           </span>
         </div>
       </div>
