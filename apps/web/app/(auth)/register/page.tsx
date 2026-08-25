@@ -1,6 +1,13 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 
 import { RegisterForm } from "@/components/auth/register-form";
+
+export const metadata: Metadata = {
+  title: "Create Account — Xenboox",
+  description:
+    "Create your free Xenboox account and start AI-native accounting.",
+};
 
 export default function RegisterPage() {
   return (
@@ -17,7 +24,11 @@ export default function RegisterPage() {
 
       <RegisterForm />
 
-      <div className="mt-6 text-center text-sm text-muted-foreground">
+      <p className="mt-4 text-center text-xs text-muted-foreground/70">
+        We'll send you a verification email to activate your account.
+      </p>
+
+      <div className="mt-4 text-center text-sm text-muted-foreground">
         Already have an account?{" "}
         <Link
           href="/login"

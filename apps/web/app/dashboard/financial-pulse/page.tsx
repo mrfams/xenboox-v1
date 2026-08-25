@@ -332,7 +332,14 @@ function AiFinancialNarrative({
 
       {/* Confidence and timestamp */}
       <div className="mt-2 flex items-center gap-3 text-[10px] text-muted-foreground/60">
-        <span>Confidence: {Math.round(aiNarrative.confidence * 100)}%</span>
+        <span>
+          Confidence: {Math.round(aiNarrative.confidence * 100)}%
+          {aiNarrative.confidence >= 0.8
+            ? " (High)"
+            : aiNarrative.confidence >= 0.5
+              ? " (Medium)"
+              : " (Low)"}
+        </span>
         <span>•</span>
         <span>
           Generated: {new Date(aiNarrative.generatedAt).toLocaleTimeString()}
@@ -695,7 +702,7 @@ export default function FinancialPulsePage() {
         enabled: !!entityId,
       });
 
-    const baseCurrency = settings?.baseCurrency ?? "GMD";
+    const baseCurrency = settings?.baseCurrency ?? "USD";
 
     // Show key rates for The Gambia market
     const keyPairs = [

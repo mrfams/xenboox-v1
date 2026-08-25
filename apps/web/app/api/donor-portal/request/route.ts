@@ -11,8 +11,29 @@ import { resend, EMAIL_FROM } from "@/lib/resend";
 
 const log = logger.child({ module: "donor-portal-request" });
 
+// ── In-memory IP rate limiter ─────────────────────────────────────────────
+// Sliding window: max IP_RATE_LIMIT_MAX requests per IP per IP_RATE_LIMIT_MS.
+// Resets on cold start (acceptable for serverless — attacker must repeat).
+const ipRateLimit = new Map<string, { timestamps: number[] }>();
+
+// Cleanup stale entries every 5 minutes to prevent memory leaks
+setInterval(
+  () => {
+    const now = Date.now();
+    for (const [ip, entry] of ipRateLimit) {
+      entry.timestamps = entry.timestamps.filter(
+        (t) => now - t < IP_RATE_LIMIT_MS,
+      );
+      if (entry.timestamps.length === 0) ipRateLimit.delete(ip);
+    }
+  },
+  5 * 60 * 1000,
+);
+
 const TOKEN_EXPIRY_HOURS = 24;
-const RATE_LIMIT_WINDOW_MS = 5 * 60 * 1000; // 5 minutes
+const EMAIL_RATE_LIMIT_MS = 15 * 60 * 1000; // 15 minutes per email
+const IP_RATE_LIMIT_MS = 15 * 60 * 1000; // 15 minutes per IP
+const IP_RATE_LIMIT_MAX = 10; // max requests per IP per window
 
 // ─── Donor Portal Magic-Link Request ────────────────────────────────────────
 //
@@ -30,10 +51,7 @@ export async function POST(request: NextRequest) {
     const { email, entityId } = body as { email?: string; entityId?: string };
 
     if (!email || typeof email !== "string") {
-      return NextResponse.json(
-        { error: "Email is required" },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: "Email is required" }, { status: 400 });
     }
 
     if (!entityId || typeof entityId !== "string") {
@@ -50,21 +68,50 @@ export async function POST(request: NextRequest) {
     const donor = await db.query.customers.findFirst({
       where: and(
         eq(customers.entityId, entityId),
-        eq(customers.email, normalizedEmail),
+        eq(customers.contactEmail, normalizedEmail),
         eq(customers.isDonor, true),
       ),
     });
 
     if (!donor) {
       // Don't reveal whether the email exists — always return success
-      log.warn({ email: normalizedEmail }, "Donor not found — returning generic success");
+      log.warn(
+        { email: normalizedEmail },
+        "Donor not found — returning generic success",
+      );
       return NextResponse.json({
         success: true,
-        message: "If this email is registered as a donor, you will receive a login link.",
+        message:
+          "If this email is registered as a donor, you will receive a login link.",
       });
     }
 
-    // Rate limit: check for recent tokens for this email
+    // ── IP-based rate limiting (in-memory sliding window) ────────────────
+    const clientIp =
+      request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+      request.headers.get("x-real-ip") ??
+      "unknown";
+
+    const ipNow = Date.now();
+    const ipEntry = ipRateLimit.get(clientIp);
+    if (ipEntry) {
+      // Remove expired timestamps
+      ipEntry.timestamps = ipEntry.timestamps.filter(
+        (t) => ipNow - t < IP_RATE_LIMIT_MS,
+      );
+      if (ipEntry.timestamps.length >= IP_RATE_LIMIT_MAX) {
+        log.warn({ ip: clientIp }, "IP rate limit exceeded");
+        return NextResponse.json(
+          { error: "Too many requests. Please try again later." },
+          { status: 429 },
+        );
+      }
+      ipEntry.timestamps.push(ipNow);
+    } else {
+      ipRateLimit.set(clientIp, { timestamps: [ipNow] });
+    }
+
+    // ── Email-based rate limiting (database-backed) ──────────────────────
     const recentToken = await db.query.donorPortalTokens.findFirst({
       where: and(
         eq(donorPortalTokens.entityId, entityId),
@@ -74,12 +121,14 @@ export async function POST(request: NextRequest) {
 
     if (recentToken) {
       const timeSinceLastRequest = Date.now() - recentToken.createdAt.getTime();
-      if (timeSinceLastRequest < RATE_LIMIT_WINDOW_MS) {
+      if (timeSinceLastRequest < EMAIL_RATE_LIMIT_MS) {
         const waitMinutes = Math.ceil(
-          (RATE_LIMIT_WINDOW_MS - timeSinceLastRequest) / 60000,
+          (EMAIL_RATE_LIMIT_MS - timeSinceLastRequest) / 60000,
         );
         return NextResponse.json(
-          { error: `Please wait ${waitMinutes} minute(s) before requesting another link.` },
+          {
+            error: `Please wait ${waitMinutes} minute(s) before requesting another link.`,
+          },
           { status: 429 },
         );
       }
@@ -101,7 +150,8 @@ export async function POST(request: NextRequest) {
     });
 
     // Build magic link URL
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://xenboox.vercel.app";
+    const baseUrl =
+      process.env.NEXT_PUBLIC_APP_URL || "https://xenboox.vercel.app";
     const magicLinkUrl = `${baseUrl}/donor-portal/auth?token=${token}`;
 
     // Send email
@@ -150,13 +200,11 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: "If this email is registered as a donor, you will receive a login link.",
+      message:
+        "If this email is registered as a donor, you will receive a login link.",
     });
   } catch (error) {
     log.error({ error }, "Donor portal request failed");
-    return NextResponse.json(
-      { error: "Request failed" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Request failed" }, { status: 500 });
   }
 }

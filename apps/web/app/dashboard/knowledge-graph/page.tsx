@@ -36,7 +36,6 @@ type GraphNode = {
   type: string;
   description: string | null;
   internalId: string;
-  internalTable: string;
   size: number;
   metadata: Record<string, unknown> | null;
 };
@@ -198,10 +197,10 @@ export default function KnowledgeGraphPage() {
                     <Network className="h-6 w-6 text-primary" />
                   </div>
                   <h3 className="text-sm font-semibold text-foreground">
-                    Select a Node
+                    Click an item to explore
                   </h3>
                   <p className="text-xs text-muted-foreground mt-1 max-w-xs">
-                    Click on any node in the graph to view its details and
+                    Click any item in the graph to see its details and
                     relationships
                   </p>
                 </div>
@@ -307,7 +306,7 @@ function NodeDetailsPanel({
 }: {
   node: GraphNode;
   relationships?: {
-    node: any;
+    node: GraphNode;
     outgoing: Array<{
       id: string;
       targetId: string;

@@ -1,6 +1,12 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 
 import { ForgotPasswordForm } from "@/components/auth/forgot-password-form";
+
+export const metadata: Metadata = {
+  title: "Reset Password — Xenboox",
+  description: "Reset your Xenboox account password.",
+};
 
 export default function ForgotPasswordPage() {
   return (

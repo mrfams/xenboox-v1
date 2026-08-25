@@ -164,22 +164,22 @@ function TopicCard({ topic }: { topic: HelpTopic }) {
   return (
     <Link
       href={topic.href}
-      className="group flex flex-col rounded-xl border border-slate-200 bg-white p-5 transition-all duration-200 hover:-translate-y-0.5 hover:border-indigo-300 hover:shadow-lg hover:shadow-indigo-500/5 dark:border-slate-800 dark:bg-slate-950 dark:hover:border-indigo-800"
+      className="group flex flex-col rounded-xl border border-border bg-card p-5 transition-all duration-200 hover:-translate-y-0.5 hover:border-indigo-300 hover:shadow-lg hover:shadow-indigo-500/5 dark:border-border/60 dark:hover:border-indigo-800"
     >
       <div className="flex items-start justify-between">
         <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600 transition-colors group-hover:bg-indigo-600 group-hover:text-white dark:bg-indigo-500/10 dark:text-indigo-400 dark:group-hover:bg-indigo-500 dark:group-hover:text-white">
           <Icon className="h-5 w-5" />
         </div>
         {topic.external ? (
-          <ExternalLink className="h-4 w-4 text-slate-300 transition-colors group-hover:text-indigo-500 dark:text-slate-600" />
+          <ExternalLink className="h-4 w-4 text-muted-foreground/50 transition-colors group-hover:text-indigo-500 dark:text-muted-foreground/40" />
         ) : (
-          <ArrowRight className="h-4 w-4 text-slate-300 transition-all group-hover:translate-x-0.5 group-hover:text-indigo-500 dark:text-slate-600" />
+          <ArrowRight className="h-4 w-4 text-muted-foreground/50 transition-all group-hover:translate-x-0.5 group-hover:text-indigo-500 dark:text-muted-foreground/40" />
         )}
       </div>
-      <h3 className="mt-4 text-sm font-semibold text-slate-900 dark:text-slate-100">
+      <h3 className="mt-4 text-sm font-semibold text-foreground">
         {topic.title}
       </h3>
-      <p className="mt-1 text-[13px] leading-relaxed text-slate-500 dark:text-slate-400">
+      <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">
         {topic.description}
       </p>
     </Link>
@@ -208,13 +208,11 @@ export default function HelpPage() {
   return (
     <div className="flex h-[calc(100vh-4rem)] flex-col">
       {/* Header */}
-      <div className="border-b border-slate-200 bg-white px-6 py-4 dark:border-slate-800 dark:bg-slate-950">
+      <div className="border-b border-border bg-card px-6 py-4 dark:border-border/60">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">
-              Help Center
-            </h1>
-            <p className="text-sm text-slate-500 dark:text-slate-400">
+            <h1 className="text-2xl font-bold text-foreground">Help Center</h1>
+            <p className="text-sm text-muted-foreground">
               Guides, documentation, and support for every part of Xenboox
             </p>
           </div>
@@ -265,14 +263,14 @@ export default function HelpPage() {
                   </div>
 
                   <div className="relative mt-5 max-w-xl">
-                    <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+                    <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground/50" />
                     <input
                       type="text"
                       value={query}
                       onChange={(e) => setQuery(e.target.value)}
                       aria-label="Search help topics"
                       placeholder="Search help topics… e.g. invoice, reconcile, security"
-                      className="w-full rounded-xl border-0 bg-white py-3 pl-12 pr-4 text-sm text-slate-900 shadow-lg placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-white/60"
+                      className="w-full rounded-xl border-0 bg-white py-3 pl-12 pr-4 text-sm text-foreground shadow-lg placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-white/60"
                     />
                   </div>
 
@@ -320,10 +318,10 @@ export default function HelpPage() {
                     <section>
                       <div className="mb-4 flex items-center gap-2">
                         <BookOpen className="h-4 w-4 text-indigo-500" />
-                        <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                        <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
                           Documentation
                         </h3>
-                        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+                        <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
                           {docTopics.length}
                         </span>
                       </div>
@@ -339,10 +337,10 @@ export default function HelpPage() {
                     <section>
                       <div className="mb-4 flex items-center gap-2">
                         <Sparkles className="h-4 w-4 text-indigo-500" />
-                        <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                        <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
                           In-app guides
                         </h3>
-                        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+                        <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
                           {guideTopics.length}
                         </span>
                       </div>
@@ -355,12 +353,12 @@ export default function HelpPage() {
                   )}
                 </div>
               ) : (
-                <div className="mt-8 flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-300 py-16 text-center dark:border-slate-700">
-                  <Search className="h-8 w-8 text-slate-300 dark:text-slate-600" />
-                  <p className="mt-3 text-sm font-medium text-slate-700 dark:text-slate-300">
+                <div className="mt-8 flex flex-col items-center justify-center rounded-2xl border border-dashed border-border py-16 text-center">
+                  <Search className="h-8 w-8 text-muted-foreground/40" />
+                  <p className="mt-3 text-sm font-medium text-foreground/80">
                     No topics match “{query}”
                   </p>
-                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                  <p className="mt-1 text-xs text-muted-foreground">
                     Try a different keyword, or ask the AI assistant directly.
                   </p>
                   <Link
@@ -379,15 +377,15 @@ export default function HelpPage() {
               <section className="mt-10 grid grid-cols-1 gap-4 md:grid-cols-3">
                 <Link
                   href="/dashboard"
-                  className="group flex flex-col rounded-xl border border-slate-200 bg-white p-5 transition-all duration-200 hover:-translate-y-0.5 hover:border-indigo-300 hover:shadow-lg hover:shadow-indigo-500/5 dark:border-slate-800 dark:bg-slate-950 dark:hover:border-indigo-800"
+                  className="group flex flex-col rounded-xl border border-border bg-card p-5 transition-all duration-200 hover:-translate-y-0.5 hover:border-indigo-300 hover:shadow-lg hover:shadow-indigo-500/5 dark:border-border/60 dark:hover:border-indigo-800"
                 >
                   <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-purple-500 text-white">
                     <Sparkles className="h-5 w-5" />
                   </div>
-                  <h3 className="mt-4 text-sm font-semibold text-slate-900 dark:text-slate-100">
+                  <h3 className="mt-4 text-sm font-semibold text-foreground">
                     Ask Xenboox AI
                   </h3>
-                  <p className="mt-1 text-[13px] leading-relaxed text-slate-500 dark:text-slate-400">
+                  <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">
                     Chat with the CFO agent — it knows your books and can walk
                     you through anything.
                   </p>
@@ -399,15 +397,15 @@ export default function HelpPage() {
 
                 <Link
                   href="/docs"
-                  className="group flex flex-col rounded-xl border border-slate-200 bg-white p-5 transition-all duration-200 hover:-translate-y-0.5 hover:border-indigo-300 hover:shadow-lg hover:shadow-indigo-500/5 dark:border-slate-800 dark:bg-slate-950 dark:hover:border-indigo-800"
+                  className="group flex flex-col rounded-xl border border-border bg-card p-5 transition-all duration-200 hover:-translate-y-0.5 hover:border-indigo-300 hover:shadow-lg hover:shadow-indigo-500/5 dark:border-border/60 dark:hover:border-indigo-800"
                 >
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted text-muted-foreground">
                     <BookOpen className="h-5 w-5" />
                   </div>
-                  <h3 className="mt-4 text-sm font-semibold text-slate-900 dark:text-slate-100">
+                  <h3 className="mt-4 text-sm font-semibold text-foreground">
                     Full Documentation
                   </h3>
-                  <p className="mt-1 text-[13px] leading-relaxed text-slate-500 dark:text-slate-400">
+                  <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">
                     The complete Xenboox documentation — concepts, modules,
                     agents, and API references.
                   </p>
@@ -419,15 +417,15 @@ export default function HelpPage() {
 
                 <a
                   href="mailto:support@xenboox.com?subject=Xenboox%20Support%20Request"
-                  className="group flex flex-col rounded-xl border border-slate-200 bg-white p-5 transition-all duration-200 hover:-translate-y-0.5 hover:border-indigo-300 hover:shadow-lg hover:shadow-indigo-500/5 dark:border-slate-800 dark:bg-slate-950 dark:hover:border-indigo-800"
+                  className="group flex flex-col rounded-xl border border-border bg-card p-5 transition-all duration-200 hover:-translate-y-0.5 hover:border-indigo-300 hover:shadow-lg hover:shadow-indigo-500/5 dark:border-border/60 dark:hover:border-indigo-800"
                 >
                   <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400">
                     <Mail className="h-5 w-5" />
                   </div>
-                  <h3 className="mt-4 text-sm font-semibold text-slate-900 dark:text-slate-100">
+                  <h3 className="mt-4 text-sm font-semibold text-foreground">
                     Contact Support
                   </h3>
-                  <p className="mt-1 text-[13px] leading-relaxed text-slate-500 dark:text-slate-400">
+                  <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">
                     Email our team for help with anything the docs can&apos;t
                     solve.
                   </p>
@@ -438,13 +436,13 @@ export default function HelpPage() {
                 </a>
               </section>
 
-              <p className="mt-8 text-center text-xs text-slate-400 dark:text-slate-500">
+              <p className="mt-8 text-center text-xs text-muted-foreground/60">
                 Xenboox Help Center — your AI-native accounting platform
               </p>
             </div>
 
             {/* Help Assistant — sticky right rail */}
-            <div className="h-[560px] rounded-2xl border border-slate-200 bg-white shadow-sm lg:sticky lg:top-6 dark:border-slate-800 dark:bg-slate-950">
+            <div className="h-[560px] rounded-2xl border border-border bg-card shadow-sm lg:sticky lg:top-6 dark:border-border/60">
               <HelpAssistant />
             </div>
           </div>

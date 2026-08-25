@@ -33,7 +33,6 @@ type GraphNode = {
   type: string;
   description: string | null;
   internalId: string;
-  internalTable: string;
   size: number;
   metadata: Record<string, unknown> | null;
   x?: number;

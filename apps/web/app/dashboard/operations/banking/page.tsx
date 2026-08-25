@@ -190,7 +190,7 @@ function TransactionsTab({
   const undoBatch = useUndo<{ ids: string[] }>({
     message: "Categorized transactions",
     onUndo: async ({ ids }) => {
-      toast.info(`Undo categorizing ${ids.length} transactions — reverted`);
+      toast.success(`Categorization reverted for ${ids.length} transactions`);
       refetch();
     },
   });
@@ -259,12 +259,20 @@ function TransactionsTab({
                   status: "",
                 },
               );
+              // Sanitize CSV cells to prevent CSV injection
+              const sanitizeCell = (val: unknown): string => {
+                const str = String(val ?? "");
+                const escaped = str.replace(/"/g, '""');
+                // Prefix formula-triggering characters to prevent CSV injection
+                if (/^[=+\-@\t\r]/.test(str)) {
+                  return "'" + escaped;
+                }
+                return '"' + escaped + '"';
+              };
               const csv = [
                 headers.join(","),
                 ...rows.map((r) =>
-                  Object.values(r)
-                    .map((v) => `"${String(v ?? "").replace(/"/g, '""')}"`)
-                    .join(","),
+                  Object.values(r).map(sanitizeCell).join(","),
                 ),
               ].join("\n");
               const blob = new Blob([csv], { type: "text/csv" });

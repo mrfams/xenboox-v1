@@ -54,7 +54,6 @@ export const knowledgeGraphRouter = router({
           label: kgNodes.label,
           description: kgNodes.description,
           internalId: kgNodes.internalId,
-          internalTable: kgNodes.internalTable,
           metadata: kgNodes.metadata,
           relationshipCount: kgNodes.relationshipCount,
         })
@@ -113,7 +112,6 @@ export const knowledgeGraphRouter = router({
           type: n.nodeType,
           description: n.description,
           internalId: n.internalId,
-          internalTable: n.internalTable,
           metadata: n.metadata,
           size: Math.min(30, 10 + (n.relationshipCount ?? 0) * 2),
         })),
@@ -277,7 +275,6 @@ export const knowledgeGraphRouter = router({
           label: kgNodes.label,
           description: kgNodes.description,
           internalId: kgNodes.internalId,
-          internalTable: kgNodes.internalTable,
           relationshipCount: kgNodes.relationshipCount,
         })
         .from(kgNodes)
@@ -315,7 +312,7 @@ export const knowledgeGraphRouter = router({
         entityId,
         nodeType: "bank_account",
         internalId: ba.id,
-        internalTable: "bank_accounts",
+
         label: ba.name ?? "Bank Account",
         description: `Balance: ${ba.currentBalance ?? "0"} ${ba.currency ?? "GMD"}`,
         metadata: {
@@ -338,7 +335,7 @@ export const knowledgeGraphRouter = router({
         entityId,
         nodeType: "account",
         internalId: acc.id,
-        internalTable: "chart_of_accounts",
+
         label: acc.name,
         description: `${acc.code} - ${acc.type}`,
         metadata: {
@@ -363,7 +360,7 @@ export const knowledgeGraphRouter = router({
         entityId,
         nodeType: "journal_entry",
         internalId: je.id,
-        internalTable: "journal_entries",
+
         label: je.description ?? `JE-${je.entryNumber}`,
         description: `Entry ${je.entryNumber} - ${je.status}`,
         metadata: {
@@ -389,7 +386,7 @@ export const knowledgeGraphRouter = router({
         entityId,
         nodeType: "invoice",
         internalId: inv.id,
-        internalTable: "sales_invoices",
+
         label: inv.invoiceNumber ?? `INV-${inv.id.slice(0, 8)}`,
         description: `Amount: ${inv.totalAmount} - Status: ${inv.status}`,
         metadata: {
@@ -416,7 +413,7 @@ export const knowledgeGraphRouter = router({
         entityId,
         nodeType: "bill",
         internalId: bill.id,
-        internalTable: "invoices_ap",
+
         label: bill.invoiceNumber ?? `BILL-${bill.id.slice(0, 8)}`,
         description: `Amount: ${bill.totalAmount} - Status: ${bill.status}`,
         metadata: {

@@ -110,16 +110,16 @@ export function HelpAssistant() {
   return (
     <div className="flex h-full flex-col">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3 dark:border-slate-800">
+      <div className="flex items-center justify-between border-b border-border px-4 py-3 dark:border-border/60">
         <div className="flex items-center gap-2.5">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-purple-500 text-white">
             <Bot className="h-4 w-4" />
           </div>
           <div>
-            <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+            <p className="text-sm font-semibold text-foreground">
               Help Assistant
             </p>
-            <p className="text-[11px] text-slate-500 dark:text-slate-400">
+            <p className="text-[11px] text-muted-foreground">
               Ask “how do I…” — get guided steps
             </p>
           </div>
@@ -132,7 +132,7 @@ export function HelpAssistant() {
         {messages.length === 0 && !streamed && (
           <div className="space-y-4">
             <div className="rounded-xl border border-indigo-100 bg-indigo-50/60 p-4 dark:border-indigo-500/20 dark:bg-indigo-500/5">
-              <p className="text-sm text-slate-700 dark:text-slate-300">
+              <p className="text-sm text-foreground/80">
                 Hi! I know Xenboox inside-out. Ask me how to do anything — like
                 creating an invoice, running payroll, or reconciling your bank
                 account.
@@ -144,7 +144,7 @@ export function HelpAssistant() {
                   key={s}
                   onClick={() => ask(s)}
                   disabled={isStreaming}
-                  className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:border-indigo-300 hover:text-indigo-600 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-indigo-700 dark:hover:text-indigo-400"
+                  className="rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-indigo-300 hover:text-indigo-600 disabled:opacity-50 dark:hover:border-indigo-700 dark:hover:text-indigo-400"
                 >
                   {s}
                 </button>
@@ -160,7 +160,7 @@ export function HelpAssistant() {
               "max-w-[85%] rounded-xl px-3.5 py-2.5 text-sm leading-relaxed",
               m.role === "user"
                 ? "ml-auto bg-indigo-600 text-white"
-                : "border border-slate-200 bg-white text-slate-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300",
+                : "border border-border bg-card text-foreground/80",
             )}
           >
             {m.role === "assistant" ? (
@@ -181,8 +181,8 @@ export function HelpAssistant() {
         ))}
 
         {streamed && (
-          <div className="max-w-[85%] rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm leading-relaxed text-slate-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300">
-            <div className="mb-1.5 flex items-center gap-1.5 text-[11px] text-slate-400">
+          <div className="max-w-[85%] rounded-xl border border-border bg-card px-3.5 py-2.5 text-sm leading-relaxed text-foreground/80">
+            <div className="mb-1.5 flex items-center gap-1.5 text-[11px] text-muted-foreground/60">
               <Loader2 className="h-3 w-3 animate-spin" />
               Help Assistant is typing…
             </div>
@@ -204,8 +204,8 @@ export function HelpAssistant() {
       </div>
 
       {/* Input */}
-      <div className="border-t border-slate-200 p-3 dark:border-slate-800">
-        <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 focus-within:border-indigo-400 focus-within:ring-2 focus-within:ring-indigo-100 dark:border-slate-700 dark:bg-slate-900 dark:focus-within:border-indigo-600 dark:focus-within:ring-indigo-500/20">
+      <div className="border-t border-border p-3 dark:border-border/60">
+        <div className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 focus-within:border-indigo-400 focus-within:ring-2 focus-within:ring-indigo-100 dark:focus-within:border-indigo-600 dark:focus-within:ring-indigo-500/20">
           <input
             type="text"
             value={input}
@@ -217,7 +217,7 @@ export function HelpAssistant() {
               }
             }}
             placeholder="Ask how to do something…"
-            className="flex-1 bg-transparent text-sm text-slate-900 outline-none placeholder:text-slate-400 dark:text-slate-100"
+            className="flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground/50"
           />
           <button
             onClick={() => void ask(input)}
@@ -232,7 +232,7 @@ export function HelpAssistant() {
             )}
           </button>
         </div>
-        <p className="mt-1.5 text-center text-[10px] text-slate-400 dark:text-slate-500">
+        <p className="mt-1.5 text-center text-[10px] text-muted-foreground/50">
           Product-aware guidance grounded in the Help Center. For your actual
           books, use the AI Command Center.
         </p>

@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
+import { BarChart3 } from "lucide-react";
 
 import { QBRReport } from "@/components/dashboard/qbr-report";
+import { ModulePageShell } from "@/components/module/module-page-shell";
 
 export const metadata: Metadata = {
   title: "Quarterly Business Review | Xenboox",
@@ -10,18 +12,25 @@ export const metadata: Metadata = {
 
 export default function QBRPage() {
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">
-          Quarterly Business Review
-        </h1>
-        <p className="text-muted-foreground mt-1">
-          AI-generated QBR with financial performance, KPIs, and actionable
-          recommendations.
-        </p>
+    <ModulePageShell
+      title="Quarterly Business Review"
+      description="AI-generated QBR with financial performance, KPIs, and actionable recommendations."
+      icon={BarChart3}
+      aiSuggestions={[
+        {
+          label: "Generate QBR report",
+          prompt:
+            "Generate my quarterly business review with financial summary and recommendations",
+        },
+        {
+          label: "Key metrics this quarter",
+          prompt: "What were my key financial metrics this quarter?",
+        },
+      ]}
+    >
+      <div className="p-3 pb-20 sm:p-6 md:pb-6">
+        <QBRReport />
       </div>
-
-      <QBRReport />
-    </div>
+    </ModulePageShell>
   );
 }

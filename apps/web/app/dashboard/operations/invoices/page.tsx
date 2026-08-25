@@ -27,6 +27,8 @@ import { DataTable, type Column } from "@/components/shared/data-table";
 import { ModulePageShell } from "@/components/module/module-page-shell";
 import { useModuleAi } from "@/components/module/module-ai-context";
 import { CreateInvoiceDialog } from "@/components/dashboard/create-invoice-dialog";
+import { CreatePaymentLinkDialog } from "@/components/dashboard/create-payment-link-dialog";
+import { RecordPaymentDialog } from "@/components/dashboard/record-payment-dialog";
 import { InvoiceDetailPanel } from "@/components/finance/invoice-detail-panel";
 import { toast } from "sonner";
 
@@ -105,6 +107,12 @@ export default function InvoicesPage() {
     null,
   );
   const [actionMenuId, setActionMenuId] = useState<string | null>(null);
+  const [paymentLinkInvoiceId, setPaymentLinkInvoiceId] = useState<
+    string | null
+  >(null);
+  const [recordPaymentInvoiceId, setRecordPaymentInvoiceId] = useState<
+    string | null
+  >(null);
 
   const { data, isLoading } = trpc.invoicing.listInvoices.useQuery(
     {
@@ -271,7 +279,7 @@ export default function InvoicesPage() {
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
-                      setSelectedInvoiceId(row.id);
+                      setPaymentLinkInvoiceId(row.id);
                       setActionMenuId(null);
                     }}
                     className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors"
@@ -285,7 +293,7 @@ export default function InvoicesPage() {
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
-                      setSelectedInvoiceId(row.id);
+                      setRecordPaymentInvoiceId(row.id);
                       setActionMenuId(null);
                     }}
                     className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors"
@@ -415,6 +423,26 @@ export default function InvoicesPage() {
         <CreateInvoiceDialog
           onClose={() => setShowCreateDialog(false)}
           onCreated={() => setShowCreateDialog(false)}
+        />
+      )}
+
+      {/* Payment Link Dialog */}
+      {paymentLinkInvoiceId && (
+        <CreatePaymentLinkDialog
+          invoiceId={paymentLinkInvoiceId}
+          onClose={() => setPaymentLinkInvoiceId(null)}
+        />
+      )}
+
+      {/* Record Payment Dialog */}
+      {recordPaymentInvoiceId && (
+        <RecordPaymentDialog
+          invoiceId={recordPaymentInvoiceId}
+          onClose={() => setRecordPaymentInvoiceId(null)}
+          onRecorded={() => {
+            setRecordPaymentInvoiceId(null);
+            toast.success("Payment recorded successfully");
+          }}
         />
       )}
 

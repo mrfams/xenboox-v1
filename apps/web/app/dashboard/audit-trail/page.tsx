@@ -262,7 +262,7 @@ export default function AuditTrailPage() {
   return (
     <ModulePageShell
       title="Audit Trail"
-      description="Complete history of all actions across your organization. Who did what, when, and why."
+      description="Complete history of all actions across your organization. Who did what, when."
       icon={History}
     >
       <div className="space-y-4 p-3 pb-20 sm:p-6 md:pb-6">

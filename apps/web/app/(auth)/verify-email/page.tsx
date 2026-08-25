@@ -70,7 +70,7 @@ function VerifyEmailContent() {
           {status === "success" && (
             <>
               <p className="text-sm text-muted-foreground">
-                {message} You can now access all features of Xenboox.
+                {message} Email verified! You're all set to start using Xenboox.
               </p>
               <Link href="/dashboard">
                 <Button className="w-full">Go to Dashboard</Button>
@@ -84,7 +84,7 @@ function VerifyEmailContent() {
                 <Link href="/dashboard/settings">
                   <Button variant="outline" className="w-full">
                     <Mail className="mr-2 h-4 w-4" />
-                    Go to Settings to Resend
+                    Go to Email Settings to Resend
                   </Button>
                 </Link>
                 <Link href="/login">

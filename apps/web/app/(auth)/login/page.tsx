@@ -1,8 +1,14 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { LoginForm } from "@/components/auth/login-form";
 import { isSsoEnabled, getSsoDisplayName } from "@/lib/auth/sso";
+
+export const metadata: Metadata = {
+  title: "Sign In — Xenboox",
+  description: "Sign in to your Xenboox AI-native accounting platform.",
+};
 
 /**
  * Only allow same-site, relative redirect targets. Anything else (absolute

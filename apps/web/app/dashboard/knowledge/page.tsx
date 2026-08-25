@@ -13,9 +13,9 @@
 import { useState } from "react";
 import { trpc } from "@/lib/trpc/client";
 import { useEntity } from "@/lib/entity-context";
-import { Card, CardContent, CardHeader, CardTitle } from "@xenboox/ui";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@xenboox/ui";
-import { Badge } from "@xenboox/ui";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui";
+import { Badge } from "@/components/ui";
 import { KnowledgeSearch } from "@/components/knowledge/knowledge-search";
 import { DocumentProcessor } from "@/components/knowledge/document-processor";
 import {
@@ -45,8 +45,7 @@ export default function KnowledgeBasePage() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Knowledge Base</h1>
         <p className="text-muted-foreground">
-          AI-native knowledge management with semantic search and intelligent
-          document processing.
+          Search and process your business documents with AI.
         </p>
       </div>
 
@@ -55,8 +54,8 @@ export default function KnowledgeBasePage() {
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <FileText className="h-5 w-5 text-blue-600" />
+              <div className="p-2 bg-blue-500/10 rounded-lg">
+                <FileText className="h-5 w-5 text-blue-500" />
               </div>
               <div>
                 <div className="text-2xl font-bold">
@@ -70,8 +69,8 @@ export default function KnowledgeBasePage() {
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-green-100 rounded-lg">
-                <Database className="h-5 w-5 text-green-600" />
+              <div className="p-2 bg-emerald-500/10 rounded-lg">
+                <Database className="h-5 w-5 text-emerald-500" />
               </div>
               <div>
                 <div className="text-2xl font-bold">
@@ -85,8 +84,8 @@ export default function KnowledgeBasePage() {
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-purple-100 rounded-lg">
-                <BarChart3 className="h-5 w-5 text-purple-600" />
+              <div className="p-2 bg-purple-500/10 rounded-lg">
+                <BarChart3 className="h-5 w-5 text-purple-500" />
               </div>
               <div>
                 <div className="text-2xl font-bold">
@@ -102,8 +101,8 @@ export default function KnowledgeBasePage() {
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-amber-100 rounded-lg">
-                <Clock className="h-5 w-5 text-amber-600" />
+              <div className="p-2 bg-amber-500/10 rounded-lg">
+                <Clock className="h-5 w-5 text-amber-500" />
               </div>
               <div>
                 <div className="text-2xl font-bold">
@@ -158,7 +157,10 @@ export default function KnowledgeBasePage() {
               {stats?.recentCitations.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   <Clock className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>No searches performed yet.</p>
+                  <p>
+                    No searches yet. Try searching for a vendor name, invoice
+                    number, or account to see citation history.
+                  </p>
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -187,7 +189,9 @@ export default function KnowledgeBasePage() {
                           </div>
                         </div>
                         <div className="text-xs text-muted-foreground">
-                          {citation.createdAt ? new Date(citation.createdAt).toLocaleDateString() : "—"}
+                          {citation.createdAt
+                            ? new Date(citation.createdAt).toLocaleDateString()
+                            : "—"}
                         </div>
                       </div>
                     </div>
