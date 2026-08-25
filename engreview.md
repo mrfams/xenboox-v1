@@ -1642,7 +1642,7 @@ Batch document ingestion pipeline with upload, progress tracking, and history.
 
 | #   | Finding                                                                                                                                                                | Severity | Fix                                              | Status |
 | --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------------------ | ------ |
-| 1   | **No error handling on queries** — listBatches query doesn't handle errors; failed loads show "..." indefinitely.                                                      | HIGH     | Add error state with retry.                      | ⬜     |
+| 1   | **No error handling on queries** — listBatches query doesn't handle errors; failed loads show "..." indefinitely.                                                      | HIGH     | Add error state with retry.                      |        | ✅  |
 | 2   | **Failed batches have no retry** — failed batch shows status but no way to retry processing. Users must re-upload from scratch.                                        | HIGH     | Add "Retry" button on failed batches.            | ⬜     |
 | 3   | **Dropzone onDrop is empty** — `onDrop={() => {}}` does nothing; files dropped on the outer Dropzone are silently ignored. Only BatchUpload's internal dropzone works. | MEDIUM   | Wire outer Dropzone to BatchUpload or remove it. | ⬜     |
 | 4   | **No file type restrictions** — dropzone accepts any file type; users can upload executables, videos, or other non-document files that will fail processing.           | MEDIUM   | Restrict to PDF, images, CSV, Excel.             | ⬜     |
@@ -1664,7 +1664,7 @@ Batch document ingestion pipeline with upload, progress tracking, and history.
 
 | #   | Finding                                                                                                                                               | Severity | Fix                                          | Status |
 | --- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | -------------------------------------------- | ------ |
-| 1   | **Hardcoded light-mode colors** — bg-blue-100, bg-green-100, bg-red-100, bg-amber-100 without dark mode variants. Same defect class across all pages. | HIGH     | Add dark: variants or use semantic tokens.   | ⬜     |
+| 1   | **Hardcoded light-mode colors** — bg-blue-100, bg-green-100, bg-red-100, bg-amber-100 without dark mode variants. Same defect class across all pages. | HIGH     | Add dark: variants or use semantic tokens.   |        | ✅  |
 | 2   | **Stats cards use raw Tailwind colors** — not theme-aware; dark mode renders pastel-on-dark failures.                                                 | MEDIUM   | Map to semantic color tokens.                | ⬜     |
 | 3   | **No loading skeleton parity** — stats show "..." while loading; should match final layout.                                                           | LOW      | Skeleton states matching final card heights. | ⬜     |
 
