@@ -572,58 +572,63 @@ export default function AuditTrailPage() {
                   </button>
 
                   {/* Expanded Details */}
-                  {isExpanded && (
-                    <div className="border-t border-border/50 bg-muted/30 px-4 py-3">
-                      <div className="grid gap-3 text-xs">
-                        <div>
-                          <span className="font-medium text-muted-foreground">
-                            Action:
-                          </span>
-                          <span className="ml-2 text-foreground">
-                            {log.action}
-                          </span>
-                        </div>
-                        {log.entityType && (
-                          <div>
-                            <span className="font-medium text-muted-foreground">
-                              Entity Type:
-                            </span>
-                            <span className="ml-2 text-foreground">
-                              {log.entityType}
-                            </span>
-                          </div>
-                        )}
-                        {log.entityIdRef && (
-                          <div>
-                            <span className="font-medium text-muted-foreground">
-                              Entity ID:
-                            </span>
-                            <span className="ml-2 text-foreground font-mono">
-                              {log.entityIdRef}
-                            </span>
-                          </div>
-                        )}
-                        <div>
-                          <span className="font-medium text-muted-foreground">
-                            Timestamp:
-                          </span>
-                          <span className="ml-2 text-foreground">
-                            {logDate.toLocaleString()}
-                          </span>
-                        </div>
-                        {log.newValues && (
-                          <div>
-                            <span className="font-medium text-muted-foreground">
-                              Changes:
-                            </span>
-                            <pre className="mt-1 rounded-lg bg-background p-3 text-[11px] overflow-auto max-h-40">
-                              {JSON.stringify(log.newValues, null, 2)}
-                            </pre>
-                          </div>
-                        )}
+                  <div
+                    className={cn(
+                      "border-t border-border/50 bg-muted/30 px-4 py-3 overflow-hidden transition-all duration-200",
+                      isExpanded
+                        ? "max-h-[500px] opacity-100"
+                        : "max-h-0 opacity-0 border-t-0",
+                    )}
+                  >
+                    <div className="grid gap-3 text-xs">
+                      <div>
+                        <span className="font-medium text-muted-foreground">
+                          Action:
+                        </span>
+                        <span className="ml-2 text-foreground">
+                          {log.action}
+                        </span>
                       </div>
+                      {log.entityType && (
+                        <div>
+                          <span className="font-medium text-muted-foreground">
+                            Entity Type:
+                          </span>
+                          <span className="ml-2 text-foreground">
+                            {log.entityType}
+                          </span>
+                        </div>
+                      )}
+                      {log.entityIdRef && (
+                        <div>
+                          <span className="font-medium text-muted-foreground">
+                            Entity ID:
+                          </span>
+                          <span className="ml-2 text-foreground font-mono">
+                            {log.entityIdRef}
+                          </span>
+                        </div>
+                      )}
+                      <div>
+                        <span className="font-medium text-muted-foreground">
+                          Timestamp:
+                        </span>
+                        <span className="ml-2 text-foreground">
+                          {logDate.toLocaleString()}
+                        </span>
+                      </div>
+                      {log.newValues && (
+                        <div>
+                          <span className="font-medium text-muted-foreground">
+                            Changes:
+                          </span>
+                          <pre className="mt-1 rounded-lg bg-background p-3 text-[11px] overflow-auto max-h-40">
+                            {JSON.stringify(log.newValues, null, 2)}
+                          </pre>
+                        </div>
+                      )}
                     </div>
-                  )}
+                  </div>
                 </div>
               );
             })}
