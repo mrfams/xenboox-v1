@@ -25,6 +25,7 @@ import {
 
 import { cn } from "@/lib/utils";
 import { AiSimulationTrigger } from "@/components/ai-ux/simulation-trigger";
+import { ErrorBoundary } from "@/components/shared/error-boundary";
 
 // §4.4 — every section is a lazy chunk: only the ACTIVE tab's component is
 // ever downloaded. The settings shell (nav + header) stays in the initial
@@ -434,7 +435,9 @@ export default function SettingsPage() {
         {/* Main Content */}
         <div className="flex-1 overflow-y-auto">
           <div className="mx-auto max-w-3xl px-6 py-6">
-            <ActiveComponent />
+            <ErrorBoundary surface={`settings-${activeTab}`}>
+              <ActiveComponent />
+            </ErrorBoundary>
           </div>
         </div>
       </div>

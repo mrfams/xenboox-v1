@@ -1689,3 +1689,49 @@ Batch document ingestion pipeline with upload, progress tracking, and history.
 | --- | ----------------------------------------------------------------------------------------------------------------------- | -------- | ------------------------------- | ------ |
 | 1   | **No ingestion metrics** — can't track documents processed per day, success rate over time, or avg processing duration. | MEDIUM   | Add time-series metrics.        | ⬜     |
 | 2   | **No document type breakdown** — can't see what types of documents are being ingested (invoices, receipts, statements). | LOW      | Add document type distribution. | ⬜     |
+
+# PAGE: /dashboard/settings
+
+Settings page with 20+ tabs organized into 4 groups: General, Security & Access, Finance & Billing, Data & Privacy/Sync.
+
+---
+
+## DEPARTMENT: PRODUCT
+
+### Employee: Product Manager
+
+| #   | Finding                                                                                                                                                                                 | Severity | Fix                                             | Status |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ----------------------------------------------- | ------ |
+| 1   | **No URL state for active tab** — can't deep-link to a specific settings tab (e.g., /dashboard/settings?tab=security). Users can't bookmark or share direct links to settings sections. | MEDIUM   | Use URL search params for active tab.           | ⬜     |
+| 2   | **Advanced settings toggle not persisted** — user clicks "Show advanced settings" but it resets on every page visit.                                                                    | MEDIUM   | Persist in localStorage.                        | ⬜     |
+| 3   | **No loading state for active tab** — when switching tabs, there's no loading indicator while the dynamic import loads; content area is blank until component mounts.                   | MEDIUM   | Add skeleton or spinner during dynamic import.  | ⬜     |
+| 4   | **"Set Up with AI" button always visible** — even when user is already set up; should be contextual or hidden after completion.                                                         | LOW      | Hide after setup completion or make contextual. | ⬜     |
+
+### Employee: UX Writer
+
+| #   | Finding                                                                                                                      | Severity | Fix                                                                       | Status |
+| --- | ---------------------------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------------------------------------------- | ------ |
+| 1   | **Tab descriptions are generic** — "Personal information and preferences" doesn't tell users what they can actually do here. | LOW      | More specific descriptions: "Change name, email, timezone, and language". | ⬜     |
+| 2   | **"Show advanced settings" is ambiguous** — users don't know what's hidden until they click.                                 | LOW      | Preview what's included: "Backup, sync, AI settings".                     | ⬜     |
+
+---
+
+## DEPARTMENT: DESIGN
+
+### Employee: Design Critic
+
+| #   | Finding                                                                                               | Severity | Fix                                                     | Status |
+| --- | ----------------------------------------------------------------------------------------------------- | -------- | ------------------------------------------------------- | ------ |
+| 1   | **No focus-visible on sidebar buttons** — keyboard users get no visible focus ring on tab navigation. | MEDIUM   | Add focus-visible:ring-2 focus-visible:ring-primary/40. | ⬜     |
+| 2   | **Sidebar active state uses primary/10** — may not have sufficient contrast in all themes.            | LOW      | Verify contrast ratio meets AA.                         | ⬜     |
+
+---
+
+## DEPARTMENT: ENGINEERING
+
+### Employee: Engineering Critic
+
+| #   | Finding                                                                                                                       | Severity | Fix                                                     | Status |
+| --- | ----------------------------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------------------------- | ------ |
+| 1   | **No error boundary for dynamic imports** — if any section component fails to load, the entire page crashes with no recovery. | HIGH     | Wrap ActiveComponent in ErrorBoundary with fallback UI. | ⬜     |
+| 2   | **20+ dynamic imports in one file** — SECTION_COMPONENTS map is large; consider code-splitting by group rather than by tab.   | LOW      | Group-level code splitting.                             | ⬜     |
