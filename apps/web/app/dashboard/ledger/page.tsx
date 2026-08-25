@@ -32,7 +32,6 @@ import { ModulePageShell } from "@/components/module/module-page-shell";
 import { useModuleAi } from "@/components/module/module-ai-context";
 import { useSurfaceSync } from "@/lib/hooks/use-surface-sync";
 import { ResponsiveTable } from "@/components/ui/responsive-table";
-import { useUndo } from "@/lib/hooks/use-undo";
 import { toast } from "sonner";
 import { CoaImportWizard } from "@/components/ledger/coa-import-wizard";
 import { BulkExportButton } from "@/components/shared/bulk-csv";
@@ -66,12 +65,16 @@ function JournalEntryDrawer({
 }) {
   const { entityId } = useEntity();
   const { openWithFocus } = useModuleAi();
+  const utils = trpc.useUtils();
   const [showReverseDialog, setShowReverseDialog] = useState(false);
   const [reverseReason, setReverseReason] = useState("");
 
   const reverseMutation = trpc.journal.reverse.useMutation({
     onSuccess: () => {
       toast.success("Journal entry reversed successfully");
+      void utils.journal.listWithDetails.invalidate();
+      void utils.journal.getTabCounts.invalidate();
+      void utils.journal.getById.invalidate({ id: entryId });
       setShowReverseDialog(false);
       setReverseReason("");
       onClose();
@@ -192,7 +195,7 @@ function JournalEntryDrawer({
                       : entry.status === "pending_review"
                         ? "Pending"
                         : entry.status === "reversed"
-                          ? "Voided"
+                          ? "Reversed"
                           : entry.status}
                   </span>
                 </div>
@@ -318,7 +321,7 @@ function JournalEntryDrawer({
                   </div>
                 ) : (
                   <p className="text-xs text-muted-foreground py-4 text-center">
-                    No lines found
+                    No line items — contact support if you expect activity
                   </p>
                 )}
               </div>
@@ -423,33 +426,20 @@ function JournalEntryDrawer({
                   <Sparkles className="h-3.5 w-3.5" />
                   Explain this entry
                 </button>
-                <button
-                  type="button"
-                  onClick={() =>
-                    openWithFocus(
-                      {
-                        kind: "Journal Entry",
-                        name: entry.entryNumber
-                          ? `JE-${String(entry.entryNumber).padStart(4, "0")}`
-                          : "this entry",
-                        id: entry.id,
-                        fields: [{ label: "Status", value: entry.status }],
-                      },
-                      `Show the audit trail for this journal entry. Who created it, when, and what changes were made?`,
-                    )
-                  }
+                <a
+                  href="/dashboard/audit-trail"
                   className="flex w-full items-center gap-2 rounded-lg border border-border/50 bg-background px-3 py-2 text-xs font-medium text-foreground hover:bg-accent transition-colors"
                 >
                   <BookOpen className="h-3.5 w-3.5 text-muted-foreground" />
                   Show audit trail
-                </button>
+                </a>
 
                 {/* Reverse Entry Button — only for posted entries */}
                 {entry.status === "posted" && (
                   <button
                     type="button"
                     onClick={() => setShowReverseDialog(true)}
-                    className="flex w-full items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-600 hover:bg-red-100 transition-colors"
+                    className="flex w-full items-center gap-2 rounded-lg border border-destructive/20 bg-destructive/10 px-3 py-2 text-xs font-medium text-destructive hover:bg-destructive/20 transition-colors"
                   >
                     <RotateCcw className="h-3.5 w-3.5" />
                     Reverse this entry
@@ -557,18 +547,39 @@ function JournalView() {
   const { entityId } = useEntity();
   const { openWithFocus } = useModuleAi();
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Debounce search input (300ms)
+  const handleSearchChange = useCallback((value: string) => {
+    setSearchQuery(value);
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    searchTimerRef.current = setTimeout(() => {
+      setDebouncedSearch(value);
+      setPage(0); // Reset to first page on new search
+    }, 300);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    };
+  }, []);
+
   const [activeFilter, setActiveFilter] = useState("all");
   const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [page, setPage] = useState(0);
   const pageSize = 20;
 
+  const utils = trpc.useUtils();
+
   const { data: journalData, isLoading } =
     trpc.journal.listWithDetails.useQuery(
       {
         status: activeFilter as
           "all" | "draft" | "pending" | "approved" | "posted" | "voided",
-        search: searchQuery || undefined,
+        search: debouncedSearch || undefined,
         limit: pageSize,
         offset: page * pageSize,
       },
@@ -633,11 +644,8 @@ function JournalView() {
           id="journal-search"
           type="text"
           value={searchQuery}
-          onChange={(e) => {
-            setSearchQuery(e.target.value);
-            setPage(0);
-          }}
-          placeholder='Search in natural language — try "Show me all entries over 10,000" or "rent expense last month"...'
+          onChange={(e) => handleSearchChange(e.target.value)}
+          placeholder='Search entries by keyword (e.g. "rent", "invoice", "payroll")...'
           className="w-full rounded-xl border border-border/50 bg-card py-2.5 pl-10 pr-4 text-sm text-foreground placeholder:text-muted-foreground/50 focus:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/10"
         />
         {searchQuery && (
@@ -838,7 +846,8 @@ function JournalView() {
         <CreateJournalEntryForm
           onClose={() => setShowCreateForm(false)}
           onCreated={() => {
-            // Refetch journal data
+            void utils.journal.listWithDetails.invalidate();
+            void utils.journal.getTabCounts.invalidate();
             setShowCreateForm(false);
           }}
         />
@@ -875,8 +884,9 @@ function COAView() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <p className="text-xs text-muted-foreground">
-          {accounts.length} accounts
-          {accounts.length > 0 && ` · ${Object.keys(grouped).length} groups`}
+          {accounts?.length ?? 0} accounts
+          {(accounts?.length ?? 0) > 0 &&
+            ` · ${Object.keys(grouped).length} groups`}
         </p>
         <div className="flex items-center gap-2">
           <CoaImportWizard />
@@ -989,10 +999,6 @@ function COAView() {
 function TrialBalanceView() {
   const { entityId } = useEntity();
   const { openWithFocus } = useModuleAi();
-  const tbUndo = useUndo<{ periodId: string }>({
-    message: "Exported trial balance",
-    onUndo: async () => toast.info("Undo not needed — no data changed"),
-  });
 
   const { data: currentPeriod } = trpc.fiscal.getCurrent.useQuery(undefined, {
     enabled: !!entityId,
@@ -1135,16 +1141,6 @@ function TrialBalanceView() {
               {formatCurrency(totalDebit)} / {formatCurrency(totalCredit)}
             </span>
           </div>
-          <button
-            type="button"
-            onClick={() =>
-              tbUndo.pushUndo({ periodId: currentPeriod?.id ?? "" })
-            }
-            className="sr-only"
-            aria-label="Trigger undo toast for trial balance"
-          >
-            trigger undo
-          </button>
         </>
       )}
     </div>
