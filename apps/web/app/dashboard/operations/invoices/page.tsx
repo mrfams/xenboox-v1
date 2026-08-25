@@ -100,6 +100,7 @@ function InvoiceStatusBadge({ status }: { status?: string }) {
 export default function InvoicesPage() {
   const { entityId } = useEntity();
   const { openWithFocus } = useModuleAi();
+  const trpcUtils = trpc.useUtils();
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
   const [showCreateDialog, setShowCreateDialog] = useState(false);
@@ -118,7 +119,7 @@ export default function InvoicesPage() {
     {
       status: filter === "all" ? undefined : filter,
       search: search || undefined,
-      limit: 50,
+      limit: 500,
       offset: 0,
     },
     { enabled: !!entityId },
@@ -260,20 +261,22 @@ export default function InvoicesPage() {
                   <Eye className="h-4 w-4 text-muted-foreground" />
                   View Details
                 </button>
-                {row.status !== "paid" && row.status !== "voided" && (
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleSendInvoice(row.id);
-                    }}
-                    disabled={sendInvoiceEmail.isPending}
-                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors disabled:opacity-50"
-                  >
-                    <Send className="h-4 w-4 text-muted-foreground" />
-                    Send Invoice
-                  </button>
-                )}
+                {row.status !== "paid" &&
+                  row.status !== "voided" &&
+                  row.status !== "draft" && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleSendInvoice(row.id);
+                      }}
+                      disabled={sendInvoiceEmail.isPending}
+                      className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors disabled:opacity-50"
+                    >
+                      <Send className="h-4 w-4 text-muted-foreground" />
+                      Send Invoice
+                    </button>
+                  )}
                 {row.status !== "paid" && row.status !== "voided" && (
                   <button
                     type="button"
@@ -325,6 +328,7 @@ export default function InvoicesPage() {
   const sendInvoiceEmail = trpc.invoicing.sendInvoiceEmail.useMutation({
     onSuccess: (data) => {
       toast.success(`Invoice sent to ${data.sentTo}`);
+      trpcUtils.invoicing.listInvoices.invalidate();
     },
     onError: (err) => {
       toast.error(err.message);
@@ -422,7 +426,10 @@ export default function InvoicesPage() {
       {showCreateDialog && (
         <CreateInvoiceDialog
           onClose={() => setShowCreateDialog(false)}
-          onCreated={() => setShowCreateDialog(false)}
+          onCreated={() => {
+            setShowCreateDialog(false);
+            trpcUtils.invoicing.listInvoices.invalidate();
+          }}
         />
       )}
 
