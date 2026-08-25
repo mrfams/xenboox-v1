@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import {
   History,
   Clock,
@@ -44,73 +44,80 @@ const ACTION_CATEGORIES: Record<string, ActionCategory> = {
   "settings.": {
     label: "Settings",
     icon: Settings,
-    color: "text-blue-600 bg-blue-50",
+    color: "text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950",
     surface: "Settings",
   },
   "auth.": {
     label: "Authentication",
     icon: Shield,
-    color: "text-amber-600 bg-amber-50",
+    color: "text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950",
     surface: "Auth",
   },
   "billing.": {
     label: "Billing",
     icon: CreditCard,
-    color: "text-emerald-600 bg-emerald-50",
+    color:
+      "text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950",
     surface: "Billing",
   },
   "document.": {
     label: "Documents",
     icon: FileText,
-    color: "text-purple-600 bg-purple-50",
+    color:
+      "text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950",
     surface: "Documents",
   },
   "agent.": {
     label: "AI Agents",
     icon: Bot,
-    color: "text-cyan-600 bg-cyan-50",
+    color: "text-cyan-600 dark:text-cyan-400 bg-cyan-50 dark:bg-cyan-950",
     surface: "Agents",
   },
   "journal.": {
     label: "Journal",
     icon: BookOpen,
-    color: "text-indigo-600 bg-indigo-50",
+    color:
+      "text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950",
     surface: "Ledger",
   },
   "invoice.": {
     label: "Invoices",
     icon: FileText,
-    color: "text-pink-600 bg-pink-50",
+    color: "text-pink-600 dark:text-pink-400 bg-pink-50 dark:bg-pink-950",
     surface: "AR",
   },
   "payroll.": {
     label: "Payroll",
     icon: Users,
-    color: "text-orange-600 bg-orange-50",
+    color:
+      "text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-950",
     surface: "Payroll",
   },
   "approvals.": {
     label: "Approvals",
     icon: CheckCircle2,
-    color: "text-emerald-600 bg-emerald-50",
+    color:
+      "text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950",
     surface: "Activity Hub",
   },
   "invitations.": {
     label: "Invitations",
     icon: User,
-    color: "text-violet-600 bg-violet-50",
+    color:
+      "text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-950",
     surface: "Team",
   },
   "coa.": {
     label: "Chart of Accounts",
     icon: BookOpen,
-    color: "text-indigo-600 bg-indigo-50",
+    color:
+      "text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950",
     surface: "Ledger",
   },
   "reconciliation.": {
     label: "Reconciliation",
     icon: RefreshCw,
-    color: "text-teal-600 bg-teal-50",
+    color: "text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-950",
     surface: "Operations",
   },
 };
@@ -232,11 +239,21 @@ export default function AuditTrailPage() {
   const [limit] = useState(50);
   const [offset, setOffset] = useState(0);
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [surfaceFilter, setSurfaceFilter] = useState<string>("all");
   const [datePreset, setDatePreset] = useState<DateRangePreset>("all");
   const [customDateFrom, setCustomDateFrom] = useState("");
   const [customDateTo, setCustomDateTo] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  // Debounce search input
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+      setOffset(0); // Reset to first page on new search
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [search]);
 
   // ── Cross-surface sync ────────────────────────────────────────────────
   useSurfaceSync({ entityId, surfaces: ["all"] });
@@ -253,17 +270,18 @@ export default function AuditTrailPage() {
   }, [datePreset, customDateFrom, customDateTo]);
 
   // Server-side query with all filters
-  const { data, isLoading } = trpc.settings.getAuditLogs.useQuery(
-    {
-      limit,
-      offset,
-      search: search || undefined,
-      surface: surfaceFilter !== "all" ? surfaceFilter : undefined,
-      dateFrom: dateRange.dateFrom,
-      dateTo: dateRange.dateTo,
-    },
-    { enabled: !!entityId },
-  );
+  const { data, isLoading, isError, refetch } =
+    trpc.settings.getAuditLogs.useQuery(
+      {
+        limit,
+        offset,
+        search: debouncedSearch || undefined,
+        surface: surfaceFilter !== "all" ? surfaceFilter : undefined,
+        dateFrom: dateRange.dateFrom,
+        dateTo: dateRange.dateTo,
+      },
+      { enabled: !!entityId },
+    );
 
   const logs = data?.logs ?? [];
   const total = data?.total ?? 0;
@@ -478,6 +496,29 @@ export default function AuditTrailPage() {
             {[1, 2, 3, 4, 5].map((i) => (
               <div key={i} className="h-24 rounded-xl bg-muted animate-pulse" />
             ))}
+          </div>
+        ) : isError ? (
+          <div className="flex flex-col items-center justify-center rounded-xl border border-destructive/20 bg-destructive/5 py-12 text-center">
+            <div
+              className="flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10 mb-3"
+              aria-hidden="true"
+            >
+              <RefreshCw className="h-6 w-6 text-destructive" />
+            </div>
+            <p className="text-sm font-medium text-foreground">
+              Unable to load audit trail
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Check your connection and try again.
+            </p>
+            <button
+              type="button"
+              onClick={() => refetch()}
+              className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/5 px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/10 transition-colors"
+            >
+              <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
+              Retry
+            </button>
           </div>
         ) : logs.length === 0 ? (
           <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border/50 py-12 text-center">
