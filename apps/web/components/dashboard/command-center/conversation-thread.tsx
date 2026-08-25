@@ -438,6 +438,20 @@ export function ConversationThread({
             >
               <p className="whitespace-pre-wrap">{msg.content}</p>
 
+              {/* Retry button for error messages */}
+              {msg.role === "assistant" && msg.status === "error" && (
+                <div className="mt-3">
+                  <button
+                    type="button"
+                    onClick={() => handleRegenerate(msg.id)}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/5 px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/10 transition-colors"
+                  >
+                    <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
+                    Retry
+                  </button>
+                </div>
+              )}
+
               {/* Confidence badge on assistant messages */}
               {msg.role === "assistant" && msg.confidence !== undefined && (
                 <div className="mt-2">
