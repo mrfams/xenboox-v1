@@ -893,7 +893,7 @@ export default function FinancialPulsePage() {
         <div className="grid grid-cols-4 gap-3 text-center">
           <div>
             <div className="text-lg font-bold">{stats?.completed ?? 0}</div>
-            <div className="text-[10px] text-muted-foreground">Clean days</div>
+            <div className="text-[10px] text-muted-foreground">Completed</div>
           </div>
           <div>
             <div className="text-lg font-bold text-amber-500">

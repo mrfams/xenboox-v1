@@ -20,10 +20,11 @@ export default function DashboardError({
     <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 px-4 text-center">
       <div className="rounded-lg border bg-card p-8 shadow-sm max-w-md w-full">
         <h2 className="text-lg font-semibold text-foreground">
-          Something went wrong
+          This page hit an unexpected error
         </h2>
         <p className="mt-2 text-sm text-muted-foreground">
-          An error occurred while loading this page. Please try again.
+          We&apos;ve logged the details. Try reloading — if it keeps happening,
+          contact support.
         </p>
         {error.digest && (
           <p className="mt-2 text-xs text-muted-foreground font-mono">
