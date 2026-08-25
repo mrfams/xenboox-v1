@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   Activity,
   TrendingUp,
@@ -156,7 +156,7 @@ function KPICard({
   return (
     <div
       className={cn(
-        "group relative text-left rounded-xl border border-border/50 bg-card/60 p-4 transition-all duration-200 hover:border-border/80 hover:shadow-md w-full",
+        "group relative text-left rounded-xl border border-border/50 bg-card/60 p-4 transition-all duration-200 hover:border-border/80 hover:shadow-md w-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
         onDrillDown && "cursor-pointer",
       )}
       onClick={onDrillDown}
@@ -213,7 +213,7 @@ function KPICard({
       {/* Prior period comparison */}
       {previousValue && (
         <p className="mt-1 text-[10px] text-muted-foreground/60">
-          vs {previousValue} prior period
+          Previous period: {previousValue}
         </p>
       )}
       {/* Ask AI — appears on hover */}
@@ -244,6 +244,7 @@ function AiFinancialNarrative({
   aiNarrative,
   overview,
   pnl,
+  isError,
 }: {
   aiNarrative?: {
     text: string;
@@ -265,7 +266,19 @@ function AiFinancialNarrative({
     revenueChange?: number;
     expensesChange?: number;
   };
+  isError?: boolean;
 }) {
+  // Show error state when AI narrative fails
+  if (isError && !aiNarrative) {
+    return (
+      <AiNarrativeHeader title="AI Financial Narrative">
+        <p className="text-sm text-muted-foreground">
+          AI narrative unavailable. Showing key figures below.
+        </p>
+      </AiNarrativeHeader>
+    );
+  }
+
   // Show loading state while AI narrative is being generated
   if (!aiNarrative && (!overview || !pnl)) {
     return (
@@ -300,6 +313,9 @@ function AiFinancialNarrative({
       );
     return (
       <AiNarrativeHeader title="AI Financial Narrative">
+        <p className="text-xs text-muted-foreground/60 mb-1">
+          Key figures (AI narrative unavailable)
+        </p>
         <p>{parts.join(" ") || "Financial data is being compiled..."}</p>
       </AiNarrativeHeader>
     );
@@ -337,9 +353,9 @@ function AiFinancialNarrative({
       <div className="mt-2 flex items-center gap-3 text-[10px] text-muted-foreground/60">
         <span>
           Confidence: {Math.round(aiNarrative.confidence * 100)}%
-          {aiNarrative.confidence >= 0.8
+          {aiNarrative.confidence >= 0.7
             ? " (High)"
-            : aiNarrative.confidence >= 0.5
+            : aiNarrative.confidence >= 0.4
               ? " (Medium)"
               : " (Low)"}
         </span>
@@ -357,6 +373,13 @@ function AiFinancialNarrative({
 function ScenarioPlanner({ onAskAi }: { onAskAi: (prompt: string) => void }) {
   const [query, setQuery] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, []);
 
   const handleSubmit = () => {
     if (!query.trim() || isSubmitting) return;
@@ -364,7 +387,7 @@ function ScenarioPlanner({ onAskAi }: { onAskAi: (prompt: string) => void }) {
     onAskAi(`Model this scenario: ${query}`);
     setQuery("");
     // Reset after a brief delay since the AI processes asynchronously
-    setTimeout(() => setIsSubmitting(false), 2000);
+    timerRef.current = setTimeout(() => setIsSubmitting(false), 2000);
   };
 
   return (
@@ -403,7 +426,7 @@ function ScenarioPlanner({ onAskAi }: { onAskAi: (prompt: string) => void }) {
           ) : (
             <Sparkles className="h-3.5 w-3.5" />
           )}
-          {isSubmitting ? "Processing..." : "Model"}
+          {isSubmitting ? "Processing..." : "Run scenario"}
         </button>
       </div>
     </div>
@@ -437,6 +460,9 @@ function KpiDrillDownDrawer({
 
   return (
     <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="drilldown-title"
       className="fixed inset-0 z-50 flex items-center justify-end bg-black/50 backdrop-blur-sm"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
@@ -448,7 +474,10 @@ function KpiDrillDownDrawer({
       <div className="h-full w-full max-w-md bg-card border-l border-border shadow-2xl overflow-y-auto">
         {/* Header */}
         <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-card/95 backdrop-blur-sm px-6 py-4">
-          <h2 className="text-sm font-semibold text-foreground">
+          <h2
+            id="drilldown-title"
+            className="text-sm font-semibold text-foreground"
+          >
             {data.title}
           </h2>
           <button
@@ -677,14 +706,6 @@ const REPORTS = [
     color: "bg-blue-500/10 text-blue-500",
   },
   {
-    id: "balance-sheet",
-    label: "Balance Sheet",
-    description: "Assets, liabilities, and equity",
-    aiPrompt: "Show me my balance sheet",
-    icon: BarChart3,
-    color: "bg-emerald-500/10 text-emerald-500",
-  },
-  {
     id: "cash-flow",
     label: "Cash Flow",
     description: "Cash in, cash out, net movement",
@@ -692,14 +713,25 @@ const REPORTS = [
     icon: Wallet,
     color: "bg-purple-500/10 text-purple-500",
   },
-  {
-    id: "trial-balance",
-    label: "Trial Balance",
-    description: "Debits equal credits verification",
-    aiPrompt: "Show me my trial balance",
-    icon: FileText,
-    color: "bg-amber-500/10 text-amber-500",
-  },
+  // Balance Sheet and Trial Balance hidden until real report builders exist
+  // (were generating empty documents — users downloading blank PDFs)
+  // TODO: Wire real builders and re-enable
+  // {
+  //   id: "balance-sheet",
+  //   label: "Balance Sheet",
+  //   description: "Assets, liabilities, and equity",
+  //   aiPrompt: "Show me my balance sheet",
+  //   icon: BarChart3,
+  //   color: "bg-emerald-500/10 text-emerald-500",
+  // },
+  // {
+  //   id: "trial-balance",
+  //   label: "Trial Balance",
+  //   description: "Debits equal credits verification",
+  //   aiPrompt: "Show me my trial balance",
+  //   icon: FileText,
+  //   color: "bg-amber-500/10 text-amber-500",
+  // },
 ];
 
 // ─── Page ──────────────────────────────────────────────────────────────────
@@ -738,13 +770,11 @@ export default function FinancialPulsePage() {
     },
   );
 
-  const { data: aiNarrative } = trpc.dashboard.getAiNarrative.useQuery(
-    undefined,
-    {
+  const { data: aiNarrative, isError: isNarrativeError } =
+    trpc.dashboard.getAiNarrative.useQuery(undefined, {
       enabled: !!entityId,
       staleTime: 10 * 60 * 1000, // 10 minutes — AI narratives are expensive to regenerate
-    },
-  );
+    });
 
   const overview = dashboardData
     ? {
@@ -888,6 +918,7 @@ export default function FinancialPulsePage() {
           aiNarrative={aiNarrative}
           overview={overview}
           pnl={pnl}
+          isError={isNarrativeError}
         />
 
         {/* Anomaly Alerts */}
@@ -1011,11 +1042,6 @@ export default function FinancialPulsePage() {
           <KPICard
             label="Net Profit"
             value={formatCurrency(pnlData?.current.netProfit ?? 0)}
-            change={
-              pnl?.revenueChange && pnl?.expensesChange
-                ? `${pnl.revenueChange - pnl.expensesChange > 0 ? "+" : ""}${(pnl.revenueChange - pnl.expensesChange).toFixed(1)}% spread`
-                : undefined
-            }
             icon={BarChart3}
             color="text-primary"
             onDrillDown={() => {
@@ -1053,7 +1079,9 @@ export default function FinancialPulsePage() {
                 ],
                 insight:
                   pnl?.revenue && pnl?.expenses
-                    ? `Net margin: ${(((pnlData?.current.netProfit ?? 0) / (pnl.revenue || 1)) * 100).toFixed(1)}%. Revenue-expense spread: ${(pnl.revenueChange ?? 0) - (pnl.expensesChange ?? 0) > 0 ? "expanding" : "narrowing"}.`
+                    ? pnl.revenue > 0
+                      ? `Net margin: ${(((pnlData?.current.netProfit ?? 0) / pnl.revenue) * 100).toFixed(1)}%. Revenue-expense spread: ${(pnl.revenueChange ?? 0) - (pnl.expensesChange ?? 0) > 0 ? "expanding" : "narrowing"}.`
+                      : `Net margin: —. Revenue-expense spread: ${(pnl.revenueChange ?? 0) - (pnl.expensesChange ?? 0) > 0 ? "expanding" : "narrowing"}.`
                     : undefined,
               });
             }}
@@ -1095,9 +1123,14 @@ export default function FinancialPulsePage() {
                     color: "bg-blue-500",
                   },
                 ],
-                insight: overview?.runway
-                  ? `At current burn rate, you have approximately ${overview.runway.toFixed(1)} months of runway.`
-                  : undefined,
+                insight:
+                  overview?.runway !== null && overview?.runway !== undefined
+                    ? overview.runway <= 0
+                      ? "Immediate action required — runway is critically low."
+                      : overview.runway < 3
+                        ? `At current burn rate, you have approximately ${overview.runway.toFixed(1)} months of runway. This is critically low.`
+                        : `At current burn rate, you have approximately ${overview.runway.toFixed(1)} months of runway.`
+                    : "Runway unknown — connect your bank accounts for accurate data.",
               });
             }}
             onAskAi={() =>
@@ -1123,7 +1156,7 @@ export default function FinancialPulsePage() {
               revenue: v,
               prior: expenseSparkline[i] ? undefined : undefined,
             }))}
-            currency={entity?.currency || "GMD"}
+            currency={entityCurrency || "GMD"}
             onAskAi={() =>
               askAiAbout(
                 "Explain my revenue trend. What's driving the changes?",
@@ -1136,7 +1169,7 @@ export default function FinancialPulsePage() {
               incoming: v,
               outgoing: expenseSparkline[i] ?? 0,
             }))}
-            currency={entity?.currency || "GMD"}
+            currency={entityCurrency || "GMD"}
             onAskAi={() =>
               askAiAbout(
                 "Analyze my cash flow. Am I spending more than I'm earning?",
@@ -1163,7 +1196,7 @@ export default function FinancialPulsePage() {
           />
           <ExpenseBreakdownChart
             data={expenseBreakdownData}
-            currency={entity?.currency || "GMD"}
+            currency={entityCurrency || "GMD"}
             onAskAi={() =>
               askAiAbout(
                 "Break down my expenses. What's the biggest cost driver?",
@@ -1221,7 +1254,7 @@ export default function FinancialPulsePage() {
                 report.id === "pnl" && pnlData
                   ? buildPnlReport({
                       entityName: entity?.name || "Your Business",
-                      currency: entity?.currency || "GMD",
+                      currency: entityCurrency || "GMD",
                       period: new Date().toLocaleDateString("en-US", {
                         month: "long",
                         year: "numeric",
@@ -1251,7 +1284,7 @@ export default function FinancialPulsePage() {
                   : report.id === "cash-flow"
                     ? buildCashFlowReport({
                         entityName: entity?.name || "Your Business",
-                        currency: entity?.currency || "GMD",
+                        currency: entityCurrency || "GMD",
                         period: new Date().toLocaleDateString("en-US", {
                           month: "long",
                           year: "numeric",
@@ -1273,7 +1306,7 @@ export default function FinancialPulsePage() {
                     : {
                         title: report.label,
                         entityName: entity?.name || "Your Business",
-                        currency: entity?.currency || "GMD",
+                        currency: entityCurrency || "GMD",
                         generatedAt: new Date(),
                         sections: [],
                       };
