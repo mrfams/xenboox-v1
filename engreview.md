@@ -1733,5 +1733,5 @@ Settings page with 20+ tabs organized into 4 groups: General, Security & Access,
 
 | #   | Finding                                                                                                                       | Severity | Fix                                                     | Status |
 | --- | ----------------------------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------------------------- | ------ |
-| 1   | **No error boundary for dynamic imports** — if any section component fails to load, the entire page crashes with no recovery. | HIGH     | Wrap ActiveComponent in ErrorBoundary with fallback UI. | ⬜     |
+| 1   | **No error boundary for dynamic imports** — if any section component fails to load, the entire page crashes with no recovery. | HIGH     | Wrap ActiveComponent in ErrorBoundary with fallback UI. |        | ✅  |
 | 2   | **20+ dynamic imports in one file** — SECTION_COMPONENTS map is large; consider code-splitting by group rather than by tab.   | LOW      | Group-level code splitting.                             | ⬜     |
