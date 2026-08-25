@@ -1509,3 +1509,63 @@ Money in, money out. AI handles it, you approve. Layout: Money Flow Summary (AI-
 | 2   | **No AI categorization rate** — can't measure how many transactions AI handles. | HIGH     | ⬜     |
 | 3   | **No money flow trend data** — shows current, not trend.                        | MEDIUM   | ⬜     |
 | 4   | **No reconciliation completion rate** — can't measure progress.                 | LOW      | ⬜     |
+
+# PAGE: /dashboard/donor-reporting
+
+AI-native donor reporting for NGOs and development organizations. Tracks donor-funded projects, budget vs actual, and generates reports in required formats (USAID, EU, World Bank, AfDB).
+
+---
+
+## DEPARTMENT: PRODUCT
+
+### Employee: Product Manager
+
+| #   | Finding                                                                                                                                                                                                                                | Severity | Fix                                                                   | Status |
+| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | --------------------------------------------------------------------- | ------ |
+| 1   | **No error handling on any query** — all useQuery calls destructure only data; isError ignored page-wide. Failed loads render as confident zeros (0 active projects, $0 grants). Same silent-wrong-data pattern flagged on Operations. | HIGH     | Add error+retry block per card; never render zeros for failed loads.  | ⬜     |
+| 2   | **Project cards open AI instead of drilling in** — clicking a project fires an AI prompt; there's no project detail page or budget breakdown view. Fifth instance of the drill-down-dead-end anti-pattern across pages.                | HIGH     | Route to project detail page; keep AI secondary.                      | ⬜     |
+| 3   | **parseFloat on monetary amounts** — grantAmount, amountDisbursed, amountRemaining all parsed via parseFloat. Money-as-float violation continues across pages.                                                                         | HIGH     | Server should emit numbers/minor-units; client uses Number() minimum. | ⬜     |
+| 4   | **formatCurrency omits currency argument** — multi-currency donor projects (common in international NGOs) get symbol-guessed amounts.                                                                                                  | HIGH     | Per-project currency from payload → explicit formatCurrency calls.    | ⬜     |
+| 5   | **Recent reports only show first project's reports** — snapshots query uses firstProjectId; multi-project entities see reports for one project only.                                                                                   | MEDIUM   | Show reports across all active projects or add project filter.        | ⬜     |
+| 6   | **"View all" opens AI, not report list** — consistent anti-pattern: navigation promise routes to chat.                                                                                                                                 | MEDIUM   | Link to report list page; rename chat entry points "Ask AI".          | ⬜     |
+
+### Employee: UX Writer
+
+| #   | Finding                                                                                                                                    | Severity | Fix                                                                                         | Status |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------ | -------- | ------------------------------------------------------------------------------------------- | ------ |
+| 1   | **"No donor projects yet" empty state lacks urgency** — NGO users need donor reporting for compliance; passive copy undersells the stakes. | MEDIUM   | "Set up your first donor project to start tracking grants and meeting reporting deadlines." | ⬜     |
+| 2   | **Status labels are raw enums** — "active", "submitted", "final", "draft" rendered as lowercase. Professional surface needs Title Case.    | MEDIUM   | Canonical label map with Title Case.                                                        | ⬜     |
+
+---
+
+## DEPARTMENT: DESIGN
+
+### Employee: Design Critic
+
+| #   | Finding                                                                                                                                                                                   | Severity | Fix                                                                    | Status |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ---------------------------------------------------------------------- | ------ |
+| 1   | **Hardcoded light-mode colors persist** — text-blue-500/bg-blue-500/10, emerald, amber, purple throughout. Dark mode renders pastel-on-dark failures. Same defect class across all pages. | HIGH     | Token map (category→semantic token pair) with dark mode variants.      | ⬜     |
+| 2   | **Micro-typography floor violations** — 10px labels, 9px badges. Below readability minimum for the 40+ NGO administrator demographic.                                                     | MEDIUM   | Minimum 12px for meaningful text; reserve smaller for decorative only. | ⬜     |
+| 3   | **Project cards have no focus-visible treatment** — hand-rolled buttons with hover styles but no focus ring. Keyboard users get browser default or nothing.                               | MEDIUM   | Add consistent focus-visible:ring-2 focus-visible:ring-primary/40.     | ⬜     |
+
+---
+
+## DEPARTMENT: ENGINEERING
+
+### Employee: Engineering Critic
+
+| #   | Finding                                                                                                                | Severity | Fix                                          | Status |
+| --- | ---------------------------------------------------------------------------------------------------------------------- | -------- | -------------------------------------------- | ------ |
+| 1   | **No error boundary around page sections** — one failed query (donorGrant.getStats) could crash the entire page.       | MEDIUM   | Per-section Suspense/error isolation.        | ⬜     |
+| 2   | **Duplicate query for projects** — ProjectCards and RecentProjects both call donorGrant.listProjects with same params. | LOW      | Hoist query to page level and pass as props. | ⬜     |
+
+---
+
+## DEPARTMENT: DATA
+
+### Employee: Data Analyst
+
+| #   | Finding                                                                                                                                          | Severity | Fix                                               | Status |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------ | -------- | ------------------------------------------------- | ------ |
+| 1   | **Budget utilization shown as simple percentage** — no trend (is utilization increasing or decreasing?), no forecast (when will funds run out?). | MEDIUM   | Add trend indicator and projected depletion date. | ⬜     |
+| 2   | **No donor retention metrics** — can't track repeat donors, funding continuity.                                                                  | LOW      | Donor lifetime value and retention rate cards.    | ⬜     |

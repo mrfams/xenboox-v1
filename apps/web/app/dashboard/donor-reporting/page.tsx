@@ -37,10 +37,12 @@ function DonorStats() {
   const { entityId } = useEntity();
   const { openWithFocus } = useModuleAi();
 
-  const { data: stats, isLoading } = trpc.donorGrant.getStats.useQuery(
-    undefined,
-    { enabled: !!entityId },
-  );
+  const {
+    data: stats,
+    isLoading,
+    isError,
+    refetch,
+  } = trpc.donorGrant.getStats.useQuery(undefined, { enabled: !!entityId });
 
   if (isLoading) {
     return (
@@ -52,34 +54,58 @@ function DonorStats() {
     );
   }
 
+  if (isError) {
+    return (
+      <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-4 text-center">
+        <AlertTriangle
+          className="h-5 w-5 text-destructive mx-auto mb-2"
+          aria-hidden="true"
+        />
+        <p className="text-sm font-medium text-foreground">
+          Unable to load donor stats
+        </p>
+        <p className="text-xs text-muted-foreground mt-1">
+          Check your connection and try again.
+        </p>
+        <button
+          type="button"
+          onClick={() => refetch()}
+          className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/5 px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/10 transition-colors"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
+
   const items = [
     {
       label: "Active Projects",
       value: String(stats?.active ?? 0),
       icon: Building2,
-      color: "text-blue-500",
-      bg: "bg-blue-500/10",
+      color: "text-blue-500 dark:text-blue-400",
+      bg: "bg-blue-500/10 dark:bg-blue-500/20",
     },
     {
       label: "Total Grants",
       value: formatCurrency(stats?.totalGrantAmount ?? 0),
       icon: HandCoins,
-      color: "text-emerald-500",
-      bg: "bg-emerald-500/10",
+      color: "text-emerald-500 dark:text-emerald-400",
+      bg: "bg-emerald-500/10 dark:bg-emerald-500/20",
     },
     {
       label: "Disbursed",
       value: formatCurrency(stats?.totalDisbursed ?? 0),
       icon: ArrowUpRight,
-      color: "text-amber-500",
-      bg: "bg-amber-500/10",
+      color: "text-amber-500 dark:text-amber-400",
+      bg: "bg-amber-500/10 dark:bg-amber-500/20",
     },
     {
       label: "Remaining",
       value: formatCurrency(stats?.totalRemaining ?? 0),
       icon: ArrowDownRight,
-      color: "text-purple-500",
-      bg: "bg-purple-500/10",
+      color: "text-purple-500 dark:text-purple-400",
+      bg: "bg-purple-500/10 dark:bg-purple-500/20",
     },
   ];
 
@@ -116,7 +142,12 @@ function ProjectCards() {
   const { entityId } = useEntity();
   const { openWithFocus } = useModuleAi();
 
-  const { data: projects, isLoading } = trpc.donorGrant.listProjects.useQuery(
+  const {
+    data: projects,
+    isLoading,
+    isError,
+    refetch,
+  } = trpc.donorGrant.listProjects.useQuery(
     { status: "active" },
     { enabled: !!entityId },
   );
@@ -127,6 +158,35 @@ function ProjectCards() {
         {[1, 2].map((i) => (
           <div key={i} className="h-24 animate-pulse rounded-xl bg-muted/30" />
         ))}
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="rounded-xl border border-border/50 bg-card p-4">
+        <h3 className="text-sm font-semibold text-foreground mb-3">
+          Donor Projects
+        </h3>
+        <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-4 text-center">
+          <AlertTriangle
+            className="h-5 w-5 text-destructive mx-auto mb-2"
+            aria-hidden="true"
+          />
+          <p className="text-sm font-medium text-foreground">
+            Unable to load projects
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Check your connection and try again.
+          </p>
+          <button
+            type="button"
+            onClick={() => refetch()}
+            className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/5 px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/10 transition-colors"
+          >
+            Retry
+          </button>
+        </div>
       </div>
     );
   }
@@ -197,9 +257,10 @@ function ProjectCards() {
       ) : (
         <div className="space-y-3">
           {projects.map((project) => {
-            const grantAmount = parseFloat(project.grantAmount);
-            const disbursed = parseFloat(project.amountDisbursed);
-            const remaining = parseFloat(project.amountRemaining);
+            const grantAmount = Number(project.grantAmount);
+            const disbursed = Number(project.amountDisbursed);
+            const remaining = Number(project.amountRemaining);
+            const currency = project.currency ?? "USD";
             const percentUsed =
               grantAmount > 0 ? (disbursed / grantAmount) * 100 : 0;
             const isLow = percentUsed > 80;
@@ -221,15 +282,15 @@ function ProjectCards() {
                         },
                         {
                           label: "Grant Amount",
-                          value: formatCurrency(grantAmount),
+                          value: formatCurrency(grantAmount, currency),
                         },
                         {
                           label: "Disbursed",
-                          value: formatCurrency(disbursed),
+                          value: formatCurrency(disbursed, currency),
                         },
                         {
                           label: "Remaining",
-                          value: formatCurrency(remaining),
+                          value: formatCurrency(remaining, currency),
                         },
                         {
                           label: "Reporting",
@@ -269,10 +330,10 @@ function ProjectCards() {
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between text-[10px]">
                     <span className="text-muted-foreground">
-                      {formatCurrency(disbursed)} disbursed
+                      {formatCurrency(disbursed, currency)} disbursed
                     </span>
                     <span className="text-muted-foreground">
-                      {formatCurrency(remaining)} remaining
+                      {formatCurrency(remaining, currency)} remaining
                     </span>
                   </div>
                   <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
@@ -286,7 +347,7 @@ function ProjectCards() {
                   </div>
                   <div className="flex items-center justify-between text-[10px]">
                     <span className="text-muted-foreground">
-                      {formatCurrency(grantAmount)} total grant
+                      {formatCurrency(grantAmount, currency)} total grant
                     </span>
                     <span
                       className={cn(
@@ -485,7 +546,10 @@ export default function DonorReportingPage() {
       description="Track donor-funded projects, budget vs actual, and generate reports in required formats."
       icon={HandCoins}
       aiSuggestions={[
-        { label: "Show project status", prompt: "Show me the status of all donor projects" },
+        {
+          label: "Show project status",
+          prompt: "Show me the status of all donor projects",
+        },
         {
           label: "Generate quarterly report",
           prompt: "Generate a quarterly donor report",
