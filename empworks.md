@@ -36,7 +36,7 @@
 | 19                  | **Audit trail CSV export is now sanitized** — all cells pass through sanitizeCell() which prefixes formula-triggering characters (=, +, -, @, , |
 | ) with single quote | MEDIUM                                                                                                                                          | ✅ Fixed: sanitizeCell() function prevents CSV injection |
 | 20                  | **Auth pages (login, register, forgot-password, reset-password) have no SSR metadata** — each auth page lacks `title` and `description`         | LOW                                                      | Add `export const metadata` with appropriate titles for each auth page        | ⬜                                                                                     |
-| 21                  | **Donor portal landing page uses `typeof window !== "undefined"` for search params** — should use Next.js `useSearchParams()` for SSR safety    | MEDIUM                                                   | Wrap in Suspense boundary and use `useSearchParams()` hook                    | ⬜                                                                                     |
+| 21                  | **Donor portal search params updated** — same finding as S1-7/T1-9, verified fixed                                                              | MEDIUM                                                   | ✅ Fixed: Same as S1-7/T1-9                                                   |
 
 ---
 
@@ -64,17 +64,17 @@
 
 ## Employee #3: UX Writer — Score: 8/10
 
-| #   | Finding                                                                                                                           | Severity | Fix                                                                                      | Status |
-| --- | --------------------------------------------------------------------------------------------------------------------------------- | -------- | ---------------------------------------------------------------------------------------- | ------ |
-| 1   | Help page search placeholder is excellent — "Search help topics… e.g. invoice, reconcile, security"                               | —        | Production-grade                                                                         | ⬜     |
-| 2   | Auth pages have clear CTAs — "Sign up free", "Sign in", "Back to sign in"                                                         | —        | Production-grade                                                                         | ⬜     |
-| 3   | MFA page copy is clear — "Enter the 6-digit code from your authenticator app"                                                     | —        | Production-grade                                                                         | ⬜     |
-| 4   | Verify email success message updated — now says "Email verified! You're all set to start using Xenboox."                          | MEDIUM   | ✅ Fixed: Updated success message                                                        |
-| 5   | Verify email error action updated — button now says "Go to Email Settings to Resend"                                              | MEDIUM   | ✅ Fixed: Updated error action text                                                      |
-| 6   | Donor portal error messages are good — "This login link has expired. Please request a new one."                                   | —        | Production-grade                                                                         | ⬜     |
-| 7   | Dashboard help page empty state is clear — "No topics match… Try a different keyword, or ask the AI assistant directly"           | —        | Production-grade                                                                         | ⬜     |
-| 8   | **Donor portal landing page** says "Ask your organization for their Xenboox entity ID" — donors won't know what an "entity ID" is | MEDIUM   | Rephrase to "Ask your organization for their Reference Code" or make it optional         | ⬜     |
-| 9   | **Audit trail page** "Who did what, when, and why" — good subtitle but the "why" is rarely captured in logs                       | LOW      | Consider adding a "reason" field to audit log creation or remove "and why" from subtitle | ⬜     |
+| #   | Finding                                                                                                                 | Severity | Fix                                                                                      | Status |
+| --- | ----------------------------------------------------------------------------------------------------------------------- | -------- | ---------------------------------------------------------------------------------------- | ------ |
+| 1   | Help page search placeholder is excellent — "Search help topics… e.g. invoice, reconcile, security"                     | —        | Production-grade                                                                         | ⬜     |
+| 2   | Auth pages have clear CTAs — "Sign up free", "Sign in", "Back to sign in"                                               | —        | Production-grade                                                                         | ⬜     |
+| 3   | MFA page copy is clear — "Enter the 6-digit code from your authenticator app"                                           | —        | Production-grade                                                                         | ⬜     |
+| 4   | Verify email success message updated — now says "Email verified! You're all set to start using Xenboox."                | MEDIUM   | ✅ Fixed: Updated success message                                                        |
+| 5   | Verify email error action updated — button now says "Go to Email Settings to Resend"                                    | MEDIUM   | ✅ Fixed: Updated error action text                                                      |
+| 6   | Donor portal error messages are good — "This login link has expired. Please request a new one."                         | —        | Production-grade                                                                         | ⬜     |
+| 7   | Dashboard help page empty state is clear — "No topics match… Try a different keyword, or ask the AI assistant directly" | —        | Production-grade                                                                         | ⬜     |
+| 8   | **Donor portal entity ID copy updated** — same finding as S3-3, verified fixed                                          | MEDIUM   | ✅ Fixed: Same as S3-3                                                                   |
+| 9   | **Audit trail page** "Who did what, when, and why" — good subtitle but the "why" is rarely captured in logs             | LOW      | Consider adding a "reason" field to audit log creation or remove "and why" from subtitle | ⬜     |
 
 ---
 
@@ -142,14 +142,14 @@
 
 ## Employee #7: Engineering Critic — Score: 8/10
 
-| #   | Finding                                                                                                                               | Severity | Fix                                                                               | Status                                                            |
-| --- | ------------------------------------------------------------------------------------------------------------------------------------- | -------- | --------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| 1   | tRPC client is used consistently across dashboard pages                                                                               | —        | Production-grade                                                                  | ⬜                                                                |
-| 2   | Entity scoping applied via `useEntity()` hook                                                                                         | —        | Production-grade                                                                  | ⬜                                                                |
-| 3   | **Donor portal uses `fetch()` instead of tRPC** — different error handling pattern than rest of app                                   | MEDIUM   | Consider creating a tRPC procedure for donor portal or document why fetch is used | ⬜                                                                |
-| 4   | **Audit trail now uses server-side pagination** — search, surface filter, date range, and pagination all happen at the database level | MEDIUM   | ✅ Fixed: Server-side pagination with cursor-based approach                       |
-| 5   | **Donor portal polling interval** — 30s polling runs even when user is idle, wastes bandwidth                                         | LOW      | Consider exponential backoff or reduce to 60s when tab is visible                 | ⬜                                                                |
-| 6   | **Help page has no error boundary** — if `HelpAssistant` component throws, entire page crashes                                        | LOW      | Wrap HelpAssistant in error boundary with fallback UI                             | ✅ Fixed: Wrapped HelpAssistant in ErrorBoundary with fallback UI |
+| #   | Finding                                                                                                                               | Severity | Fix                                                               | Status                                                            |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------- | -------- | ----------------------------------------------------------------- | ----------------------------------------------------------------- |
+| 1   | tRPC client is used consistently across dashboard pages                                                                               | —        | Production-grade                                                  | ⬜                                                                |
+| 2   | Entity scoping applied via `useEntity()` hook                                                                                         | —        | Production-grade                                                  | ⬜                                                                |
+| 3   | **Donor portal uses fetch() by design** — public endpoint without auth context, tRPC requires session                                 | MEDIUM   | ✅ Accepted: fetch() is correct for public endpoints              |
+| 4   | **Audit trail now uses server-side pagination** — search, surface filter, date range, and pagination all happen at the database level | MEDIUM   | ✅ Fixed: Server-side pagination with cursor-based approach       |
+| 5   | **Donor portal polling interval** — 30s polling runs even when user is idle, wastes bandwidth                                         | LOW      | Consider exponential backoff or reduce to 60s when tab is visible | ⬜                                                                |
+| 6   | **Help page has no error boundary** — if `HelpAssistant` component throws, entire page crashes                                        | LOW      | Wrap HelpAssistant in error boundary with fallback UI             | ✅ Fixed: Wrapped HelpAssistant in ErrorBoundary with fallback UI |
 
 ---
 
@@ -377,11 +377,11 @@
 
 ## 🔵 SECOND PASS — Employee #7: Engineering Critic (Re-audit)
 
-| #    | Finding                                                                                                                                                         | Severity | Fix                                                                                                                                  | Status |
-| ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------ | ------ |
-| S7-1 | **Donor portal uses `fetch()` directly** instead of tRPC — inconsistent with the rest of the app's API layer                                                    | MEDIUM   | Either create tRPC procedures for donor portal endpoints, or document why fetch is used (e.g., public endpoint without auth context) | ⬜     |
-| S7-2 | **Audit trail now uses server-side pagination** — pagination, search, and filtering all happen at the database level                                            | MEDIUM   | ✅ Fixed: Server-side pagination with cursor-based approach                                                                          |
-| S7-3 | **Donor portal polling doesn't handle 401/403** — if the magic link session expires during polling, the API returns an error but the polling continues silently | LOW      | Detect auth errors (401/403) in poll response and stop polling, redirect to login                                                    | ⬜     |
+| #    | Finding                                                                                                                                                         | Severity | Fix                                                                               | Status |
+| ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | --------------------------------------------------------------------------------- | ------ |
+| S7-1 | **Donor portal uses fetch() by design** — public endpoint without auth context, tRPC requires session                                                           | MEDIUM   | ✅ Accepted: fetch() is correct for public endpoints                              |
+| S7-2 | **Audit trail now uses server-side pagination** — pagination, search, and filtering all happen at the database level                                            | MEDIUM   | ✅ Fixed: Server-side pagination with cursor-based approach                       |
+| S7-3 | **Donor portal polling doesn't handle 401/403** — if the magic link session expires during polling, the API returns an error but the polling continues silently | LOW      | Detect auth errors (401/403) in poll response and stop polling, redirect to login | ⬜     |
 
 ---
 
