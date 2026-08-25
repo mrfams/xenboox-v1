@@ -1,2499 +1,1511 @@
-# Engineering Review — /dashboard (Command Center)
+# EngReview — Page-by-Page Employee Audit Findings
 
-> All findings from employee audits of the `/dashboard` page.
-> Each employee reviews their domain, lists every problem found.
+> **AGENT INSTRUCTIONS:** Only mark a finding as ✅ DONE when it is **fully and completely fixed, verified, and working in production.** Partial fixes, TODOs, or "I started working on it" do NOT count. Every finding must be verified before marking done — run `pnpm typecheck --filter=web`, relevant tests, and visually confirm the fix works. If it's still broken or incomplete, leave it ⬜.
+>
+> **Scope:** WEB ONLY (`apps/web/`). Production grade or it doesn't ship.
+>
+> **Process:** One page at a time. One employee fired at a time. Each employee audits EVERYTHING on the page — every element, every state, every interaction, even the tiniest thing. All issues are listed under their department and employee so future sessions can pick work directly from this file.
+>
+> **Status Key:** `⬜` = Not started | `🔧` = In progress | `✅` = Fully fixed and verified | `N/A` = Out of scope
+>
 > Generated: August 25, 2026
 
 ---
 
-## Employee #1: Product Manager — Product Critique
+# PAGE: /dashboard (Command Center)
+
+The primary AI-native surface. Layout: ConversationSidebar + AIGreeting + GettingStartedChecklist/ProactiveBriefing + ConversationMemory + ConversationThread + AiInput, wrapped in dashboard layout (TopNav, AISidebar, ChatPanel, MobileBottomNav, OnboardingWizard, ProductTour, NPS, LiveChat).
+
+---
+
+## DEPARTMENT: PRODUCT
+
+### Employee: Product Manager
+
+| #   | Finding                                                                                                                                                                                                                                                                                                                                                  | Severity | Fix                                                                                                                         | Status |
+| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | --------------------------------------------------------------------------------------------------------------------------- | ------ |
+| 1   | **Approve/Reject buttons don't perform real approvals** — clicking "Approve" on an approval card just sends the text "Approved: \<title\>" as a new chat message and relies on the AI parsing that sentence. For a financial approval this is fragile: no mutation, no audit record tied to the approval ID, no confirmation the ledger actually posted. | HIGH     | Approval buttons must call a real tRPC mutation with the approval ID, show server-confirmed result, and log to audit trail. | ⬜     |
+| 2   | **Reactions and pinned messages are fake features** — MessageReactions and PinnedMessagesPanel are local component state only. Everything vanishes on reload/navigation. Users will pin an important AI answer, come back, and it's gone. Shipping visible-but-non-persistent features erodes trust in an accounting product.                            | HIGH     | Either persist pins/reactions per conversation server-side, or remove the UI until real.                                    | ⬜     |
+| 3   | **"Regenerate" doesn't regenerate** — it finds the previous user message and sends it AGAIN as a brand-new message. Result: duplicate question appended, no replacement of the bad answer, thread polluted.                                                                                                                                              | MEDIUM   | Implement true regenerate: truncate last assistant response and re-request, or hide the action until supported.             | ⬜     |
+| 4   | **Getting-started checklist progress resets every reload** — completedSteps lives in useState; only dismissal is persisted to localStorage. User completes 3 steps, refreshes, progress bar back to 0%. Demotivating for exactly the new users it targets.                                                                                               | HIGH     | Persist step completion (localStorage keyed per user+entity minimum, ideally server-side activation state).                 | ⬜     |
+| 5   | **Checklist marks steps complete even when nothing happened** — any click marks complete, including message-steps where send may be blocked (e.g. mid-stream) and link-steps never complete since they navigate away. Progress bar lies.                                                                                                                 | MEDIUM   | Mark complete only on verified outcome (message actually sent; bank connection actually created).                           | ⬜     |
+| 6   | **Getting-started dismissal is shared across all users/entities on the device** — single unscoped localStorage key. Multi-user machine or multi-entity account gets wrong state.                                                                                                                                                                         | LOW      | Scope storage key by user ID and entity ID.                                                                                 | ⬜     |
+| 7   | **ProactiveBriefing can falsely say "All clear"** — fallback path shows the green "nothing needs your attention" card whenever `items.length === 0`, which also happens when BOTH dashboard and ingestion queries fail or return before load. Telling an SME owner everything is fine when we simply don't know is dangerous for an accounting product.  | HIGH     | Distinguish "loaded, zero items" from "failed to load"; error state must be explicit with retry.                            | ⬜     |
+| 8   | **React hooks called after conditional returns in ProactiveBriefing** — `getDashboardData.useQuery` and `ingestion.getStats.useQuery` are invoked below early returns (`isLoadingBriefing`, `briefingText`). Violates the Rules of Hooks: crashes/lints depending on path taken, briefing flickers between AI and fallback states.                       | HIGH     | Move all hooks above conditionals; derive render output from state.                                                         | ✅     |
+| 9   | **Static suggestion chips contradict their own design note** — comment says "Dynamic suggestions based on time of month and entity state" but chips are hardcoded ("Run payroll", "Close books"). A brand-new entity sees "Close books" day one; month-end context never changes suggestions.                                                            | MEDIUM   | Make suggestions contextual: entity lifecycle stage, pending approvals, time of month.                                      | ⬜     |
+| 10  | **Send button disabled when only files are attached** — handler supports sending files with empty text (sends "Uploaded files"), but the Button's disabled logic requires `inputValue.trim()`. Upload a receipt, button greyed out, Enter key still works — inconsistent affordance.                                                                     | MEDIUM   | Enable send when files exist OR text exists.                                                                                | ✅     |
+| 11  | **Export chat exports an incomplete transcript** — markdown export includes only role+content text. Drops tables, charts, approvals, documents, confidence scores. An owner exporting "the conversation where I approved $12k" gets a file missing the evidence. No success feedback after download either.                                              | MEDIUM   | Export full artifact-rich transcript; add toast confirmation.                                                               | ⬜     |
+| 12  | **Duplicate rendering of streaming data tables** — during streaming, tables render once inside the `isStreaming &&` block and AGAIN in the unconditional `dataTables.map` block further down. Same table appears twice mid-response.                                                                                                                     | MEDIUM   | Render each table exactly once regardless of stream state.                                                                  | ✅     |
+| 13  | **Approval cards keyed/indexed by display title** — `processingApproval === approval.title`; two approvals titled "Invoice #1042" collide and both spin/disable together. Keys must be unique IDs.                                                                                                                                                       | MEDIUM   | Key processing state by approval/event id.                                                                                  | ✅     |
+| 14  | **Auto-scroll fights the reader** — thread scrolls to bottom on every streamed token change with smooth behavior; reading a long answer mid-stream while scrolled up yanks the viewport down. No scroll-anchor suppression or "jump to latest" pill.                                                                                                     | MEDIUM   | Only autoscroll when already near bottom; offer jump-to-latest control.                                                     | ⬜     |
+| 15  | **AIGreeting renders `new Date()` during render** — server prerender vs client hydration produce different greeting/date → hydration mismatch warnings and possible flash of wrong greeting. Greeting also frozen until refresh.                                                                                                                         | MEDIUM   | Compute time-of-day in effect/state after mount, suppress SSR mismatch.                                                     | ⬜     |
+| 16  | **"AI active" status badge is decorative** — pulsing green dot implies live agent health but checks nothing. False assurance; same class of issue as the old help-page badge.                                                                                                                                                                            | LOW      | Wire to real agent/health signal or remove.                                                                                 | ⬜     |
+| 17  | **ConversationSidebar delete does not update the list** — onSuccess handler is an empty comment placeholder; deleted conversation stays visible until refetch happens elsewhere (only exitChat invalidates). User deletes, item remains, confusion about whether it worked. Silent catch also hides failures entirely.                                   | HIGH     | Invalidate `chat.listConversations` on delete success; surface failure toast.                                               | ✅     |
+| 18  | **Nested interactive elements in sidebar rows** — delete `<button>` rendered INSIDE the conversation row `<button>`. Invalid HTML, unpredictable focus/click behavior, hydration risk. Hover-only reveal also makes delete unreachable on touch devices and keyboard.                                                                                    | HIGH     | Flatten to div-with-role or move actions out; provide always-accessible delete affordance.                                  | ✅     |
+| 19  | **Conversation search is client-side over a truncated list** — filters whatever page listConversations returned; older conversations invisible to search. Product promise "search conversations" silently incomplete.                                                                                                                                    | MEDIUM   | Server-side search endpoint for conversation titles/summaries.                                                              | ⬜     |
+| 20  | **Custom hand-rolled delete dialog duplicates design system** — raw fixed-position overlay instead of shadcn Dialog; misses focus trap, ESC handling consistency, aria-modal.                                                                                                                                                                            | LOW      | Use design-system AlertDialog.                                                                                              | ⬜     |
+| 21  | **Dashboard layout registers drag listeners via `useState(() => …)` instead of useEffect** — mousemove/mouseup listeners attach once, returned cleanup is discarded, listeners NEVER removed for the app lifetime (memory leak, ghost handlers), and it's a misuse of the React API that will confuse every future reader.                               | HIGH     | Convert to proper useEffect with cleanup.                                                                                   | ✅     |
+| 22  | **Two h1 elements on /dashboard** — layout injects an sr-only `<h1>` (page title) AND AIGreeting renders a visual `<h1>` greeting. Broken heading hierarchy for SEO/a11y tooling.                                                                                                                                                                        | LOW      | Demote greeting to `<p>` or merge into the single h1 strategy.                                                              | ⬜     |
+| 23  | **PAGE_TITLES map covers only 7 routes** — audit-trail, auto-approve, donor-reporting, ingestion, knowledge, knowledge-graph, qbr, referrals all fall back to generic "Dashboard" in the sr-only h1 and SurfaceErrorBoundary labels.                                                                                                                     | LOW      | Complete the route→title map (or derive from a shared nav config).                                                          | ⬜     |
+| 24  | **Context-menu copilot uses `window.location.href` full reload** — DataAwareContextMenu hands off to Command Center via hard navigation, destroying SPA state (streaming chats, open panels).                                                                                                                                                            | LOW      | Use next/router push.                                                                                                       | ✅     |
+| 25  | **Error-path assistant message violates its own message type** — `handleStreamError` pushes an assistant message missing required `citations/batchResults/dataTables/charts` fields defined on DashboardChatMessage; downstream code assumes these arrays exist. Verify typecheck passes and normalize shape.                                            | HIGH     | Construct error messages through a helper that fills all fields.                                                            | ✅     |
+| 26  | **No loading skeleton parity for ProactiveBriefing fallback queries** — when AI briefing absent, fallback cards pop in without skeletons; layout shift on first paint for every returning user.                                                                                                                                                          | LOW      | Skeleton states matching final card heights.                                                                                | ⬜     |
+| 27  | **Briefing timestamp shows client render time, not generation time** — `new Date().toLocaleTimeString()` in the AI-briefing footer mislabels freshness (shows when you loaded the page); also locale-inconsistent with rest of app.                                                                                                                      | LOW      | Show server-provided generatedAt formatted consistently.                                                                    | ⬜     |
+
+### Employee: Product Critic
+
+Reviewed /dashboard across all 6 dimensions (user value, usability, edge cases, AI-native patterns, competitive, metrics). Findings below — PM overlap removed, these are new.
+
+| #   | Finding                                                                                                                                                                                                                                                                                                                                                                  | Severity | Fix                                                                                                                                  | Status |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------- | ------------------------------------------------------------------------------------------------------------------------------------ | ------ |
+| 1   | **Mobile users cannot open their conversations** — the "Conversations" toggle button in the greeting row is `hidden md:inline-flex` (desktop-only), and ConversationSidebar renders as a fixed 288px column. On phones there is NO path to past conversations from Command Center. Core feature unreachable on mobile.                                                   | CRITICAL | Add a mobile entry point (icon in TopNav or above thread) and render sidebar as an overlay drawer on small screens.                  | ✅     |
+| 2   | **No way to stop a streaming response** — `useStreamingChat` exposes `cancelStream` and the hook wires unmount cleanup, but NO UI element anywhere on the page lets the user cancel a long/expensive/wrong-direction generation. They just wait. An accounting AI that can't be interrupted feels broken and burns tokens/money.                                         | HIGH     | Show Stop button in AiInput (or thread) while `isStreaming`; wire to cancelStream.                                                   | ⬜     |
+| 3   | **Three competing chat surfaces on one screen** — Command Center center-thread, ChatPanel right rail ("/" shortcut + floating CFO Agent button + edge tab), and LiveChatWidget. A new user cannot tell which one is the "real" assistant, and context doesn't flow between them. Violates the single-surface AI-native model.                                            | HIGH     | Consolidate entry points; make ChatPanel reuse Command Center thread state or clearly differentiate purposes (support vs CFO agent). | ⬜     |
+| 4   | **Error messages tell users to "try again" but provide no retry control** — failed stream appends an error bubble with plain text; user must retype or find their old message manually. No retry button on the error card.                                                                                                                                               | HIGH     | Add "Retry" action on error bubbles that resends the last user message via existing regenerate plumbing.                             | ⬜     |
+| 5   | **Clipboard copy fails silently** — MessageActions copy catches errors with console.error only. On clipboards denied by browser policy (common in embedded webviews), user clicks Copy and nothing happens, no feedback.                                                                                                                                                 | MEDIUM   | Toast on failure with fallback (legacy execCommand prompt).                                                                          | ⬜     |
+| 6   | **"Share" promises link-sharing, delivers .txt download** — component header says "Share message via link", metadata prop supports conversationId, but actual options are file-download and clipboard-copy only. Misleading feature surface.                                                                                                                             | LOW      | Either implement shareable deep-link (`/dashboard?conversation=…&message=…`) or rename to "Export".                                  | ⬜     |
+| 7   | **Message hover actions have no touch/keyboard equivalent** — actions render on group-hover patterns; tablets/touch and keyboard-only users can't copy/pin/regenerate any message.                                                                                                                                                                                       | MEDIUM   | Always-visible kebab menu per message (or long-press/focus-visible reveal).                                                          | ⬜     |
+| 8   | **InlineInputForm submits silently do nothing on missing required fields** — handleSubmit `return`s without any message when a required field is empty; the Submit button is disabled so most users never hit it, but pressing Enter inside a text input calls handleSubmit directly and gives zero feedback about what's missing. Also no per-field validation styling. | MEDIUM   | Show inline validation states and disable Enter-submit until valid, mirroring the button logic.                                      | ⬜     |
+| 9   | **InlineInputForm select options are raw backend strings** — options render verbatim (e.g. snake_case values); no labels, no grouping. Feels unfinished in an otherwise polished product.                                                                                                                                                                                | LOW      | Map option values to human labels.                                                                                                   | ⬜     |
+| 10  | **Low-confidence AI answers have no escalation path** — ConfidenceBadge displays a score, but per AGENTS.md confidence <0.4 should escalate to a human; nothing in this UI routes a low-confidence answer to Activity Hub or offers "flag for review". The loop closes nowhere.                                                                                          | HIGH     | Below threshold, show "Send to Activity Hub for human review" action on the message.                                                 | ⬜     |
+| 11  | **Approval cards lack source-document drill-in** — approval shows title/description/amount strings but no link to the underlying invoice/bill/document. Owners approve six-figure sums without seeing evidence. Competitive gap: QuickBooks approval flows deep-link the document.                                                                                       | HIGH     | Attach entity type + id to ApprovalEvent and render "View document" link.                                                            | ⬜     |
+| 12  | **Three overlapping onboarding systems fight for attention** — GettingStartedChecklist (in-page), OnboardingWizard (modal), and ProductTour (coach marks) all live in the same layout with no shared completion state. New user can see wizard + checklist + tour simultaneously. Activation ownership is ambiguous and unmeasurable.                                    | HIGH     | Single activation state machine owning all three surfaces; each checks the same store before showing.                                | ⬜     |
+| 13  | **Checklist step completion isn't tracked in analytics** — commandCenterFirstVisit fires, but step starts/completions/dismissals emit nothing. The single most important activation funnel is invisible to data.                                                                                                                                                         | MEDIUM   | Track step_view/step_complete/checklist_dismiss with step ids.                                                                       | ⬜     |
+| 14  | **Conversation list has no rename and no unread/state indicators** — titles auto-generated only ("Untitled conversation" fallback visible to users). Users can't organize or recognize threads beyond first words of content.                                                                                                                                            | LOW      | Auto-title from first exchange server-side; add rename action.                                                                       | ⬜     |
+| 15  | **Empty-state dead zone below briefings** — with zero messages the thread area renders literally nothing under the checklist; the visual weight collapses. Empty state should preview capabilities (sample prompts with rich previews).                                                                                                                                  | LOW      | Add capability-preview empty state between checklist and input.                                                                      | ⬜     |
+| 16  | **AI-native anti-pattern: fallback briefing is count-based, not narrative** — when AI briefing unavailable, users get raw counts ("3 deadlines upcoming") with zero explanation of WHY it matters. PRD promise: "AI explains what numbers mean." Fallback should degrade to plainer language + link to ask AI, not bare counters.                                        | MEDIUM   | Fallback items include one-line "why it matters" copy.                                                                               | ⬜     |
+| 17  | **No date/time context on messages** — thread messages show no timestamps at all; an owner reviewing "when did I approve this?" next week has zero anchor in the UI.                                                                                                                                                                                                     | MEDIUM   | Timestamps on message groups (or on hover) with day separators.                                                                      | ⬜     |
+| 18  | **ConversationMemory query fires per keystroke-equivalent state change** — currentQuery = last message content; every new message triggers a new searchRelevantConversations request while streaming completes; results then reference the PREVIOUS question mid-conversation. Memory suggestions appear/disappear distractingly during active chats.                    | MEDIUM   | Debounce + only evaluate after message completes; hide memory while isStreaming.                                                     | ⬜     |
+
+### Employee: UX Writer
+
+Audited every word on the page: greetings, briefings, checklist, thread bubbles, approval cards, forms, sidebar, empty/loading/error states, tooltips, SR announcements.
+
+| #   | Finding                                                                                                                                                                                                                                                                                                                    | Severity | Fix                                                                                                                         | Status |
+| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | --------------------------------------------------------------------------------------------------------------------------- | ------ |
+| 1   | **Error bubble copy is vague and blame-shaped** — "Sorry, I ran into a problem: {message}. Please try again." violates the house error formula (Problem → Solution → Action). Raw `{message}` can be a stack-ish technical string shown verbatim to an SME owner.                                                          | HIGH     | "I couldn't finish that response. Your conversation is safe — tap Retry to try again." Retry button, never raw error text.  | ✅     |
+| 2   | **Greeting promises a snapshot the page stops delivering** — "Here's your business snapshot for August 25" sits above the page permanently, but after the first message the screen becomes a chat transcript. Copy contradicts content within seconds of use.                                                              | MEDIUM   | Swap subtitle based on state: snapshot line only while briefing visible; conversational line once chatting.                 | ⬜     |
+| 3   | **"The AI handles anything" is an overpromise we can't keep** — checklist footer claims unlimited capability. In accounting, overpromising invites compliance/trust failures when the AI declines or errs.                                                                                                                 | MEDIUM   | "Or ask anything about your books — the AI will tell you if it needs help."                                                 | ⬜     |
+| 4   | **Files-only send inserts fake user message "Uploaded files"** — literal string appears as if the human typed it. Reads like a bug to users.                                                                                                                                                                               | MEDIUM   | Render attachment-only messages properly ("Shared 2 documents") instead of injecting placeholder text.                      | ✅     |
+| 5   | **"Press Enter to submit" hint is wrong for half the form** — InlineInputForm shows this under Submit, but Enter only submits in single-line inputs; textareas and selects ignore it. Users press Enter in the textarea, nothing happens, hint looks like a lie.                                                           | LOW      | Show the hint conditionally per field type, or make Enter submit from all fields consistently.                              | ⬜     |
+| 6   | **Suggestion chips mix verb forms and register** — "Cash position" (noun), "Show P&L" (imperative), "What's overdue?" (question), "Run payroll" (imperative), "Close books" (missing possessive). Inconsistent patterns scan poorly and model inconsistent prompting.                                                      | LOW      | Standardize on questions or imperative+object: "What's my cash position?", "Show my P&L", "Run payroll", "Close the books". | ⬜     |
+| 7   | **Approval card action hierarchy is unclear** — three equal-weight buttons Approve / Review / Reject, but "Review" actually sends "Please review: \<title\>" back to the AI — nobody can guess that outcome from the label. Destructive Reject sits adjacent to Approve with same visual weight.                           | HIGH     | Label outcomes: "Approve & post", "Explain first" (for review), "Reject"; separate destructive action spatially.            | ✅     |
+| 8   | **Confidence score shown with no explanation** — ConfidenceBadge renders a bare number/percent. House AI-copy standard requires interpretation ("AI is 94% confident…"). New users have no idea what the number means or what threshold matters.                                                                           | MEDIUM   | Add tooltip/plain-text interpretation aligned with the AI-specific copy table (confident / unsure / escalate).              | ⬜     |
+| 9   | **"% match" relevance badge is engineer-speak** — ConversationMemory shows "87% match" with zero context of match-against-what.                                                                                                                                                                                            | LOW      | "About your cash question last week" style summary, or tooltip "Based on similar topics in past chats".                     | ⬜     |
+| 10  | **Loading states lack reassurance and progress** — briefing loader is good ("Generating your briefing…"), but there's no extended-wait state; >10s the same two lines spin forever. Thread thinking dots say just "Thinking...".                                                                                           | LOW      | Progressive copy: "Reading your ledger…" → "Comparing months…" → "Almost done…"                                             | ⬜     |
+| 11  | **Delete confirmation omits the object name** — "Are you sure you want to delete this conversation?" while the dialog floats detached from the row. On slow scans users confirm deletions blind.                                                                                                                           | MEDIUM   | Include title: "Delete 'Q3 payroll questions'? This can't be undone."                                                       | ✅     |
+| 12  | **"AI active" badge means nothing to users** — active how? doing what? Jargon chip that will be ignored at best, distrusted at worst.                                                                                                                                                                                      | LOW      | Replace with concrete status ("3 agents working") or remove until real signal exists.                                       | ⬜     |
+| 13  | **"Untitled conversation" leaks internal placeholder** — shown verbatim as a title in the list.                                                                                                                                                                                                                            | LOW      | Generate titles from first user message server-side; hide rows lacking titles behind "New chat" label.                      | ⬜     |
+| 14  | **Screen-reader stream announces are redundant/conflicting** — announce fires "AI is thinking..." then immediately "AI is responding..." as soon as first token lands; with streamedContent toggling, SR users get chattered repeated updates. Also `aria-busy` on container plus role=status inside duplicates signaling. | MEDIUM   | Announce state transitions only (start/done/error), debounce token-driven announcements.                                    | ⬜     |
+| 15  | **Checklist step descriptions truncate mid-meaning** — descriptions use `truncate` class; e.g. 'Try "Show me my financial overview" or "What's my cash position?"' clips to one line, cutting off the second example entirely on common widths.                                                                            | MEDIUM   | Use line-clamp-2 for descriptions so examples survive.                                                                      | ⬜     |
+| 16  | **Export button gives zero feedback** — clicking "Export chat" downloads silently; no toast ("Conversation exported"), no disabled state, no indication of what was included.                                                                                                                                              | LOW      | Toast: "Chat exported as Markdown" + note that tables/charts aren't included until they are.                                | ⬜     |
+| 17  | **Empty search state misses the recovery action** — "No matching conversations" stops there; the in-app pattern elsewhere pairs it with an escape hatch ("ask the AI directly").                                                                                                                                           | LOW      | Append "Try a different keyword, or start a new chat." with New Chat link.                                                  | ⬜     |
+| 18  | **Time-greeting excludes late-night users** — hour<12 morning, <17 afternoon, else evening; 1am user gets "Good evening" — acceptable, but date line says "business snapshot" for the wrong business day around midnight UTC vs local. Minor but real for global SMEs (product ships worldwide).                           | LOW      | Compute greeting/date from a single locale-aware formatter used consistently.                                               | ⬜     |
+
+### Employee: Design Critic
+
+Reviewed every rendered component on /dashboard across visual consistency, UX patterns, accessibility, data presentation, responsive, and state coverage.
+
+| #   | Finding                                                                                                                                                                                                                                                                                                                                                                                         | Severity | Fix                                                                                                                                 | Status |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------- | ------ |
+| 1   | **Non-standard opacity modifiers may render nothing** — repeated use of `bg-primary/8`, `group-focus-within:bg-primary/12`, `border-border/40` style fractions like `/8` and `/12` are outside Tailwind's default opacity scale; depending on config they silently produce NO class, killing the intended tinted backgrounds on bot avatars, icon chips, and the AI input. Verify compiled CSS. | HIGH     | Audit all `/N` fractions against the Tailwind config; standardize to scale values (5/10/20…) or add explicit theme entries.         | ⬜     |
+| 2   | **Touch targets far below 44px** — suggestion chips (~26px tall), sidebar delete icon (p-1 ≈ 24px), "Export chat" (text-[10px] link), greeting "Conversations" toggle (text-[10px] py-1.5), time-ago rows. Primary mobile interactions on the flagship surface fail touch guidelines.                                                                                                           | HIGH     | Enforce min-h-11/min-w-11 hit areas (padding or pseudo-element expansion) on all tappable controls.                                 | ⬜     |
+| 3   | **Micro-typography everywhere** — text-[9px], text-[10px], text-[11px] used for timestamps, footers, hints, count labels. Below 12px fails readability for the 40+ owner demographic and most WCAG body-text contrast checks.                                                                                                                                                                   | MEDIUM   | Establish minimum 12px floor for meaningful text; reserve smaller sizes for decorative only.                                        | ⬜     |
+| 4   | **Low-contrast grays likely fail AA** — text-muted-foreground/40 and /50 (timestamps, footers, hint text) plus placeholder:text-muted-foreground/50 on card backgrounds. Verify ratios; several combos compute well under 4.5:1.                                                                                                                                                                | HIGH     | Raise to /60-/70 tokens or foreground-muted token verified ≥4.5:1.                                                                  | ⬜     |
+| 5   | **No focus-visible treatment on custom buttons** — hand-rolled buttons (sidebar rows, chips, checklist steps, briefing cards, export link) define hover styles but no focus-visible ring; keyboard users get browser default or nothing. Violates the app's own shadcn Button pattern which has rings.                                                                                          | HIGH     | Add consistent `focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none` to every interactive element.        | ✅     |
+| 6   | **Custom modal misses dialog semantics** — sidebar delete confirm is raw fixed divs: no role="dialog", aria-modal, focus trap, ESC-to-close, or focus return. Screen readers announce nothing; tab escapes behind overlay.                                                                                                                                                                      | HIGH     | Replace with shadcn AlertDialog (or add role/aria/focus-trap/ESC).                                                                  | ✅     |
+| 7   | **Color-only danger signaling** — delete affordance communicates solely via red icon on hover; destructive Reject differs from Approve only by hue (red vs emerald backgrounds). Color-blind users can't distinguish actions.                                                                                                                                                                   | MEDIUM   | Pair color with icons (already present) AND distinct outline/solid treatment for destructive actions; add aria-describedby context. | ⬜     |
+| 8   | **Inconsistent message content widths** — assistant bubbles cap at max-w-[85%], streaming tables/charts at max-w-[90%], thread column mx-auto max-w-3xl. Elements visibly jump width between stream and commit.                                                                                                                                                                                 | LOW      | Unify one width token for all thread children.                                                                                      | ⬜     |
+| 9   | **Spinner where skeletons are house style** — conversation list shows Loader2 spinner; dashboard skeleton component exists and is used elsewhere. Inconsistent loading language on the same screen as ProactiveBriefing's shimmering loader.                                                                                                                                                    | MEDIUM   | Use skeleton rows matching final list item heights.                                                                                 | ⬜     |
+| 10  | **Hidden scrollbar with zero overflow affordance** — suggestion rail hides scrollbars (`[scrollbar-width:none]`); with 5+ chips on mobile there's no visual cue more exist.                                                                                                                                                                                                                     | LOW      | Add edge fade masks or peek the next chip.                                                                                          | ⬜     |
+| 11  | **Sidebar toggle causes layout jump** — desktop ConversationSidebar is in-flow (w-72 border-r); opening it squeezes the whole thread and reflows text mid-read. Overlay/drawer pattern avoids reflow.                                                                                                                                                                                           | MEDIUM   | Render as overlay above content (or animate width with reserved space).                                                             | ⬜     |
+| 12  | **Double mobile bottom compensation** — page root has `pb-16 md:pb-0` AND layout adds a separate `h-16 md:hidden` spacer div; combined they can create ~128px dead zone above MobileBottomNav depending on stacking. Verify actual rendered gap.                                                                                                                                                | MEDIUM   | Keep exactly one spacing strategy for the mobile nav bar.                                                                           | ⬜     |
+| 13  | **Semantic colors hardcoded to raw palette** — approval amber (border-amber-500/20, bg-amber-500/[0.03]), success emerald, error red scattered as literal classes across briefing/checklist/thread. Dark mode and white-label theming will drift.                                                                                                                                               | MEDIUM   | Map to semantic tokens (success/warning/destructive) in theme.                                                                      | ⬜     |
+| 14  | **Uppercase styling applied to currency values** — briefing value badge uses `uppercase tracking-wider` on strings that contain "$12,500"; letter-spacing distorts numeral rhythm and looks off. Style should apply to labels, not data.                                                                                                                                                        | LOW      | Remove uppercase/tracking from value spans.                                                                                         | ⬜     |
+| 15  | **Route-transition remount nukes scroll and state** — layout wraps children in `<div key={pathname}>` purely for enter animation; every navigation remounts the tree, resetting scroll positions of main and inner lists (conversation list jumps to top).                                                                                                                                      | MEDIUM   | Animate without remount (CSS view transitions or keep key stable per surface group).                                                | ⬜     |
+| 16  | **Checklist line-through + green relies on decoration alone** — completed step signaled by strikethrough + pale green wash; strikethrough text at small sizes reduces legibility and color-only meaning persists. Check icon helps; ensure it's announced (aria) too.                                                                                                                           | LOW      | Add sr-only "Completed" text and reduce reliance on strikethrough.                                                                  | ⬜     |
+| 17  | **Streaming cursor lacks reduced-motion handling** — animate-pulse dots, blinking caret, pulsing AI-active dot run regardless of prefers-reduced-motion.                                                                                                                                                                                                                                        | MEDIUM   | Wrap decorative animations in motion-safe: variants.                                                                                | ⬜     |
+| 18  | **Greeting row crams h1 + status pill + conversations button** — on mid widths the date subtitle wraps awkwardly against the absolute-ish right controls; hierarchy competes with the Conversations control sitting at title level.                                                                                                                                                             | LOW      | Move conversations toggle into the composer row or top-nav; keep header pure.                                                       | ⬜     |
+
+### Employee: Engineering Critic
+
+Full read of `page.tsx`, `layout.tsx`, all `command-center/*`, `conversation-sidebar.tsx`, `conversation-memory.tsx`, `use-dashboard-chat.ts`. Duplicates from earlier employees removed; these are engineering-specific.
+
+| #   | Finding                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | Severity | Fix                                                                                                                                   | Status |
+| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------- | ------ |
+| 1   | **CRITICAL: `/dashboard?prompt=` handoff is dead end-to-end** — seven entry points (DataAwareContextMenu layout.tsx:196, selection-actions.tsx:79, command-palette.tsx:306, ai-command-bar.tsx:71/77/109, ai-chat-input.tsx:71, help/page.tsx:399) navigate to `/dashboard?prompt=…` expecting auto-send, but NO code anywhere reads the `prompt` param (verified by grep: zero consumers). Users invoke "Ask AI…" from anywhere in the app and land on Command Center with nothing happening. Broken promise at the heart of the AI-native model. | CRITICAL | Read `prompt` via useSearchParams (inside Suspense), auto-send once on mount, strip param from URL after send.                        | ⬜     |
+| 2   | **Drag-resize triggers React re-render per mousemove** — layout.tsx handleDragMove calls setPanelWidth on every mousemove with no rAF throttle/quantization; dragging the chat panel spams renders of the ENTIRE dashboard subtree (providers + children). Noticeable jank on lower-end hardware.                                                                                                                                                                                                                                                  | HIGH     | Throttle via requestAnimationFrame or update a ref + CSS variable; commit to state on dragEnd.                                        | ✅     |
+| 3   | **Ghost mousemove listeners for app lifetime** — the useState-as-useEffect bug also means mousemove/mouseup handlers stay attached forever after first mount even when panel closed/dragging impossible; every mouse move on any page runs handler logic (guarded by isDragging, still wasted work) and leaks across HMR boundaries duplicating handlers.                                                                                                                                                                                          | HIGH     | useEffect with proper cleanup (same fix as PM #21 — one change resolves both).                                                        | ✅     |
+| 4   | **`require()` inside useEffect** — layout.tsx:67 pulls analytics module via CommonJS require wrapped in silent try/catch. Defeats bundler tree-shaking/static analysis, breaks under ESM-only/middleware runtimes, and the empty catch hides real import failures making analytics outages invisible.                                                                                                                                                                                                                                              | MEDIUM   | Static import at top; if lazy needed use dynamic `import()` with caught-and-logged errors.                                            | ✅     |
+| 5   | **PostHog identified by localStorage ID, not session identity** — PermissionAwareLayout identifies users via `localStorage.getItem("userId")` instead of NextAuth session user id. Anonymous/random identity fragments analytics across devices/browsers, can collide across users on shared machines, and never reconciles with auth identity.                                                                                                                                                                                                    | HIGH     | Identify from session.user.id (useSession); drop localStorage shim.                                                                   | ✅     |
+| 6   | **tRPC inference cast masks a server-side typing bug** — proactive-briefing.tsx:133 casts getAiBriefing result `as {data…}` with a comment admitting dynamic-import broke inference. The call-site cast silences the compiler for ANY future shape change of this financial briefing payload.                                                                                                                                                                                                                                                      | MEDIUM   | Fix the procedure's return type (remove dynamic import or add explicit output zod type); delete the cast.                             | ⬜     |
+| 7   | **Error-path message object violates DashboardChatMessage contract** — use-dashboard-chat.ts handleStreamError omits required citations/batchResults/dataTables/charts arrays that the interface declares. Either typecheck currently fails here or fields are silently optional — both bad. Downstream renderers assume array presence (`msg.citations.length`).                                                                                                                                                                                  | HIGH     | Centralize message construction so every path emits the full shape; make interface honest. Verify with `pnpm typecheck --filter=web`. | ⬜     |
+| 8   | **listConversations has no visible pagination** — sidebar queries without limit params and renders everything grouped client-side; long-lived accounts will pull unbounded rows each open. If server caps silently, search misses older items (already logged as product gap) — either way contract unclear.                                                                                                                                                                                                                                       | MEDIUM   | Cursor-paginated endpoint + "Load more"; document limit.                                                                              | ⬜     |
+| 9   | **Double error boundary wrapping** — page wraps itself in ErrorBoundary surface="command-center" while layout already wraps children in SurfaceErrorBoundary keyed by page title. Nested boundaries double-handle the same crashes, produce duplicate fallback UIs/logs, and blur ownership.                                                                                                                                                                                                                                                       | LOW      | Keep exactly one boundary layer per surface (layout-level), remove page-level wrapper or vice versa.                                  | ⬜     |
+| 10  | **classList DOM mutation races navigation** — conversation-thread handleJumpTo adds ring classes then removes after fixed 2000ms setTimeout; navigating away mid-timeout leaves no leak (unmount) but re-entry within 2s can strip classes from a NEW element with same id. Minor but classic ref-violation pattern.                                                                                                                                                                                                                               | LOW      | Manage highlight via state, not classList.                                                                                            | ⬜     |
+| 11  | **Escape-key dialog guard only checks first [role=dialog]** — querySelector returns the first match in DOM order; with stacked dialogs (delete confirm over chat over panel) ESC may close the chat panel behind the dialog instead of nothing/topmost.                                                                                                                                                                                                                                                                                            | LOW      | Use querySelectorAll and check none visible, or delegate ESC handling per-dialog.                                                     | ⬜     |
+| 12  | **Drag handle inaccessible** — resize affordance is mouse-events-only div; no role="separator", no aria-orientation, no keyboard resize (arrow keys), touch unsupported (should be pointer events). Panel width unusable-by-keyboard users.                                                                                                                                                                                                                                                                                                        | MEDIUM   | Pointer events + role=separator + arrow-key resize ±16px steps.                                                                       | ⬜     |
+| 13  | **panelWidth not persisted** — resets to 400px every reload; returning users re-drag daily.                                                                                                                                                                                                                                                                                                                                                                                                                                                        | LOW      | Persist width to localStorage keyed per user.                                                                                         | ⬜     |
+| 14  | **commandCenterFirstVisit fires on every mount/entityId flip** — effect deps [entityId]; entity switching remounts tracking; whether dedupe lives inside activationEvents is unverified. If not, "first visit" metric overcounts badly.                                                                                                                                                                                                                                                                                                            | LOW      | Verify tracker idempotency; move once-guard into tracker with userId+entityId key. Needs investigation.                               | ⬜     |
+| 15  | **Sidebar search filters summary+title only client-side over fetched page** — combined with #8, results are arbitrary subsets. Also no debounce needed (local) fine, but empty-search state conflates "no match" vs "not loaded".                                                                                                                                                                                                                                                                                                                  | LOW      | Resolve together with server-side search (#8 / Product Critic #19).                                                                   | ⬜     |
+| 16  | **Streaming tables double-render duplicates keys risk** — during stream, same DataTableEvent renders in two blocks with different key namespaces (`streaming-table-i` and `table-i`) → duplicate DOM, double Recharts mounts (expensive charts rendered twice simultaneously).                                                                                                                                                                                                                                                                     | HIGH     | Single source of truth for table rendering regardless of stream phase (same fix as PM #12 — perf impact makes it High here).          | ✅     |
+
+### Employee: Security Engineer (CSO)
+
+Audited the page's client attack surface AND verified its server counterparts in `server/routers/chat.ts`. Entity scoping on getMessages/deleteConversation/sendMessage confirmed present (`entityId` checks + rlsProtectedProcedure) — good. Findings that remain:
+
+| #   | Finding                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | Severity | Fix                                                                                                                                                                                                      | Status           |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------- |
+| 1   | **Financial approvals authorized by chat text** — approval executes because the user typed "Approved: X"; there is no server-side authorization object binding the approval to a permission check, approver identity, and immutable audit record. Any entity member who can chat can move money-adjacent state, and repudiation is trivial ("I never approved that — the AI guessed from my sentence"). Violates separation-of-duties and audit-trail requirements in AGENTS.md security rules. | CRITICAL | Approval buttons must call a dedicated mutation enforcing role permissions, storing approver userId + timestamp + confidence in an append-only approvals table; AI never infers approval from free text. | ✅               |
+| 2   | **Entity-wide conversation visibility — no per-user restriction** — getMessages/deleteConversation scope ONLY by entityId. In a multi-user entity, a Viewer-role member can read every CFO conversation (payroll questions, cash crises) and delete colleagues' threads. Whether this is intended collaboration or over-exposure is undocumented.                                                                                                                                               | HIGH     | Decide + enforce: per-conversation participant ACL or explicit role gate (e.g., approve/reject/delete restricted to admin/accountant roles); document decision in ADR. Needs product+security sign-off.  | ⬜               |
+| 3   | **getMessages silently truncates at 200 messages** — hard `limit(200)` with no cursor and no "load earlier" path. Conversations longer than 200 messages load INCOMPLETE in the UI with zero indication — for accounting, a missing earlier answer can be mistaken for "the AI never said that". Data integrity of the record-of-conversation.                                                                                                                                                  | HIGH     | Cursor-paginate with "Load earlier messages"; show message-count total.                                                                                                                                  | ⬜               |
+| 4   | **UI claims deletion is irreversible but server only archives** — sidebar dialog warns "This action cannot be undone" while deleteConversation sets status="archived". Either recoverable (then the warning lies and GDPR erasure semantics are unclear) or truly destructive (then archive is wrong). Also: archived conversations still count in list queries unless filtered — verify listConversations excludes archived, else "deleted" threads keep reappearing.                          | MEDIUM   | Align copy with behavior; verify archived filter on list; document retention/GDPR posture for archived chats.                                                                                            | ✅               |
+| 5   | **Prompt text persisted into URL/history** — multiple entry points pass user queries via `?prompt=` query string: lands in browser history, telemetry URL scrubbers may miss financial keywords typed by users, Referer leakage if any third-party asset is requested from dashboard.                                                                                                                                                                                                           | LOW      | Move cross-surface handoff to sessionStorage/state; avoid PII/financial terms in URLs.                                                                                                                   | ⬜               |
+| 6   | **localStorage `userId` drives analytics identity** — spoofable client value used for PostHog identify; enables trivial analytics poisoning and misattributes actions across users on shared machines. Not auth-relevant but corrupts the audit-adjacent analytics layer.                                                                                                                                                                                                                       | MEDIUM   | Identify via session user id server-derived; treat localStorage as cache only.                                                                                                                           | ⬜               |
+| 7   | **Chat file upload trust boundary unverified on this surface** — AiInput passes entityId + files to ChatFileUpload → upload API. Server must validate (a) session user belongs to that entityId, (b) MIME/content sniffing beyond extension, (c) size caps, (d) virus/malware scanning for docs that agents will later read and act on. Prompt-injection via uploaded invoice content flows straight into agent context.                                                                        | HIGH     | Verify each control exists server-side; add content-sanitization/flagging for documents entering agent context (OWASP LLM prompt-injection via documents). Needs investigation + fix.                    | ⬜               |
+| 8   | **No client-visible rate limit feedback on chat send** — frontend guards double-send while streaming, but rapid new-chat/send cycling can hammer expensive LLM endpoints; no 429 handling surfaced (error bubble would show generic failure). Verify per-entity rate limiting exists server-side and map 429 to friendly copy ("Too many requests — try again in a minute").                                                                                                                    | MEDIUM   | Confirm server rate limit on stream endpoint; handle 429 distinctly in useStream error mapping.                                                                                                          | ⬜               |
+| 9   | **Rendered content is plain-text safe — PASS** — thread renders msg.content/streamedContent via text nodes only, no dangerouslySetInnerHTML found on this surface. Record as verified-safe baseline for future markdown work: if rich rendering is added, DOMPurify + CSP required.                                                                                                                                                                                                             | —        | None (informational guardrail).                                                                                                                                                                          | ✅ Verified safe |
+
+### Employee: Data Analyst
+
+Audited every number, metric, chart hook, timestamp, and analytics event on the page.
+
+| #   | Finding                                                                                                                                                                                                                                                                                                                                                                        | Severity | Fix                                                                                              | Status |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------- | ------------------------------------------------------------------------------------------------ | ------ |
+| 1   | **Negative cash balance rendered as GOOD news** — fallback briefing hardcodes cash-position card to type "positive": emerald icon, TrendingUp, green badge — regardless of value. An overdraft shows as a celebratory green card. Worst-case data story on the most important number in the product.                                                                           | HIGH     | Derive sentiment from sign/magnitude: negative cash = negative type (red), low runway = warning. | ✅     |
+| 2   | **Missing runway silently asserted as "Cash-flow positive"** — when runwayMonths is null the detail line claims healthy cash flow. No runway data ≠ positive cash flow (new entities, unlinked banks, calculation failures all land here). Fabricated assurance.                                                                                                               | HIGH     | Show "Runway unknown — connect accounts" truthfully; never infer health from absence of data.    | ✅     |
+| 3   | **formatCurrency called without entity currency** — ProactiveBriefing cash position uses default locale/currency; for a multi-currency global product the flagship number can display the wrong symbol (same class of bug as the GMD donor-portal finding in empworks.md).                                                                                                     | MEDIUM   | Thread entity.baseCurrency through dashboard data and pass explicitly.                           | ⬜     |
+| 4   | **Confidence unit ambiguity (0-1 vs 0-100)** — ConversationThread divides msg.confidence by 100 before ConfidenceBadge. If any producer already sends 0-1, scores render as 0%. One wrong producer breaks trust display everywhere. Verify all confidence producers emit 0-100 consistently; add zod contract.                                                                 | MEDIUM   | Enforce one unit end-to-end via shared schema; add runtime clamp+warn on out-of-range.           | ⬜     |
+| 5   | **No data freshness signaling anywhere** — balances/deadlines/approval counts carry staleTime (5 min) but UI never shows as-of time; combined with the client-clock timestamp bug (PM #27), users cannot tell how current numbers are. Accounting decisions on stale numbers without disclosure.                                                                               | MEDIUM   | Show server-generatedAt per data block ("as of 14:32").                                          | ⬜     |
+| 6   | **Core activation + approval funnels are untracked** — tracked today: commandCenterFirstVisit, dashboard_view, dashboard_active. NOT tracked: checklist step starts/completions/dismissals, suggestion-chip clicks, approve/reject/review clicks, regenerate/pin/copy actions, export. The two most business-critical funnels (activation, approval engagement) are invisible. | HIGH     | Add typed events for all above with entityId context; wire into activation funnel dashboards.    | ⬜     |
+| 7   | **Deadline summary hides composition** — "3 deadlines upcoming" surfaces only `deadlines[0]?.label`; users can't see WHICH deadlines without leaving the surface. Data summarized past usefulness.                                                                                                                                                                             | LOW      | Show top-2 labels + "+1 more", or per-type counts (tax/filing/payment).                          | ⬜     |
+| 8   | **Relative times computed once and frozen** — formatTimeAgo runs at render; "Just now" persists until an unrelated re-render minutes later. Sidebar becomes actively misleading during long sessions.                                                                                                                                                                          | LOW      | Tick a shared now-interval (30-60s) or compute at render with useNow hook.                       | ⬜     |
+| 9   | **Date-group buckets use device-local midnight** — Today/Yesterday/This Week groupings shift under timezone change or travel; conversation appears to move groups. Use UTC-day or server-consistent bucketing.                                                                                                                                                                 | LOW      | Standardize bucketing timezone; document choice.                                                 | ⬜     |
+| 10  | **Relevance "% match" presents opaque score as precision** — relevanceScore source undocumented (keyword overlap vs semantic); showing "87% match" implies statistical meaning it may not have.                                                                                                                                                                                | LOW      | Either document methodology and keep %, or switch to ordinal badges (High/Medium relevance).     | ⬜     |
+| 11  | **Export filename/date locale-inconsistent** — export filename uses ISO date but content header uses toLocaleDateString(); cross-user inconsistency in exported records that accountants archive.                                                                                                                                                                              | LOW      | Single formatter (ISO 8601) for both.                                                            | ⬜     |
+
+---
+
+## PAGE PROGRESS TRACKER
+
+> Future sessions: pick the next ⬜ page and fire employees in the same order (Product Manager → Product Critic → UX Writer → Design Critic → Engineering Critic → Security Engineer → Data Analyst), appending sections above using the identical table style. Mark page row ✅ only when ALL employees for that page have logged findings.
+
+| Page                                                                                                    | PM    | Product Critic | UX Writer | Design Critic | Eng Critic | Security | Data Analyst |
+| ------------------------------------------------------------------------------------------------------- | ----- | -------------- | --------- | ------------- | ---------- | -------- | ------------ |
+| /dashboard                                                                                              | ✅ 27 | ✅ 18          | ✅ 18     | ✅ 18         | ✅ 16      | ✅ 9     | ✅ 11        |
+| /dashboard/activity-hub                                                                                 | ✅ 20 | ✅ 12          | ✅ 10     | ✅ 10         | ✅ 9       | ✅ 5     | ✅ 5         |
+| /dashboard/financial-pulse                                                                              | ✅ 13 | ✅ 8           | ✅ 7      | ✅ 7          | ✅ 8       | ✅ 5     | ✅ 6         |
+| /dashboard/ledger                                                                                       | ✅ 11 | ✅ 6           | ✅ 5      | ✅ 6          | ✅ 8       | ✅ 5     | ✅ 5         |
+| /dashboard/operations                                                                                   | ✅ 10 | ✅ 6           | ✅ 6      | ✅ 5          | ✅ 6       | ✅ 4     | ✅ 5         |
+| /dashboard/operations/invoices                                                                          | ✅ 10 | ✅ 5           | ✅ 3      | ✅ 4          | ✅ 5       | ✅ 4     | ✅ 4         |
+| /dashboard/operations subpages (bills, banking, customers, vendors)                                     | ⬜    | ⬜             | ⬜        | ⬜            | ⬜         | ⬜       | ⬜           |
+| /dashboard/settings                                                                                     | ⬜    | ⬜             | ⬜        | ⬜            | ⬜         | ⬜       | ⬜           |
+| /dashboard/help                                                                                         | ⬜    | ⬜             | ⬜        | ⬜            | ⬜         | ⬜       | ⬜           |
+| /dashboard/audit-trail                                                                                  | ✅ 8  | ✅ 5           | ✅ 5      | ✅ 4          | ✅ 6       | ✅ 4     | ✅ 4         |
+| Remaining routes (auto-approve, donor-reporting, ingestion, knowledge, knowledge-graph, qbr, referrals) | ⬜    | ⬜             | ⬜        | ⬜            | ⬜         | ⬜       | ⬜           |
+
+---
+
+# PAGE: /dashboard/activity-hub
+
+The human-in-the-loop queue. Aggregates agent approvals, ingestion reviews, agent alerts, notifications, and daily-close exceptions into one priority-sorted surface with batch actions, snooze, detail drawer, and filters.
+
+---
+
+## DEPARTMENT: PRODUCT
+
+### Employee: Product Manager
+
+| #   | Finding                                                                                                                                                                                                                                                                                                                                                                      | Severity | Fix                                                                                                                                           | Status |
+| --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
+| 1   | **"Auto-approve" sends a fake document ID to the API** — the aggregated "N documents need review" card carries id `"pending-review"`; its Auto-approve button routes through the ingestion approve mutation as `documentId: "pending-review"` (page.tsx:1009 + 1118). That's not a document ID — the call fails or corrupts state. Core queue action broken.                 | CRITICAL | Aggregate card must expand to real pending document IDs (or call a dedicated bulk-approve endpoint). Never pass synthetic IDs into mutations. | ✅     |
+| 2   | **Undo after approving does NOT revert anything server-side** — toast offers "Undo", but undoBatchAction only clears local item state and refetches (page.tsx:887-900). The approval remains resolved on the server while the UI claims "Changes have been reverted." False reversal on FINANCIAL approvals — worst possible trust failure in the human-in-the-loop surface. | CRITICAL | Implement true server-side unresolve/reversal, or remove Undo entirely until it exists.                                                       | ✅     |
+| 3   | **Batch APPROVE has no confirmation dialog** — Reject-all asks twice; Approve-all fires instantly from one click or a bare `a` keypress. Mass-approving financial items is MORE dangerous than rejecting; the safety asymmetry is inverted.                                                                                                                                  | HIGH     | Require typed/explicit confirmation for batch approve; keep reject confirm; consider amount-threshold warnings.                               | ✅     |
+| 4   | **Single-key shortcuts (`a`/`r`) trigger destructive batch dialogs without modifiers** — any keypress outside inputs while items are selected (reading with hand on keyboard) summons the approve dialog; `a` then Enter approves everything. One accidental keystroke pair from mass financial mutation.                                                                    | HIGH     | Require modifier (Shift+A) or two-step hold-to-confirm; never bare-letter destructive shortcuts.                                              | ⬜     |
+| 5   | **Snooze exists only in memory and holds a toast open for an hour** — refresh/page-switch restores snoozed items instantly (state lost), and the sonner toast uses `duration: durationMs` keeping a toast alive 60 minutes. Feature promises persistence it doesn't have.                                                                                                    | HIGH     | Persist snooze server-side (snoozedUntil column) with restore-on-load; cap toast duration ~10s with Restore action.                           | ⬜     |
+| 6   | **Notification/alert "Dismiss" and "View" buttons are dead** — actions built with `variant: "default"` produce `onClick: undefined` in the InlineActions mapping (only approve/reject/review get handlers). Users click Dismiss/View on alerts and NOTHING happens.                                                                                                          | HIGH     | Wire default-variant actions (dismiss→markRead/archive; view→drawer or deep link) or remove the buttons.                                      | ✅     |
+| 7   | **Confidence risk thresholds contradict platform standard** — getRiskLevel treats ≥0.8 low-risk / 0.6-0.8 medium / <0.6 high; AGENTS.md mandates escalation <0.7 to supervisor and <0.4 to human. Same score shows "Low Risk, safe" here that the agent layer considers escalation-worthy. Two sources of truth for the most consequential number in the product.            | HIGH     | Centralize threshold constants shared by agents + UI; align copy.                                                                             | ⬜     |
+| 8   | **Sequential per-item mutations make batch slow and spammy** — handleBatchAction awaits each item serially; 50 selections = 50 round trips; every item ALSO fires its own success toast inside handleAction plus the batch summary toast → wall of duplicate toasts. Partial failures leave mixed silent states.                                                             | HIGH     | Bulk endpoint or Promise.allSettled with concurrency cap; suppress per-item toasts during batch; summarize failures.                          | ⬜     |
+| 9   | **"View audit trail" links to the Ledger** — CompletedSection's link href="/dashboard/ledger" though a dedicated /dashboard/audit-trail page exists. Users hunting "what did the AI resolve today?" land in journal entries.                                                                                                                                                 | MEDIUM   | Link to /dashboard/audit-trail (filtered to today/auto-posted if supported).                                                                  | ✅     |
+| 10  | **"Completed today" count mislabeled** — completedCount = ingestionStats.autoPosted, which counts AI auto-posts (all-time or stats-window?), not necessarily today nor human-resolved items; section header claims "Completed today". Number under the wrong definition erodes trust in every other count.                                                                   | MEDIUM   | Query resolved-today count matching the label; show tooltip defining the metric.                                                              | ⬜     |
+| 11  | **Notifications arbitrarily capped at 5 with no overflow affordance** — `notifications.slice(0, 5)` silently drops the rest; no "Show all N". Info items vanish depending on array order.                                                                                                                                                                                    | MEDIUM   | Raise limit + "View all" link to notifications surface or expandable list.                                                                    | ⬜     |
+| 12  | **No pagination/load-more on any source list** — approvals capped at 50, alerts 20, notifications 20 with zero continuation. Busy entities have queues older than page 1 forever invisible.                                                                                                                                                                                  | HIGH     | Cursor pagination + load-more per section; show total counts.                                                                                 | ⬜     |
+| 13  | **Drawer "Full Context" dumps raw JSON at business users** — JSON.stringify(detail) in a `<pre>`; SME owners see `{"vendor_id":"x","confidence":0.71}` internals. Engineer payload shipped as product UI.                                                                                                                                                                    | MEDIUM   | Render structured fields with labels; fall back to collapsible raw view for power users.                                                      | ⬜     |
+| 14  | **Card-level note cleared optimistically before result known** — note state wiped synchronously on click; if mutation fails, the rejection reason is lost and must be retyped. For compliance-minded reasons fields, that's data loss.                                                                                                                                       | MEDIUM   | Clear only onSuccess; prefill note on retry.                                                                                                  | ⬜     |
+| 15  | **resolveApproval hardcodes itemType "agent_escalation"** — regardless of the item's actual itemType; if approvals router distinguishes types, wrong metadata written to audit trail.                                                                                                                                                                                        | MEDIUM   | Pass through the real itemType; verify router schema.                                                                                         | ⬜     |
+| 16  | **Five queries polling forever at 15-30s with no visibility gating** — polling continues when tab hidden/backgrounded; no exponential backoff, no pause on document.hidden. Server/battery cost for every idle dashboard.                                                                                                                                                    | MEDIUM   | Pause on hidden tab (refetchIntervalInBackground=false default is refetch—verify), add backoff, lean on SSE primary channel.                  | ⬜     |
+| 17  | **Empty-state copy conflates two cases** — "All caught up!" renders both for genuinely-empty queue AND for active-filter-with-no-matches; filtered emptiness should say so ("No urgent items").                                                                                                                                                                              | LOW      | Branch copy on activeFilter !== "all".                                                                                                        | ⬜     |
+| 18  | **Stats cards can disagree with lists** — Agent Alerts stat uses alerts.total while list caps at 20; Urgent/Approvals derive from merged arrays post-snooze/post-success filtering, so numbers shift live while processing. Count semantics inconsistent across cards.                                                                                                       | LOW      | Compute all four stats from one documented source; freeze during optimistic ops.                                                              | ⬜     |
+| 19  | **timeAgo duplicated from Command Center sidebar with different formatting** — lowercase "just now" vs "Just now", separate implementations drifting apart.                                                                                                                                                                                                                  | LOW      | Extract shared relative-time util used everywhere.                                                                                            | ⬜     |
+| 20  | **Double display of identical confidence info per card** — ConfidenceBadge (percent) AND risk bar with aria-label percent sit side-by-side; redundant pixels and SR noise.                                                                                                                                                                                                   | LOW      | Keep one representation (bar+label) per row; full badge lives in drawer.                                                                      | ⬜     |
+
+### Employee: Product Critic
+
+| #   | Finding                                                                                                                                                                                                                                                                                           | Severity | Fix                                                                                                                                               | Status |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
+| 1   | **Batch bar hides the money** — selecting 14 approvals worth $184,000 shows "14 items selected" with zero cumulative amount. Mass-approving blind to total dollars fails the most basic financial safety heuristic; QuickBooks-style flows always surface aggregate value.                        | HIGH     | Compute and display total amount of selected items in the batch toolbar (+ warning color past threshold).                                         | ⬜     |
+| 2   | **"Review all" is a dead end** — the aggregated review card's Review action opens the generic detail drawer for synthetic id "pending-review"; there's no path to the actual documents (no link to /dashboard/ingestion). User intent "review my documents" terminates nowhere.                   | HIGH     | Link to ingestion queue (or inline-expand document list); drawer must offer next-step navigation.                                                 | ⬜     |
+| 3   | **Drawer drops the Review option and any source-document access** — card offers Approve/Review/Reject; drawer footer filters to approve/reject only, and neither card nor drawer links the source document. The deeper you drill (where scrutiny should peak), the fewer tools you have.          | HIGH     | Mirror full action set in drawer; embed document preview/link.                                                                                    | ⬜     |
+| 4   | **No approver identity or assignment model** — nothing shows who handled an item, and items can't be assigned to a teammate. In multi-user entities two people can double-process the same approval (last-write wins silently).                                                                   | HIGH     | Show actor on processed items; add optimistic-lock or claimed-by state to prevent silent double-approval.                                         | ⬜     |
+| 5   | **Aging invisible** — priority sort ignores age; a 6-day-old approval renders identically to a 6-second one (tiny relative stamp only). No SLA badges, no aging color shift. Queues rot silently.                                                                                                 | MEDIUM   | Age-based visual escalation (>24h amber border, >72h red) + sort tiebreak by age within type.                                                     | ⬜     |
+| 6   | **Title-as-clickable-text is undiscoverable and keyboard-dead** — drawer opens via onClick on a `<p>`; no underline/affordance, no tabIndex/role, Enter doesn't work. Both a usability and accessibility failure on THE primary per-item interaction.                                             | HIGH     | Real button/link semantics for opening details; visible hover/focus affordance.                                                                   | ⬜     |
+| 7   | **Snooze is one fixed hour** — no 4h/tomorrow/custom options; real queues need flexible deferral. Combined with non-persistence (PM #5), snoozing is currently cosmetic.                                                                                                                          | LOW      | Snooze menu (1h / 4h / tomorrow); persist server-side.                                                                                            | ⬜     |
+| 8   | **AI suggestions compete with the page's own controls** — shell chips like "Auto-approve low-risk items" push users into chat for something this page does natively with one click; "Why was this flagged?" sends a context-free question unbound to any item. Confusing dual interaction models. | MEDIUM   | Chip prompts should deep-link item context ("Why was 'Invoice ACME' flagged?"); prefer native controls over chat round-trips for in-page actions. | ⬜     |
+| 9   | **Empty queue wastes the moment** — "All caught up!" has no next action (no "ask AI", no "view today's summary", no ingestion link). Dead-end state on a page whose job is driving work forward.                                                                                                  | LOW      | Add primary CTA (open Command Center / view Financial Pulse digest).                                                                              | ⬜     |
+| 10  | **Undo window is 6 seconds for irreversible-in-practice actions** — once toast expires, no un-approve path exists anywhere in UI (audit trail is read-only). Either lengthen dramatically with persistent "Recent activity" strip or make reversal a first-class flow.                            | MEDIUM   | Recent-actions panel with undo per item (server-backed, see PM #2).                                                                               | ⬜     |
+| 11  | **Select-all discoverability** — checkbox column appears only per-card; no master checkbox in header/batch bar until something is selected. Users with 40 approvals will never find bulk select.                                                                                                  | MEDIUM   | Master select-all control always visible when selectableCount > 0.                                                                                | ⬜     |
+| 12  | **Sticky batch bar may cover filter tabs/content at top** — `sticky top-0 z-20` inside scrolling container overlaps the tablist region on small screens; verify no occlusion of first card during scroll. Needs QA pass.                                                                          | LOW      | Reserve space or convert to fixed bottom sheet on mobile.                                                                                         | ⬜     |
+
+### Employee: UX Writer
+
+| #   | Finding                                                                                                                                                                                                                                                                | Severity | Fix                                                                                                                                                     | Status      |
+| --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
+| 1   | **Reject dialog promises an undo that doesn't exist** — "This action can be undone from the audit trail" but the audit trail page is read-only; nothing there reverses anything. The sentence is the product lying at the exact moment of a destructive decision.      | HIGH     | Either build reversal and link it, or say the truth: "Rejected items return to the AI for reprocessing."                                                | ✅          |
+| 2   | **Card success state says just "Processed"** — after approve OR reject the card shows a green "Processed"; the user must remember which action they took. State copy should echo the action ("Approved" / "Rejected").                                                 | MEDIUM   | Pass action through itemState rendering; label accordingly with matching color.                                                                         | ✅          |
+| 3   | **Success toast leaks the note into a broadcast** — `Note: "<user's reason>"` renders in the toast; reasons can reference salaries/vendors/employees — shoulder-surfing exposure plus verbose copy violating the "Verb + object" toast rule.                           | MEDIUM   | Drop note from toast ("Bill approved"); keep note in audit record only.                                                                                 | ✅          |
+| 4   | **Three vocabularies for the same concept** — stat card "Auto-resolved", section "Completed today", link "View audit trail" all gesture at AI-resolved work; none match. Users can't build a mental model when the same idea renames three times in one screen.        | MEDIUM   | Pick one term ("Auto-resolved") and use it everywhere including the metric tooltip.                                                                     | ⬜          |
+| 5   | **Raw error.message surfaced verbatim** — failed mutations put server error text straight into toasts ("Action failed" + raw message); violates never-show-raw-errors rule and can leak internal identifiers.                                                          | MEDIUM   | Map known error codes to human copy; log raw server-side; show "That didn't save. Try again." fallback.                                                 | ✅          |
+| 6   | **"Auto-approve" chip carries no risk framing** — one click mass-posts documents the AI flagged for verification; label reads like a convenience feature with zero consequence signal.                                                                                 | HIGH     | Rename "Approve all verified docs" + confirm step listing count/amount; reserve plain "auto-approve" language for genuine low-risk automation settings. | ⬜          |
+| 7   | **Drawer timestamp phrasing ambiguous** — "Created 5m ago": created when the agent started, finished, or queued? For approval SLAs the distinction matters.                                                                                                            | LOW      | "Queued 5m ago" (or receivedAt) with absolute time on hover.                                                                                            | ⬜          |
+| 8   | **Keyboard hint invisible where shortcuts apply** — the A/R hint is `hidden sm:inline`; on tablets (where keyboard attached) and small laptops the feature is invisible; meanwhile the shortcut still fires.                                                           | LOW      | Show hint whenever selection active; or drop shortcuts until discoverable everywhere.                                                                   | ⬜          |
+| 9   | **Empty-state pair contradicts itself** — headline celebrates "All caught up!" while subline states "No items matching this filter" — celebration + clarification collide when a filter simply has no matches (also logged as logic issue PM #17).                     | LOW      | Split copy paths: true-empty → celebratory+CTA; filtered-empty → neutral "No urgent items right now".                                                   | ⬜          |
+| 10  | **Risk assessment microcopy is strong — PASS baseline** — drawer thresholds text ("AI is confident… / moderate… / low confidence… manual review strongly recommended") matches house AI-copy patterns; keep as canonical strings when centralizing thresholds (PM #7). | —        | Reuse these exact sentences app-wide.                                                                                                                   | ✅ Baseline |
+
+---
+
+## DEPARTMENT: DESIGN
+
+### Employee: Design Critic
+
+| #   | Finding                                                                                                                                                                                                                                                           | Severity | Fix                                                                                                     | Status |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------- | ------ |
+| 1   | **Selected items have no visual state** — checkbox ticks but the card border/background never changes (isSelected unused in card classes). Scanning a long list, users can't see what's selected until the toolbar count changes.                                 | HIGH     | Bind isSelected to card styles (primary border + tinted bg) consistent with hover elevation.            | ✅     |
+| 2   | **`ml-13` is off the spacing scale** — success row uses ml-13 (non-standard Tailwind step); like the /8-opacity issue it may compile to nothing, mis-aligning the "Processed" indicator vs the ml-11 action row above it. Verify compiled CSS.                    | MEDIUM   | Use ml-11 to align with actions column.                                                                 | ⬜     |
+| 3   | **Icon-only note/snooze buttons below touch minimum** — StickyNote/Clock buttons are ~26px hit areas controlling compliance-relevant fields.                                                                                                                      | MEDIUM   | Expand hit area ≥44px with padding/pseudo-element; keep icon size.                                      | ⬜     |
+| 4   | **Drawer dialog semantics incomplete** — role="dialog" on overlay but no aria-labelledby pointing at the item title h3, no focus trap, ESC works only when the overlay itself holds focus, background scroll not locked. Tab escapes behind the drawer instantly. | HIGH     | shadcn Sheet/Dialog for the drawer (focus trap + scroll lock + labelled); wire ESC globally while open. | ✅     |
+| 5   | **Custom checkbox off design system** — native input styled with text-primary/focus:ring-primary utilities instead of the shadcn Checkbox; unchecked focus state barely visible; indeterminate state (some-selected) unavailable for select-all.                  | MEDIUM   | Swap to design-system Checkbox; support indeterminate on master control.                                | ⬜     |
+| 6   | **AI recommendation clamped to 2 lines with no expansion** — line-clamp-2 on the single most persuasive element (the AI's reasoning); users approving money can't read past the fold without… nothing. No expand affordance exists on the card.                   | HIGH     | Truncate with "More" toggle inline, or move full reasoning visible in drawer link.                      | ✅     |
+| 7   | **Raw palette sprawl continues** — violet joins red/amber/emerald for stat chips (agent alerts); none map to theme tokens; white-label/dark theming drifts page-by-page.                                                                                          | MEDIUM   | Semantic token mapping pass for status colors across the page.                                          | ⬜     |
+| 8   | **JSON block typography** — Full Context `<pre>` dumps mono 12px gray text of unlimited length inside padded card; breaks visual rhythm and mobile overflow risk with long tokens (no break-all).                                                                 | MEDIUM   | Structured field rendering (see PM #13); if kept, wrap long lines + collapsible.                        | ⬜     |
+| 9   | **Filter rail scrollbar hidden with no edge fade** — identical affordance gap as Command Center suggestion chips; five tabs overflow on narrow phones silently.                                                                                                   | LOW      | Edge-fade mask or snap-scroll hint.                                                                     | ⬜     |
+| 10  | **Risk bar width capped at 80px** — the safety signal is a sliver next to a 10px label; at-a-glance risk scanning (the page's stated purpose) is visually weakest element on the card.                                                                            | LOW      | Widen bar to flex-1 within its row; strengthen label hierarchy.                                         | ⬜     |
+
+---
+
+## DEPARTMENT: ENGINEERING
+
+### Employee: Engineering Critic
+
+| #   | Finding                                                                                                                                                                                                                                                                                          | Severity | Fix                                                                                                                          | Status |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------- | ---------------------------------------------------------------------------------------------------------------------------- | ------ |
+| 1   | **Cross-source duplicate items have no dedupe** — addedIds de-duplicates WITHIN each source array only; the same logical event surfacing as both an agent approval AND an agent alert (different ids) renders twice. Queue shows phantom double workload; approving one leaves its twin.         | HIGH     | Normalize events to a common entityId/type key before merge; dedupe across sources.                                          | ✅     |
+| 2   | **Keyboard effect resubscribes every render** — handleKeyDown effect deps include handleBatchAction whose deps include activityItems (rebuilt every render unmemoized) → listener torn down/reattached on every render tick, including during streaming polls. Wasteful and masks real dep bugs. | MEDIUM   | Memoize activityItems (useMemo on sources) + stabilize batch handler (ref for latest items); effect deps shrink to booleans. | ✅     |
+| 3   | **Snooze setTimeout leaks past unmount** — restore timer holds setSnoozedItems closure; navigating away mid-snooze schedules a post-unmount update (React no-op warning) and timer list grows per snooze.                                                                                        | LOW      | Track timers in ref; clear all on unmount cleanup.                                                                           | ⬜     |
+| 4   | **Unsafe casts on daily-close payloads** — `(run.exceptions ?? []) as Array<{type; description; agentId; confidence}>` trusts wire shape blindly; one malformed run crashes the whole page render inside the map (description join).                                                             | MEDIUM   | Zod-parse external payload; degrade per-item, never page-level.                                                              | ⬜     |
+| 5   | **dailyClose.getExceptions has no isError/refetch handling** — unlike sibling queries; failures vanish silently (section absent) with no retry path.                                                                                                                                             | MEDIUM   | Match sibling error pattern + retry affordance.                                                                              | ⬜     |
+| 6   | **Per-item announce() during batch spams screen readers** — batch of 20 announces "Approved successfully" 20 times serially plus summary toast; SR users trapped in announcement storm.                                                                                                          | MEDIUM   | Announce once with total; assertive only on failure.                                                                         | ⬜     |
+| 7   | **emitDataChanged fan-out multiplies refetches** — every action emits cross-surface data_changed while five polled queries also run; overlapping invalidations cause refetch storms (N surfaces × M intervals).                                                                                  | LOW      | Debounce/coalesce emissions; central invalidation through tagged queries.                                                    | ⬜     |
+| 8   | **Manual itemStates overlay reimplements cache semantics** — optimistic states hand-managed beside react-query cache; mutation onSuccess refetches race the 2s local-state cleanup windows producing flicker (success→visible→removed). Architecture smell that already causes timing bugs.      | MEDIUM   | Move resolution state into query cache via onMutate/onSettled optimistic updates.                                            | ⬜     |
+| 9   | **resolveApproval itemType hardcoded** — engineering side of PM #15: schema drift between approvals router expectations and actual item origins will corrupt audit metadata silently. Verify against router zod enum.                                                                            | MEDIUM   | Thread true itemType; add zod enum guard.                                                                                    | ⬜     |
+
+---
+
+## DEPARTMENT: SECURITY
+
+### Employee: Security Engineer (CSO)
+
+Server counterparts (`approvals.resolve`, `ingestion.approveReview/rejectReview`, `notifications.markAsRead`) must be verified — client passes IDs straight through.
+
+| #   | Finding                                                                                                                                                                                                                                                                                                               | Severity          | Fix                                                                                                                                           | Status           |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------- | ---------------- |
+| 1   | **Role enforcement on financial resolutions UNVERIFIED** — rlsProtectedProcedure proves entity scoping intent, but nothing visible gates WHO may resolve: a Viewer-role member selecting all + hitting A could post ledger-bound approvals if router lacks role check. This page makes mass-resolution one keystroke. | CRITICAL (verify) | Assert role permission server-side in approvals.resolve + ingestion.approveReview (deny Viewers); add integration test for cross-role denial. | ⬜               |
+| 2   | **documentId/itemId trust boundary** — approve/reject accept client-supplied ids; server MUST scope by entityId before mutate (IDOR check). Verify each procedure includes ownership predicate like chat.ts does; reject with 404 otherwise.                                                                          | HIGH (verify)     | Add ownership predicates + tests where missing.                                                                                               | ⬜               |
+| 3   | **Reason strings flow into audit trail and CSV exports unsanitized at this layer** — user notes persist via resolveApproval reason; the audit-trail CSV export historically needed formula-injection sanitization (see empworks S1-6). Any NEW export path consuming these reasons must reuse sanitizeCell.           | MEDIUM            | Route all exports through the shared sanitizer; test reasons beginning with = + - @.                                                          | ⬜               |
+| 4   | **No rate limiting visible on resolve/batch paths** — scripted cycling of resolve across items (or repeated undo/refetch loops) hammers mutation endpoints; batch loops amplify.                                                                                                                                      | MEDIUM            | Per-user rate limit on approval mutations; cap batch size server-side (e.g., ≤50/request).                                                    | ⬜               |
+| 5   | **Escaped-JSON rendering is XSS-safe — PASS** — detail payload renders via React text nodes ({JSON.stringify}), no dangerouslySetInnerHTML on page. Keep this property when redesigning Full Context (PM #13): structured rendering must escape field values, never interpret them.                                   | —                 | Guardrail note.                                                                                                                               | ✅ Verified safe |
+
+---
+
+## DEPARTMENT: DATA
+
+### Employee: Data Analyst
+
+| #   | Finding                                                                                                                                                                                                                                                                                                                                     | Severity | Fix                                                                                                                                                                 | Status |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
+| 1   | **THE human-in-the-loop funnel is untracked** — zero analytics on: item viewed, drawer opened, approve/reject clicked, note added, snooze, batch size distribution, undo clicks, AI-suggestion chip clicks. The single most important dataset for tuning agent confidence thresholds (which items humans overturn?) is not being collected. | HIGH     | Instrument every decision event with itemId, itemType, agent, confidence, latency-to-decision, decision. This feeds confidence calibration (AGENTS.md requirement). | ⬜     |
+| 2   | **Stat cards source from four async queries → transiently contradictory** — Urgent/Approvals derive from merged client arrays; Agent Alerts from alerts.total; Auto-resolved from ingestionStats; each refetches on independent 15-30s timers, so cards visibly disagree for seconds around any action.                                     | MEDIUM   | Single aggregated dashboard query (one source of truth) or atomic cache updates across derived selectors.                                                           | ⬜     |
+| 3   | **Amount strings lack format contract** — item.amount arrives as preformatted string from producers; no guarantee of formatCurrency/currency-code usage (AGENTS mandates formatCurrency). Multi-currency entities may mix "$" symbols on non-USD amounts.                                                                                   | HIGH     | Producers send {valueMicros, currency}; UI formats via formatCurrency(amount, currency). Audit all emitters.                                                        | ⬜     |
+| 4   | **Relative timestamps frozen at render (this page's own copy)** — same defect as Command Center #8 but locally reimplemented (timeAgo at page.tsx:88): stamps go stale during long sessions; "just now" persists indefinitely until poll rerender happens to fire.                                                                          | LOW      | Shared ticking useNow hook; delete local implementations (also fixes PM #19 duplication).                                                                           | ⬜     |
+| 5   | **Confidence percentages shown without sample context** — bar shows 73% but not what drives it (data completeness? model consensus?); users calibrate trust blind. Even one-word provenance ("extraction confidence") improves decision quality data literacy.                                                                              | LOW      | Tooltip defining score provenance per itemType; aligns with centralized threshold work (PM #7).                                                                     | ⬜     |
+
+---
+
+# PAGE: /dashboard/financial-pulse
+
+AI-narrated financial health: period selector, AI narrative, anomaly alerts, 4 KPI cards with sparklines + drill-down drawer, daily close status, live FX rates, 4 charts, scenario planner, forecast, budget-vs-actual table, report library with downloads, quick actions.
+
+---
+
+## DEPARTMENT: PRODUCT
+
+### Employee: Product Manager
+
+| #   | Finding                                                                                                                                                                                                                                                                                                                                                                                                                               | Severity | Fix                                                                                                                                      | Status |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------- | ------ |
+| 1   | **Hardcoded `"GMD"` currency fallback AGAIN** — three chart calls + all report builders use `entity?.currency \|\| "GMD"` (lines 1126/1139/1166/1224/1254/1276). The exact defect class already fixed in the donor portal (empworks S1-1/S1-2) is replicated here: any entity without a resolved currency displays Gambian Dalasi. Worse: `entityCurrency` IS available from useEntity (destructured line 708) and simply never used. | CRITICAL | Use `entityCurrency` from context; delete every `\|\| "GMD"` fallback; add lint rule banning literal currency codes outside i18n config. | ⬜     |
+| 2   | **"Cash Flow" chart plots P&L, not cash** — CashFlowChart receives revenueSparkline as incoming and expenseSparkline as outgoing. That's accrual revenue/expenses: ignores AR/AP timing, capex, financing. An owner making payroll decisions off this "cash flow" can be catastrophically wrong.                                                                                                                                      | CRITICAL | Feed real cash movements (bank transactions) or rename chart to Revenue vs Expenses until real cash-flow data exists.                    | ⬜     |
+| 3   | **Downloadable "Cash Flow Statement" is fabricated** — buildCashFlowReport receives operating=[revenue], investing=[], financing=[], closingCash=openingCash=cashBalance. Not a cash-flow statement under ANY accounting standard; SMEs may submit this to lenders/tax authorities.                                                                                                                                                   | CRITICAL | Build from real ledger cash accounts, or disable download with honest explanation until data supports it.                                | ⬜     |
+| 4   | **Balance Sheet & Trial Balance report cards generate EMPTY documents** — their reportData falls through to `{sections: []}`; users download blank PDFs/Excels for half the report library.                                                                                                                                                                                                                                           | HIGH     | Wire real builders (trial-balance exists as a concept per header comment) or hide cards marked "Coming soon".                            | ✅     |
+| 5   | **Net Profit "change" badge is invented math** — displays `(revenueChange − expensesChange)` percent-spread as if it were profit growth. Percentage-point subtraction of two ratios is not a profit delta and will contradict the actual net-profit trend shown beside it.                                                                                                                                                            | HIGH     | Compute real prior-period net profit server-side; show true Δ%.                                                                          | ✅     |
+| 6   | **Prior-period values are reverse-engineered, not fetched** — previousValue = current/(1+change/100): derives a "prior" figure from the same rounded change %, presenting fake precision ("vs $118,904 prior period") that's just algebra on one number.                                                                                                                                                                              | HIGH     | Return actual prior totals from getPnlOverview; display those.                                                                           | ⬜     |
+| 7   | **Period selector barely does anything** — selectedPeriod only reaches getDashboardData; narrative, P&L, anomalies, charts, and budget ignore it entirely. Switching "Last Month" changes sparklines at most — a control that lies about scope.                                                                                                                                                                                       | HIGH     | Thread period through every query on the page or reduce control to what it actually drives (label it).                                   | ⬜     |
+| 8   | **AI narrative spins forever on failure** — query result used without isError; AiFinancialNarrative shows perpetual "Generating your financial narrative…" pulse whenever aiNarrative is undefined, including permanent failure. Users wait on a loading state that ended ages ago.                                                                                                                                                   | HIGH     | Handle error/retry states; fall back to assembled figures WITH disclosure (see UX #3).                                                   | ✅     |
+| 9   | **Margin chart hardcodes target: 25** — every company on earth gets a 25% target line presented as their benchmark. Meaningless anchor that makes real performance look off-target or falsely on-track.                                                                                                                                                                                                                               | MEDIUM   | Per-entity target (settings-driven) or remove target series.                                                                             | ⬜     |
+| 10  | **overdueInvoices hardcoded to 0** — overview mapping sets `overdueInvoices: 0` (line 754); field exists downstream but is permanently zero. Dead data point masquerading as tracked metric.                                                                                                                                                                                                                                          | MEDIUM   | Wire real overdue count or remove from type.                                                                                             | ⬜     |
+| 11  | **Scenario Planner is a fake-submit island** — 2s setTimeout spinner, input clears, no indication where the modeled answer appears (module AI panel? command center?). Users fire scenarios into a void.                                                                                                                                                                                                                              | MEDIUM   | Open the AI panel visibly with the queued prompt; confirm hand-off with pointer/anchor.                                                  | ⬜     |
+| 12  | **Quick Action "View Ledger" doesn't view the ledger** — button routes a chat prompt instead of linking /dashboard/ledger. Label promises navigation; delivers conversation.                                                                                                                                                                                                                                                          | LOW      | Link-tag navigation; keep AI route under an explicit "Analyze in chat" secondary.                                                        | ⬜     |
+| 13  | **Expense categories truncated at 12 characters everywhere** — "Software Subscriptions…" becomes "Software Sub…"; recognition value destroyed in the exact chart meant to explain spending. Truncate responsively, not arbitrarily.                                                                                                                                                                                                   | LOW      | Full labels with ellipsis+tooltip, wider legend, or top-N naming.                                                                        | ⬜     |
 
-**Scope:** Command Center page — all components, flows, UX patterns, AI-native design
-**Components reviewed:** `page.tsx`, `ai-greeting.tsx`, `ai-input.tsx`, `getting-started-checklist.tsx`, `proactive-briefing.tsx`, `conversation-thread.tsx`, `conversation-sidebar.tsx`, `conversation-memory.tsx`
+### Employee: Product Critic
 
----
-
-### P1-1 — AI Active Badge is Always Shown (Misleading)
-
-- **Severity:** HIGH
-- **Component:** `ai-greeting.tsx`
-- **Issue:** The "AI active" badge with green pulse is hardcoded and always visible regardless of actual AI backend status. If the LLM is down, rate-limited, or the agent is unresponsive, users still see "AI active" — eroding trust when AI doesn't respond.
-- **Fix:** Wire badge to actual AI health/status. Show "AI active" only when the backend is reachable. Show "AI unreachable" or hide the badge when it's not.
-
-### P1-2 — Getting Started Progress Not Persisted Across Devices
-
-- **Severity:** MEDIUM
-- **Component:** `getting-started-checklist.tsx`
-- **Issue:** Checklist progress and dismiss state are stored in `localStorage` only. A user who logs in from a different browser/device sees the checklist fresh every time. Progress is lost.
-- **Fix:** Persist onboarding progress server-side (in the user or entity record) so it follows the user across devices.
-
-### P1-3 — Getting Started Steps Never Auto-Complete
-
-- **Severity:** HIGH
-- **Component:** `getting-started-checklist.tsx`
-- **Issue:** Steps are only marked complete when the user clicks the checklist button. If the user completes a step via the AI chat (e.g., "Create an invoice for $500"), the checklist doesn't know. The progress bar stays at 0% even after completing tasks.
-- **Fix:** Listen for actual completion events (invoice created, bank connected, etc.) and auto-check the corresponding step.
-
-### P1-4 — No Way to Re-Show Dismissed Checklist
-
-- **Severity:** MEDIUM
-- **Component:** `getting-started-checklist.tsx`
-- **Issue:** Once dismissed, the getting-started checklist is gone forever (localStorage flag). A user who dismissed it on day 1 but never completed any steps has no way to get it back.
-- **Fix:** Add a "Show getting started" option in settings or a persistent subtle indicator until all 5 steps are actually completed server-side.
-
-### P1-5 — "Connect Bank" Links to Potentially Non-Existent Route
-
-- **Severity:** HIGH
-- **Component:** `getting-started-checklist.tsx`
-- **Issue:** Step 2 ("Connect a bank account") links to `/dashboard/operations/banking`. Per the redirect map in `next.config.ts`, banking routes redirect to `/dashboard/operations`. The onboarding step should link to the actual operations surface, not a potentially stale sub-route.
-- **Fix:** Verify the link target resolves correctly. Consider linking to `/dashboard/operations` directly.
-
-### P1-6 — Export Chat Only Exports Text Messages
-
-- **Severity:** MEDIUM
-- **Component:** `ai-input.tsx`
-- **Issue:** The "Export chat" button only exports user/assistant text messages as markdown. It ignores tool traces, thinking steps, data tables, charts, documents, approvals, and citations. An exported conversation is incomplete and loses critical context.
-- **Fix:** Export all message types — text, tables, charts summary, tool calls, approvals, and document links.
-
-### P1-7 — "Uploaded files" Fallback Text Sent to AI
-
-- **Severity:** MEDIUM
-- **Component:** `ai-input.tsx`
-- **Issue:** When a user uploads files but doesn't type a message, the literal string "Uploaded files" is sent to the AI. This is vague and confusing — the AI has to guess what the user wants.
-- **Fix:** When only files are uploaded with no message, prompt the user: "What would you like me to do with these files?" or auto-generate a context-aware prompt based on file types.
-
-### P1-8 — ProactiveBriefing Uses Fragile Type Cast
-
-- **Severity:** MEDIUM
-- **Component:** `proactive-briefing.tsx`
-- **Issue:** The `trpc.dashboard.getAiBriefing.useQuery` result is cast with `as { data: ... }` because "tRPC inference resolves to Record<never, never>". This hides real type errors and makes the component fragile to schema changes.
-- **Fix:** Fix the tRPC procedure return type so inference works correctly. Remove the `as` cast.
-
-### P1-9 — No Error State When Both AI Briefing and Fallback Fail
-
-- **Severity:** MEDIUM
-- **Component:** `proactive-briefing.tsx`
-- **Issue:** If the AI briefing fails AND the fallback queries (`getDashboardData`, `ingestionStats`) also fail, the component silently shows nothing — no error, no empty state. The user sees a blank area where their briefing should be.
-- **Fix:** Add an error state: "Unable to load your briefing. [Retry]"
-
-### P1-10 — ProactiveBriefing Doesn't Auto-Refresh
-
-- **Severity:** LOW
-- **Component:** `proactive-briefing.tsx`
-- **Issue:** The briefing is fetched once with `staleTime: 5 * 60 * 1000` and never auto-refreshes. If the user stays on the page for 30 minutes, the briefing becomes stale. Deadlines and approvals may change.
-- **Fix:** Add a periodic refetch (e.g., every 5 minutes) or refetch when the user returns to the tab.
-
-### P1-11 — ConversationThread Renders Data Tables Twice
-
-- **Severity:** HIGH
-- **Component:** `conversation-thread.tsx`
-- **Issue:** `dataTables` are rendered twice — once inside `msg.dataTables` (committed tables from completed messages) and again at the bottom as `{dataTables.map(...)}` (streaming tables). After streaming completes, both the committed version and the streaming version render simultaneously, causing duplicate tables.
-- **Fix:** The bottom `dataTables.map` should only render during streaming. After streaming completes, committed tables on the message take over. Add a guard: only render bottom tables when `isStreaming` is true.
-
-### P1-12 — Handle Regenerate is a Re-Send, Not a True Regenerate
-
-- **Severity:** MEDIUM
-- **Component:** `conversation-thread.tsx`
-- **Issue:** `handleRegenerate` finds the previous user message and re-sends it as a new message. This creates a duplicate conversation turn instead of replacing the AI's response. The user sees two AI responses to the same question.
-- **Fix:** True regenerate should replace the last assistant message, not append a new one. Or clearly label it as "Resend" instead of implying replacement.
-
-### P1-13 — Approval Actions Send Natural Language, Not Structured Commands
-
-- **Severity:** MEDIUM
-- **Component:** `conversation-thread.tsx`
-- **Issue:** Approve/reject actions send strings like "Approved: {title}" as chat messages. The AI has to parse natural language to understand the action. This is fragile — the AI might misinterpret the approval.
-- **Fix:** Send structured commands (e.g., `{"action": "approve", "id": "..."}`) or use a dedicated tRPC mutation for approval actions instead of routing through the chat.
-
-### P1-14 — AiInput Suggestions Are Static, Not Contextual
-
-- **Severity:** MEDIUM
-- **Component:** `ai-input.tsx`
-- **Issue:** The 5 suggestion chips ("Cash position", "Show P&L", "What's overdue?", "Run payroll", "Close books") are hardcoded. They don't change based on time of month, entity state, or what the user has already done. A user who already closed their books still sees "Close books."
-- **Fix:** Make suggestions dynamic based on: (1) time of month — show "Close books" only near month-end, (2) entity state — show "Run payroll" only if payroll is due, (3) user history — don't suggest things already done.
-
-### P1-15 — No Keyboard Shortcut to Open Conversation Sidebar
-
-- **Severity:** LOW
-- **Component:** `page.tsx`
-- **Issue:** The conversation sidebar can only be opened by clicking the "Conversations" button. There's no keyboard shortcut. The dashboard layout has `/` for chat panel, but the conversation sidebar has no equivalent.
-- **Fix:** Add a keyboard shortcut (e.g., `Ctrl+Shift+C` or similar) to toggle the conversation sidebar.
-
-### P1-16 — Missing Loading State for ConversationThread When No Messages
-
-- **Severity:** LOW
-- **Component:** `page.tsx`
-- **Issue:** When the page first loads and messages haven't been fetched yet, there's no skeleton or loading indicator for the conversation area. The `DashboardSkeleton` is imported but only used as a fallback in the error boundary, not during initial load.
-- **Fix:** Show a skeleton loading state while the chat hook is initializing.
-
-### P1-17 — AI Greeting Doesn't Update After Midnight
-
-- **Severity:** LOW
-- **Component:** `ai-greeting.tsx`
-- **Issue:** The greeting ("Good morning/afternoon/evening") is computed once at render time using `new Date().getHours()`. If the user keeps the tab open past midnight, the greeting stays "Good evening" instead of updating to "Good morning."
-- **Fix:** Use a `setInterval` or detect day change to update the greeting dynamically.
-
-### P1-18 — ConversationMemory Renders Even With Empty Results
-
-- **Severity:** LOW
-- **Component:** `page.tsx`
-- **Issue:** `ConversationMemory` is always rendered even when there are no relevant past conversations. This could show an empty container or a "no results" state that adds visual noise.
-- **Fix:** Conditionally render `ConversationMemory` only when there are relevant past conversations to show.
-
-### P1-19 — Inline Input Form Lacks Character/Field Limits
-
-- **Severity:** MEDIUM
-- **Component:** `conversation-thread.tsx` (InlineInputForm)
-- **Issue:** The `NeedsInputEvent` form fields (text input, textarea, number, date) have no `maxLength`, `min`, `max`, or validation. Users can enter arbitrarily long text or invalid values.
-- **Fix:** Add sensible limits: text inputs `maxLength=255`, textareas `maxLength=2000`, number inputs with `min`/`max` based on context.
-
-### P1-20 — Approval Card Has No Timeout or Expiry
-
-- **Severity:** MEDIUM
-- **Component:** `conversation-thread.tsx`
-- **Issue:** Approval cards persist indefinitely in the conversation. If the user ignores an approval for hours/days, it stays visible with no indication of urgency or staleness. Financial approvals should have time context.
-- **Fix:** Add a timestamp to approval cards and show relative time ("2 hours ago"). Consider a visual indicator for stale approvals (>24h).
-
----
-
-### Summary — Product Manager
-
-| Severity  | Count  |
-| --------- | ------ |
-| HIGH      | 4      |
-| MEDIUM    | 11     |
-| LOW       | 5      |
-| **Total** | **20** |
-
----
-
-_Next employee: Engineering Critic (#7)_
-
----
-
-## Employee #7: Engineering Critic — Code Quality & Architecture
-
-**Scope:** Command Center page — all components, hooks, tRPC calls, state management, error handling
-**Files reviewed:** `page.tsx`, `ai-greeting.tsx`, `ai-input.tsx`, `getting-started-checklist.tsx`, `proactive-briefing.tsx`, `conversation-thread.tsx`, `use-dashboard-chat.ts`, `use-page-context.ts`, `use-surface-sync.ts`, `command-center/index.ts`
-
----
-
-### E7-1 — Empty Catch Block Silently Swallows Conversation Load Errors
-
-- **Severity:** HIGH
-- **File:** `use-dashboard-chat.ts:199`
-- **Code:**
-  ```typescript
-  } catch {
-    // The sidebar list already came from the dashboard router, so a
-    // failure here is unexpected — keep the overview rather than leave a
-    // blank chat screen.
-  }
-  ```
-- **Problem:** The `loadConversation` catch block is completely empty. If the tRPC fetch fails (network error, DB timeout, auth expiry), the error is silently swallowed. The user sees no feedback — the conversation just doesn't load.
-- **Impact:** Silent failures make debugging impossible. The user has no idea why a conversation won't open.
-- **Fix:** Log the error with structured context (conversationId, entityId). Show a toast: "Failed to load conversation. Please try again."
-
-### E7-2 — User Message IDs Use Date.now() (Collision Risk)
-
-- **Severity:** MEDIUM
-- **File:** `use-dashboard-chat.ts:158`
-- **Code:**
-  ```typescript
-  id: `user-${Date.now()}`,
-  ```
-- **Problem:** If two messages are sent within the same millisecond (rapid double-click, programmatic sends), they get identical IDs. React keys will collide, causing rendering bugs.
-- **Impact:** Duplicate keys cause React to skip rendering or render incorrectly.
-- **Fix:** Use `crypto.randomUUID()` or append a counter: `user-${Date.now()}-${counter++}`.
-
-### E7-3 — handleStreamError Drops Error Details
-
-- **Severity:** MEDIUM
-- **File:** `use-dashboard-chat.ts:131`
-- **Code:**
-  ```typescript
-  const handleStreamError = useCallback(
-    (message: string) => {
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: `assistant-error-${Date.now()}`,
-          role: "assistant",
-          content: `Sorry, I ran into a problem: ${message}. Please try again.`,
-  ```
-- **Problem:** The error message from the streaming hook is passed through, but the original error object (stack trace, error code, request ID) is lost. In production, you can't debug what actually failed.
-- **Impact:** Production debugging is impossible — you only see a generic user-facing message.
-- **Fix:** Log the full error to the structured logger before displaying the user-friendly message. Include requestId, entityId, and conversationId.
-
-### E7-4 — SSE Reconnect Has No Max Retry Limit
-
-- **Severity:** HIGH
-- **File:** `use-surface-sync.ts:107`
-- **Code:**
-  ```typescript
-  const delay = Math.min(1000 * Math.pow(2, attempt), 30000);
-  reconnectTimeoutRef.current = setTimeout(() => {
-    reconnectAttemptsRef.current++;
-    connect();
-  }, delay);
-  ```
-- **Problem:** The exponential backoff caps at 30 seconds but never stops reconnecting. If the SSE endpoint is permanently down (e.g., Redis is down, as confirmed by health check), the browser will reconnect every 30 seconds forever — wasting resources and generating noise in logs.
-- **Impact:** Battery drain on mobile, unnecessary network traffic, log pollution.
-- **Fix:** Add a max retry count (e.g., 10 attempts). After max retries, stop reconnecting and show a "Real-time updates unavailable" indicator. Reconnect on user interaction (tab focus, navigation).
-
-### E7-5 — useSurfaceSync invalidateQueries Uses Unsafe Type Casting
-
-- **Severity:** MEDIUM
-- **File:** `use-surface-sync.ts:72`
-- **Code:**
-  ```typescript
-  const routerUtils = (utils as Record<string, unknown>)[router] as
-    Record<string, { invalidate?: () => Promise<void> }> | undefined;
-  ```
-- **Problem:** The tRPC utils object is cast to `Record<string, unknown>` and then to a specific shape. If the tRPC router structure changes (e.g., a router is renamed), this cast silently fails — `proc.invalidate()` becomes `undefined` and the `typeof proc === "object"` check catches it, but the surface sync silently stops working.
-- **Impact:** Cross-surface sync silently breaks after tRPC router refactors. No error, no warning.
-- **Fix:** Use tRPC's typed utils directly. The `trpc.useUtils()` return type should be typed to the AppRouter, eliminating the need for casts.
-
-### E7-6 — Fallback Queries Run Even When AI Briefing Succeeds
-
-- **Severity:** MEDIUM
-- **File:** `proactive-briefing.tsx:119-124`
-- **Code:**
-  ```typescript
-  // Fallback to count-based briefing (if AI fails)
-  const { data: dashboardData } = trpc.dashboard.getDashboardData.useQuery(
-    {},
-    { enabled: !!entityId },
-  );
-  const { data: ingestionStats } = trpc.ingestion.getStats.useQuery(undefined, {
-    enabled: !!entityId,
-  });
-  ```
-- **Problem:** These two queries are ALWAYS enabled (no conditional `enabled` flag). They run on every render even when the AI briefing succeeds. This wastes bandwidth and DB resources.
-- **Impact:** Unnecessary API calls on every page load. 2 extra DB queries per render.
-- **Fix:** Only enable fallback queries when AI briefing fails: `{ enabled: !!entityId && isError }`.
-
-### E7-7 — ProactiveBriefing Type Cast Hides tRPC Return Type Bug
-
-- **Severity:** MEDIUM
-- **File:** `proactive-briefing.tsx:82`
-- **Code:**
-  ```typescript
-  } as {
-    data:
-      | { text: string; actions?: Array<{ label: string; href: string }> }
-      | null
-      | undefined;
-    isError: boolean;
-  };
-  ```
-- **Problem:** The `as` cast hides a real type inference failure. The comment says "tRPC inference resolves to Record<never, never>" — this means the tRPC procedure's return type is not being inferred correctly. Any schema change to `getAiBriefing` will not be caught at compile time.
-- **Impact:** Type safety is broken for this query. Schema changes silently break the component.
-- **Fix:** Fix the `getAiBriefing` tRPC procedure to have a proper return type (Zod schema or explicit TypeScript return type). Remove the `as` cast.
-
-### E7-8 — ConversationThread handleJumpTo Uses Direct DOM Manipulation
-
-- **Severity:** MEDIUM
-- **File:** `conversation-thread.tsx:155`
-- **Code:**
-  ```typescript
-  const handleJumpTo = useCallback((messageId: string) => {
-    const element = document.getElementById(`message-${messageId}`);
-    if (element) {
-      element.scrollIntoView({ behavior: "smooth", block: "center" });
-      element.classList.add("ring-2", "ring-primary/50");
-      setTimeout(() => {
-        element.classList.remove("ring-2", "ring-primary/50");
-      }, 2000);
-    }
-  }, []);
-  ```
-- **Problem:** Direct DOM manipulation (`document.getElementById`, `classList.add/remove`) bypasses React's rendering model. The `setTimeout` cleanup is never cancelled if the component unmounts, causing a React state update warning on unmounted components.
-- **Impact:** React warning in console. Potential memory leak if component unmounts during the 2-second window.
-- **Fix:** Use `useRef` to track the highlighted element and `useEffect` for cleanup. Or use a state variable to control the highlight class.
-
-### E7-9 — processingApproval State Never Resets After Completion
-
-- **Severity:** HIGH
-- **File:** `conversation-thread.tsx:171`
-- **Code:**
-  ```typescript
-  const [processingApproval, setProcessingApproval] = useState<string | null>(
-    null,
-  );
-  ```
-- **Problem:** `processingApproval` is set to the approval title when an action is clicked, but it's never reset to `null`. After the approval completes (message sent via `onSendMessage`), the button stays in "Processing..." state permanently until the component re-renders for another reason.
-- **Impact:** Approve/Reject/Review buttons appear permanently disabled after first use.
-- **Fix:** Reset `setProcessingApproval(null)` after `onSendMessage` completes. Or use a useEffect that watches for the approval message to appear in the messages array.
-
-### E7-10 — Data Tables Rendered Twice (Streaming + Committed)
-
-- **Severity:** HIGH
-- **File:** `conversation-thread.tsx:380-410`
-- **Problem:** The bottom `{dataTables.map(...)}` section renders streaming data tables on EVERY render, not just during streaming. After streaming completes, the tables are committed to the message's `msg.dataTables` AND still rendered at the bottom. This creates duplicate tables.
-- **Impact:** Users see every data table twice — once in the message and once at the bottom of the thread.
-- **Fix:** Guard the bottom dataTables rendering: `{isStreaming && dataTables.map(...)}`.
-
-### E7-11 — usePageContext useMemo Has Unused Dependency
-
-- **Severity:** LOW
-- **File:** `use-page-context.ts:56`
-- **Code:**
-  ```typescript
-  return useMemo(() => {
-    if (!pathname) return undefined;
-    // ... uses pathname but NOT entityId
-  }, [pathname]); // entityId is in the hook but not in deps
-  ```
-- **Problem:** `entityId` is destructured from `useEntity()` but never used in the memo body, and is not in the dependency array. This is a minor code smell — the import is unnecessary.
-- **Impact:** No runtime impact. Code clarity issue.
-- **Fix:** Remove `const { entityId } = useEntity();` since it's unused.
-
-### E7-12 — Export Chat Button Doesn't Handle Mobile Blob Download
-
-- **Severity:** LOW
-- **File:** `ai-input.tsx:155`
-- **Code:**
-  ```typescript
-  const blob = new Blob([md], { type: "text/markdown;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `conversation-${new Date().toISOString().split("T")[0]}.md`;
-  a.click();
-  URL.revokeObjectURL(url);
-  ```
-- **Problem:** The `a.click()` pattern for blob downloads doesn't work reliably on iOS Safari. Mobile browsers often block programmatic clicks on dynamically created elements.
-- **Impact:** Export feature silently fails on mobile.
-- **Fix:** Use `navigator.share()` API on mobile as a fallback, or show a copy-to-clipboard option.
-
-### E7-13 — handleRegenerate Creates Duplicate Conversation Turn
-
-- **Severity:** MEDIUM
-- **File:** `conversation-thread.tsx:145`
-- **Code:**
-  ```typescript
-  const handleRegenerate = useCallback(
-    (messageId: string) => {
-      const msgIndex = messages.findIndex((m) => m.id === messageId);
-      if (msgIndex > 0) {
-        const prevMsg = messages[msgIndex - 1];
-        if (prevMsg.role === "user") {
-          onSendMessage(prevMsg.content);
-        }
-      }
-    },
-    [messages, onSendMessage],
-  );
-  ```
-- **Problem:** "Regenerate" re-sends the previous user message as a new message. This creates a duplicate user message + new assistant response. The user sees two user messages and two AI responses for the same question.
-- **Impact:** Confusing UX — the conversation has duplicate turns.
-- **Fix:** Either: (1) remove the old assistant message and replace it, or (2) label the button "Resend" instead of "Regenerate", or (3) implement true regeneration by removing the last assistant message before re-sending.
-
-### E7-14 — emitDataChanged Silently Catches All Errors
-
-- **Severity:** LOW
-- **File:** `use-surface-sync.ts:143`
-- **Code:**
-  ```typescript
-  } catch {
-    // Non-critical — sync is best-effort
-  }
-  ```
-- **Problem:** The fetch error is completely swallowed. If the POST fails (network error, 401, 500), there's no logging. In production, you can't tell if surface sync is working.
-- **Impact:** Silent failure of cross-surface sync. No observability.
-- **Fix:** Log the error with structured context. Even a `console.warn` would help debugging.
-
-### E7-15 — No Cancellation of In-Flight Queries on Entity Switch
-
-- **Severity:** MEDIUM
-- **File:** `proactive-briefing.tsx`
-- **Problem:** When the user switches entities (via entity switcher), the briefing queries continue fetching with the old entityId until the new query replaces them. During this window, stale data from the previous entity could briefly flash on screen.
-- **Impact:** Briefly showing wrong entity's data. Entity isolation concern.
-- **Fix:** Add `entityId` to the query key (tRPC does this automatically) and cancel in-flight requests on entity switch. Or use `enabled: !!entityId && entityId === currentEntityId` pattern.
-
-### E7-16 — useRef Activity Arrays Grow Unboundedly During Streaming
-
-- **Severity:** MEDIUM
-- **File:** `use-dashboard-chat.ts:82-87`
-- **Code:**
-  ```typescript
-  onAgentActivity: (activity) => {
-    activitiesRef.current = [...activitiesRef.current, activity];
-  },
-  ```
-- **Problem:** During a long streaming response, every agent activity event is appended to the ref array. For complex operations (e.g., month-end close with 50+ steps), this array grows without bound. It's only cleared when the message commits.
-- **Impact:** Memory usage grows during long streams. Unlikely to cause issues in practice but is a code smell.
-- **Fix:** Cap the array at a reasonable limit (e.g., last 100 events) or use a sliding window.
-
----
-
-### Summary — Engineering Critic
-
-| Severity  | Count  |
-| --------- | ------ |
-| HIGH      | 4      |
-| MEDIUM    | 9      |
-| LOW       | 3      |
-| **Total** | **16** |
-
----
-
-_Next employee: Design Critic (#5)_
-
----
-
-## Employee #5: Design Critic — Visual Design, UX & Accessibility
-
-**Scope:** Command Center page — all components, visual polish, accessibility, responsive design
-**Components reviewed:** `page.tsx`, `ai-greeting.tsx`, `ai-input.tsx`, `getting-started-checklist.tsx`, `proactive-briefing.tsx`, `conversation-thread.tsx`
-
----
-
-### D5-1 — Text Sizes Below 12px Fail WCAG Readability
-
-- **Severity:** HIGH
-- **Components:** `ai-greeting.tsx`, `ai-input.tsx`, `getting-started-checklist.tsx`, `proactive-briefing.tsx`
-- **Issue:** Multiple components use `text-[10px]`, `text-[11px]`, and `text-[9px]` for body text, labels, and descriptions. These sizes are below the WCAG recommended minimum of 12px and are difficult to read, especially on mobile devices and for users with vision impairments.
-- **Affected locations:**
-  - `ai-greeting.tsx:23` — date text `text-[11px]`
-  - `ai-greeting.tsx:32` — "AI active" label `text-[10px]`
-  - `ai-input.tsx:73` — suggestion chip labels `text-[11px]`
-  - `ai-input.tsx:168` — keyboard hints `text-[9px]`
-  - `ai-input.tsx:153` — "Export chat" button `text-[10px]`
-  - `getting-started-checklist.tsx:155` — footer hint `text-[10px]`
-  - `proactive-briefing.tsx:191` — "AI-generated" timestamp `text-[10px]`
-- **Fix:** Minimum font size for readable text should be `text-xs` (12px). Use `text-[10px]` only for purely decorative labels. Keyboard hints and timestamps can stay small but should have sufficient contrast.
-
-### D5-2 — Export Chat Button Is Nearly Invisible
-
-- **Severity:** MEDIUM
-- **Component:** `ai-input.tsx:150`
-- **Issue:** The "Export chat" button uses `text-[10px] text-muted-foreground/50` — extremely small text with 50% opacity on an already muted color. It's nearly invisible and users will never find it.
-- **Fix:** Increase to `text-xs text-muted-foreground` with a hover state. Consider moving it to a more discoverable location (e.g., a download icon in the input toolbar).
-
-### D5-3 — Getting Started Progress Bar Is Too Thin to Notice
-
-- **Severity:** MEDIUM
-- **Component:** `getting-started-checklist.tsx:131`
-- **Code:** `h-1.5 w-full overflow-hidden rounded-full bg-muted/40`
-- **Issue:** The progress bar is 6px tall (`h-1.5`) with 40% opacity background. It's easy to miss entirely. Users won't notice their progress.
-- **Fix:** Increase to `h-2` (8px) minimum. Use a more visible background color. Add a percentage label next to the bar.
-
-### D5-4 — Step Descriptions Truncated Without Tooltip
-
-- **Severity:** MEDIUM
-- **Component:** `getting-started-checklist.tsx:168`
-- **Code:** `<p className="text-xs text-muted-foreground/70 mt-0.5 truncate">`
-- **Issue:** Long step descriptions are truncated with CSS `truncate` but have no `title` attribute or tooltip. Users can't read the full description of what each step does.
-- **Fix:** Add `title={step.description}` to show the full text on hover. Or remove `truncate` and let the text wrap.
-
-### D5-5 — AI Input Area Has Too Many Visual Elements
-
-- **Severity:** MEDIUM
-- **Component:** `ai-input.tsx`
-- **Issue:** The input area contains: file upload button, bot icon, context pin indicator, textarea, send button, export button, keyboard hints, and 5 suggestion chips above. That's 9 distinct visual elements in a small area. The cognitive load is high for what should be a simple "ask a question" interface.
-- **Fix:** Simplify the input area:
-  1. Move "Export chat" to a menu or the conversation header
-  2. Move keyboard hints to a settings/help section
-  3. Reduce suggestion chips to 3 maximum
-  4. Consider hiding the bot icon (redundant with the AI greeting)
-
-### D5-6 — Suggestion Chips Have Insufficient Touch Target Size
-
-- **Severity:** MEDIUM
-- **Component:** `ai-input.tsx:78`
-- **Issue:** Suggestion chips use `px-2.5 py-1.5` which yields a touch target of approximately 28px height. WCAG requires 44px minimum for touch targets on mobile.
-- **Fix:** Increase padding to `px-3 py-2` minimum on mobile. Or use `min-h-[44px]` to ensure the touch target meets accessibility requirements.
-
-### D5-7 — Conversation Thread Missing Scroll-to-Bottom Button
-
-- **Severity:** MEDIUM
-- **Component:** `conversation-thread.tsx`
-- **Issue:** When the user scrolls up in a long conversation, there's no "scroll to bottom" button to quickly return to the latest messages. The only way back is manual scrolling.
-- **Fix:** Add a floating "↓ New messages" button that appears when the user scrolls up, similar to chat apps like WhatsApp/Slack.
-
-### D5-8 — Approval Cards Lack Visual Hierarchy for Amounts
-
-- **Severity:** LOW
-- **Component:** `conversation-thread.tsx:340`
-- **Issue:** The approval amount (`approval.amount`) uses the same font size as the description text. For financial approvals, the amount should be visually prominent — it's the most important piece of information.
-- **Fix:** Increase amount font size to `text-base font-semibold` or `text-lg font-bold`. Add currency formatting if not already applied.
-
-### D5-9 — Streaming Indicator Dots Are Too Small
-
-- **Severity:** LOW
-- **Component:** `conversation-thread.tsx:430`
-- **Code:** `h-1.5 w-1.5 animate-pulse rounded-full bg-primary/60`
-- **Issue:** The thinking indicator dots are 6px (`h-1.5 w-1.5`) with 60% opacity. They're hard to notice, especially on high-DPI screens.
-- **Fix:** Increase to `h-2 w-2` (8px) and use `bg-primary` without opacity reduction. The animation already draws attention — the dots should be clearly visible.
-
-### D5-10 — No Visual Distinction Between AI and User Messages on Mobile
-
-- **Severity:** MEDIUM
-- **Component:** `conversation-thread.tsx:270`
-- **Issue:** On mobile, the user message bubble (`bg-primary text-primary-foreground`) and AI message bubble (`bg-card border border-border/50`) can look similar in bright environments. The AI bubble has a border but no background color differentiation.
-- **Fix:** Add a subtle background tint to AI messages (e.g., `bg-muted/30`) or increase the border opacity to `border-border` for clearer distinction.
-
-### D5-11 — Greeting Section Lacks Visual Weight for "AI Active" Status
-
-- **Severity:** LOW
-- **Component:** `ai-greeting.tsx:27`
-- **Issue:** The "AI active" badge uses `border-border/40 bg-card/60` — very low contrast against the background. The green pulse dot is small and easy to miss. This is meant to be a trust signal but doesn't draw enough attention.
-- **Fix:** Use a more visible background: `bg-emerald-500/10 border-emerald-500/20`. Increase the pulse dot to `h-2 w-2`.
-
-### D5-12 — Context Pin Indicator Positioned Above Input Boundary
-
-- **Severity:** LOW
-- **Component:** `ai-input.tsx:107`
-- **Code:** `absolute -top-6 left-4`
-- **Issue:** The context pin indicator is positioned `absolute -top-6` which places it outside the input card's border. On some screen sizes, this could overlap with the suggestion chips above, creating visual clutter.
-- **Fix:** Verify positioning at all breakpoints. Consider placing the context indicator inside the input card as a small tag, rather than floating above it.
-
----
-
-### Summary — Design Critic
-
-| Severity  | Count  |
-| --------- | ------ |
-| HIGH      | 1      |
-| MEDIUM    | 7      |
-| LOW       | 4      |
-| **Total** | **12** |
-
----
-
-_Next employee: Security Engineer (#6) — SKIPPED (skill not found)_
-
----
-
-## Employee #3: UX Writer — Microcopy & Content Quality
-
-**Scope:** Command Center page — all labels, hints, error messages, empty states, AI copy
-**Components reviewed:** `ai-greeting.tsx`, `ai-input.tsx`, `getting-started-checklist.tsx`, `proactive-briefing.tsx`, `conversation-thread.tsx`
-
----
-
-### U3-1 — Suggestion Chips Mix Question and Command Styles
-
-- **Severity:** MEDIUM
-- **Component:** `ai-input.tsx:62-66`
-- **Issue:** The 5 suggestion chips mix inconsistent styles:
-  - "Cash position" — noun phrase
-  - "Show P&L" — command (verb + noun)
-  - "What's overdue?" — question
-  - "Run payroll" — command
-  - "Close books" — command
-
-  Users scan these quickly. Mixed styles create cognitive friction.
-
-- **Fix:** Standardize to command style: "Check cash position", "Show P&L", "Find overdue bills", "Run payroll", "Close books". All start with a verb.
-
-### U3-2 — "AI active" Label Is Meaningless
-
-- **Severity:** MEDIUM
-- **Component:** `ai-greeting.tsx:30`
-- **Issue:** The badge says "AI active" but doesn't explain what that means. Active how? Ready to respond? Currently processing? Connected to the backend? Users don't know what "active" implies.
-- **Fix:** Either: (1) remove the badge entirely (it's decorative, not informative), or (2) change to "AI ready" which implies it's waiting for input, or (3) make it dynamic: "AI ready" / "AI processing..." / "AI offline".
-
-### U3-3 — "Here's your business snapshot" Is Vague
-
-- **Severity:** LOW
-- **Component:** `ai-greeting.tsx:20`
-- **Issue:** "Here's your business snapshot for {date}" — "snapshot" is generic. It doesn't tell the user what they'll see or why it matters.
-- **Fix:** "Here's what your AI found today" or "Your AI has analyzed your books for {date}". Lead with the AI doing work, not just showing data.
-
-### U3-4 — Keyboard Hints Use Jargon
-
-- **Severity:** LOW
-- **Component:** `ai-input.tsx:168`
-- **Code:** `Enter send · Shift+Enter newline`
-- **Issue:** "newline" is developer jargon. Regular users say "new line" or "line break". Also, the hints are only visible on focus, making them undiscoverable.
-- **Fix:** Change to "Enter to send · Shift+Enter for new line". Consider showing hints once on first use, then hiding them.
-
-### U3-5 — "Export chat" Button Label Is Too Generic
-
-- **Severity:** LOW
-- **Component:** `ai-input.tsx:153`
-- **Issue:** "Export chat" doesn't specify the format or what will be exported. Users might expect a PDF, a shareable link, or a different format.
-- **Fix:** "Download as Markdown" or "Export conversation (.md)". Be specific about the format.
-
-### U3-6 — Getting Started "Or just type a question below" Undermines the Checklist
-
-- **Severity:** MEDIUM
-- **Component:** `getting-started-checklist.tsx:189`
-- **Code:** `Or just type a question below — the AI handles anything.`
-- **Issue:** This hint tells users they can skip the checklist entirely. It undermines the onboarding flow by suggesting the checklist is optional. Also, "anything" is too broad — the AI can't literally do anything.
-- **Fix:** Remove this hint, or change to: "Or ask the AI a question to get started". Don't promise "anything".
-
-### U3-7 — Error Message in handleStreamError Is Too Generic
-
-- **Severity:** MEDIUM
-- **Component:** `use-dashboard-chat.ts:136`
-- **Code:** `Sorry, I ran into a problem: ${message}. Please try again.`
-- **Issue:** The `${message}` comes from the streaming hook and could be a technical error string (e.g., "SSE connection lost", "timeout"). Users don't understand these.
-- **Fix:** Map common error messages to user-friendly text:
-  - "SSE connection lost" → "The connection was interrupted. Please try again."
-  - "timeout" → "The AI took too long to respond. Please try again."
-  - "rate_limited" → "Too many requests. Please wait a moment and try again."
-
-### U3-8 — ProactiveBriefing "AI-curated" Badge Is Unnecessary
-
-- **Severity:** LOW
-- **Component:** `proactive-briefing.tsx:188`
-- **Code:** `AI-curated`
-- **Issue:** The "AI-curated" badge next to "Your AI briefing" is redundant. The section is already titled "Your AI briefing" — adding "AI-curated" as a badge is visual noise.
-- **Fix:** Remove the badge. The heading already communicates that this is AI-generated.
-
-### U3-9 — Conversation Memory Has No Heading or Context
-
-- **Severity:** MEDIUM
-- **Component:** `page.tsx` (ConversationMemory component)
-- **Issue:** The `ConversationMemory` component renders without a heading or explanation. Users see a section of past conversations with no context about why they're being shown or what to do with them.
-- **Fix:** Add a heading: "Related conversations" or "From your past chats". Add a one-line description if the section is visible.
-
-### U3-10 — Inline Input Form "Submit" Button Is Generic
-
-- **Severity:** LOW
-- **Component:** `conversation-thread.tsx:118`
-- **Code:** `{isSubmitting ? "Sending..." : "Submit"}`
-- **Issue:** "Submit" is generic. It doesn't tell the user what will happen when they click. The button should reflect the action being taken.
-- **Fix:** Use action-specific labels: "Send details", "Confirm", or match the action name (e.g., "Create invoice" if the action is invoice creation).
-
-### U3-11 — Approval "Review" Button Label Is Ambiguous
-
-- **Severity:** MEDIUM
-- **Component:** `conversation-thread.tsx:362`
-- **Issue:** The "Review" button on approval cards doesn't clearly communicate what happens. Does it open a detail view? Does it send a message to the AI? Users don't know.
-- **Fix:** Change to "Ask AI to explain" or "Get more details". Or if it sends a chat message, say "Ask about this".
-
-### U3-12 — AI Greeting Uses "Good morning/afternoon/evening" Without Context
-
-- **Severity:** LOW
-- **Component:** `ai-greeting.tsx:14`
-- **Issue:** The time-based greeting is a nice touch, but it's not personalized beyond the first name. For an AI-native product, the greeting could set the tone for what the AI has been doing.
-- **Fix:** Consider: "Good morning, {name}. Your AI processed 12 transactions overnight." This immediately shows AI value.
-
----
-
-### Summary — UX Writer
-
-| Severity  | Count  |
-| --------- | ------ |
-| HIGH      | 0      |
-| MEDIUM    | 6      |
-| LOW       | 6      |
-| **Total** | **12** |
+| #   | Finding                                                                                                                                                                                                                      | Severity | Fix                                                                                                                   | Status |
+| --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | --------------------------------------------------------------------------------------------------------------------- | ------ |
+| 1   | **Ask AI is hover-only and touch-dead** — KPI "Ask AI" chips are opacity-0 group-hover; phones/tablets and keyboard users can't reveal them. The page's flagship AI-native affordance is invisible to huge segments.         | HIGH     | Always-visible subtle chip on touch; focus-visible reveal on keyboard; consider moving into drill-down drawer footer. | ⬜     |
+| 2   | **Drill-downs dead-end again** — Revenue/Expense/Cash drawers list numbers with zero path to underlying transactions/accounts/ledger. Insight without investigation path repeats the anti-pattern logged on two prior pages. | HIGH     | Add "View in Ledger" filtered link per drawer row.                                                                    | ⬜     |
+| 3   | **Empty sections vanish silently** — ForecastView and BudgetVsActualSection `return null` when unloaded/unconfigured; users can't distinguish "feature broken", "no budget set", "loading". Ghost features.                  | MEDIUM   | Render section shell with contextual empty-state CTA ("Create your first budget").                                    | ⬜     |
+| 4   | **Budget table hard-stops at 8 rows with no expansion** — passive "Showing 8 of N" text, no expand/more link; businesses with real charts of accounts can't see their remaining categories anywhere on the surface.          | MEDIUM   | Expandable table or link to full report.                                                                              | ⬜     |
+| 5   | **Only 3 fixed periods, no YTD/custom** — global SMEs think in quarters/YTD/fiscal periods; selector excludes fiscal-year alignment entirely despite fiscal.getCurrent existing in the API surface.                          | MEDIUM   | Add YTD + custom range; align options to entity fiscal calendar.                                                      | ⬜     |
+| 6   | **No display-currency switcher** — multi-currency entities lock to base currency presentation; competitors (Xero) let users toggle. FX rates widget sits right there teasing the capability.                                 | LOW      | Display-currency select converting via live rates (clearly labeled as conversion).                                    | ⬜     |
+| 7   | **Sparkline color contradicts its shape** — color keys off change sign (bad month = red) while the drawn polyline may slope upward; users read conflicting signals within one 64px card.                                     | LOW      | Color by trend direction (last vs first), keep ±badge for period change.                                              | ⬜     |
+| 8   | **Budget table mobile behavior unverified** — 5-column table inside max-width container; no responsive pattern (card-stack) defined; likely horizontal squeeze at 320px. QA + ResponsiveTable pattern.                       | MEDIUM   | Responsive collapse to per-category cards on small screens.                                                           | ⬜     |
+
+### Employee: UX Writer
+
+| #   | Finding                                                                                                                                                                                                                                                   | Severity | Fix                                                                                                           | Status      |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------- | ----------- |
+| 1   | **Third confidence threshold vocabulary on third page** — here High ≥0.8/Medium ≥0.5/Low; Activity Hub used 0.8/0.6; AGENTS.md says 0.7/0.4 escalation. Three competing scales for the same word "High confidence" — users cannot build calibrated trust. | HIGH     | One shared constant module + one copy set; refactor all surfaces onto it.                                     | ✅          |
+| 2   | **"Data refreshes every 5 minutes" describes plumbing, not freshness** — static caption while actual staleness varies 5–10min+ per block.                                                                                                                 | LOW      | Per-block "Updated 2m ago" from generatedAt (matches Data Analyst freshness pattern).                         | ⬜          |
+| 3   | **Fallback narrative reads like a machine and hides the degradation** — "Revenue is $40,000 (+5.0% vs prior). Expenses are…" presented identically to AI prose; users can't tell AI reasoning is offline.                                                 | MEDIUM   | Prefix "Quick figures (AI narrative unavailable)" + Retry link; keep sentences human ("Revenue came in at…"). | ✅          |
+| 4   | **Reports header instructs like a manual** — "Click to analyze with AI · Download buttons for export" narrates the obvious; instructional middot-speak adds noise.                                                                                        | LOW      | Delete the hint; rely on affordances.                                                                         | ⬜          |
+| 5   | **"Model" button verb unclear** — reads as noun; first-time users hesitate.                                                                                                                                                                               | LOW      | "Run scenario" or "Ask AI".                                                                                   | ✅          |
+| 6   | **"vs $118,904 prior period" phrasing clunky** — reads as duration not baseline.                                                                                                                                                                          | LOW      | "Previous period: $118,904" or "was $118,904 last period".                                                    | ⬜          |
+| 7   | **Scenario helper example is strong — PASS** — placeholder + description showing a concrete modeling question matches house AI-copy guidance; reuse this pattern for other AI inputs.                                                                     | —        | Keep; replicate elsewhere.                                                                                    | ✅ Baseline |
+
+---
+
+## DEPARTMENT: DESIGN
+
+### Employee: Design Critic
+
+| #   | Finding                                                                                                                                                                                                                                                        | Severity | Fix                                                        | Status |
+| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ---------------------------------------------------------- | ------ |
+| 1   | **Emoji as semantic icons in narrative chips** — literal "✅"/"⚠️" strings inside highlight/concern chips while every other icon is Lucide; cross-platform glyph inconsistency + SR announces "white heavy check mark". Use Lucide CheckCircle2/AlertTriangle. | MEDIUM   | Swap to icon components with sr-only text.                 | ⬜     |
+| 2   | **Four identical "Trend sparkline" aria-labels** — every sparkline announces the same generic string; SR users get zero signal which KPI it belongs to or what it shows.                                                                                       | MEDIUM   | Compose label: `${label} trend, ${data.length} months`.    | ⬜     |
+| 3   | **KPI card focus state undefined** — role="button"+tabIndex+key handler exist (good) but no focus-visible ring styles; keyboard focus invisible on white cards.                                                                                                | MEDIUM   | Add ring token matching interactive spec.                  | ✅     |
+| 4   | **Drawer repeats dialog-semantics violations** — same missing focus trap/aria-labelledby/scroll-lock/ESC-focus issue as Activity Hub drawer; fix once in a shared Sheet primitive, adopt in both.                                                              | HIGH     | Shared Drawer/Sheet component migration.                   | ✅     |
+| 5   | **Report icon colors parsed from space-delimited string** — `report.color.split(" ")[0]` contracts a class string at runtime; fragile, untyped, breaks silently if someone edits the constant.                                                                 | LOW      | Two explicit fields (chipBg, iconColor).                   | ⬜     |
+| 6   | **KPI values not tabular-nums** — budget table sets tabular-nums but headline figures don't; digits shift width on refresh causing layout jitter in a numbers-first surface.                                                                                   | LOW      | Apply tabular-nums to all currency outputs.                | ⬜     |
+| 7   | **Non-standard opacity fractions persist** (/8, /12, /[0.03]) — same compiled-CSS uncertainty flagged on Command Center; page-wide token audit still pending.                                                                                                  | MEDIUM   | Global audit task (tracked here; execute once across app). | ⬜     |
 
 ---
 
-_Next employee: Content Critic / Copywriter_
-
----
-
-## Employee #4: Copywriter — Brand Voice & Conversion Copy
+## DEPARTMENT: ENGINEERING
+
+### Employee: Engineering Critic
+
+| #   | Finding                                                                                                                                                                                                                                                      | Severity | Fix                                                                                           | Status |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------- | --------------------------------------------------------------------------------------------- | ------ |
+| 1   | **getMonthLabel collides across years** — modulo-12 month math produces duplicate labels ("Jan Jan Feb") for any 12+ bar window spanning a year; charts become ambiguous without year axis. Also computes from device clock, so SSR/client can disagree.     | MEDIUM   | Return {month, year} labels from backend series metadata; stop deriving calendar client-side. | ⬜     |
+| 2   | **Dead expression ships in production chart mapping** — `prior: expenseSparkline[i] ? undefined : undefined` (line 1124) always undefined; either intended prior-series wiring was abandoned mid-build or copy-paste artifact. Misleads every future reader. | LOW      | Remove or implement intended prior overlay.                                                   | ⬜     |
+| 3   | **Unused totalExpenses computed in Revenue drill-down** — same reduction computed twice; Revenue branch never uses its copy. Lint escape / dead code.                                                                                                        | LOW      | Delete.                                                                                       | ⬜     |
+| 4   | **entityCurrency destructured then ignored** — direct root cause enabling PM #1's GMD fallbacks; the correct value was in scope the whole time.                                                                                                              | HIGH     | Single-line fix chain with PM #1.                                                             | ✅     |
+| 5   | **ScenarioPlanner timeout leaks on unmount** — isSubmitting reset timer fires post-unmount if user navigates mid-"processing"; classic cleanup miss.                                                                                                         | LOW      | useRef timer + useEffect cleanup.                                                             | ✅     |
+| 6   | **reportData objects rebuilt for all 4 cards every render** — includes mapping full account arrays each pass; memoize per pnlData identity.                                                                                                                  | LOW      | useMemo on [pnlData, overview].                                                               | ⬜     |
+| 7   | **BudgetVsActual conflates loading/error/not-configured as null** — three distinct states share one silent exit; debugging and UX both blind.                                                                                                                | MEDIUM   | Distinguish states (see Product Critic #3); add error retry.                                  | ⬜     |
+| 8   | **Inline structural types redeclared over API types** — budget item param types retyped ad hoc in JSX map; drift risk when reports router evolves.                                                                                                           | LOW      | Infer from tRPC output type; delete inline duplicates.                                        | ⬜     |
 
-**Scope:** Command Center page — all copy, brand voice compliance, AI-native positioning
-**Components reviewed:** `ai-greeting.tsx`, `ai-input.tsx`, `getting-started-checklist.tsx`, `proactive-briefing.tsx`, `conversation-thread.tsx`
-
 ---
-
-### C4-1 — "Business Snapshot" Is SaaS Language, Not AI-Native
-
-- **Severity:** MEDIUM
-- **Component:** `ai-greeting.tsx:20`
-- **Copy:** "Here's your business snapshot for {date}"
-- **Problem:** "Business snapshot" is generic SaaS language. It implies a static report, not an AI that's actively analyzing. AI-native copy should lead with what the AI did, not what the user sees.
-- **Fix:** "Your AI analyzed your books for {date}. Here's what it found." or "Good morning, {name}. Your AI processed 12 transactions overnight."
-
-### C4-2 — Getting Started Steps Use Passive Voice
-
-- **Severity:** LOW
-- **Component:** `getting-started-checklist.tsx`
-- **Issue:** Some step titles are passive or unclear:
-  - "Review your accounts" — who reviews? The user or the AI?
-  - "Create your first invoice" — implies manual work, not AI-assisted
-- **Fix:** Make it clear the AI helps:
-  - "Let AI review your accounts"
-  - "AI helps you create your first invoice"
-
-### C4-3 — "The AI Handles Anything" Is an Overclaim
-
-- **Severity:** MEDIUM
-- **Component:** `getting-started-checklist.tsx:189`
-- **Copy:** "Or just type a question below — the AI handles anything."
-- **Problem:** "Anything" is a false promise. The AI can't do literally anything. Overclaiming erodes trust when the AI can't deliver. Brand voice says: "We respect the reader's intelligence without dumbing down." Overclaiming is the opposite.
-- **Fix:** "Or ask the AI a question — it handles accounting tasks." Be specific about what it does.
-
-### C4-4 — ProactiveBriefing Fallback Lacks AI-Native Voice
-
-- **Severity:** LOW
-- **Component:** `proactive-briefing.tsx:210`
-- **Copy:** "All clear — nothing needs your attention right now."
-- **Problem:** This is fine but misses an opportunity to reinforce AI value. The AI should tell you what it did, not just that nothing is wrong.
-- **Fix:** "All clear — your AI handled 47 transactions today. Nothing needs your attention." Show the AI's work.
-
-### C4-5 — Conversation Error Message Is Apologetic, Not Confident
 
-- **Severity:** LOW
-- **Component:** `use-dashboard-chat.ts:136`
-- **Copy:** "Sorry, I ran into a problem: {message}. Please try again."
-- **Problem:** "Sorry" is apologetic. Brand voice is "Confident — We know accounting. We know AI. We're not guessing." An AI-native product doesn't apologize — it explains and solves.
-- **Fix:** "Something went wrong: {message}. Try again or ask the AI to help." Or: "The AI encountered an issue. Here's what happened and what to do."
+## DEPARTMENT: SECURITY
 
-### C4-6 — Approval Card Buttons Use Generic Labels
+### Employee: Security Engineer (CSO)
+
+| #   | Finding                                                                                                                                                                                                                                                                                                                                                              | Severity        | Fix                                                                                                                       | Status           |
+| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------- | ------------------------------------------------------------------------------------------------------------------------- | ---------------- |
+| 1   | **LangFuse trace exposure of financial payloads UNVERIFIED** — askAiAbout ships revenue/expenses/cash figures as structured fields into module-AI flows traced to LangFuse. If tracing captures full inputs without redaction, financials land in observability storage accessible beyond the entity's members. Compliance-sensitive (SOC2/finance confidentiality). | HIGH (verify)   | Confirm LangFuse input-masking config for financial fields; mask by default, opt-in reveal.                               | ⬜               |
+| 2   | **Client-generated report exports unaudited** — P&L/cash-flow documents built in-browser and downloaded; no server-side export event, watermark, or count. Enterprise data-loss forensics impossible ("who exported what when").                                                                                                                                     | MEDIUM          | Emit export audit events (entityId, userId, reportType, format); consider server-rendered generation for enterprise tier. | ⬜               |
+| 3   | **Indirect prompt-injection channel via anomaly text** — Investigate interpolates `anomaly.message` + `anomaly.aiInsight` (originating from document-ingesting agents) directly into a new prompt. Crafted document content could steer investigation prompts. Constrain interpolation length/structure; treat upstream text as data, quote it explicitly.           | MEDIUM          | Wrap as quoted data block; strip instruction-like patterns; cap length.                                                   | ⬜               |
+| 4   | **LiveExchangeRates external dependency posture UNKNOWN** — third-party FX source consumed client-side; verify TLS-only origin, no API key shipped in client bundle, response schema validated before render (Zod), graceful failure when provider down.                                                                                                             | MEDIUM (verify) | Audit component + provider; move fetch server-side proxy if key involved.                                                 | ⬜               |
+| 5   | **Plain-text narrative rendering — PASS** — narrativeText renders via whitespace-pre-wrap text node; no HTML injection vector on this page. Maintain property when rich formatting arrives.                                                                                                                                                                          | —               | Guardrail note.                                                                                                           | ✅ Verified safe |
 
-- **Severity:** MEDIUM
-- **Component:** `conversation-thread.tsx:348-370`
-- **Copy:** "Approve", "Review", "Reject"
-- **Problem:** These are generic button labels. They don't tell the user what they're approving or what happens next. Brand voice says: "Be specific. 'Approve payment of $1,250 to Acme Corp' not 'Approve'."
-- **Fix:** "Approve payment" / "Get details" / "Decline". Or better: "Approve $1,250 to Acme Corp" on the button itself.
-
-### C4-7 — AiInput Suggestions Don't Quantify AI Value
-
-- **Severity:** MEDIUM
-- **Component:** `ai-input.tsx:62-66`
-- **Issue:** The suggestion chips are task-oriented but don't show AI value. "Cash position" tells you what you'll see, not what the AI does. AI-native copy should lead with AI capability.
-- **Fix:** "AI: Show cash position" or "Ask AI about cash position". Make it clear the AI is doing the work.
-
-### C4-8 — "AI-Generated Briefing" Timestamp Is Redundant
-
-- **Severity:** LOW
-- **Component:** `proactive-briefing.tsx:191`
-- **Copy:** "AI-generated briefing • {time}"
-- **Problem:** The section is already titled "Your AI briefing". Adding "AI-generated" as a footer is redundant. The timestamp is useful but the "AI-generated" prefix is noise.
-- **Fix:** Just show the timestamp: "Updated {time}". The heading already communicates AI.
-
-### C4-9 — ConversationThread "Thinking..." Is Too Generic
-
-- **Severity:** LOW
-- **Component:** `conversation-thread.tsx:435`
-- **Copy:** "Thinking..."
-- **Problem:** "Thinking" is vague. The AI is doing specific work — categorizing, analyzing, generating. Specific copy builds trust.
-- **Fix:** Use dynamic labels based on what the AI is doing: "Analyzing your request...", "Categorizing transactions...", "Preparing your report...".
-
-### C4-10 — Getting Started Progress Text Doesn't Show AI Value
-
-- **Severity:** LOW
-- **Component:** `getting-started-checklist.tsx:140`
-- **Copy:** "{completedCount} of {STEPS.length} complete — you're making progress!"
-- **Problem:** "You're making progress" is generic encouragement. It doesn't connect completion to AI value. Each step completed should show what the AI gains.
-- **Fix:** "3 of 5 complete — your AI is getting smarter" or "3 of 5 complete — AI can now categorize your transactions".
-
 ---
-
-### Summary — Copywriter
 
-| Severity  | Count  |
-| --------- | ------ |
-| HIGH      | 0      |
-| MEDIUM    | 4      |
-| LOW       | 6      |
-| **Total** | **10** |
+## DEPARTMENT: DATA
 
----
+### Employee: Data Analyst
 
-_Next employee: Brand Voice (#14)_
+| #   | Finding                                                                                                                                                                                                                                                                                   | Severity | Fix                                                                                                | Status |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | -------------------------------------------------------------------------------------------------- | ------ |
+| 1   | **Zero-runway case suppresses the runway warning** — cash drill-down insight gated on `overview?.runway ? … : undefined`; runway = 0 (money gone) is falsy → the single most urgent message on the page silently disappears exactly when true.                                            | CRITICAL | Distinguish null (unknown) from 0 (critical); show "Immediate action required" state for ≤1 month. | ✅     |
+| 2   | **Two contradictory margin definitions on one page** — MarginTrendChart computes (revenue−expensesSparkline)/revenue while KPI/net-profit paths use cogs/opExpenses splits; same user sees different "margin" numbers in adjacent cards with no definitions.                              | HIGH     | One canonical margin calc (server-computed) feeding all surfaces; label each (gross vs net).       | ⬜     |
+| 3   | **Zero-revenue division guarded by `\|\| 1`** — margin/percentage math substitutes denominator 1 producing 0%/absurd percentages instead of N/A for pre-revenue entities; new-company onboarding sees confident-looking zeros.                                                            | MEDIUM   | Null-out percentages when denominator ≤0; display "—".                                             | ✅     |
+| 4   | **Sparkline min/max normalization exaggerates noise** — per-card auto-scaling turns near-flat series into dramatic slopes; without value-axis reference users over-read movement. Add hover tooltip with actual values + range caption.                                                   | LOW      | Tooltip + optional fixed-scale mode.                                                               | ⬜     |
+| 5   | **Decision analytics absent across the entire surface** — no events for period switches, drill-downs opened, Ask-AI prompts (which questions do owners actually ask?), scenario submissions, report downloads, budget views. The richest intent dataset in the product is uninstrumented. | HIGH     | Instrument all above with entityId+period context; feed roadmap prioritization.                    | ⬜     |
+| 6   | **Month axis ambiguity corrupts trend reading (data view of Eng #1)** — duplicated month names make quarter-over-quarter comparisons unreliable; combined with client-clock derivation, two users can see differently-labeled identical data.                                             | MEDIUM   | Server-authoritative labels (with year); covered jointly with Eng #1.                              | ⬜     |
 
 ---
 
-## Employee #14: Brand Voice — Messaging Consistency
+# PAGE: /dashboard/ledger
 
-**Scope:** Command Center page — all copy, terminology, tone consistency
-**Components reviewed:** `ai-greeting.tsx`, `ai-input.tsx`, `getting-started-checklist.tsx`, `proactive-briefing.tsx`, `conversation-thread.tsx`
+The record of truth: five tabs (Journal, Chart of Accounts, Trial Balance, Fixed Assets, Reconciliation), journal detail drawer with reversal flow, create-entry form, CSV exports, keyboard-navigable tabs.
 
 ---
-
-### BV-14-1 — "AI active" Violates Brand Terminology
-
-- **Severity:** MEDIUM
-- **Component:** `ai-greeting.tsx:30`
-- **Copy:** "AI active"
-- **Problem:** Brand terminology guide says to use "AI agent" or "AI" — not "AI active". "Active" is a status label, not brand voice. The brand voice is "Confident — We make definitive statements." "AI active" is a passive status indicator.
-- **Fix:** "AI ready" or remove the badge entirely. If keeping it, use: "AI is ready" — confident, definitive.
-
-### BV-14-2 — "Business Snapshot" Is Not Brand Voice
-
-- **Severity:** LOW
-- **Component:** `ai-greeting.tsx:20`
-- **Copy:** "Here's your business snapshot for {date}"
-- **Problem:** "Snapshot" is not in the terminology guide. Brand voice says: "We explain complex things simply." "Snapshot" is a metaphor that doesn't add clarity. Also, "Here's your" is passive — brand voice prefers active statements.
-- **Fix:** "Your AI analyzed your books for {date}" or "Here's what your AI found today". Active voice, AI-led.
-
-### BV-14-3 — "Activate Your AI Accounting Team" Uses Non-Brand Language
-
-- **Severity:** LOW
-- **Component:** `getting-started-checklist.tsx:143`
-- **Copy:** "Complete these steps to activate your AI accounting team"
-- **Problem:** "Activate" is not brand voice. Brand terminology uses "agents" not "team". Also, "complete these steps" is passive — brand voice prefers action-oriented language.
-- **Fix:** "Set up your AI agents" or "Get your AI agents working". Use "agents" consistently.
-
-### BV-14-4 — "The AI Handles Anything" Is an Overclaim
-
-- **Severity:** MEDIUM
-- **Component:** `getting-started-checklist.tsx:189`
-- **Copy:** "Or just type a question below — the AI handles anything."
-- **Problem:** Brand voice says: "We respect the reader's intelligence without dumbing down." Overclaiming "anything" is the opposite — it's a false promise that erodes trust. Also, brand terminology uses "AI agents" not just "the AI".
-- **Fix:** "Or ask the AI agents a question". Remove "anything" — be specific about what the AI does.
-
-### BV-14-5 — "Sorry" Violates Confident Voice Attribute
 
-- **Severity:** MEDIUM
-- **Component:** `use-dashboard-chat.ts:136`
-- **Copy:** "Sorry, I ran into a problem: {message}. Please try again."
-- **Problem:** Brand voice attribute #2 is "Confident — We make definitive statements. We're not wishy-washy or hedging." "Sorry" is hedging. It apologizes for something that might not be the product's fault. Brand voice for errors is: "Honest, solution-focused, no-blame."
-- **Fix:** "Something went wrong: {message}. Try again." or "The AI encountered an issue. Here's what happened." No apology — just facts and next steps.
+## DEPARTMENT: PRODUCT
 
-### BV-14-6 — "Thinking..." Is Too Generic for Brand Voice
+### Employee: Product Manager
 
-- **Severity:** LOW
-- **Component:** `conversation-thread.tsx:435`
-- **Copy:** "Thinking..."
-- **Problem:** Brand voice for AI communication is: "Helpful, transparent about confidence, human." "Thinking" is neither helpful nor transparent. The AI is doing specific work — say what it's doing.
-- **Fix:** Use dynamic labels: "Analyzing...", "Categorizing...", "Preparing...". Be specific about the AI's action.
+| #   | Finding                                                                                                                                                                                                                                                                                                           | Severity | Fix                                                                                                               | Status |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ----------------------------------------------------------------------------------------------------------------- | ------ |
+| 1   | **COA tab crashes on open** — header renders `accounts.length` (line 878) while `accounts` is undefined during initial fetch; the isLoading skeleton sits BELOW the header so the crash happens first. Opening Chart of Accounts on a cold cache throws TypeError.                                                | CRITICAL | Optional-chain the header counts or move them below loading guard.                                                | ⬜     |
+| 2   | **Natural-language search placeholder overpromises** — 'Search in natural language — try "Show me all entries over 10,000"' but searchQuery passes verbatim to the server `search` param (keyword matching unless an NL layer exists server-side). Amount-based and relational queries silently fail/return junk. | HIGH     | Verify server capability; if keyword-only, rewrite placeholder honestly OR wire NL parsing to structured filters. | ⬜     |
+| 3   | **Journal "Export" exports only the current 20-row page** — BulkExportButton receives the paginated slice; filename implies a full journal export. Accountants exporting "the books" get 1/N of them with zero warning.                                                                                           | HIGH     | Export all matching entries (server-side streaming) or label clearly "Export page".                               | ⬜     |
+| 4   | **Create Entry doesn't refresh the list** — onCreated callback only closes the form (comment says "Refetch journal data" but nothing invalidates); new entry invisible until unrelated poll/surface event. Same empty-refetch defect class already logged twice.                                                  | HIGH     | Invalidate journal.listWithDetails + getTabCounts on success; toast with new entry number.                        | ⬜     |
+| 5   | **Reversal leaves stale data everywhere** — reverseMutation onSuccess toasts+closes but invalidates nothing (journal list, tab counts, trial balance all stale); emitDataChanged not emitted unlike other surfaces. A reversed entry still reads "posted" in the list behind the drawer.                          | HIGH     | Invalidate affected queries + emit cross-surface event.                                                           | ⬜     |
+| 6   | **No date-range filter on the Journal** — only status chips + free-text search; isolating "last month's rent entries" requires the AI. The record-of-truth surface needs first-class period filtering.                                                                                                            | HIGH     | Add date-range picker aligned to fiscal periods.                                                                  | ⬜     |
+| 7   | **Pending/Draft entries are dead-end states** — drawer offers Explain/Audit/Reverse(posted only); no approve, edit, or delete path for non-posted entries. Entries stuck pending have no resolution UI here.                                                                                                      | MEDIUM   | Approve/post actions for pending (role-gated); edit/delete for drafts.                                            | ⬜     |
+| 8   | **Raw status enums leak in list** — list badge prints `entry.status` verbatim (`pending_review`, etc.) while the drawer maps to human labels; inconsistent + internal vocabulary exposed.                                                                                                                         | LOW      | Shared status→label/color mapper used by both.                                                                    | ⬜     |
+| 9   | **"Reversed" displayed as "Voided"** — drawer maps status reversed→"Voided"; accountants treat void (never existed) ≠ reversed (entered+cancelled) very differently. Mislabeling book state erodes professional trust.                                                                                            | MEDIUM   | Label accurately "Reversed"; keep distinct colors.                                                                | ⬜     |
+| 10  | **JE "Show audit trail" opens chat instead of the audit trail** — routes a prompt through module AI though /dashboard/audit-trail exists; deep-linkable filtered view is the right primitive.                                                                                                                     | LOW      | Link to audit-trail filtered by entry id.                                                                         | ⬜     |
+| 11  | **Tab counts never refresh** — getTabCounts lacks polling/invalidation; chips show yesterday's distribution while lists live-update.                                                                                                                                                                              | LOW      | Include counts in list query payload or invalidate together.                                                      | ⬜     |
 
-### BV-14-7 — "Export chat" Uses Non-Brand Terminology
+### Employee: Product Critic
 
-- **Severity:** LOW
-- **Component:** `ai-input.tsx:153`
-- **Copy:** "Export chat"
-- **Problem:** Brand terminology guide doesn't define "export" or "chat". The product uses "conversation" not "chat" (see ConversationSidebar, ConversationThread, ConversationMemory). "Export" is generic — brand voice prefers specific, action-oriented language.
-- **Fix:** "Download conversation" — matches the component naming convention.
+| #   | Finding                                                                                                                                                                                                                                                  | Severity | Fix                                                                                   | Status      |
+| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------------------------------------------------------- | ----------- |
+| 1   | **Accounts don't drill into their transactions** — clicking any COA row fires an AI chat prompt; there is no account-statement view (its ledger lines, running balance). The single most natural interaction on a chart of accounts terminates in prose. | HIGH     | Account drawer/page listing its journal lines + balance trend; keep Ask-AI secondary. | ⬜          |
+| 2   | **Trial balance rows are inert** — COA rows respond to click; TB rows (same accounts!) do nothing. Inconsistent interactivity between views of the same data.                                                                                            | MEDIUM   | Reuse account drill-down from PC #1.                                                  | ⬜          |
+| 3   | **Out-of-balance state is a dead end** — red banner announces imbalance but offers no "locate the imbalance" helper (largest contributors, recent unbalanced drafts). The moment users need navigation most, they get color alone.                       | HIGH     | Add diagnostic action: rank suspect entries by delta proximity/date.                  | ⬜          |
+| 4   | **Empty journal state lacks any CTA** — passive "Entries will appear here as agents post them"; COA empty-state has "Set up with AI", journal has nothing (no Create shortcut, no connect prompt).                                                       | LOW      | Mirror COA pattern: primary CTA + agent explanation.                                  | ⬜          |
+| 5   | **isAiGenerated + createdBy attribution is strong — PASS** — provenance badges directly serve the audit mission; extend this pattern (who/what/when) rather than reinventing elsewhere.                                                                  | —        | Keep; replicate.                                                                      | ✅ Baseline |
+| 6   | **Export offers no format/scope options** — single unlabeled "Export" (CSV implied); FP page trains users to expect pdf/excel/word choices.                                                                                                              | LOW      | Format menu + scope choice (current filter/page/all).                                 | ⬜          |
 
-### BV-14-8 — "Submit" Button Violates Action-Oriented Voice
+### Employee: UX Writer
 
-- **Severity:** LOW
-- **Component:** `conversation-thread.tsx:118`
-- **Copy:** "Submit"
-- **Problem:** Brand voice for buttons is: "Direct action — 'Connect Bank' not 'Submit'". "Submit" is generic and doesn't tell the user what will happen.
-- **Fix:** Use action-specific labels: "Send details", "Confirm", or match the action name.
+| #   | Finding                                                                                                                                                                                                                                           | Severity | Fix                                                                           | Status      |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ----------------------------------------------------------------------------- | ----------- |
+| 1   | **NL-search placeholder sets unachievable expectations** (product twin PM #2) — even the examples chosen ("over 10,000") guarantee failure under keyword search; worst-case copy placement: the input users trust most on the books.              | HIGH     | Align copy to real capability today; restore aspirational copy when NL lands. | ⬜          |
+| 2   | **"No lines found" is engineer-speak** — an entry without lines is a data anomaly; message reads like an empty inbox.                                                                                                                             | LOW      | "This entry has no line items — contact support if you expect activity."      | ⬜          |
+| 3   | **Dev-experiment strings shipped** — sr-only button labeled "Trigger undo toast for trial balance" + toast "Undo not needed — no data changed" read like leftover scaffolding in the most serious surface of the product.                         | MEDIUM   | Remove the dead undo wiring entirely (see Eng #6 / PM alignment).             | ⬜          |
+| 4   | **Status vocabulary split-brain** — list lowercase enums, drawer Title Case, "Voided" vs reversed semantics (PM #8/#9); three treatments of one field confuse scanning.                                                                           | MEDIUM   | One canonical label set.                                                      | ⬜          |
+| 5   | **Reversal dialog copy is precise — PASS baseline** — "will create a new entry that cancels out this one" + required reason + concrete placeholder matches accounting mental models exactly; canonical example for destructive-financial dialogs. | —        | Keep; reuse phrasing for void/approve flows.                                  | ✅ Baseline |
 
-### BV-14-9 — "All Clear" Missing AI Agent Language
-
-- **Severity:** LOW
-- **Component:** `proactive-briefing.tsx:210`
-- **Copy:** "All clear — nothing needs your attention right now."
-- **Problem:** This is close to brand voice but misses the AI agent language opportunity. Brand voice says: "AI agents handle 80%+ of bookkeeping without intervention." The "all clear" state should show what the AI did, not just that nothing is wrong.
-- **Fix:** "All clear — your AI agents handled 47 transactions today. Nothing needs your attention."
-
-### BV-14-10 — "AI-curated" Badge Uses Non-Brand Terminology
-
-- **Severity:** LOW
-- **Component:** `proactive-briefing.tsx:188`
-- **Copy:** "AI-curated"
-- **Problem:** "Curated" is not brand terminology. Brand voice uses "AI agents" and specific action verbs. "Curated" is vague — what did the AI actually do? Select? Analyze? Generate?
-- **Fix:** Remove the badge (redundant with heading) or change to "AI-generated" which is more transparent.
-
----
-
-### Summary — Brand Voice
-
-| Severity  | Count  |
-| --------- | ------ |
-| HIGH      | 0      |
-| MEDIUM    | 3      |
-| LOW       | 7      |
-| **Total** | **10** |
-
 ---
 
-_Next employee: CEO/Founder (#19)_
-
----
+## DEPARTMENT: DESIGN
 
-## Employee #19: CEO/Founder — Strategic Vision & Product-Market Fit
+### Employee: Design Critic
 
-**Scope:** Command Center page — strategic alignment, AI-native positioning, activation, retention
-**Components reviewed:** `page.tsx`, `ai-greeting.tsx`, `getting-started-checklist.tsx`, `proactive-briefing.tsx`, `conversation-thread.tsx`
+| #   | Finding                                                                                                                                                                                                                                                                           | Severity | Fix                                                                         | Status |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | --------------------------------------------------------------------------- | ------ |
+| 1   | **Light-mode-only hardcodes break dark mode** — reverse button `border-red-200 bg-red-50 hover:bg-red-100` (lines 452, plus dialog surfaces) assume white background; in dark theme these render blinding pale chips. Identical defect class empworks already fixed on Help page. | HIGH     | Token-based destructive styling (destructive/10 backgrounds).               | ⬜     |
+| 2   | **Overlay treatment inconsistent across drawers** — this drawer dims via bg-foreground/10 blur-2px; Activity Hub + FP drawers use bg-black/50 blur-sm. Three drawer patterns diverging page by page.                                                                              | MEDIUM   | One Sheet/Drawer primitive (also solves trap/labelledby gaps logged twice). | ⬜     |
+| 3   | **Focus not trapped nor restored** — ESC works (window listener — good), but tabbing escapes behind overlay and closing returns focus nowhere (was opened from a card button).                                                                                                    | HIGH     | Shared primitive fix: trap + restore.                                       | ⬜     |
+| 4   | **statusColor stringly-typed contract** — "emerald"/"blue"/… strings mapped through nested ternaries; adding a status requires editing mapping chains in two files.                                                                                                               | LOW      | Typed status config map (single source).                                    | ⬜     |
+| 5   | **Hover-reveal Sparkles on COA rows invisible on touch** — same opacity-0→group-hover pattern flagged on Financial Pulse; affordance absent where hover doesn't exist.                                                                                                            | LOW      | Persistent subtle indicator on touch breakpoints.                           | ⬜     |
+| 6   | **Filter chip micro-typography persists** — 11px labels, 9px bold count pills; readability floor violations repeat across fourth page. Global type-scale task tracking here.                                                                                                      | LOW      | Execute global minimum-type-size pass once.                                 | ⬜     |
 
 ---
 
-### CEO-1 — Command Center Doesn't Show AI Value on First Load
+## DEPARTMENT: ENGINEERING
 
-- **Severity:** HIGH
-- **Component:** `page.tsx`
-- **Issue:** When a user first loads the Command Center, they see a greeting, a checklist, and an empty chat area. There's no immediate demonstration of AI value. The user has to type a question or click a checklist item to see the AI do anything. For an AI-native product, the first impression should be AI doing work, not waiting for input.
-- **Strategic Impact:** First-time users may not understand the AI-native value proposition. Activation rate drops if users don't experience AI value within 30 seconds.
-- **Fix:** On first load, show a proactive AI insight: "Your AI reviewed 47 transactions today and found 2 anomalies" or "AI categorized all transactions from last week." Show AI work, not just a chat box.
+### Employee: Engineering Critic
 
-### CEO-2 — Getting Started Checklist Doesn't Drive to "Aha Moment"
+| #   | Finding                                                                                                                                                                                                                                                     | Severity | Fix                                                                                                                          | Status |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------- | ------ |
+| 1   | **Undefined dereference crash (root cause of PM #1)** — `accounts.length` evaluated pre-data; also grouped reduce guards undefined but header doesn't. Fix + add error boundary per tab so one tab's crash can't blank the page.                            | CRITICAL | Optional chaining + per-tab Suspense/error isolation.                                                                        | ⬜     |
+| 2   | **Client-side FLOAT arithmetic on money** — debit/credit parsed via parseFloat and summed with + for drawer totals AND balance check (AGENTS.md explicitly forbids float money math); sub-cent display drift possible against decimal-backed server values. | HIGH     | Sum integer minor units (or decimal.js) client-side; ideally server returns precomputed totals (it already has them for TB). | ⬜     |
+| 3   | **Balance tolerance re-implemented in UI** — Math.abs(diff)<0.01 duplicates the server's balancing invariant with independent precision semantics; two laws for one invariant.                                                                              | MEDIUM   | Trust server-computed balanced flag (getById should provide); render-only check if needed.                                   | ⬜     |
+| 4   | **Keystroke-driven search floods the DB** — every character triggers listWithDetails; no debounce.                                                                                                                                                          | MEDIUM   | 300ms debounce + min-length 2; cancel in-flight via traceroute dedupe (react-query default keys handle).                     | ⬜     |
+| 5   | **Offset pagination races mutations** — posting/creating while paging shifts offsets (skipped/duplicated rows); AGENTS conventions prefer cursors.                                                                                                          | LOW      | Cursor pagination on journal list.                                                                                           | ⬜     |
+| 6   | **Dead useUndo scaffolding in Trial Balance** — hidden sr-only trigger button + no-op undo handler ship complexity and confusion for zero function (see UX #3).                                                                                             | LOW      | Delete block.                                                                                                                | ⬜     |
+| 7   | **Inline structural types duplicated over API output** — entry.lines param retyping repeats reports-router drift pattern flagged on FP.                                                                                                                     | LOW      | Infer from tRPC types.                                                                                                       | ⬜     |
+| 8   | **Wrapper components add nothing** — FixedAssetsViewWrapper/ReconciliationViewWrapper pure pass-throughs.                                                                                                                                                   | LOW      | Use components directly.                                                                                                     | ⬜     |
 
-- **Severity:** HIGH
-- **Component:** `getting-started-checklist.tsx`
-- **Issue:** The 5-step checklist is designed for activation, but step 1 ("Ask your first question") is the real aha moment — when the AI responds intelligently. However, the checklist doesn't emphasize this. Steps 2-5 (connect bank, review accounts, create invoice, close month) are operational tasks that don't demonstrate AI intelligence.
-- **Strategic Impact:** Users may complete operational steps without ever experiencing the AI's core value — intelligent responses to natural language questions.
-- **Fix:** Restructure the checklist to front-load the aha moment:
-  1. Ask the AI a question (aha moment)
-  2. See AI categorize your transactions (demonstrate AI work)
-  3. Connect a bank (data source for AI)
-  4. Review AI's suggestions (human-in-the-loop)
-  5. Close your first month (complete loop)
-
-### CEO-3 — ProactiveBriefing Doesn't Quantify AI Value
-
-- **Severity:** MEDIUM
-- **Component:** `proactive-briefing.tsx`
-- **Issue:** The AI briefing shows alerts (deadlines, approvals, cash position) but doesn't quantify what the AI did. It says "nothing needs your attention" but doesn't say "AI processed 47 transactions" or "AI categorized 127 entries." The user doesn't see the AI's work.
-- **Strategic Impact:** Users don't perceive AI value because they can't see what the AI did. This reduces retention and willingness to pay.
-- **Fix:** Always show AI activity metrics: "AI processed 47 transactions today" or "AI categorized 127 entries with 94% accuracy." Quantify AI work.
-
-### CEO-4 — No Social Proof or Trust Signals on Command Center
-
-- **Severity:** MEDIUM
-- **Component:** `page.tsx`
-- **Issue:** The Command Center has no social proof, trust signals, or credibility indicators. For an AI-native product that handles financial data, trust is critical. Users need to see that others trust the AI with their books.
-- **Strategic Impact:** New users may hesitate to trust AI with financial data without social proof.
-- **Fix:** Add subtle trust signals: "Trusted by 500+ businesses" in the greeting area, or "Every action logged for audit" in the AI status badge.
-
-### CEO-5 — Conversation Thread Doesn't Show AI Confidence Prominently
-
-- **Severity:** MEDIUM
-- **Component:** `conversation-thread.tsx`
-- **Issue:** Confidence scores are shown on individual messages (`<ConfidenceBadge score={msg.confidence / 100} />`), but they're small and easy to miss. For an AI-native product, confidence is the primary trust mechanism. It should be more prominent.
-- **Strategic Impact:** Users who don't notice confidence scores may not trust the AI's responses. Confidence is our key differentiator.
-- **Fix:** Make confidence more prominent:
-  1. Show confidence as a larger, colored indicator (green > 90%, yellow 70-90%, red < 70%)
-  2. Add a brief explanation: "AI is 94% confident" not just a badge
-  3. Show confidence in the streaming indicator: "Thinking... (92% confident)"
-
-### CEO-6 — No Path from Free to Paid on Command Center
-
-- **Severity:** MEDIUM
-- **Component:** `page.tsx`
-- **Issue:** The Command Center has no upgrade prompt, pricing reference, or conversion path. If a free-tier user is hitting limits, there's no way to discover paid plans from the primary surface.
-- **Strategic Impact:** Free users who love the product can't easily upgrade. Conversion opportunity lost.
-- **Fix:** Add a subtle upgrade prompt when free-tier limits are approached: "You've used 18/20 AI queries this month. Upgrade for unlimited." Or: "AI processing complete. [Upgrade for more AI agents]"
-
-### CEO-7 — No Retention Hooks in Command Center
-
-- **Severity:** MEDIUM
-- **Component:** `page.tsx`
-- **Issue:** The Command Center has no daily/weekly hooks to bring users back. No "AI has new insights for you" notification, no "Your AI found something interesting" prompt, no scheduled briefing summary.
-- **Strategic Impact:** Users may forget to check the platform. No pull mechanism to drive daily engagement.
-- **Fix:** Add daily hooks:
-  1. Push notification: "AI found 3 things to review today"
-  2. Email digest: "Your AI's weekly summary is ready"
-  3. Greeting update: "Good morning, {name}. Your AI has 5 new insights."
-
-### CEO-8 — Command Center Lacks Competitive Differentiation Display
-
-- **Severity:** LOW
-- **Component:** `ai-greeting.tsx`
-- **Issue:** The greeting and AI status don't communicate what makes Xenboox different from QuickBooks/Xero. The user sees "AI active" but doesn't understand why this AI is better than competitors' AI features.
-- **Strategic Impact:** Users may not understand the AI-native positioning. Competitive advantage is invisible.
-- **Fix:** Add subtle differentiation: "AI agents processing your books (19 specialized agents)" or "AI-native accounting — not bolt-on AI."
-
 ---
-
-### Summary — CEO/Founder
-
-| Severity  | Count |
-| --------- | ----- |
-| HIGH      | 2     |
-| MEDIUM    | 5     |
-| LOW       | 1     |
-| **Total** | **8** |
 
----
+## DEPARTMENT: SECURITY
 
-## Employee #13: Customer Success Manager — Onboarding & Retention
+### Employee: Security Engineer (CSO)
 
-**Scope:** Command Center page — onboarding flow, activation, retention hooks, health indicators
-**Components reviewed:** `getting-started-checklist.tsx`, `proactive-briefing.tsx`, `page.tsx`, `ai-greeting.tsx`
+| #   | Finding                                                                                                                                                                                                                                      | Severity      | Fix                                                                | Status |
+| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- | ------------------------------------------------------------------ | ------ |
+| 1   | **Role gating on reversal/posting UNVERIFIED** — journal.reverse mutates financial history; confirm server denies Viewer/entry-creator-self-reversal per separation-of-duties (creator ≠ reverser), and writes who/why to append-only audit. | HIGH (verify) | Server-side role assertion + integration tests; document SoD rule. | ⬜     |
+| 2   | **journal.getById ownership predicate UNVERIFIED** — client sends bare id; confirm entityId scoping like chat.ts (404 on cross-entity). Any miss here exposes full journal lines cross-tenant.                                               | HIGH (verify) | Audit procedure; test cross-entity denial.                         | ⬜     |
+| 3   | **CSV export injection reuse** — journal/COA exports flow through BulkExportButton; confirm shared sanitizeCell() (from audit-trail fix) applies here too; descriptions are free-text user/agent content (=,+,-,@ prefixes).                 | MEDIUM        | Central sanitizer + regression tests.                              | ⬜     |
+| 4   | **Exports unaudited (repeat finding, financial grade)** — journal/COA/TB downloads leave no server trace; on the general ledger this is an enterprise-sales blocker.                                                                         | MEDIUM        | Emit export audit events server-side.                              | ⬜     |
+| 5   | **Reason field length/content unconstrained client-side** — reverse reason input lacks maxLength; multi-MB paste lands in DB/audit/export chains.                                                                                            | LOW           | zod max(500) + textarea instead of input.                          | ⬜     |
 
 ---
-
-### CS13-1 — Getting Started Checklist Progress Not Persisted Server-Side
-
-- **Severity:** HIGH
-- **Component:** `getting-started-checklist.tsx`
-- **Issue:** Checklist progress and dismiss state are stored in `localStorage` only. A user who logs in from a different browser/device sees the checklist fresh every time. Progress is lost. For customer success, this means we can't track onboarding completion across devices.
-- **Impact:** Onboarding metrics are unreliable. We can't measure activation rate accurately. Users who switch devices appear as "not started" even after completing steps.
-- **Fix:** Persist onboarding progress server-side (in the user or entity record). Track completion events in the database so we can measure activation and intervene when users stall.
-
-### CS13-2 — No Stalling Detection in Onboarding Flow
-
-- **Severity:** HIGH
-- **Component:** `getting-started-checklist.tsx`
-- **Issue:** The checklist has no mechanism to detect when a user is stuck. If a user dismisses the checklist on day 1 and never completes any steps, there's no follow-up. No email, no in-app prompt, no intervention.
-- **Impact:** Users who stall during onboarding silently churn. We lose them without ever knowing they were stuck.
-- **Fix:** Add stalling detection:
-  1. If user hasn't completed step 1 after 24 hours → send reminder email
-  2. If user hasn't completed step 3 after 72 hours → trigger in-app prompt
-  3. If user hasn't completed all steps after 7 days → trigger CS outreach
 
-### CS13-3 — No "Aha Moment" Tracking
+## DEPARTMENT: DATA
 
-- **Severity:** MEDIUM
-- **Component:** `page.tsx`
-- **Issue:** The Command Center doesn't track when a user experiences their first "aha moment" — when the AI responds intelligently to a question. This is the most critical activation metric. Without it, we can't measure time-to-value.
-- **Impact:** We can't optimize onboarding to get users to aha moment faster. We can't predict churn based on aha delay.
-- **Fix:** Track the first AI response that the user acts on (approves, follows up, or rates positively). This is the aha moment. Log it to the activation funnel.
+### Employee: Data Analyst
 
-### CS13-4 — ProactiveBriefing Doesn't Show AI Value Over Time
+| #   | Finding                                                                                                                                                                                                                                         | Severity | Fix                                                                              | Status |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | -------------------------------------------------------------------------------- | ------ |
+| 1   | **Float-summed displayed totals risk cent drift** (data view of Eng #2) — reconciliation workflows compare these numbers to bank statements to the cent; any float artifact undermines the surface whose entire job is exactness.               | HIGH     | Integer/decimal pipeline end-to-end; snapshot-test famous float cases (0.1+0.2). | ⬜     |
+| 2   | **Debit/Credit column convention undocumented in TB** — positive balance→debit, negative→credit assumes signed-normal-balance encoding; accountants expecting natural balances may misread liabilities/equity. Define + tooltip the convention. | MEDIUM   | Document convention in caption/tooltips; validate against server sign semantics. | ⬜     |
+| 3   | **Stale tab counts distort operational picture** (twin of PM #11) — decisions like "clear the 12 pending" act on frozen numbers.                                                                                                                | LOW      | Joint fix with PM #11.                                                           | ⬜     |
+| 4   | **Zero analytics on the record-of-truth surface** — no events for searches (esp. failed NL attempts — goldmine for parser design), exports, reversals, creates, tab switches. Ledger usage patterns should drive the roadmap.                   | MEDIUM   | Instrument per above with entityId context.                                      | ⬜     |
+| 5   | **Total-count phrasing ambiguity** — "N entries total" beside filtered chips reads as global vs filtered ambiguously during filtering.                                                                                                          | LOW      | "N of M entries match current filters."                                          | ⬜     |
 
-- **Severity:** MEDIUM
-- **Component:** `proactive-briefing.tsx`
-- **Issue:** The briefing shows current alerts but doesn't show cumulative AI value. A user who's been using Xenboox for 3 months should see "AI has categorized 1,247 transactions this quarter" — not just today's alerts.
-- **Impact:** Users don't perceive long-term AI value. They see daily alerts but not the compound benefit of AI learning their business.
-- **Fix:** Add a "Your AI this month" section: transactions categorized, time saved, anomalies caught. Show cumulative value, not just daily alerts.
-
-### CS13-5 — No Health Score Indicators for the User
-
-- **Severity:** MEDIUM
-- **Component:** `page.tsx`
-- **Issue:** The Command Center doesn't show the user their own "health" or "progress" score. Users don't know how well they're using the product or what they should do next to get more value.
-- **Impact:** Users don't know what they're missing. No self-service path to better usage.
-- **Fix:** Add a subtle "Your setup is 60% complete" or "You're using 3 of 10 AI agents" indicator. Show progress and suggest next steps.
-
-### CS13-6 — No Daily Engagement Hook
-
-- **Severity:** MEDIUM
-- **Component:** `ai-greeting.tsx`
-- **Issue:** The greeting is static: "Good morning, {name}." It doesn't change based on what the AI did overnight or what needs attention. There's no reason for the user to come back daily.
-- **Impact:** Users don't develop a daily habit. No pull mechanism to drive daily engagement.
-- **Fix:** Make the greeting dynamic: "Good morning, {name}. Your AI processed 12 transactions overnight. 2 need your review." Show AI work that happened since last visit.
-
-### CS13-7 — No Churn Risk Indicators in Dashboard
-
-- **Severity:** LOW
-- **Component:** `page.tsx`
-- **Issue:** The Command Center doesn't surface churn risk indicators to the user (or to CS). If a user's AI usage is declining, there's no signal that intervention is needed.
-- **Impact:** We can't proactively intervene before churn. Churn happens without warning.
-- **Fix:** Track AI usage trends. If usage drops below threshold, trigger a CS alert. Show the user a "Your AI is ready to help" prompt to re-engage.
-
----
-
-### Summary — Customer Success Manager
-
-| Severity  | Count |
-| --------- | ----- |
-| HIGH      | 2     |
-| MEDIUM    | 4     |
-| LOW       | 1     |
-| **Total** | **7** |
-
 ---
 
-## Employee #16: DevOps Engineer — Infrastructure & Reliability
+# PAGE: /dashboard/operations
 
-**Scope:** Command Center page — SSE connections, caching, resource management, observability
-**Components reviewed:** `use-surface-sync.ts`, `use-dashboard-chat.ts`, `proactive-briefing.tsx`, `page.tsx`
+Money hub: MoneyFlowSummary (live badge, AI cash narrative, 4 stats), CashFlowChart, Money Out / Money In action columns, BankingCards (top-3), MobileMoneyCards, RecentTransactions (+detail drawer), ComplianceClose progress, PeopleGrid, AiQuickActions.
 
 ---
-
-### DO16-1 — SSE Reconnect Loops Forever Without Max Retries
-
-- **Severity:** HIGH
-- **File:** `use-surface-sync.ts:107`
-- **Issue:** The exponential backoff caps at 30 seconds but never stops reconnecting. If the SSE endpoint (`/api/agent-events`) is permanently down (e.g., Redis is down — confirmed by health check), the browser reconnects every 30 seconds indefinitely. This wastes network resources and generates log noise.
-- **Impact:** Battery drain on mobile, unnecessary network traffic, log pollution in production.
-- **Fix:** Add a max retry count (e.g., 10 attempts). After max retries, stop reconnecting and show a "Real-time updates unavailable" indicator. Reconnect on user interaction (tab focus, navigation).
-
-### DO16-2 — SSE EventSource Not Aborted on Entity Switch
-
-- **Severity:** MEDIUM
-- **File:** `use-surface-sync.ts:88`
-- **Issue:** When the user switches entities, the old EventSource is closed and a new one is created. However, the `connect()` function is called in a `useEffect` that depends on `entityId`. If `entityId` changes rapidly (e.g., user clicks through multiple entities), multiple EventSource connections could be in-flight simultaneously before the cleanup runs.
-- **Impact:** Brief period of multiple SSE connections, potential event cross-contamination between entities.
-- **Fix:** Add a cleanup function that closes the existing EventSource before creating a new one. Use a ref to track the current connection and abort it on entity switch.
-
-### DO16-3 — Fallback Queries Run Even When AI Briefing Succeeds
-
-- **Severity:** MEDIUM
-- **File:** `proactive-briefing.tsx:119-124`
-- **Issue:** `trpc.dashboard.getDashboardData` and `trpc.ingestion.getStats` are always enabled (`{ enabled: !!entityId }`). They run on every render even when the AI briefing succeeds. This wastes 2 extra DB queries per render.
-- **Impact:** Unnecessary API calls, increased DB load, slower page performance.
-- **Fix:** Only enable fallback queries when AI briefing fails: `{ enabled: !!entityId && isError }`.
-
-### DO16-4 — No Request Abort on Component Unmount for Streaming
-
-- **Severity:** MEDIUM
-- **File:** `use-dashboard-chat.ts:215`
-- **Issue:** The `useEffect` cleanup calls `cancelStream()`, but if the component unmounts during a streaming response, the abort might not complete before React unmounts the component. The `onComplete` and `onError` callbacks could still fire after unmount.
-- **Impact:** React warning: "Can't perform a React state update on an unmounted component." Potential memory leak.
-- **Fix:** Add a `isMounted` ref that's checked in `onComplete` and `onError` callbacks. Only set state if the component is still mounted.
-
-### DO16-5 — No SSE Health Check Endpoint
 
-- **Severity:** MEDIUM
-- **File:** `use-surface-sync.ts`
-- **Issue:** The SSE endpoint `/api/agent-events` is used for real-time sync but there's no health check to verify it's available. If the endpoint is down, the browser silently fails to reconnect (after max retries). There's no server-side monitoring of SSE connection health.
-- **Impact:** Silent failure of real-time sync. No alerting when SSE is down.
-- **Fix:** Add a health check endpoint for SSE: `/api/agent-events/health`. Monitor SSE connection count and error rate in observability.
+## DEPARTMENT: PRODUCT
 
-### DO16-6 — invalidateQueries Uses Unsafe Type Casting
+### Employee: Product Manager
 
-- **Severity:** MEDIUM
-- **File:** `use-surface-sync.ts:72`
-- **Code:** `const routerUtils = (utils as Record<string, unknown>)[router] as Record<string, { invalidate?: () => Promise<void> }> | undefined;`
-- **Issue:** The tRPC utils object is cast to `Record<string, unknown>` and then to a specific shape. If the tRPC router structure changes (e.g., a router is renamed), this cast silently fails — `proc.invalidate()` becomes `undefined` and the `typeof proc === "object"` check catches it, but the surface sync silently stops working.
-- **Impact:** Cross-surface sync silently breaks after tRPC router refactors. No error, no warning.
-- **Fix:** Use tRPC's typed utils directly. The `trpc.useUtils()` return type should be typed to the AppRouter, eliminating the need for casts.
+| #   | Finding                                                                                                                                                                                                                                                                                                                                      | Severity | Fix                                                                             | Status |
+| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------------------------------------------------- | ------ |
+| 1   | **Unknown runway asserted as "Sustainable"** — MoneyFlow AI-context maps null/undefined runway to the literal string "Sustainable" (lines 103–105). Missing calculation ≠ healthy business; identical fabricated-assurance defect already flagged on Financial Pulse (#1 Data) and Command Center briefing. Third occurrence of the pattern. | CRITICAL | Null → "Runway unknown"; reserve health language for computed values.           | ⬜     |
+| 2   | **Employees tile is hardcode-zero** — PeopleGrid ships `count: 0` with no payroll/employees query behind it; every user sees "0 total" forever. Fake metric on a primary nav tile.                                                                                                                                                           | HIGH     | Wire real employee count or render "Coming soon" state without a number.        | ⬜     |
+| 3   | **Vendors count counts bills, not vendors** — tile pulls `billsOverview.statusCounts.all` (number of BILLS) under the label "Vendors". Wrong entity entirely; count drifts wildly from real vendor relationships.                                                                                                                            | HIGH     | Query vendors table count; keep bill counts on the Bills row where they belong. | ⬜     |
+| 4   | **Customers tile links to the invoices page** — href `/dashboard/operations/invoices` although `/dashboard/operations/customers` exists. Users hunting the customer list land on invoice management.                                                                                                                                         | HIGH     | Link to customers subpage.                                                      | ⬜     |
+| 5   | **Banking shows max 3 accounts, silently** — `accounts.slice(0, 3)` with no "View all N accounts" escape; multi-bank entities have invisible accounts on the money hub.                                                                                                                                                                      | MEDIUM   | Show all (scroll/grid) or add overflow link to /operations/banking.             | ⬜     |
+| 6   | **"View all" opens chat, not the transaction list** — RecentTransactions header button routes an AI prompt; label promises navigation (fourth instance of this exact defect class across pages).                                                                                                                                             | MEDIUM   | Link to transactions surface; rename chat entry points "Ask AI".                | ⬜     |
+| 7   | **Payroll promised in three places, exists nowhere** — Quick Actions "Run payroll", Money Out "Payroll" row, and shell suggestion all invoke payroll flows while the platform has no employee records (see #2). Users hit dead-end conversations.                                                                                            | HIGH     | Gate payroll entries behind feature availability; hide until module ships.      | ⬜     |
+| 8   | **Money In row is decorative** — "Invoices Outstanding" shows an amber alert icon unconditionally and "AR" as its stat, though arOutstanding + overdue counts are already in dashboardData. The most important inbound number on the page isn't shown.                                                                                       | MEDIUM   | Display real AR total + overdue count; conditional urgency icon.                | ⬜     |
+| 9   | **Placeholder stat strings** — Estimates row shows static "Pending", Payroll row "Period": labels that carry zero information.                                                                                                                                                                                                               | LOW      | Bind real counts or remove the right-hand stat.                                 | ⬜     |
+| 10  | **"Live" badge is decoration** — pulsing dot implies realtime feed; queries are default-cached fetches with unknown staleness. Same false-status class as CC's "AI active".                                                                                                                                                                  | LOW      | Tie to actual subscription/poll state or drop.                                  | ⬜     |
 
-### DO16-7 — No Caching Strategy for AI Briefing
+### Employee: Product Critic
 
-- **Severity:** LOW
-- **File:** `proactive-briefing.tsx:82`
-- **Issue:** The AI briefing has `staleTime: 5 * 60 * 1000` (5 minutes) but no `cacheTime` or `gcTime` configuration. React Query's default `gcTime` is 5 minutes, meaning the cache is garbage-collected quickly. If the user navigates away and returns within 5 minutes, the briefing is re-fetched.
-- **Impact:** Unnecessary re-fetches when user navigates back to the Command Center.
-- **Fix:** Set `gcTime: 30 * 60 * 1000` (30 minutes) to keep the briefing cached longer. The data doesn't change frequently.
+| #   | Finding                                                                                                                                                                                                                                                          | Severity | Fix                                                                        | Status |
+| --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | -------------------------------------------------------------------------- | ------ |
+| 1   | **Bank account cards chat instead of drilling in** — clicking an account fires an AI prompt; there's no account statement view (transactions, balance trend). Fifth instance of the drill-down-dead-end anti-pattern; on the MONEY surface it hurts most.        | HIGH     | Route to account detail (existing banking subpage patterns); AI secondary. | ⬜     |
+| 2   | **Identical-looking rows do opposite things** — Money Out/In lists mix `<Link>` navigations and chat-opening `<button>`s with pixel-identical styling; users cannot predict outcomes. Add directional affordance (chevron vs sparkles) at minimum.               | HIGH     | Visual interaction contract per row type.                                  | ⬜     |
+| 3   | **Empty-state flash lies about connected banks** — BankingCards renders the "No bank accounts connected" dashed state whenever `accounts` is `[]`, including DURING load (no isLoading branch). Every fresh visit flashes "you have no banks" before data lands. | HIGH     | Loading skeleton before empty verdict.                                     | ⬜     |
+| 4   | **Reconcile offered twice on one screen** — Money In "Reconcile" row + AiQuickActions "Reconcile accounts" trigger the same conversation; duplicated entry points dilute both.                                                                                   | LOW      | Consolidate; one strong path per task.                                     | ⬜     |
+| 5   | **Transactions empty state has no path forward** — unlike Banking's Connect-with-AI state; new users see "No transactions yet" void.                                                                                                                             | LOW      | Mirror banking CTA pattern.                                                | ⬜     |
+| 6   | **CashFlowChart contract unverified** — fed the raw `cashPosition` query object plus separate isLoading; shape coupling between router response and chart props is implicit. Type it explicitly.                                                                 | LOW      | Explicit prop mapping from typed response.                                 | ⬜     |
 
-### DO16-8 — No SSE Connection Metrics Logged
+### Employee: UX Writer
 
-- **Severity:** LOW
-- **File:** `use-surface-sync.ts`
-- **Issue:** The SSE connection lifecycle (connect, disconnect, reconnect, error) is not logged or tracked. In production, there's no way to know how many SSE connections are active, how often reconnections happen, or if the endpoint is healthy.
-- **Impact:** No observability into real-time sync health. Can't diagnose SSE issues in production.
-- **Fix:** Log SSE lifecycle events: connection opened, connection closed, reconnection attempt, reconnection success/failure. Track metrics: active connections, reconnect rate, error rate.
+| #   | Finding                                                                                                                                                                            | Severity | Fix                                                    | Status      |
+| --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------------------------ | ----------- |
+| 1   | **"Sustainable" is a promise we can't keep** (copy view of PM #1) — worst-case word choice attached to worst-case missing data.                                                    | CRITICAL | "Runway unknown — connect more history."               | ⬜          |
+| 2   | **Decorative status chips say nothing** — "AI-categorized", "AI-tracked", "Match", "Period" are vibes, not information; four different non-answers in one column set.              | MEDIUM   | Replace with live counts or remove.                    | ⬜          |
+| 3   | **Bare "Loading..." violates house style** — ComplianceClose ignores the progressive-loading rule used elsewhere ("Loading money flow summary…" is fine; naked "Loading…" is not). | LOW      | "Checking close status…".                              | ⬜          |
+| 4   | **Five identical "Ask AI" targets** — repeated unlabeled links are indistinguishable to SR users and scanners alike.                                                               | LOW      | aria-label or visible context: "Ask AI about banking". | ⬜          |
+| 5   | **Instructional subtitle narrates the obvious** — "Click to ask the AI to handle these for you." Manual-speak over affordance.                                                     | LOW      | Cut; the sparkle styling carries the meaning.          | ⬜          |
+| 6   | **"Bills to Pay · N pending" is strong — PASS baseline** — concrete object + count + destination; reuse this row formula across Money In.                                          | —        | Keep; replicate.                                       | ✅ Baseline |
 
 ---
 
-### Summary — DevOps Engineer
+## DEPARTMENT: DESIGN
 
-| Severity  | Count |
-| --------- | ----- |
-| HIGH      | 1     |
-| MEDIUM    | 5     |
-| LOW       | 2     |
-| **Total** | **8** |
+### Employee: Design Critic
 
----
-
-## Employee #20: Competitor Analyst — Competitive Positioning
+| #   | Finding                                                                                                                                                                                                                                                                            | Severity | Fix                                                     | Status |
+| --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------------------------- | ------ |
+| 1   | **Arrow direction semantics look inverted** — incoming money gets ArrowDownRight (green), outgoing ArrowUpRight (red); most fintech conventions pair in=↑/↘-into-pot consistently. Whatever the intent, verify deliberate choice; current pairing reads backwards at glance speed. | MEDIUM   | Align arrow geometry with Money Flow metaphor app-wide. | ⬜     |
+| 2   | **bg-primary/8 non-standard fraction persists** — MoneyFlow header chip; part of the global compiled-CSS audit item.                                                                                                                                                               | LOW      | Global token pass.                                      | ⬜     |
+| 3   | **Link-vs-button visual sameness** (design twin of PC #2) — identical hover treatments for navigation and conversation rows breaks affordance grammar.                                                                                                                             | HIGH     | Distinct end-icon treatment.                            | ⬜     |
+| 4   | **Pulse animations ignore reduced-motion** — Live dot + any shimmer run regardless of prefers-reduced-motion (recurring).                                                                                                                                                          | LOW      | motion-safe gating, global.                             | ⬜     |
+| 5   | **Micro-typography floor violations continue** — 9px badges, 10px labels throughout (tracked globally).                                                                                                                                                                            | LOW      | Global type pass.                                       | ⬜     |
 
-**Scope:** Command Center page — competitive differentiation, AI-native positioning, feature comparison
-**Components reviewed:** `ai-greeting.tsx`, `proactive-briefing.tsx`, `getting-started-checklist.tsx`, `page.tsx`
-
 ---
-
-### CA20-1 — Command Center Doesn't Show AI-Native Differentiation
-
-- **Severity:** HIGH
-- **Component:** `page.tsx`
-- **Issue:** The Command Center looks like any other AI chat interface. There's nothing that communicates "this is AI-native accounting, not AI bolted onto old software." QuickBooks has AI features too — our differentiation is invisible.
-- **Competitive Impact:** Users comparing Xenboox to QuickBooks/Xero AI features won't understand why we're different. The AI-native advantage is invisible.
-- **Fix:** Add subtle differentiation: "19 AI agents working for you" in the greeting, or "AI-native accounting — not bolt-on AI" as a tagline. Show the agent hierarchy somewhere visible.
-
-### CA20-2 — ProactiveBriefing Doesn't Show AI Agent Activity
-
-- **Severity:** MEDIUM
-- **Component:** `proactive-briefing.tsx`
-- **Issue:** The briefing shows alerts (deadlines, approvals, cash position) but doesn't show which AI agents are working. Competitors have generic AI — we have 19 specialized agents. This isn't visible anywhere.
-- **Competitive Impact:** Users don't understand the agent hierarchy advantage. They see "AI briefing" not "CFO Agent + Controller Agent + 17 worker agents coordinated."
-- **Fix:** Show agent activity: "CFO Agent analyzed your financials. Controller Agent found 3 anomalies. Payroll Agent processed 12 salaries." Make the hierarchy visible.
-
-### CA20-3 — Getting Started Doesn't Highlight AI Capabilities
-
-- **Severity:** MEDIUM
-- **Component:** `getting-started-checklist.tsx`
-- **Issue:** The 5-step checklist focuses on operational tasks (connect bank, review accounts, create invoice). It doesn't highlight AI capabilities — what the AI can do that competitors can't.
-- **Competitive Impact:** Users complete onboarding without understanding AI capabilities. They use Xenboox like QuickBooks — missing the AI-native value.
-- **Fix:** Add AI capability discovery to onboarding: "Ask AI to categorize your transactions" or "Let AI review your chart of accounts." Show AI doing things competitors can't.
-
-### CA20-4 — No Confidence Score Visibility for Competitive Trust
 
-- **Severity:** MEDIUM
-- **Component:** `conversation-thread.tsx`
-- **Issue:** Confidence scores are shown on individual messages but are small and easy to miss. Competitors don't have confidence scoring — this is a unique trust mechanism that should be more visible.
-- **Competitive Impact:** Users don't notice our confidence scoring. They don't understand why it matters. Competitors don't have it, so we should showcase it.
-- **Fix:** Make confidence more prominent. Add a tooltip explaining: "Confidence score — how sure the AI is about this. Higher = more reliable." Educate users on why this matters.
+## DEPARTMENT: ENGINEERING
 
-### CA20-5 — AI Greeting Doesn't Quantify AI Value vs Competitors
+### Employee: Engineering Critic
 
-- **Severity:** LOW
-- **Component:** `ai-greeting.tsx`
-- **Issue:** The greeting says "Good morning, {name}" but doesn't show what the AI did overnight. Competitors' AI features are passive — ours should be active and visible.
-- **Competitive Impact:** Users don't see AI working for them. They compare our greeting to QuickBooks' static dashboard and see no difference.
-- **Fix:** "Good morning, {name}. Your AI agents processed 47 transactions overnight. 2 need your review." Show AI work happening.
+| #   | Finding                                                                                                                                                                                                                                                             | Severity | Fix                                                                       | Status |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------------------------------------------- | ------ |
+| 1   | **No query surfaces errors anywhere on the page** — every useQuery destructures only data; isError/refetch ignored page-wide. Failures render as confident zeros ("0 pending", "$0 coming in") — silent-wrong-data pattern, the most expensive kind on a money hub. | HIGH     | Standard error+retry block per card; never render zeros for failed loads. | ⬜     |
+| 2   | **parseFloat on balance strings client-side** — `parseFloat(account.currentBalance ?? "0")` continues the money-as-float violation logged on Ledger; server should emit numbers/minor-units.                                                                        | HIGH     | Typed numeric contract from banking router.                               | ⬜     |
+| 3   | **Nested optional-chain gap** — `billsOverview?.statusCounts.overdue` guards the first hop only; statusCounts undefined throws. Backend contract may guarantee it today; one schema change = crash.                                                                 | MEDIUM   | Full chaining or zod-parsed selector.                                     | ⬜     |
+| 4   | **PeopleGrid runs a full customers query (limit:1) just for totalCount** — wasteful fetch pattern; counts endpoint or overview payload field.                                                                                                                       | LOW      | Dedicated counts source.                                                  | ⬜     |
+| 5   | **Hardcoded en-US date formatting** — transaction dates locked to US locale in a global product (i18n convention breach; recurring).                                                                                                                                | LOW      | Shared locale-aware date util.                                            | ⬜     |
+| 6   | **aria-busy covers 2 of ~9 queries** — busy signal misrepresents actual loading coverage.                                                                                                                                                                           | LOW      | Derive from all page queries.                                             | ⬜     |
 
 ---
 
-### Summary — Competitor Analyst
+## DEPARTMENT: SECURITY
 
-| Severity  | Count |
-| --------- | ----- |
-| HIGH      | 1     |
-| MEDIUM    | 3     |
-| LOW       | 1     |
-| **Total** | **5** |
+### Employee: Security Engineer (CSO)
 
----
-
-## Grand Summary — All Employees (24/24 done)
-
-| Employee              | Department       | HIGH   | MEDIUM | LOW    | Total   |
-| --------------------- | ---------------- | ------ | ------ | ------ | ------- |
-| Product Manager       | Product          | 4      | 11     | 5      | 20      |
-| Engineering Critic    | Engineering      | 4      | 9      | 3      | 16      |
-| Design Critic         | Design           | 1      | 7      | 4      | 12      |
-| UX Writer             | Content          | 0      | 6      | 6      | 12      |
-| Copywriter            | Content          | 0      | 4      | 6      | 10      |
-| Brand Voice           | Content          | 0      | 3      | 7      | 10      |
-| CEO/Founder           | Leadership       | 2      | 5      | 1      | 8       |
-| Customer Success      | Customer Success | 2      | 4      | 1      | 7       |
-| DevOps Engineer       | DevOps           | 1      | 5      | 2      | 8       |
-| Competitor Analyst    | Research         | 1      | 3      | 1      | 5       |
-| Software Architect    | Engineering      | 3      | 4      | 1      | 8       |
-| Data Analyst          | Research         | 1      | 3      | 2      | 6       |
-| Researcher            | Research         | 1      | 3      | 2      | 6       |
-| Finance Analyst       | Operations       | 1      | 3      | 2      | 6       |
-| Project Manager       | Operations       | 1      | 3      | 2      | 6       |
-| QA                    | Testing          | 2      | 3      | 1      | 6       |
-| Eval Runner           | Testing          | 2      | 2      | 1      | 5       |
-| Test Coverage         | Testing          | 2      | 2      | 1      | 5       |
-| Agent Eval            | Testing          | 2      | 2      | 1      | 5       |
-| COO                   | Leadership       | 2      | 2      | 2      | 6       |
-| Strategy Manager      | Leadership       | 2      | 2      | 1      | 5       |
-| Onboarding Specialist | Customer Success | 2      | 2      | 1      | 5       |
-| Content Strategist    | Content          | 1      | 2      | 1      | 4       |
-| Marketing Manager     | Marketing        | 2      | 1      | 1      | 4       |
-| Product Designer      | Design           | 1      | 2      | 1      | 4       |
-| Product Analyst       | Product          | 2      | 1      | 1      | 4       |
-| Product Reviewer      | Product          | 2      | 1      | 1      | 4       |
-| Marketing Critique    | Marketing        | 1      | 1      | 1      | 3       |
-| Product Critique      | Product          | 1      | 1      | 1      | 3       |
-| Content Critique      | Content          | 1      | 1      | 1      | 3       |
-| Automation Specialist | Operations       | 1      | 1      | 1      | 3       |
-| Sales Representative  | Sales            | 2      | 1      | 0      | 3       |
-| Lead Researcher       | Sales            | 1      | 1      | 1      | 3       |
-| **TOTAL**             |                  | **47** | **98** | **60** | **205** |
-
----
+| #   | Finding                                                                                                                                                                                                                                                | Severity        | Fix                                                                 | Status           |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------- | ------------------------------------------------------------------- | ---------------- |
+| 1   | **Banking data scoping UNVERIFIED** — getOverview/getCashPosition/listTransactions must enforce entityId predicates server-side (bank balances are crown-jewel data). Audit procedures + cross-entity denial tests like chat.ts verification.          | HIGH (verify)   | Ownership predicate audit across banking router.                    | ⬜               |
+| 2   | **MobileMoneyCards external integration posture UNKNOWN** — mobile-money providers handle regulated flows; verify no provider keys/secrets in client bundle, phone/account numbers masked in list responses, webhook signatures validated server-side. | HIGH (verify)   | Component + provider audit; move sensitive calls server-side proxy. | ⬜               |
+| 3   | **Payment-link generation via chat flow** — creating payable financial instruments conversationally requires the same authorization+audit rigor as approvals (role check, immutable record, amount binding). Verify the agent toolpath enforces it.    | MEDIUM (verify) | Server-side authz + audit event on payment-link creation.           | ⬜               |
+| 4   | **Transaction descriptions render as text nodes — PASS** — React escaping holds; maintain when rich rendering arrives.                                                                                                                                 | —               | Guardrail.                                                          | ✅ Verified safe |
 
-## Employee #21: Software Architect — Architecture & System Design
-
-**Scope:** Command Center page — component architecture, state management, data flow, scalability
-**Files reviewed:** `page.tsx`, `use-dashboard-chat.ts`, `use-surface-sync.ts`, `conversation-thread.tsx`, `proactive-briefing.tsx`
-
 ---
-
-### SA21-1 — Monolithic Dashboard Page Manages Too Much State
-
-- **Severity:** HIGH
-- **File:** `page.tsx`
-- **Issue:** The dashboard page component manages: conversation state, sidebar state, memory panel state, and surface sync. This violates single-responsibility. When any of these subsystems change, the entire page re-renders.
-- **Architectural Impact:** Performance degrades as features are added. State changes in one subsystem cascade to unrelated UI.
-- **Fix:** Extract state into dedicated providers or use a state machine (XState) for conversation management. Each surface should have its own context provider.
-
-### SA21-2 — No Error Boundary Around Conversation Thread
 
-- **Severity:** HIGH
-- **File:** `conversation-thread.tsx`
-- **Issue:** The conversation thread has no error boundary. If a message component throws (e.g., malformed data table, broken approval card), the entire Command Center crashes. The user sees a blank page.
-- **Architectural Impact:** Single component failure brings down the entire primary surface.
-- **Fix:** Add an error boundary around each message type. If one message fails, show a fallback for that message and keep the rest of the conversation working.
+## DEPARTMENT: DATA
 
-### SA21-3 — SSE Connection Has No Graceful Degradation
+### Employee: Data Analyst
 
-- **Severity:** HIGH
-- **File:** `use-surface-sync.ts`
-- **Issue:** If SSE is unavailable (Redis down, network issues), the app has no fallback. Real-time sync silently fails. The user doesn't know they're seeing stale data.
-- **Architectural Impact:** Silent data staleness. Users make decisions based on outdated information.
-- **Fix:** Implement polling fallback when SSE is unavailable. Show a "Real-time updates paused" indicator. Periodically check SSE health and reconnect when available.
+| #   | Finding                                                                                                                                                                                                  | Severity | Fix                                                                        | Status |
+| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | -------------------------------------------------------------------------- | ------ |
+| 1   | **Wrong-entity counts corrupt the People grid** (data view of PM #2/#3) — vendors=bills, employees=fake-zero; downstream dashboards consuming these tiles inherit garbage.                               | HIGH     | Correct sources; add contract tests on count semantics.                    | ⬜     |
+| 2   | **formatCurrency without currency argument sits on BANK BALANCES** — multi-currency entities may see every account normalized to one symbol; balances are the least forgiving place for symbol guessing. | HIGH     | Per-account currency from banking payload → explicit formatCurrency calls. | ⬜     |
+| 3   | **"This month" claims lack period anchoring** — AI summary sentence asserts month scope while getCashPosition period definition is implicit; staleTime unknown; no as-of timestamp anywhere.             | MEDIUM   | Period + generatedAt surfaced (global freshness pattern).                  | ⬜     |
+| 4   | **Decision analytics uninstrumented** — no events for quick-action usage, account card clicks, drawer opens, reconcile starts; Operations is the action surface — its funnel is invisible.               | MEDIUM   | Instrument per above.                                                      | ⬜     |
+| 5   | **Failed loads present as $0/0 totals** (data twin of Eng #1) — zeros enter mental math and screenshots; distinguish absence-of-data from value-zero in every stat tile.                                 | HIGH     | Null-state glyph ("—") for unloaded, 0 only when measured.                 | ⬜     |
 
-### SA21-4 — No Request Deduplication for Concurrent Queries
-
-- **Severity:** MEDIUM
-- **File:** `proactive-briefing.tsx`
-- **Issue:** Multiple components can trigger the same tRPC query simultaneously (e.g., briefing + dashboard data). No request deduplication at the application level. React Query handles this internally, but the query configuration doesn't leverage it optimally.
-- **Architectural Impact:** Potential duplicate API calls during page load.
-- **Fix:** Ensure query keys are consistent. Use `queryClient.cancelQueries()` on entity switch to abort stale requests.
-
-### SA21-5 — Conversation State Not Serializable for Recovery
-
-- **Severity:** MEDIUM
-- **File:** `use-dashboard-chat.ts`
-- **Issue:** Conversation messages are stored in React state only. If the browser crashes or the user accidentally closes the tab, the in-progress conversation is lost. There's no draft autosave.
-- **Architectural Impact:** Users lose work. No recovery mechanism.
-- **Fix:** Autosave conversation state to localStorage or server every 30 seconds. Restore on page load.
-
-### SA21-6 — No Optimistic Updates for Approval Actions
-
-- **Severity:** MEDIUM
-- **File:** `conversation-thread.tsx`
-- **Issue:** When a user clicks Approve/Reject, the action sends a message and waits for the server response. During this time, the button shows "Processing..." but the UI doesn't update optimistically. The user waits without feedback.
-- **Architectural Impact:** Poor perceived performance. Users think the app is frozen.
-- **Fix:** Implement optimistic updates: immediately show the approval action in the conversation, then reconcile with server response.
-
-### SA21-7 — No Component-Level Performance Monitoring
-
-- **Severity:** MEDIUM
-- **File:** `page.tsx`
-- **Issue:** No performance monitoring for component render times. If a component becomes slow (e.g., conversation thread with 100+ messages), there's no way to detect it in production.
-- **Architectural Impact:** Performance degradation goes unnoticed until users complain.
-- **Fix:** Add React DevTools Profiler integration or custom performance marks for critical components. Track render times in observability.
-
-### SA21-8 — SSE and tRPC Use Different Error Handling Patterns
-
-- **Severity:** LOW
-- **Files:** `use-surface-sync.ts`, `use-dashboard-chat.ts`
-- **Issue:** SSE uses manual error handling with try/catch and reconnect logic. tRPC uses React Query's built-in error handling. These inconsistent patterns make the codebase harder to maintain.
-- **Architectural Impact:** Inconsistent error handling across the dashboard.
-- **Fix:** Standardize error handling: use React Query for all data fetching, wrap SSE in a custom hook that exposes a tRPC-like interface.
-
 ---
 
-### Summary — Software Architect
+# PAGE: /dashboard/audit-trail
 
-| Severity  | Count |
-| --------- | ----- |
-| HIGH      | 3     |
-| MEDIUM    | 4     |
-| LOW       | 1     |
-| **Total** | **8** |
+Compliance surface: server-filtered log entries (search/surface/date), expandable detail rows with JSON change dump, page-limited CSV export, stats cards.
 
 ---
 
-## Employee #22: Data Analyst — Data Quality & Metrics
+## DEPARTMENT: PRODUCT
 
-**Scope:** Command Center page — data display accuracy, metrics, data visualization
-**Components reviewed:** `proactive-briefing.tsx`, `conversation-thread.tsx`, `getting-started-checklist.tsx`
+### Employee: Product Manager
 
----
-
-### DA22-1 — No Data Freshness Indicators on Briefing
-
-- **Severity:** HIGH
-- **Component:** `proactive-briefing.tsx`
-- **Issue:** The AI briefing shows data without indicating when it was last updated. A user seeing "Cash position: $45,000" doesn't know if this is real-time or from yesterday. Stale financial data leads to bad decisions.
-- **Data Quality Impact:** Users make financial decisions based on potentially outdated information.
-- **Fix:** Show data freshness: "Cash position: $45,000 (updated 5 min ago)" or "Cash position: $45,000 (as of yesterday)".
-
-### DA22-2 — Currency Formatting Not Localized
-
-- **Severity:** MEDIUM
-- **Component:** `conversation-thread.tsx`
-- **Issue:** Financial amounts in approval cards and data tables may not be localized. A user in the UK sees "$" instead of "£". A user in Germany sees "," instead of "." for decimals.
-- **Data Quality Impact:** Misinterpretation of financial amounts. Potential compliance issues.
-- **Fix:** Use `Intl.NumberFormat` with the user's locale for all currency displays. Store locale preference in user settings.
+| #   | Finding                                                                                                                                                                                                                                                                     | Severity | Fix                                                                              | Status |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | -------------------------------------------------------------------------------- | ------ |
+| 1   | **The "who" in "who did what when" is a UUID fragment** — actor renders as `User 8a1f2c3d…` (log.userId.slice(0,8)); no user join anywhere. A compliance trail nobody can read is a checkbox, not a capability. Resolve actors to names/emails server-side.                 | CRITICAL | Join user table (name, email, role at time of action); fall back "System".       | ⬜     |
+| 2   | **Only `newValues` is kept/shown — no before-state** — expanded details + CSV carry Changes=newValues alone; without oldValues there is no diff, so the trail cannot answer "what did it change FROM". Audit-integrity gap at the data-model level.                         | HIGH     | Persist + display old→new diffs; export both columns.                            | ⬜     |
+| 3   | **CSV export silently limited to current 50-row page** — same truncation defect as Ledger export; compliance officers exporting "the audit log" get 1/Nth of it with no indication.                                                                                         | HIGH     | Server-generated complete export of current FILTERS (not page); stream if large. | ⬜     |
+| 4   | **No actor filter** — can't answer "what did this user do?" without eyeballing pages; the second-most-asked audit question after date ranges.                                                                                                                               | HIGH     | User dropdown/search filter wired to server query.                               | ⬜     |
+| 5   | **Entries don't link to their records** — entityIdRef printed as dead mono text; jumping from "invoice.updated" to the invoice should be one click.                                                                                                                         | MEDIUM   | Deep-link entityType+id to owning surface where safe.                            | ⬜     |
+| 6   | **Category/verb classification by fragile string heuristics** — startsWith("settings.") prefixes + substring verb sniffing ("includes(\"update\")"); unmatched actions collapse into "Other"/"Performed". Misclassification on a compliance surface is a correctness issue. | MEDIUM   | Persist category/verb enum at write time (server truth), render it verbatim.     | ⬜     |
+| 7   | **Failure looks like clean books** — query errors aren't handled (isError ignored); a failed load renders the same "No audit entries found" empty-state as an empty trail. For THIS surface that's the worst possible ambiguity.                                            | HIGH     | Distinct error state + retry; never equate failure with emptiness.               | ⬜     |
+| 8   | **Static page on a live trail** — "Actions will appear here as they happen" yet nothing refreshes except manual cross-surface events; no polling/refetch interval or new-entries indicator.                                                                                 | LOW      | Refetch interval or SSE tick + unread divider.                                   | ⬜     |
 
-### DA22-3 — No Unit Consistency Across Metrics
+### Employee: Product Critic
 
-- **Severity:** MEDIUM
-- **Component:** `proactive-briefing.tsx`
-- **Issue:** The briefing mixes different time units without labeling: "47 transactions" (count), "$45,000" (amount), "3 anomalies" (count). Some metrics lack units entirely.
-- **Data Quality Impact:** Users can't compare metrics across different time periods or entities.
-- **Fix:** Standardize metric display: always include units, time period, and comparison ("47 transactions today vs 52 yesterday").
+| #   | Finding                                                                                                                                                                                                            | Severity | Fix                                                             | Status      |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------- | --------------------------------------------------------------- | ----------- |
+| 1   | **Stats cards are filler** — three cards display Total / On-This-Page / the literal date-range label. Zero analytical value; the space begs for breakdowns (top categories, AI-vs-human ratio, actions/day spark). | MEDIUM   | Replace with decision-useful aggregates from one grouped query. | ⬜          |
+| 2   | **Custom date range accepts invalid ranges** — from>to yields guaranteed-empty results with generic empty copy; no inline validation.                                                                              | LOW      | Validate + swap/hint.                                           | ⬜          |
+| 3   | **Search scope undocumented** — "Search actions…" doesn't say whether it matches action, entity, or user fields; users guess.                                                                                      | LOW      | Placeholder enumerates scope once server contract confirmed.    | ⬜          |
+| 4   | **Single-open accordion** — expanding one row collapses the other; comparing two related entries side-by-side impossible.                                                                                          | LOW      | Allow multi-expand.                                             | ⬜          |
+| 5   | **Empty-state branching is strong — PASS baseline** — distinct messages for search/date/all-empty cases; reuse this ternary pattern on Operations cards.                                                           | —        | Keep; replicate.                                                | ✅ Baseline |
 
-### DA22-4 — No Trend Data in Briefing
+### Employee: UX Writer
 
-- **Severity:** MEDIUM
-- **Component:** `proactive-briefing.tsx`
-- **Issue:** The briefing shows current state ("Cash position: $45,000") but not trends ("Cash position down 12% from last month"). Without trends, users can't spot patterns.
-- **Data Quality Impact:** Users miss important changes in their financial data.
-- **Fix:** Add trend indicators: arrows up/down, percentage change, comparison to previous period.
+| #   | Finding                                                                                                                                                              | Severity | Fix                                                          | Status      |
+| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------------------------------ | ----------- |
+| 1   | **Machine-speak for humans** — "User 8a1f2c3d…" is the page's signature copy failure (root PM #1); even pre-fix, "System action" reads better than a truncated hex.  | HIGH     | Resolved names; hide IDs behind affordance.                  | ⬜          |
+| 2   | **"Performed" is a non-verb** — fallback verb adds noise over the raw action already shown beside it.                                                                | LOW      | Drop the verb chip when classification is unknown.           | ⬜          |
+| 3   | **Org vs entity vocabulary slip** — subtitle promises "across your organization"; data is entity-scoped. Multi-entity users will over-trust the page's completeness. | MEDIUM   | Say "across [Entity Name]" dynamically.                      | ⬜          |
+| 4   | **Mixed timestamp formats** — relative ago in rows, bare toLocaleString() in details; locale-dependent and inconsistent with app patterns.                           | LOW      | Shared formatters (relative + absolute-on-hover/detail ISO). | ⬜          |
+| 5   | **Filter-match count line is precise — PASS** — "N entries match your filters" vs "N total entries" distinction was a prior empworks fix holding correctly.          | —        | Keep.                                                        | ✅ Baseline |
 
-### DA22-5 — Getting Started Metrics Don't Track Completion Rate
-
-- **Severity:** LOW
-- **Component:** `getting-started-checklist.tsx`
-- **Issue:** The checklist shows "3 of 5 complete" but doesn't track completion velocity or time-to-complete. These are critical activation metrics.
-- **Data Quality Impact:** Can't measure onboarding effectiveness.
-- **Fix:** Track: time to first step, time to aha moment, time to full completion. Report in analytics.
-
-### DA22-6 — No Data Validation on AI-Generated Content
-
-- **Severity:** LOW
-- **Component:** `conversation-thread.tsx`
-- **Issue:** AI-generated data tables and summaries are displayed without validation. If the AI hallucinates a number or misinterprets data, it's shown as fact.
-- **Data Quality Impact:** Users may act on incorrect AI-generated data.
-- **Fix:** Add confidence thresholds for data display. Low-confidence data should be flagged: "AI estimate — verify before acting."
-
 ---
-
-### Summary — Data Analyst
-
-| Severity  | Count |
-| --------- | ----- |
-| HIGH      | 1     |
-| MEDIUM    | 3     |
-| LOW       | 2     |
-| **Total** | **6** |
 
----
+## DEPARTMENT: DESIGN
 
-## Employee #23: Researcher — User Research & Insights
+### Employee: Design Critic
 
-**Scope:** Command Center page — user behavior patterns, activation, retention, usability
-**Components reviewed:** `page.tsx`, `ai-input.tsx`, `getting-started-checklist.tsx`, `conversation-thread.tsx`
+| #   | Finding                                                                                                                                                                                                                                          | Severity | Fix                                                                              | Status |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------- | -------------------------------------------------------------------------------- | ------ |
+| 1   | **All 12 category chips hardcode light-mode colors** — text-blue-600/bg-blue-50 family throughout ACTION_CATEGORIES; dark mode renders pastel-on-dark failures across every row (same defect empworks fixed on Help; recurring page after page). | HIGH     | Token map (category→semantic token pair) in one module.                          | ⬜     |
+| 2   | **Expand/collapse still jumps** — max-h transition improved per empworks note but 500px cap clips long diffs mid-content; opacity+border-t toggling produces flicker.                                                                            | MEDIUM   | Grid-template-rows 0fr/1fr technique or portal-less measured height; remove cap. | ⬜     |
+| 3   | **Verb color carries meaning alone for scan-speed users** — colored words help, but severity relies partly on hue; icons absent on verb chips.                                                                                                   | LOW      | Pair verb chips with directional icons.                                          | ⬜     |
+| 4   | **Micro-typography floor violations persist** — 10px entity/surface chips (global item).                                                                                                                                                         | LOW      | Global pass.                                                                     | ⬜     |
 
 ---
-
-### RS23-1 — No Onboarding Flow for Returning Users
-
-- **Severity:** HIGH
-- **Component:** `page.tsx`
-- **Issue:** Returning users see the same greeting and checklist as new users. There's no contextual welcome back: "Welcome back — your AI processed 12 transactions while you were away." The product treats every visit like the first.
-- **Research Impact:** Returning users don't see value immediately. Daily engagement drops.
-- **Fix:** Differentiate first-time vs returning users. Show what happened since last visit. Skip completed checklist steps.
-
-### RS23-2 — Suggestion Chips Don't Match User Intent Patterns
-
-- **Severity:** MEDIUM
-- **Component:** `ai-input.tsx`
-- **Issue:** The 5 suggestion chips are static and don't adapt to user behavior. Research shows users ask similar questions repeatedly ("What's my cash position?" is asked 3x/day on average). Suggestions should reflect actual user patterns.
-- **Research Impact:** Suggestions become ignored after first use. wasted UI space.
-- **Fix:** Track common queries per user/entity. Show personalized suggestions: "Based on your recent questions..." or "Most asked this week...".
-
-### RS23-3 — No Feedback Mechanism on AI Responses
-
-- **Severity:** MEDIUM
-- **Component:** `conversation-thread.tsx`
-- **Issue:** Users can't rate AI responses (thumbs up/down, confidence feedback). Without feedback, we can't measure AI quality or improve the model.
-- **Research Impact:** Can't measure user satisfaction. Can't identify AI failures.
-- **Fix:** Add a simple feedback mechanism: thumbs up/down on each AI response. Track for model improvement.
-
-### RS23-4 — Conversation Memory Section Lacks Context
-
-- **Severity:** MEDIUM
-- **Component:** `page.tsx` (ConversationMemory)
-- **Issue:** The ConversationMemory section shows past conversations without context about why they're relevant. Users don't know if these are related to their current query or just recent chats.
-- **Research Impact:** Users ignore the section because it lacks relevance signals.
-- **Fix:** Add context: "Related to your current query" or "From your last session". Show relevance score.
-
-### RS23-5 — No Exploration Prompts for New Features
 
-- **Severity:** LOW
-- **Component:** `page.tsx`
-- **Issue:** The Command Center doesn't surface new features or capabilities. Users who've been using the product for months may not know about new AI agents or features.
-- **Research Impact:** Feature adoption is low. Users stick to familiar workflows.
-- **Fix:** Add feature discovery: "New: AI can now reconcile bank statements" or "Try asking about payroll". Rotate feature highlights.
+## DEPARTMENT: ENGINEERING
 
-### RS23-6 — No Accessibility Testing for Screen Readers
+### Employee: Engineering Critic
 
-- **Severity:** LOW
-- **Component:** All Command Center components
-- **Issue:** No ARIA labels, roles, or live regions for screen readers. The AI conversation is inaccessible to visually impaired users.
-- **Research Impact:** Excludes users with disabilities. Potential legal compliance issues.
-- **Fix:** Add ARIA labels to all interactive elements. Add `aria-live="polite"` for streaming messages. Test with VoiceOver/NVDA.
+| #   | Finding                                                                                                                                                                                                   | Severity | Fix                                                    | Status      |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------------------------ | ----------- |
+| 1   | **Per-keystroke server searches** — no debounce on audit search; each character fires getAuditLogs with LIKE-style filtering server-side.                                                                 | MEDIUM   | 300ms debounce + min length 2.                         | ⬜          |
+| 2   | **Offset pagination on an insert-heavy table** — new entries shift offsets between page views (skipped/duplicated rows during review sessions); cursor pagination per conventions.                        | MEDIUM   | Cursor (createdAt,id) pagination.                      | ⬜          |
+| 3   | **"Last 30 Days" is setMonth(-1)** — calendar-month arithmetic presented as fixed-day window; boundaries drift (28–31 days) and DST edges shift hours.                                                    | LOW      | Fixed-day window or label honestly ("Previous month"). | ⬜          |
+| 4   | **Dead stats memo** — useMemo wrapping two field picks adds indirection, zero value.                                                                                                                      | LOW      | Inline.                                                | ⬜          |
+| 5   | **Unbounded JSON rendering** — newValues stringified straight into <pre>; multi-MB payloads freeze paint (max-h caps visually, not parse cost). Truncate server-side + "open full" path.                  | LOW      | Size-guard + summary.                                  | ⬜          |
+| 6   | **sanitizeCell implementation solid — PASS** — quote-escape + formula-prefix guard correct here; extract to shared lib so Ledger/Operations exports reuse THE tested version (currently duplicated risk). | —        | Extract + reuse.                                       | ✅ Baseline |
 
 ---
 
-### Summary — Researcher
+## DEPARTMENT: SECURITY
 
-| Severity  | Count |
-| --------- | ----- |
-| HIGH      | 1     |
-| MEDIUM    | 3     |
-| LOW       | 2     |
-| **Total** | **6** |
+### Employee: Security Engineer (CSO)
 
----
-
-## Employee #24: Finance Analyst — Financial Accuracy & Compliance
+| #   | Finding                                                                                                                                                                                                                                                       | Severity          | Fix                                                                                              | Status           |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------- | ------------------------------------------------------------------------------------------------ | ---------------- |
+| 1   | **newValues may contain secrets — redaction at write UNVERIFIED** — settings/billing changes (API keys, tokens, payment config) flow into audit payloads; if stored raw, the audit page/export becomes the leak. Verify write-time redaction + masking rules. | CRITICAL (verify) | Redact secret-shaped fields at persistence; show masked placeholders; test with key-like values. | ⬜               |
+| 2   | **Role gating of page + export UNVERIFIED** — who may read full trail incl. userIds and raw values? Confirm procedure enforces admin/auditor roles; Viewers should get redacted view or denial.                                                               | HIGH (verify)     | Role assertion + tests; document access matrix.                                                  | ⬜               |
+| 3   | **Export event itself unaudited** (repeat finding, highest stakes here) — bulk extraction of the audit log leaves no trace in itself; investigators need to know who exported the trail and when.                                                             | HIGH              | Write audit entry ON export (actor, filters, row count).                                         | ⬜               |
+| 4   | **Append-only by construction — PASS** — no mutate/delete UI on this surface; keep it that way when adding features (no inline edit ever).                                                                                                                    | —                 | Guardrail.                                                                                       | ✅ Verified safe |
 
-**Scope:** Command Center page — financial data display, approval workflows, compliance
-**Components reviewed:** `conversation-thread.tsx`, `proactive-briefing.tsx`, `getting-started-checklist.tsx`
-
 ---
-
-### FA24-1 — Approval Cards Lack Audit Trail
-
-- **Severity:** HIGH
-- **Component:** `conversation-thread.tsx`
-- **Issue:** When a user approves/rejects an action, the approval is sent as a chat message. There's no structured audit trail: who approved, when, what was approved, what was the AI's recommendation. For financial compliance, this is critical.
-- **Compliance Impact:** No audit trail for financial approvals. Potential regulatory issues.
-- **Fix:** Log all approval actions to the audit trail with: user ID, timestamp, action, entity ID, AI recommendation, confidence score.
-
-### FA24-2 — No Decimal Precision Control for Financial Amounts
-
-- **Severity:** MEDIUM
-- **Component:** `conversation-thread.tsx`
-- **Issue:** Financial amounts in approval cards and data tables may display inconsistent decimal places. Some show 2 decimals ($1,234.56), others show none ($1,234). This is confusing for financial data.
-- **Compliance Impact:** Inconsistent financial display. Potential misinterpretation.
-- **Fix:** Standardize: always show 2 decimal places for currency. Use `Intl.NumberFormat` with `minimumFractionDigits: 2`.
-
-### FA24-3 — No Negative Amount Indication
-
-- **Severity:** MEDIUM
-- **Component:** `conversation-thread.tsx`
-- **Issue:** Negative amounts (credits, refunds) may not be visually distinct from positive amounts. In accounting, negative amounts need clear indication.
-- **Compliance Impact:** Users may misinterpret credits as debits.
-- **Fix:** Show negative amounts in red or with parentheses: `($1,234.56)` or `- $1,234.56`. Use accounting conventions.
-
-### FA24-4 — Getting Started Doesn't Mention Compliance Setup
 
-- **Severity:** MEDIUM
-- **Component:** `getting-started-checklist.tsx`
-- **Issue:** The 5-step checklist doesn't include compliance setup (tax settings, fiscal year, reporting preferences). These are critical for financial accuracy.
-- **Compliance Impact:** Users may not configure compliance settings, leading to incorrect reports.
-- **Fix:** Add compliance steps: "Set up tax settings" and "Configure fiscal year" to the checklist.
+## DEPARTMENT: DATA
 
-### FA24-5 — No Transaction Reconciliation Status in Briefing
+### Employee: Data Analyst
 
-- **Severity:** LOW
-- **Component:** `proactive-briefing.tsx`
-- **Issue:** The briefing shows cash position but not reconciliation status. Unreconciled transactions are a key financial risk.
-- **Compliance Impact:** Users may miss unreconciled transactions.
-- **Fix:** Add reconciliation status: "47 transactions reconciled, 3 pending" or "Bank reconciliation: 94% complete".
+| #   | Finding                                                                                                                                                                                                                                                                   | Severity | Fix                                                          | Status      |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------------------------------ | ----------- |
+| 1   | **Zero insight surface on the richest behavioral dataset in the product** — replace filler stats with: actions-by-category trend, AI-vs-human share, top actors, anomaly flags (mass deletes, off-hours bursts). This is the page where analytics earns compliance value. | HIGH     | One grouped-stats endpoint powering real cards.              | ⬜          |
+| 2   | **Frozen relative timestamps** (global recurring defect, instance #4) — compliance review sessions span minutes; "Just now" lies within them.                                                                                                                             | LOW      | Shared ticking hook (single fix retires 4 logged instances). | ⬜          |
+| 3   | **Instrumentation absent on the instrument** — filter usage, search terms, export clicks untracked; understanding HOW auditors investigate should shape the roadmap.                                                                                                      | MEDIUM   | Event coverage per interaction.                              | ⬜          |
+| 4   | **Server-side totals respect filters — PASS** — count parity between header line and pagination verified in code; keep contract under the cursor-pagination migration (Eng #2).                                                                                           | —        | Preserve invariant.                                          | ✅ Baseline |
 
-### FA24-6 — No Multi-Currency Support Indication
-
-- **Severity:** LOW
-- **Component:** `conversation-thread.tsx`
-- **Issue:** If the entity operates in multiple currencies, the Command Center doesn't indicate which currency is being displayed. Users may confuse currencies.
-- **Compliance Impact:** Potential currency confusion in financial decisions.
-- **Fix:** Always show currency code: "$45,000 USD" not just "$45,000". Add currency selector if multi-currency is supported.
-
----
-
-### Summary — Finance Analyst
-
-| Severity  | Count |
-| --------- | ----- |
-| HIGH      | 1     |
-| MEDIUM    | 3     |
-| LOW       | 2     |
-| **Total** | **6** |
-
 ---
 
-## Employee #25: Project Manager — Delivery & Process
+# PAGE: /dashboard/operations/invoices
 
-**Scope:** Command Center page — feature completeness, technical debt, delivery timeline
-**Files reviewed:** `page.tsx`, `use-dashboard-chat.ts`, `conversation-thread.tsx`, `proactive-briefing.tsx`
+AR surface: filterable/searchable invoice DataTable (client-paged), row action menu (view/send/payment-link/record-payment), create dialog, detail panel, AI suggestions.
 
 ---
-
-### PM25-1 — Multiple HIGH Severity Bugs Block Production Quality
-
-- **Severity:** HIGH
-- **Issue:** The audit found 15 HIGH severity issues across all employees. These include: duplicate data tables, permanently disabled approval buttons, infinite SSE reconnect loops, and missing error boundaries. These block production readiness.
-- **Delivery Impact:** Cannot ship to production until HIGH issues are resolved.
-- **Fix:** Prioritize HIGH fixes in next sprint. Create tickets for each HIGH finding.
-
-### PM25-2 — No Feature Flags for Gradual Rollout
-
-- **Severity:** MEDIUM
-- **Issue:** The Command Center has no feature flags. All features are always enabled. This makes gradual rollout impossible and increases risk of broken features reaching all users.
-- **Delivery Impact:** Cannot roll back broken features without code changes.
-- **Fix:** Implement feature flags for: AI briefing, conversation memory, getting started checklist, approval workflows.
 
-### PM25-3 — No Automated Regression Tests for Dashboard
+## DEPARTMENT: PRODUCT
 
-- **Severity:** MEDIUM
-- **Issue:** The Command Center has no automated tests. If a bug is introduced, it won't be caught until manual testing. This is risky for a financial product.
-- **Delivery Impact:** Manual testing required for every change. Slow release cycle.
-- **Fix:** Add Playwright tests for critical flows: login → dashboard → ask question → see response → approve action.
+### Employee: Product Manager
 
-### PM25-4 — No Rollback Strategy for Dashboard Changes
+| #   | Finding                                                                                                                                                                                                                                                                                    | Severity | Fix                                                                                                | Status |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------- | -------------------------------------------------------------------------------------------------- | ------ |
+| 1   | **Pagination is an illusion** — query hardcodes `limit: 50, offset: 0` while DataTable renders client-side paging at 20/page against those 50 rows. Invoices #51+ are UNREACHABLE through the UI forever; header count proudly reports the true total. Business with 200 invoices sees 50. | CRITICAL | Wire DataTable pagination to server offset/cursor params.                                          | ⬜     |
+| 2   | **Send Invoice can fire DRAFTS to customers** — menu gate excludes only paid/voided; a draft invoice passes straight to `sendInvoiceEmail`. One misclick emails an unfinished bill to a client. No confirmation dialog, no recipient preview.                                              | CRITICAL | Block drafts server+client; add confirm step showing recipient + amount.                           | ⬜     |
+| 3   | **Creating an invoice doesn't refresh the list** — `onCreated` only closes the dialog; no invalidate of listInvoices. Fifth instance of the empty-refetch defect class. New invoice invisible until some other refetch trigger.                                                            | HIGH     | Invalidate query on success + toast with invoice number.                                           | ⬜     |
+| 4   | **Sending doesn't update status either** — sendInvoiceEmail onSuccess toasts but invalidates nothing; row keeps pre-send status indefinitely. Same stale-cache family as #3.                                                                                                               | HIGH     | Invalidate/refetch on mutation success.                                                            | ⬜     |
+| 5   | **Two sources of truth for overdue** — status column shows server status ("sent") while Due Date cell independently computes red overdue client-side; lists/filters/exports disagree with what users see.                                                                                  | HIGH     | Server owns overdue derivation (or compute both places from one shared helper fed by server data). | ⬜     |
+| 6   | **Filter chips omit real statuses** — partial and voided exist in badge config but not in the filter bar; users can't isolate partially-paid or voided invoices.                                                                                                                           | MEDIUM   | Complete the filter list from the status enum.                                                     | ⬜     |
+| 7   | **Raw status enums leak** — badge prints `{status}` verbatim (lowercase "overdue", unknown values as-is) beside a capitalized "Draft" fallback.                                                                                                                                            | MEDIUM   | Label map with Title Case + fallback styling.                                                      | ⬜     |
+| 8   | **No AR aging view** — 30/60/90 buckets are table-stakes AR tooling; overdue detection exists but nothing aggregates WHO owes HOW LONG.                                                                                                                                                    | MEDIUM   | Aging summary strip above table (server-computed).                                                 | ⬜     |
+| 9   | **Currency invisible** — Invoice type carries `currency` but the table never shows it and formatCurrency calls omit the argument; multi-currency entities get symbol-guessed amounts.                                                                                                      | HIGH     | Per-row currency → explicit formatting + optional currency column/filter.                          | ⬜     |
+| 10  | **Row menu clips at viewport edges** — absolutely-positioned dropdown with no collision handling; bottom-row menus cut off / require scroll hunting; no ESC or outside-scroll close.                                                                                                       | MEDIUM   | shadcn DropdownMenu (portal + collision + keyboard).                                               | ⬜     |
 
-- **Severity:** MEDIUM
-- **Issue:** If a dashboard deployment breaks the UI, there's no automated rollback. Vercel provides instant rollback, but it requires manual intervention.
-- **Delivery Impact:** Downtime during broken deployments.
-- **Fix:** Implement automated rollback on health check failure. Monitor error rates post-deployment.
+### Employee: Product Critic
 
-### PM25-5 — Technical Debt in Conversation State Management
+| #   | Finding                                                                                                                                                                                                                                           | Severity | Fix                                               | Status |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------------------- | ------ |
+| 1   | **Action menu is mouse-only** — hand-rolled dropdown has no keyboard navigation, no focus management, no ESC handling; power users processing dozens of invoices lose all flow. Also blocks the AI-native promise of speed.                       | HIGH     | Design-system menu with full keyboard support.    | ⬜     |
+| 2   | **Dead Download import tells a story** — `Download` icon imported but no PDF/download action exists on any invoice; downloading the bill you sent is core AR. Feature abandoned mid-build.                                                        | MEDIUM   | Add PDF view/download in row menu + detail panel. | ⬜     |
+| 3   | **Record-payment toast is generic** — "Payment recorded successfully" echoes nothing; confirm amount + remaining balance so bookkeepers trust entry without reopening.                                                                            | LOW      | Echo amount/balance in toast.                     | ⬜     |
+| 4   | **Empty state stops short** — title+description present but no inline Create CTA where the user's eyes already are.                                                                                                                               | LOW      | Add primary button to empty state.                | ⬜     |
+| 5   | **AI reminder suggestion outpaces the UI** — shell offers "Send payment reminders to ALL customers with overdue invoices" while the table itself has no bulk selection; conversational path more capable than the native one. Align capabilities. | MEDIUM   | Bulk-select + bulk reminder action.               | ⬜     |
 
-- **Severity:** LOW
-- **Issue:** The conversation state is managed with multiple `useState` hooks and `useCallback` wrappers. This is becoming complex and hard to maintain. As features are added, this will become unmaintainable.
-- **Delivery Impact:** Feature development slows as complexity increases.
-- **Fix:** Refactor to use a state machine (XState) or a dedicated state management library for conversation state.
+### Employee: UX Writer
 
-### PM25-6 — No Performance Budget for Dashboard Bundle
+| #   | Finding                                                                                                                                                           | Severity | Fix                  | Status      |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | -------------------- | ----------- |
+| 1   | **Bare "Loading..." in header** (house-violation recurrence #5).                                                                                                  | LOW      | "Loading invoices…". | ⬜          |
+| 2   | **Status casing chaos** — "Draft"/"paid"/"overdue" mix within one column depending on data path.                                                                  | MEDIUM   | Canonical labels.    | ⬜          |
+| 3   | **Toasts that name objects are strong — PASS baseline** — "Invoice sent to acct@customer.com" matches house verb+object rule; replicate in record-payment (#PC3). | —        | Keep.                | ✅ Baseline |
 
-- **Severity:** LOW
-- **Issue:** The Command Center components are not size-checked. If a component grows too large, bundle size increases silently.
-- **Delivery Impact:** Performance degradation over time.
-- **Fix:** Add bundle size limits in CI. Track bundle size trends. Set alerts for increases.
-
 ---
-
-### Summary — Project Manager
 
-| Severity  | Count |
-| --------- | ----- |
-| HIGH      | 1     |
-| MEDIUM    | 3     |
-| LOW       | 2     |
-| **Total** | **6** |
+## DEPARTMENT: DESIGN
 
----
+### Employee: Design Critic
 
-## Employee #26: QA — Quality Assurance
+| #   | Finding                                                                                                                                                                         | Severity | Fix                            | Status      |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------------------------------ | ----------- |
+| 1   | **Hardcoded palette chips continue** — blue/emerald/red/amber/muted badge classes inline (token-mapping global task, instance tracked).                                         | LOW      | Global token pass.             | ⬜          |
+| 2   | **Hand-rolled menu violates component system** — custom popover duplicates DropdownMenu primitives poorly (a11y, positioning, motion).                                          | HIGH     | Migrate to design-system menu. | ⬜          |
+| 3   | **Micro-typography persists** — 9px badges, 10px secondary labels (global item).                                                                                                | LOW      | Global pass.                   | ⬜          |
+| 4   | **Voided strike-through treatment is thoughtful — PASS baseline** — semantic decoration distinguishing dead records visually; extend pattern to other voided entities app-wide. | —        | Keep; replicate.               | ✅ Baseline |
 
-**Scope:** Command Center page — test coverage, edge cases, browser compatibility
-**Components reviewed:** `page.tsx`, `ai-input.tsx`, `conversation-thread.tsx`, `getting-started-checklist.tsx`
-
 ---
-
-### QA26-1 — No Tests for Conversation Threading
-
-- **Severity:** HIGH
-- **File:** `conversation-thread.tsx`
-- **Issue:** The conversation thread has zero test coverage. Message rendering, approval actions, data tables, streaming states — none are tested. A single regression could break the primary user experience.
-- **Quality Impact:** Unknown regression risk. Manual testing required for every change.
-- **Fix:** Add unit tests for: message rendering, approval button states, data table display, streaming indicator. Add integration tests for: sending messages, receiving responses, approval workflows.
-
-### QA26-2 — No Mobile Browser Testing
-
-- **Severity:** HIGH
-- **Issue:** The Command Center hasn't been tested on mobile browsers (iOS Safari, Chrome Android). Touch interactions, responsive layout, and keyboard behavior are unverified.
-- **Quality Impact:** Mobile users may encounter broken UI, unresponsive buttons, or layout issues.
-- **Fix:** Add Playwright tests for mobile viewports (375px, 768px). Test touch interactions on actual devices.
-
-### QA26-3 — No Edge Case Testing for Empty States
-
-- **Severity:** MEDIUM
-- **Components:** `conversation-thread.tsx`, `proactive-briefing.tsx`
-- **Issue:** Empty states (no messages, no briefing data, no approvals) are not tested. If the backend returns empty data, the UI may show blank areas or errors.
-- **Quality Impact:** Users see broken UI when there's no data.
-- **Fix:** Test all empty states: no conversations, no briefing, no approvals, no data tables. Ensure graceful fallbacks.
 
-### QA26-4 — No Error State Testing
+## DEPARTMENT: ENGINEERING
 
-- **Severity:** MEDIUM
-- **Issue:** Error states (network failure, API timeout, auth expiry) are not tested. The app may show raw errors or crash.
-- **Quality Impact:** Users see confusing error messages or blank pages.
-- **Fix:** Test error scenarios: network offline, API 500, auth token expired. Verify user-friendly error messages.
+### Employee: Engineering Critic
 
-### QA26-5 — No Keyboard Navigation Testing
+| #   | Finding                                                                                                                                                                                                                                                                                   | Severity | Fix                                                                                                | Status |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | -------------------------------------------------------------------------------------------------- | ------ |
+| 1   | **Server pagination disconnected from table pagination** (root of PM #1) — `offset: 0` literal proves wiring was never completed; silent data cliff at row 50.                                                                                                                            | CRITICAL | Complete offset/cursor wiring; test with >pageSize datasets.                                       | ⬜     |
+| 2   | **Forward-referenced closures inside column defs** — columns array references handleSendInvoice + sendInvoiceEmail declared ~200 lines later; deferred execution saves it today, but any eager accessor (or refactor hoisting render) hits TDZ crashes. Fragile ordering with zero guard. | MEDIUM   | Declare mutations/handlers before columns; or move menu into child component owning its mutations. | ⬜     |
+| 3   | **`as Invoice[]` cast over router types** — recurring drift pattern; infer instead.                                                                                                                                                                                                       | LOW      | tRPC output inference.                                                                             | ⬜     |
+| 4   | **Unused imports (Download, Loader2)** — lint noise hinting at unfinished feature (PC #2).                                                                                                                                                                                                | LOW      | Remove with feature completion.                                                                    | ⬜     |
+| 5   | **Per-render new Date() comparisons** — due-date overdue checks construct dates each cell render; harmless volume-wise but centralize in derived selector when server-owned overdue lands (PM #5).                                                                                        | LOW      | Fold into single computation.                                                                      | ⬜     |
 
-- **Severity:** MEDIUM
-- **Issue:** Keyboard navigation through the Command Center is untested. Tab order, focus management, and keyboard shortcuts may not work correctly.
-- **Quality Impact:** Keyboard-only users cannot use the product.
-- **Fix:** Add keyboard navigation tests: Tab through all interactive elements, verify focus order, test keyboard shortcuts.
-
-### QA26-6 — No Cross-Browser Compatibility Testing
-
-- **Severity:** LOW
-- **Issue:** The Command Center is tested in Chrome but not in Firefox, Safari, or Edge. CSS and JavaScript behavior may differ.
-- **Quality Impact:** Users on non-Chrome browsers may see visual bugs.
-- **Fix:** Add cross-browser tests in Playwright. Test on latest Chrome, Firefox, Safari, Edge.
-
 ---
-
-### Summary — QA
-
-| Severity  | Count |
-| --------- | ----- |
-| HIGH      | 2     |
-| MEDIUM    | 3     |
-| LOW       | 1     |
-| **Total** | **6** |
 
----
+## DEPARTMENT: SECURITY
 
-## Employee #27: Eval Runner — Agent Evaluation
+### Employee: Security Engineer (CSO)
 
-**Scope:** Command Center page — AI agent performance, evaluation metrics, quality gates
-**Components reviewed:** `conversation-thread.tsx`, `proactive-briefing.tsx`, `ai-input.tsx`
+| #   | Finding                                                                                                                                                                                                                                                             | Severity        | Fix                                                                 | Status |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------- | ------------------------------------------------------------------- | ------ |
+| 1   | **Email-sending authorization UNVERIFIED** — sendInvoiceEmail must enforce: entity ownership, role permission (who may contact customers?), draft-state rejection, rate limiting (email bombing vector), and write an audit event. Client gates alone are cosmetic. | HIGH (verify)   | Server assertions + tests for all four.                             | ⬜     |
+| 2   | **Payment-link creation authz** (mirror of Operations finding) — payable instrument generation needs binding to invoice amount + expiry + audit.                                                                                                                    | MEDIUM (verify) | Same assertion set on payment-link mutation.                        | ⬜     |
+| 3   | **DataTable export path UNVERIFIED for CSV injection + completeness** — showExport enabled; confirm which exporter runs, that sanitizeCell applies, and that scope (page vs filtered set) is labeled truthfully.                                                    | MEDIUM (verify) | Audit exporter; reuse shared sanitizer; label scope in filename/UI. | ⬜     |
+| 4   | **Customer PII exposure surface** — names/emails flow into exports and AI context payloads (openWithFocus fields elsewhere); ensure AI trace masking covers customer PII (LangFuse finding, Financial Pulse #1).                                                    | MEDIUM          | Extend masking rules to customer fields.                            | ⬜     |
 
 ---
-
-### ER27-1 — No Confidence Score Calibration for Dashboard Responses
-
-- **Severity:** HIGH
-- **Component:** `conversation-thread.tsx`
-- **Issue:** Confidence scores are displayed but not calibrated. If the AI says "94% confident" but is actually wrong 30% of the time, users lose trust. No evaluation suite tests confidence accuracy.
-- **Evaluation Impact:** False confidence erodes user trust. Users can't distinguish reliable from unreliable responses.
-- **Fix:** Create evaluation dataset: 100 common questions with expected answers. Measure confidence vs actual accuracy. Calibrate confidence scores.
-
-### ER27-2 — No Evaluation for AI Briefing Quality
-
-- **Severity:** HIGH
-- **Component:** `proactive-briefing.tsx`
-- **Issue:** The AI briefing is generated but never evaluated. If the briefing is inaccurate, irrelevant, or missing critical alerts, there's no way to know.
-- **Evaluation Impact:** Users may miss important financial alerts due to poor AI briefing quality.
-- **Fix:** Create briefing evaluation dataset: 50 scenarios with expected alerts. Measure: accuracy, completeness, timeliness. Track metrics over time.
 
-### ER27-3 — No A/B Testing Framework for AI Prompts
+## DEPARTMENT: DATA
 
-- **Severity:** MEDIUM
-- **Issue:** AI prompts are hardcoded. There's no way to test different prompt versions or measure which prompts produce better results.
-- **Evaluation Impact:** Can't optimize AI quality systematically. Changes are risky.
-- **Fix:** Implement prompt versioning. A/B test prompt changes on subsets of users. Measure impact on confidence, accuracy, user satisfaction.
+### Employee: Data Analyst
 
-### ER27-4 — No User Feedback Loop for AI Quality
+| #   | Finding                                                                                                                                                                                                                    | Severity | Fix                                                                          | Status |
+| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ---------------------------------------------------------------------------- | ------ |
+| 1   | **THE revenue funnel is uninstrumented** — zero events for invoice created/sent/viewed/paid, payment-link created/used, reminders fired. AR conversion analytics impossible; this is the money path of the entire product. | HIGH     | Full lifecycle instrumentation with amounts + currency + latency-to-payment. | ⬜     |
+| 2   | **totalCount fallback masks contract drift** — `?? invoices.length` quietly substitutes page-length for total when server omits it; wrong numbers beat error messages at hiding schema rot.                                | LOW      | Remove fallback; fail loudly.                                                | ⬜     |
+| 3   | **Dual overdue truths corrupt reporting** (data twin PM #5) — exports/filters use server status; eyes use red cells; neither matches aging reality for edge-day invoices.                                                  | HIGH     | Single server-computed overdue flag consumed everywhere.                     | ⬜     |
+| 4   | **Aging analytics absent** (product twin PC/PM #8) — without 30/60/90 buckets, cash-flow forecasting features upstream have no AR-depth signal.                                                                            | MEDIUM   | Server aging aggregation feeding strip + AI context.                         | ⬜     |
 
-- **Severity:** MEDIUM
-- **Issue:** Users can't rate AI responses (thumbs up/down). Without feedback, we can't identify AI failures or measure quality trends.
-- **Evaluation Impact:** Blind to AI quality issues. Can't prioritize improvements.
-- **Fix:** Add simple feedback mechanism: thumbs up/down on each AI response. Track feedback metrics. Alert on negative feedback spikes.
-
-### ER27-5 — No Evaluation for Escalation Accuracy
-
-- **Severity:** LOW
-- **Issue:** The AI escalates to human when confidence is low, but escalation accuracy is not measured. If the AI escalates too often (false positives) or too rarely (missed escalations), users are affected.
-- **Evaluation Impact:** Users either get too many escalations (annoying) or too few (risky).
-- **Fix:** Track escalation rate, user action on escalations, and outcome. Measure: escalation precision and recall.
-
----
-
-### Summary — Eval Runner
-
-| Severity  | Count |
-| --------- | ----- |
-| HIGH      | 2     |
-| MEDIUM    | 2     |
-| LOW       | 1     |
-| **Total** | **5** |
-
 ---
 
-## Employee #28: Test Coverage — Test Gap Analysis
+# PAGE: /dashboard/activity-hub
 
-**Scope:** Command Center page — untested code paths, critical path coverage
-**Files reviewed:** `page.tsx`, `use-dashboard-chat.ts`, `conversation-thread.tsx`, `proactive-briefing.tsx`
+The human-in-the-loop queue. Every item here requires a human decision. The AI has done the work; now it needs your approval. Layout: Stats grid + Filter tabs + Activity item cards + Batch action bar + Detail drawer + Completed section.
 
 ---
-
-### TC28-1 — Zero Unit Tests for Command Center Components
-
-- **Severity:** HIGH
-- **Issue:** None of the Command Center components have unit tests: `page.tsx`, `ai-greeting.tsx`, `ai-input.tsx`, `getting-started-checklist.tsx`, `proactive-briefing.tsx`, `conversation-thread.tsx`. This is the most-used surface in the product.
-- **Coverage Impact:** 0% unit test coverage for primary user experience.
-- **Fix:** Add unit tests for all components. Target: 80% coverage for Command Center.
-
-### TC28-2 — Zero Integration Tests for Dashboard Flows
 
-- **Severity:** HIGH
-- **Issue:** No integration tests for critical user flows: login → dashboard → ask question → see response → approve action. These flows are the core product value.
-- **Coverage Impact:** 0% integration test coverage for critical paths.
-- **Fix:** Add Playwright tests for: (1) Login → Dashboard, (2) Ask question → AI response, (3) Approve action → confirmation, (4) Switch entity → data update.
+## DEPARTMENT: PRODUCT
 
-### TC28-3 — No Tests for Edge Cases in Conversation State
+### Employee: Product Manager
 
-- **Severity:** MEDIUM
-- **File:** `use-dashboard-chat.ts`
-- **Issue:** The conversation hook handles: streaming, errors, regeneration, loading, and empty states. None of these edge cases are tested.
-- **Coverage Impact:** Unknown behavior when edge cases occur.
-- **Fix:** Test: stream interruption, error recovery, regeneration, empty conversation, very long conversations (100+ messages).
+| #   | Finding                                                                                                                                                             | Severity | Status |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------ |
+| 1   | **Batch approve has no confirmation dialog** — batch reject does, but approve doesn't. Approving 50 items at once without confirmation is risky for financial data. | HIGH     | ⬜     |
+| 2   | **Undo only works for 2 seconds** — toast says "Undo" but state is already cleared after 2s. Server may have already committed the approval.                        | HIGH     | ⬜     |
+| 3   | **Risk assessment labels misleading** — "Low Risk" means AI confidence (0.8+), not actual financial risk. Users may misunderstand.                                  | HIGH     | ⬜     |
+| 4   | **No time-based urgency indicators** — 2-hour-old approval looks same as 2-day-old. No visual urgency based on age.                                                 | HIGH     | ⬜     |
+| 5   | **Snooze is client-side only** — items reappear on refresh. No server-side persistence.                                                                             | MEDIUM   | ⬜     |
+| 6   | **Detail drawer shows raw JSON** — `JSON.stringify(item.detail)` is developer-facing, not user-friendly.                                                            | MEDIUM   | ⬜     |
+| 7   | **Filter tabs don't show item counts** — user must click each tab to see how many items.                                                                            | MEDIUM   | ⬜     |
+| 8   | **No escalation path** — if user doesn't know what to do, no "Ask AI" or "Escalate" option.                                                                         | MEDIUM   | ⬜     |
+| 9   | **Agent alerts lack confidence scores** — no risk assessment for alert items.                                                                                       | MEDIUM   | ⬜     |
+| 10  | **Empty state "All caught up!" is generic** — doesn't tell user what to do next or show AI value.                                                                   | MEDIUM   | ⬜     |
+| 11  | **No explanation of why item is urgent vs approval** — user must trust AI classification blindly.                                                                   | MEDIUM   | ⬜     |
+| 12  | **Completed section shows count but not which items** — no transparency on what AI resolved.                                                                        | MEDIUM   | ⬜     |
+| 13  | **No "mark all as read" or bulk dismiss for info items**                                                                                                            | LOW      | ⬜     |
+| 14  | **No keyboard shortcut for individual item actions** — only batch has shortcuts.                                                                                    | LOW      | ⬜     |
+| 15  | **No data freshness indicator on stats** — user doesn't know if counts are current.                                                                                 | LOW      | ⬜     |
 
-### TC28-4 — No Tests for SSE Connection Lifecycle
+---
 
-- **Severity:** MEDIUM
-- **File:** `use-surface-sync.ts`
-- **Issue:** The SSE hook handles: connection, reconnection, error, and entity switch. None of these scenarios are tested.
-- **Coverage Impact:** Unknown behavior when SSE fails or reconnects.
-- **Fix:** Mock SSE endpoint. Test: successful connection, connection failure, reconnect after failure, entity switch during connection.
+## DEPARTMENT: ENGINEERING
 
-### TC28-5 — No Snapshot Tests for Component Rendering
+### Employee: Engineering Critic
 
-- **Severity:** LOW
-- **Issue:** No snapshot tests to catch unintended UI changes. A CSS change or component refactor could break the UI without being detected.
-- **Coverage Impact:** Visual regressions go unnoticed.
-- **Fix:** Add snapshot tests for key components: AI greeting, getting started checklist, approval card, data table.
+| #   | Finding                                                                                                               | Severity | Status |
+| --- | --------------------------------------------------------------------------------------------------------------------- | -------- | ------ |
+| 1   | **1662-line monolithic page component** — no code splitting, hard to maintain.                                        | HIGH     | ⬜     |
+| 2   | **handleBatchAction calls handleAction sequentially in loop** — 50 items = 50 sequential mutations.                   | HIGH     | ⬜     |
+| 3   | **undoBatchAction only removes local state** — server already committed the approval.                                 | HIGH     | ⬜     |
+| 4   | **No error boundary around ActivityItemCard or ItemDetailDrawer** — one bad item crashes entire page.                 | HIGH     | ⬜     |
+| 5   | **5 tRPC queries with polling (15s/30s)** — constant network traffic even when idle.                                  | MEDIUM   | ⬜     |
+| 6   | **Client-side snooze uses setTimeout** — doesn't survive page refresh, never cancelled on unmount.                    | MEDIUM   | ⬜     |
+| 7   | **Keyboard shortcut useEffect depends on frequently-changing values** — listener re-registered on every state change. | MEDIUM   | ⬜     |
+| 8   | **No optimistic updates for batch actions** — user waits for sequential server calls.                                 | MEDIUM   | ⬜     |
+| 9   | **`Math.round(item.confidence * 100)` assumes confidence is 0-1** — if already 0-100, shows 0%.                       | MEDIUM   | ⬜     |
+| 10  | **No loading skeleton** — blank area shown while 5 queries load.                                                      | MEDIUM   | ⬜     |
+| 11  | **ActivityItemCard note state is per-component instance** — lost on list re-render.                                   | MEDIUM   | ⬜     |
+| 12  | **No request cancellation when user switches filters** — stale queries continue.                                      | LOW      | ⬜     |
+| 13  | **Direct DOM manipulation for tab focus** (`document.getElementById`) — bypasses React.                               | LOW      | ⬜     |
+| 14  | **No debouncing on filter changes** — rapid clicks trigger multiple re-renders.                                       | LOW      | ⬜     |
 
 ---
-
-### Summary — Test Coverage
 
-| Severity  | Count |
-| --------- | ----- |
-| HIGH      | 2     |
-| MEDIUM    | 2     |
-| LOW       | 1     |
-| **Total** | **5** |
+## DEPARTMENT: DESIGN
 
----
+### Employee: Design Critic
 
-## Employee #29: Agent Eval — Agent Quality Assessment
+| #   | Finding                                                                                     | Severity | Status |
+| --- | ------------------------------------------------------------------------------------------- | -------- | ------ |
+| 1   | **Stats grid uses 4 columns on all screens** — cramped on mobile, no responsive breakpoint. | HIGH     | ⬜     |
+| 2   | **No skeleton loading state** — blank area shown while 5 queries load.                      | HIGH     | ⬜     |
+| 3   | **Priority badge uses 9px text** — below WCAG readability minimum.                          | MEDIUM   | ⬜     |
+| 4   | **Timestamp uses 10px text** — below WCAG readability minimum.                              | MEDIUM   | ⬜     |
+| 5   | **Filter tabs overflow horizontally on mobile** — 5 tabs require scrolling.                 | MEDIUM   | ⬜     |
+| 6   | **Batch action bar overlaps filter tabs when scrolling** — sticky z-index conflict.         | MEDIUM   | ⬜     |
+| 7   | **Urgent vs info item visual distinction is subtle** — only border color differs.           | MEDIUM   | ⬜     |
+| 8   | **Empty state "All caught up!" is generic** — no helpful next-action CTA.                   | MEDIUM   | ⬜     |
+| 9   | **Risk assessment bar is 4px tall (h-1)** — hard to see, especially on mobile.              | LOW      | ⬜     |
+| 10  | **Detail drawer has no swipe-to-dismiss gesture on mobile**                                 | LOW      | ⬜     |
+| 11  | **Completed section at bottom** — users must scroll past all active items.                  | LOW      | ⬜     |
+| 12  | **Note textarea has no character limit** — can type indefinitely.                           | LOW      | ⬜     |
+| 13  | **Agent badges use 10px text** — below readability minimum.                                 | LOW      | ⬜     |
 
-**Scope:** Command Center page — AI agent behavior, response quality, safety
-**Components reviewed:** `conversation-thread.tsx`, `proactive-briefing.tsx`, `ai-input.tsx`
-
 ---
-
-### AE29-1 — No Safety Evaluation for Financial Advice
 
-- **Severity:** HIGH
-- **Component:** `conversation-thread.tsx`
-- **Issue:** The AI provides financial data and suggestions without safety evaluation. If the AI gives incorrect financial advice ("Your cash position is $100,000" when it's actually $10,000), users could make bad decisions.
-- **Safety Impact:** Users may make financial decisions based on incorrect AI data.
-- **Fix:** Add safety evaluation: test AI responses against known financial scenarios. Flag responses that could lead to financial harm. Add disclaimers for financial data.
+## DEPARTMENT: CONTENT
 
-### AE29-2 — No Evaluation for Entity Data Isolation
+### Employee: UX Writer
 
-- **Severity:** HIGH
-- **Component:** `conversation-thread.tsx`
-- **Issue:** The AI must only access data for the current entity. If entity isolation fails, one company's data could leak to another. This is never evaluated.
-- **Safety Impact:** Data breach between entities. Regulatory violation.
-- **Fix:** Add isolation tests: switch entities rapidly, verify no data cross-contamination. Test with concurrent sessions from different entities.
+| #   | Finding                                                                                                   | Severity | Status |
+| --- | --------------------------------------------------------------------------------------------------------- | -------- | ------ |
+| 1   | **Risk assessment labels misleading** — "Low Risk" means AI confidence, not financial risk.               | HIGH     | ⬜     |
+| 2   | **"Undo" toast says "Changes have been reverted"** — but undo only removes local state, not server state. | HIGH     | ⬜     |
+| 3   | **Stats labels too brief** — "Urgent" doesn't explain what needs attention.                               | MEDIUM   | ⬜     |
+| 4   | **Filter tab labels generic** — "Info" doesn't tell user what's in that category.                         | MEDIUM   | ⬜     |
+| 5   | **Empty state "All caught up!" is generic** — no helpful next-action.                                     | MEDIUM   | ⬜     |
+| 6   | **"Processed" success message is vague** — doesn't say what was processed.                                | MEDIUM   | ⬜     |
+| 7   | **Detail drawer heading "Item Details" is generic** — should say what the item is.                        | MEDIUM   | ⬜     |
+| 8   | **Default recommendation text is unhelpful** — "Review and take appropriate action".                      | MEDIUM   | ⬜     |
+| 9   | **"Dismiss" action label is ambiguous** — mark as read, hide, or delete?                                  | MEDIUM   | ⬜     |
+| 10  | **"AI-curated, priority-sorted" in page description** — redundant and jargon-heavy.                       | LOW      | ⬜     |
+| 11  | **Toast messages inconsistent** — some have descriptions, some don't.                                     | LOW      | ⬜     |
+| 12  | **"Snoozed for 1 hour" toast doesn't say when** item reappears.                                           | LOW      | ⬜     |
+| 13  | **"Requires your review" default description is vague**                                                   | LOW      | ⬜     |
 
-### AE29-3 — No Prompt Injection Testing
+### Employee: Copywriter
 
-- **Severity:** MEDIUM
-- **Component:** `ai-input.tsx`
-- **Issue:** User input is sent directly to the AI without prompt injection testing. A malicious user could try to extract data from other entities or bypass security.
-- **Safety Impact:** Potential data exfiltration or security bypass.
-- **Fix:** Add prompt injection test cases: try to extract other entity data, try to bypass entity scoping, try to access admin functions.
+| #   | Finding                                                                                     | Severity | Status |
+| --- | ------------------------------------------------------------------------------------------- | -------- | ------ |
+| 1   | **Risk assessment labels misleading** — "Low Risk" means AI confidence, not financial risk. | HIGH     | ⬜     |
+| 2   | **Page title "Activity Hub" is generic** — doesn't communicate AI value.                    | MEDIUM   | ⬜     |
+| 3   | **Stats labels don't quantify AI value** — only "Auto-resolved" is AI-led.                  | MEDIUM   | ⬜     |
+| 4   | **Empty state "All caught up!" is generic** — no AI value shown.                            | MEDIUM   | ⬜     |
+| 5   | **"Processed" success message is vague** — doesn't say what was processed.                  | MEDIUM   | ⬜     |
+| 6   | **Default recommendation text is unhelpful**                                                | MEDIUM   | ⬜     |
+| 7   | **Page description "AI-curated, priority-sorted"** — redundant and jargon.                  | LOW      | ⬜     |
+| 8   | **Toast messages inconsistent**                                                             | LOW      | ⬜     |
+| 9   | **"Completed today" section only shows count** — no details on what AI resolved.            | LOW      | ⬜     |
+| 10  | **Filter tab "Info" is vague**                                                              | LOW      | ⬜     |
 
-### AE29-4 — No Evaluation for Confidence Calibration
+### Employee: Brand Voice
 
-- **Severity:** MEDIUM
-- **Component:** `conversation-thread.tsx`
-- **Issue:** Confidence scores are displayed but not calibrated. The AI may be overconfident (says 95% but is wrong 30%) or underconfident (says 60% but is right 95%). Neither is tested.
-- **Safety Impact:** Users can't trust confidence scores. May ignore important warnings.
-- **Fix:** Measure confidence vs accuracy across 100+ test cases. Calibrate scores. Track calibration drift over time.
+| #   | Finding                                                                                    | Severity | Status |
+| --- | ------------------------------------------------------------------------------------------ | -------- | ------ |
+| 1   | **"Activity Hub" title is corporate jargon** — brand voice is Clear, not corporate.        | MEDIUM   | ⬜     |
+| 2   | **"AI-curated, priority-sorted" violates brand terminology** — should use "AI agents".     | MEDIUM   | ⬜     |
+| 3   | **Risk assessment labels hedge** — "Low Risk" vs brand's "We make definitive statements".  | MEDIUM   | ⬜     |
+| 4   | **Stats labels don't use agent language** — "Auto-resolved" should be "AI agents handled". | LOW      | ⬜     |
+| 5   | **"All caught up!" is too casual** — brand voice is Confident but not sloppy.              | LOW      | ⬜     |
+| 6   | **"Processed" success message is vague** — brand says be specific.                         | LOW      | ⬜     |
+| 7   | **"Item Details" heading is generic** — brand says be specific.                            | LOW      | ⬜     |
+| 8   | **"Review and take appropriate action" is filler** — brand says no fluff.                  | LOW      | ⬜     |
+| 9   | **"Dismiss" action is ambiguous** — brand says direct action.                              | LOW      | ⬜     |
+| 10  | **"Snoozed for 1 hour" doesn't say when** — brand says be specific.                        | LOW      | ⬜     |
 
-### AE29-5 — No Red Team Testing for AI Responses
-
-- **Severity:** LOW
-- **Issue:** The AI hasn't been red-teamed for adversarial inputs. Users could try to trick the AI into making incorrect financial entries or revealing sensitive data.
-- **Safety Impact:** Potential for AI manipulation.
-- **Fix:** Conduct red team exercise: try to trick AI into incorrect entries, data leaks, unauthorized actions. Document and fix vulnerabilities.
-
 ---
 
-### Summary — Agent Eval
+## DEPARTMENT: LEADERSHIP
 
-| Severity  | Count |
-| --------- | ----- |
-| HIGH      | 2     |
-| MEDIUM    | 2     |
-| LOW       | 1     |
-| **Total** | **5** |
+### Employee: CEO/Founder
 
----
+| #   | Finding                                                                                      | Severity | Status |
+| --- | -------------------------------------------------------------------------------------------- | -------- | ------ |
+| 1   | **Activity Hub doesn't show AI value on first load** — stats don't quantify what AI did.     | HIGH     | ⬜     |
+| 2   | **No activation metric tracking** — can't measure first approval completion.                 | HIGH     | ⬜     |
+| 3   | **No competitive differentiation** — looks like any other task queue.                        | MEDIUM   | ⬜     |
+| 4   | **No social proof or trust signals** — critical for financial product.                       | MEDIUM   | ⬜     |
+| 5   | **No conversion path** — free users can use Activity Hub indefinitely.                       | MEDIUM   | ⬜     |
+| 6   | **No retention hooks** — no daily/weekly pull to bring users back.                           | MEDIUM   | ⬜     |
+| 7   | **Agent hierarchy not visible** — user sees "AI Agent" but doesn't understand 3-tier system. | MEDIUM   | ⬜     |
+| 8   | **"Auto-resolved" count is good but not prominent enough** — should be hero metric.          | LOW      | ⬜     |
 
-## Employee #30: COO — Operations Efficiency
+### Employee: Customer Success Manager
 
-**Scope:** Command Center page — operational efficiency, process optimization, scaling
-**Components reviewed:** `page.tsx`, `use-dashboard-chat.ts`, `use-surface-sync.ts`, `proactive-briefing.tsx`
+| #   | Finding                                                                       | Severity | Status |
+| --- | ----------------------------------------------------------------------------- | -------- | ------ |
+| 1   | **No onboarding for Activity Hub** — new users don't know what it is.         | HIGH     | ⬜     |
+| 2   | **No stalling detection** — if user never approves anything, no intervention. | HIGH     | ⬜     |
+| 3   | **No health score indicators** — user can't see engagement progress.          | MEDIUM   | ⬜     |
+| 4   | **No value demonstration** — shows what needs attention, not what AI handled. | MEDIUM   | ⬜     |
+| 5   | **No daily engagement hook** — no reason to check Activity Hub daily.         | MEDIUM   | ⬜     |
+| 6   | **No churn risk indicators** — can't tell if user is disengaging.             | MEDIUM   | ⬜     |
+| 7   | **"All caught up!" empty state doesn't encourage continued engagement**       | LOW      | ⬜     |
 
 ---
-
-### COO30-1 — No Monitoring for Dashboard Performance
-
-- **Severity:** HIGH
-- **Issue:** The Command Center has no performance monitoring. If page load time increases from 2s to 10s, there's no alert. Users experience slow performance silently.
-- **Operational Impact:** Performance degradation goes unnoticed. Users churn without feedback.
-- **Fix:** Add performance monitoring: track page load time, time to interactive, Core Web Vitals. Alert on regressions.
 
-### COO30-2 — No Cost Tracking for AI Operations
+## DEPARTMENT: DEVOPS
 
-- **Severity:** HIGH
-- **Issue:** Each AI interaction costs money (LLM tokens, API calls). There's no cost tracking per user or per entity. We don't know if the product is profitable per customer.
-- **Operational Impact:** Unknown unit economics. Potential negative margins on heavy users.
-- **Fix:** Track: tokens used per query, API calls per session, cost per user. Set alerts for high-cost users. Implement usage limits.
+### Employee: DevOps Engineer
 
-### COO30-3 — No Incident Response Plan for Dashboard Outages
+| #   | Finding                                                                       | Severity | Status |
+| --- | ----------------------------------------------------------------------------- | -------- | ------ |
+| 1   | **No cost tracking for AI auto-resolved items** — LLM costs untracked.        | HIGH     | ⬜     |
+| 2   | **5 tRPC queries with polling** — constant network traffic, no cost tracking. | MEDIUM   | ⬜     |
+| 3   | **No SSE fallback for real-time updates** — polling only, no push.            | MEDIUM   | ⬜     |
+| 4   | **No error rate monitoring** — if tRPC queries fail, no alerting.             | MEDIUM   | ⬜     |
+| 5   | **No request cancellation when user switches filters**                        | LOW      | ⬜     |
+| 6   | **Polling intervals hardcoded** — no way to adjust without code change.       | LOW      | ⬜     |
 
-- **Severity:** MEDIUM
-- **Issue:** If the Command Center goes down, there's no documented incident response plan. Who gets paged? What's the rollback procedure? What's the communication plan?
-- **Operational Impact:** Slow response to outages. Users discover issues before the team.
-- **Fix:** Document incident response: on-call rotation, rollback procedure, status page, user communication template.
-
-### COO30-4 — No SLA for AI Response Time
-
-- **Severity:** MEDIUM
-- **Component:** `conversation-thread.tsx`
-- **Issue:** The AI response time is not measured or SLA'd. If responses take 30 seconds instead of 3 seconds, there's no alert.
-- **Operational Impact:** Users wait too long for AI responses. Product feels slow.
-- **Fix:** Track: time to first token, time to complete response. Set SLA: 95th percentile < 5s. Alert on breaches.
-
-### COO30-5 — No Capacity Planning for SSE Connections
-
-- **Severity:** LOW
-- **File:** `use-surface-sync.ts`
-- **Issue:** Each user opens an SSE connection. At scale (10,000 concurrent users), this could exhaust server resources. No capacity planning exists.
-- **Operational Impact:** Server overload at scale. Connection failures.
-- **Fix:** Plan for max concurrent SSE connections. Implement connection limits. Consider WebSocket upgrade for better resource efficiency.
-
-### COO30-6 — No Automated Health Checks for Dashboard Components
-
-- **Severity:** LOW
-- **Issue:** No synthetic monitoring for the Command Center. If the dashboard breaks, it's discovered by users, not monitoring.
-- **Operational Impact:** Users discover issues first. Reactive instead of proactive.
-- **Fix:** Add synthetic monitoring: Playwright scripts that run every 5 minutes, testing critical flows. Alert on failures.
-
 ---
 
-### Summary — COO
+## DEPARTMENT: TESTING
 
-| Severity  | Count |
-| --------- | ----- |
-| HIGH      | 2     |
-| MEDIUM    | 2     |
-| LOW       | 2     |
-| **Total** | **6** |
+### Employee: QA
 
----
+| #   | Finding                                                               | Severity | Status |
+| --- | --------------------------------------------------------------------- | -------- | ------ |
+| 1   | **Zero tests for Activity Hub** — no unit, integration, or e2e tests. | HIGH     | ⬜     |
+| 2   | **Batch approve/reject flow untested** — complex multi-item action.   | HIGH     | ⬜     |
+| 3   | **Error state untested** — what happens when tRPC queries fail?       | HIGH     | ⬜     |
+| 4   | **Undo flow untested** — does undo actually revert changes?           | HIGH     | ⬜     |
+| 5   | **Snooze flow untested** — client-side timer, no verification.        | MEDIUM   | ⬜     |
+| 6   | **Detail drawer flow untested** — open, view, take action.            | MEDIUM   | ⬜     |
+| 7   | **Filter switching untested** — does filtering work correctly?        | MEDIUM   | ⬜     |
+| 8   | **Empty state untested** — what happens with zero items?              | MEDIUM   | ⬜     |
+| 9   | **Mobile responsive untested** — layout on 320px-767px.               | MEDIUM   | ⬜     |
+| 10  | **Keyboard navigation untested** — tab order, shortcuts.              | LOW      | ⬜     |
 
-## Employee #31: Strategy Manager — Strategic Alignment
+### Employee: Data Analyst
 
-**Scope:** Command Center page — competitive positioning, market differentiation, growth
-**Components reviewed:** `page.tsx`, `ai-greeting.tsx`, `getting-started-checklist.tsx`, `proactive-briefing.tsx`
+| #   | Finding                                                                          | Severity | Status |
+| --- | -------------------------------------------------------------------------------- | -------- | ------ |
+| 1   | **No time-to-action tracking** — can't measure queue dwell time.                 | HIGH     | ⬜     |
+| 2   | **No data freshness indicators** — stats don't show when last updated.           | MEDIUM   | ⬜     |
+| 3   | **No trend data** — shows current state, not changes over time.                  | MEDIUM   | ⬜     |
+| 4   | **No completion rate tracking** — can't measure approved vs rejected vs snoozed. | MEDIUM   | ⬜     |
+| 5   | **No agent performance data** — can't see which agents produce most items.       | LOW      | ⬜     |
+| 6   | **No conversion funnel** — can't measure item creation to resolution flow.       | LOW      | ⬜     |
 
 ---
-
-### SM31-1 — Command Center Doesn't Communicate AI-Native Value
-
-- **Severity:** HIGH
-- **Issue:** The Command Center looks like any other AI chat interface. There's nothing that says "this is AI-native accounting, not AI bolted onto old software." Our speed + AI-native moat is invisible.
-- **Strategic Impact:** Users compare us to QuickBooks AI and see no difference. Competitive advantage is wasted.
-- **Fix:** Add AI-native differentiation: "19 specialized AI agents" in greeting, agent hierarchy visualization, confidence scoring prominence.
 
-### SM31-2 — No Activation Metric Tracking
+# PAGE: /dashboard/financial-pulse
 
-- **Severity:** HIGH
-- **Issue:** The Command Center doesn't track activation metrics: time to first AI response, time to aha moment, checklist completion rate. Without these, we can't measure or improve activation.
-- **Strategic Impact:** Can't optimize the most critical funnel. Activation rate is unknown.
-- **Fix:** Track: time to first question, time to first AI response, time to approval, checklist completion. Report in analytics dashboard.
+AI-narrated financial health. Visual, not tabular. Layout: Period selector + AI Narrative + Anomaly Alerts + KPI Cards (Revenue, Expenses, Net Profit, Cash Balance) with sparklines and drill-down + Daily Close Status + Live Exchange Rates + Interactive Charts + Scenario Planner + AI Forecast + Budget vs Actual + Report Library + Quick Actions.
 
-### SM31-3 — No Viral Loop in Command Center
-
-- **Severity:** MEDIUM
-- **Issue:** The Command Center has no sharing, export, or referral mechanisms. Users can't easily share AI insights with colleagues or invite team members.
-- **Strategic Impact:** No organic growth from existing users. Growth depends entirely on marketing.
-- **Fix:** Add: share AI report with colleague, invite team member to view dashboard, export insights for board meeting.
-
-### SM31-4 — No Competitive Feature Parity Display
-
-- **Severity:** MEDIUM
-- **Issue:** The Command Center doesn't show features that competitors don't have. Users don't know what they're getting that QuickBooks/Xero can't offer.
-- **Strategic Impact:** Users don't understand why they should pay more for Xenboox.
-- **Fix:** Add subtle feature highlights: "AI confidence scoring (unique to Xenboox)" or "19 specialized agents (competitors have 1 generic AI)".
-
-### SM31-5 — No Enterprise Readiness Indicators
-
-- **Severity:** LOW
-- **Issue:** The Command Center doesn't signal enterprise readiness: SOC 2 compliance, audit trails, role-based access. Enterprise buyers need these signals.
-- **Strategic Impact:** Enterprise prospects may dismiss Xenboox as not enterprise-ready.
-- **Fix:** Add enterprise signals: "SOC 2 compliant" badge, "Full audit trail" in AI status, "Role-based access" in settings.
-
 ---
-
-### Summary — Strategy Manager
 
-| Severity  | Count |
-| --------- | ----- |
-| HIGH      | 2     |
-| MEDIUM    | 2     |
-| LOW       | 1     |
-| **Total** | **5** |
+## DEPARTMENT: PRODUCT
 
----
+### Employee: Product Manager
 
-## Employee #32: Onboarding Specialist — First-Time User Experience
+| #   | Finding                                                                                                          | Severity | Status |
+| --- | ---------------------------------------------------------------------------------------------------------------- | -------- | ------ |
+| 1   | **Period selector only has 3 options** — no custom date range, no year-over-year comparison.                     | HIGH     | ⬜     |
+| 2   | **AI Narrative confidence score shown but not explained** — users see "85% (High)" but don't know what it means. | MEDIUM   | ⬜     |
+| 3   | **KPI drill-down drawer shows raw data without AI insight** — just numbers, no narrative.                        | MEDIUM   | ⬜     |
+| 4   | **Budget vs Actual table shows only 8 items** — no way to see all categories.                                    | MEDIUM   | ⬜     |
+| 5   | **Report Library has only 4 reports** — missing balance sheet detail, aging reports, etc.                        | MEDIUM   | ⬜     |
+| 6   | **Quick Actions are generic** — "View Ledger", "Cash Flow" don't show AI value.                                  | MEDIUM   | ⬜     |
+| 7   | **Scenario Planner input is basic** — no examples, no history of past scenarios.                                 | MEDIUM   | ⬜     |
+| 8   | **No comparison view** — can't compare this month vs last month side by side.                                    | MEDIUM   | ⬜     |
+| 9   | **No export/share from Financial Pulse** — can't share AI narrative or charts.                                   | LOW      | ⬜     |
+| 10  | **Data freshness indicator is text-only** — says "every 5 minutes" but doesn't show last updated time.           | LOW      | ⬜     |
 
-**Scope:** Command Center page — onboarding flow, activation, time-to-value
-**Components reviewed:** `getting-started-checklist.tsx`, `ai-greeting.tsx`, `page.tsx`, `ai-input.tsx`
-
 ---
-
-### OS32-1 — No Personalized Onboarding Based on User Role
 
-- **Severity:** HIGH
-- **Component:** `getting-started-checklist.tsx`
-- **Issue:** The 5-step checklist is the same for all users regardless of role. A CFO needs different onboarding than a bookkeeper. The checklist doesn't adapt.
-- **Onboarding Impact:** Irrelevant steps slow down activation. Users skip steps they don't need.
-- **Fix:** Personalize checklist based on user role: CFO sees strategic steps, bookkeeper sees operational steps, owner sees overview steps.
+## DEPARTMENT: ENGINEERING
 
-### OS32-2 — No Time-to-Value Tracking
+### Employee: Engineering Critic
 
-- **Severity:** HIGH
-- **Component:** `page.tsx`
-- **Issue:** The onboarding flow doesn't track time-to-value: how long from signup to first AI response, from first response to first approval, from first approval to daily use. Without this, we can't optimize activation.
-- **Onboarding Impact:** Unknown activation speed. Can't measure onboarding effectiveness.
-- **Fix:** Track timestamps: signup, first login, first question, first AI response, first approval, daily return. Calculate time-to-value metrics.
+| #   | Finding                                                                                                                            | Severity | Status |
+| --- | ---------------------------------------------------------------------------------------------------------------------------------- | -------- | ------ |
+| 1   | **1369-line monolithic page component** — no code splitting, hard to maintain.                                                     | HIGH     | ⬜     |
+| 2   | **4 tRPC queries run on every render** — dashboardData, pnlData, anomalyData, aiNarrative all fire regardless of period selection. | MEDIUM   | ⬜     |
+| 3   | **Period selector doesn't invalidate queries** — switching period doesn't refetch dashboardData with new period param.             | HIGH     | ⬜     |
+| 4   | **MiniSparkline uses `Math.max(...data)` on potentially large arrays** — spread operator can stack overflow with 1000+ points.     | LOW      | ⬜     |
+| 5   | **ScenarioPlanner uses setTimeout to reset isSubmitting** — doesn't account for component unmount.                                 | LOW      | ⬜     |
+| 6   | **KpiDrillDownDrawer has no error boundary** — if drillDown data is malformed, entire page crashes.                                | MEDIUM   | ⬜     |
+| 7   | **BudgetVsActualSection returns null when loading** — no skeleton, causes layout shift.                                            | MEDIUM   | ⬜     |
+| 8   | **AI Narrative fallback assembles text from raw data** — complex logic duplicated from backend.                                    | LOW      | ⬜     |
+| 9   | **No request cancellation on period switch** — stale queries continue in background.                                               | LOW      | ⬜     |
+| 10  | **Charts use hardcoded currency fallback `GMD`** — should use entity currency from context.                                        | MEDIUM   | ⬜     |
 
-### OS32-3 — No Help or Tooltip System in Onboarding
-
-- **Severity:** MEDIUM
-- **Component:** `getting-started-checklist.tsx`
-- **Issue:** Checklist steps have no tooltips or help text explaining why each step matters. Users complete steps without understanding the value.
-- **Onboarding Impact:** Users complete steps mechanically without understanding AI value.
-- **Fix:** Add tooltips: "Connecting your bank lets AI categorize transactions automatically". Explain the AI benefit of each step.
-
-### OS32-4 — No Progress Celebration or Milestones
-
-- **Severity:** MEDIUM
-- **Component:** `getting-started-checklist.tsx`
-- **Issue:** When a user completes a step, there's no celebration or acknowledgment. Completion feels anticlimactic. No dopamine hit to encourage继续.
-- **Onboarding Impact:** Low motivation to complete remaining steps.
-- **Fix:** Add celebration: confetti on first step, "Great start!" message, progress percentage with encouragement.
-
-### OS32-5 — No Skip Option with Consequences
-
-- **Severity:** LOW
-- **Component:** `getting-started-checklist.tsx`
-- **Issue:** Users can dismiss the checklist permanently. There's no "Are you sure? You'll miss these AI features" warning. No consequence for skipping.
-- **Onboarding Impact:** Users skip onboarding and never discover AI value.
-- **Fix:** Add confirmation before dismiss: "Skip setup? You'll miss AI-powered features like automatic categorization and smart alerts." Show what they'll miss.
-
 ---
-
-### Summary — Onboarding Specialist
 
-| Severity  | Count |
-| --------- | ----- |
-| HIGH      | 2     |
-| MEDIUM    | 2     |
-| LOW       | 1     |
-| **Total** | **5** |
+## DEPARTMENT: DESIGN
 
----
+### Employee: Design Critic
 
-## Employee #33: Content Strategist — Content & Messaging
+| #   | Finding                                                                                       | Severity | Status |
+| --- | --------------------------------------------------------------------------------------------- | -------- | ------ |
+| 1   | **KPI cards use 10px text for change badges** — below WCAG readability minimum.               | MEDIUM   | ⬜     |
+| 2   | **Budget vs Actual table uses 9px status badges** — below readability minimum.                | MEDIUM   | ⬜     |
+| 3   | **"Ask AI" button on KPI cards only visible on hover** — mobile users can't discover it.      | MEDIUM   | ⬜     |
+| 4   | **No skeleton loading state for charts** — charts pop in without placeholders.                | MEDIUM   | ⬜     |
+| 5   | **Period selector tabs don't have focus ring** — keyboard users can't see active tab.         | LOW      | ⬜     |
+| 6   | **Scenario Planner input has no character limit** — can type indefinitely.                    | LOW      | ⬜     |
+| 7   | **Drill-down drawer has no swipe-to-dismiss on mobile**                                       | LOW      | ⬜     |
+| 8   | **Report Library cards don't show download progress** — no feedback during export.            | LOW      | ⬜     |
+| 9   | **Quick Actions section uses inconsistent button styles** — mix of border and primary styles. | LOW      | ⬜     |
+| 10  | **AI Narrative highlights/concerns use 10px text** — below readability minimum.               | LOW      | ⬜     |
 
-**Scope:** Command Center page — content strategy, messaging hierarchy, information architecture
-**Components reviewed:** `ai-greeting.tsx`, `ai-input.tsx`, `getting-started-checklist.tsx`, `proactive-briefing.tsx`
-
 ---
-
-### CS33-1 — No Content Hierarchy in Command Center
 
-- **Severity:** HIGH
-- **Issue:** The Command Center has no clear content hierarchy. The greeting, checklist, briefing, and chat are all competing for attention. Users don't know what to look at first.
-- **Content Impact:** Cognitive overload. Users don't know where to focus.
-- **Fix:** Establish clear hierarchy: (1) AI greeting with status, (2) Proactive briefing (most important), (3) Getting started (for new users), (4) Chat input (for questions). Use visual weight to guide attention.
+## DEPARTMENT: CONTENT
 
-### CS33-2 — No Content personalization Based on Entity Type
+### Employee: UX Writer
 
-- **Severity:** MEDIUM
-- **Issue:** The Command Center shows the same content regardless of entity type. A retail business needs different metrics than a service business. The content doesn't adapt.
-- **Content Impact:** Irrelevant content for some users. Missed opportunity for personalization.
+| #   | Finding                                                                                                             | Severity | Status |
+| --- | ------------------------------------------------------------------------------------------------------------------- | -------- | ------ |
+| 1   | **AI Narrative confidence label is ambiguous** — "High" vs "Medium" vs "Low" doesn't explain what confidence means. | MEDIUM   | ⬜     |
+| 2   | **Scenario Planner placeholder "Describe a scenario..." is vague** — should suggest specific examples.              | MEDIUM   | ⬜     |
+| 3   | **Quick Actions labels are generic** — "View Ledger" doesn't explain what user will see.                            | MEDIUM   | ⬜     |
+| 4   | **Budget vs Actual status labels unclear** — "Over" vs "Under" vs "On Track" need context.                          | LOW      | ⬜     |
+| 5   | **Report Library descriptions are brief** — "Revenue, expenses, and net income" doesn't say why user should care.   | LOW      | ⬜     |
+| 6   | **Data freshness text is passive** — "Data refreshes every 5 minutes" doesn't say when last updated.                | LOW      | ⬜     |
+| 7   | **AI Narrative loading state says "Generating..."** — should explain what AI is doing.                              | LOW      | ⬜     |
 
-### CS33-3 — No Microcopy for Empty States
+### Employee: Copywriter
 
-- **Severity:** MEDIUM
-- **Components:** `conversation-thread.tsx`, `proactive-briefing.tsx`
-- **Issue:** Empty states (no messages, no briefing) have no helpful microcopy. Users see blank areas with no guidance on what to do next.
-- **Content Impact:** Users feel lost when there's no data.
-- **Fix:** Add helpful empty states: "Ask your AI a question to get started" or "Your AI is analyzing your books. Check back in a few minutes."
+| #   | Finding                                                                                                   | Severity | Status |
+| --- | --------------------------------------------------------------------------------------------------------- | -------- | ------ |
+| 1   | **Page title "Financial Pulse" is abstract** — doesn't communicate AI value.                              | MEDIUM   | ⬜     |
+| 2   | **Quick Actions don't lead with AI** — "View Ledger" is SaaS language, not AI-native.                     | MEDIUM   | ⬜     |
+| 3   | **Scenario Planner copy is instructional, not compelling** — tells user what to do, not what they'll get. | LOW      | ⬜     |
+| 4   | **Report Library labels are standard accounting terms** — not differentiated from competitors.            | LOW      | ⬜     |
+| 5   | **AI Narrative highlights use ✅ emoji** — inconsistent with brand design system.                         | LOW      | ⬜     |
 
-### CS33-4 — No Content for Feature Discovery
+### Employee: Brand Voice
 
-- **Severity:** LOW
-- **Issue:** The Command Center doesn't surface new features or capabilities. Users stick to familiar workflows and miss AI improvements.
-- **Content Impact:** Low feature adoption. Users don't know about new capabilities.
+| #   | Finding                                                                                         | Severity | Status |
+| --- | ----------------------------------------------------------------------------------------------- | -------- | ------ |
+| 1   | **"Financial Pulse" is not brand terminology** — brand uses "AI agents" not abstract metaphors. | MEDIUM   | ⬜     |
+| 2   | **Quick Actions use SaaS language** — "View Ledger" should be "Ask AI about your ledger".       | MEDIUM   | ⬜     |
+| 3   | **AI Narrative loading says "Generating"** — brand voice says show what AI is doing.            | LOW      | ⬜     |
+| 4   | **Report Library labels are generic** — brand says be specific.                                 | LOW      | ⬜     |
 
 ---
 
-### Summary — Content Strategist
+## DEPARTMENT: LEADERSHIP
 
-| Severity  | Count |
-| --------- | ----- |
-| HIGH      | 1     |
-| MEDIUM    | 2     |
-| LOW       | 1     |
-| **Total** | **4** |
+### Employee: CEO/Founder
 
----
+| #   | Finding                                                                                        | Severity | Status |
+| --- | ---------------------------------------------------------------------------------------------- | -------- | ------ |
+| 1   | **Financial Pulse doesn't show AI value on first load** — narrative is loading, KPIs are zero. | HIGH     | ⬜     |
+| 2   | **No competitive differentiation** — charts look same as QuickBooks/Xero.                      | MEDIUM   | ⬜     |
+| 3   | **No social proof or trust signals** — critical for financial data display.                    | MEDIUM   | ⬜     |
+| 4   | **No conversion path** — free users see full financial pulse.                                  | MEDIUM   | ⬜     |
+| 5   | **Scenario Planner is a differentiator but not prominent** — buried at bottom.                 | MEDIUM   | ⬜     |
 
-## Employee #34: Marketing Manager — Growth & Conversion
+### Employee: Customer Success Manager
 
-**Scope:** Command Center page — conversion optimization, user acquisition, retention
-**Components reviewed:** `page.tsx`, `ai-input.tsx`, `getting-started-checklist.tsx`, `proactive-briefing.tsx`
+| #   | Finding                                                                                  | Severity | Status |
+| --- | ---------------------------------------------------------------------------------------- | -------- | ------ |
+| 1   | **No onboarding for Financial Pulse** — new users don't know what to look at first.      | HIGH     | ⬜     |
+| 2   | **No guided tour of AI narrative** — users may not understand the AI-generated insights. | MEDIUM   | ⬜     |
+| 3   | **No value demonstration** — shows numbers, not what AI did to produce them.             | MEDIUM   | ⬜     |
+| 4   | **No daily engagement hook** — no reason to check Financial Pulse daily.                 | MEDIUM   | ⬜     |
 
 ---
-
-### MM34-1 — No Conversion Path from Free to Paid
-
-- **Severity:** HIGH
-- **Component:** `page.tsx`
-- **Issue:** The Command Center has no upgrade prompt, pricing reference, or conversion path. Free users who hit limits have no way to discover paid plans.
-- **Marketing Impact:** Lost conversion opportunities. Free users can't become paying customers.
--
-
-### MM34-2 — No Referral Mechanism in Dashboard
-
-- **Severity:** HIGH
-- **Issue:** The Command Center has no share, invite, or referral features. Users can't easily invite colleagues or share AI insights.
-- **Marketing Impact:** No viral growth. Customer acquisition cost remains high.
 
-### MM34-3 — No Social Proof on Dashboard
+## DEPARTMENT: DEVOPS
 
-- **Severity:** MEDIUM
-- **Issue:** The Command Center has no trust signals, testimonials, or social proof. Users don't see that others trust Xenboox with their financial data.
-- **Marketing Impact:** Low trust for new users. Higher churn risk.
+### Employee: DevOps Engineer
 
-### MM34-4 — No Feature Highlighting for Retention
+| #   | Finding                                                                               | Severity | Status |
+| --- | ------------------------------------------------------------------------------------- | -------- | ------ |
+| 1   | **AI Narrative query has 10-minute staleTime** — expensive LLM calls cached too long. | MEDIUM   | ⬜     |
+| 2   | **4 tRPC queries with no polling** — no real-time updates for financial data.         | LOW      | ⬜     |
+| 3   | **No error rate monitoring for AI narrative generation** — if LLM fails, no alerting. | MEDIUM   | ⬜     |
+| 4   | **Report downloads generate on client** — large reports may timeout or fail silently. | LOW      | ⬜     |
 
-- **Severity:** LOW
-- **Issue:** The Command Center doesn't highlight features that drive retention: AI insights, automated categorization, smart alerts. Users may not know about these features.
-- **Marketing Impact:** Users don't discover value-driving features. Retention suffers.
-
 ---
 
-### Summary — Marketing Manager
+## DEPARTMENT: TESTING
 
-| Severity  | Count |
-| --------- | ----- |
-| HIGH      | 2     |
-| MEDIUM    | 1     |
-| LOW       | 1     |
-| **Total** | **4** |
+### Employee: QA
 
----
+| #   | Finding                                                                           | Severity | Status |
+| --- | --------------------------------------------------------------------------------- | -------- | ------ |
+| 1   | **Zero tests for Financial Pulse** — no unit, integration, or e2e tests.          | HIGH     | ⬜     |
+| 2   | **Period switching untested** — does data actually change when switching periods? | HIGH     | ⬜     |
+| 3   | **KPI drill-down flow untested** — click card, see drawer, take action.           | MEDIUM   | ⬜     |
+| 4   | **Report download flow untested** — PDF/Excel/Word export.                        | MEDIUM   | ⬜     |
+| 5   | **Scenario Planner flow untested** — type scenario, submit, see result.           | MEDIUM   | ⬜     |
+| 6   | **Empty state untested** — what happens with zero financial data?                 | MEDIUM   | ⬜     |
+| 7   | **Error state untested** — what happens when AI narrative fails?                  | HIGH     | ⬜     |
+| 8   | **Mobile responsive untested** — layout on 320px-767px.                           | MEDIUM   | ⬜     |
 
-## Employee #35: Product Designer — UI/UX Design
+### Employee: Data Analyst
 
-**Scope:** Command Center page — visual design, interaction patterns, design system
-**Components reviewed:** `ai-greeting.tsx`, `ai-input.tsx`, `getting-started-checklist.tsx`, `conversation-thread.tsx`
+| #   | Finding                                                                               | Severity | Status |
+| --- | ------------------------------------------------------------------------------------- | -------- | ------ |
+| 1   | **No data freshness timestamp** — says "every 5 minutes" but no last-updated time.    | MEDIUM   | ⬜     |
+| 2   | **No trend comparison** — can't see this month vs last month in same view.            | MEDIUM   | ⬜     |
+| 3   | **Budget vs Actual only shows 8 items** — truncated data, incomplete picture.         | MEDIUM   | ⬜     |
+| 4   | **Sparklines don't show actual values** — visual only, no hover tooltips.             | LOW      | ⬜     |
+| 5   | **AI Narrative confidence not tracked over time** — can't measure if AI is improving. | LOW      | ⬜     |
 
 ---
-
-### PD35-1 — Inconsistent Component Spacing and Sizing
-
-- **Severity:** HIGH
-- **Components:** All Command Center components
-- **Issue:** Spacing between components is inconsistent: some use `p-4`, others `p-6`, others `space-y-4`. The visual rhythm is broken. Users perceive this as unpolished.
-- **Design Impact:** Inconsistent visual quality. Users sense something is off.
-- **Fix:** Establish spacing scale: `p-4` for cards, `p-6` for sections, `space-y-4` for lists. Apply consistently.
-
-### PD35-2 — No Dark Mode Support
 
-- **Severity:** MEDIUM
-- **Issue:** The Command Center may not fully support dark mode. Some components use hardcoded colors instead of CSS variables. Dark mode users see broken styling.
-- **Design Impact:** Dark mode users have poor experience. Potential accessibility issue.
+# PAGE: /dashboard/ledger
 
-### PD35-3 — No Loading Skeleton for Initial Load
+The accounting records. AI-enhanced search and context. Layout: Tab list (Journal, Chart of Accounts, Trial Balance, Fixed Assets, Reconciliation) + Journal View (search, create entry, entry list, entry detail drawer with reverse) + COA View + Trial Balance + Fixed Assets + Reconciliation.
 
-- **Severity:** MEDIUM
-- **Component:** `page.tsx`
-- **Issue:** When the page loads, there's no skeleton UI. Users see a blank page until data loads. This feels slow even if the actual load time is fast.
-- **Design Impact:** Poor perceived performance. Users think the app is slow.
-
-### PD35-4 — No Consistent Icon System
-
-- **Severity:** LOW
-- **Components:** Various Command Center components
-- **Issue:** Icons are mixed: some use Lucide, others use custom SVGs, others use emoji. The icon style is inconsistent.
-- **Design Impact:** Visual inconsistency. Users perceive lower quality.
-
 ---
-
-### Summary — Product Designer
-
-| Severity  | Count |
-| --------- | ----- |
-| HIGH      | 1     |
-| MEDIUM    | 2     |
-| LOW       | 1     |
-| **Total** | **4** |
 
----
+## DEPARTMENT: PRODUCT
 
-## Employee #36: Product Analyst — Data-Driven Decisions
+### Employee: Product Manager
 
-**Scope:** Command Center page — metrics, analytics, user behavior tracking
-**Components reviewed:** `page.tsx`, `ai-input.tsx`, `conversation-thread.tsx`, `proactive-briefing.tsx`
+| #   | Finding                                                                                     | Severity | Status |
+| --- | ------------------------------------------------------------------------------------------- | -------- | ------ |
+| 1   | **Journal search is client-side over paginated results** — can't search across all entries. | HIGH     | ⬜     |
+| 2   | **No bulk actions on journal entries** — can't select multiple entries to post/void.        | MEDIUM   | ⬜     |
+| 3   | **Reverse entry requires manual reason text** — no structured reversal reason selector.     | MEDIUM   | ⬜     |
+| 4   | **No entry comparison view** — can't compare two entries side by side.                      | MEDIUM   | ⬜     |
+| 5   | **Trial Balance has no period selector** — shows current period only.                       | MEDIUM   | ⬜     |
+| 6   | **COA import wizard is hidden** — no obvious way to import chart of accounts.               | LOW      | ⬜     |
+| 7   | **No keyboard shortcut to create new entry** — must click button.                           | LOW      | ⬜     |
+| 8   | **Fixed Assets tab shows component but no loading state** — blank area during load.         | LOW      | ⬜     |
 
 ---
-
-### PA36-1 — No Analytics Events for Dashboard Interactions
-
-- **Severity:** HIGH
-- **Issue:** The Command Center doesn't track key user interactions: suggestion chip clicks, approval actions, checklist completions, briefing views. Without analytics, we can't measure feature adoption.
-- **Analytics Impact:** Blind to user behavior. Can't optimize based on data.
-- **Fix:** Add PostHog events for: suggestion clicks, approval actions, checklist steps, briefing interactions, chat messages.
-
-### PA36-2 — No Funnel Tracking for Activation
-
-- **Severity:** HIGH
-- **Issue:** No funnel analysis for: signup → first login → first question → first AI response → first approval → daily return. Without this, we can't identify drop-off points.
-- **Analytics Impact:** Can't optimize activation funnel. Unknown where users drop off.
 
-### PA36-3 — No Cohort Analysis for Retention
+## DEPARTMENT: ENGINEERING
 
-- **Severity:** MEDIUM
-- **Issue:** No cohort analysis to track retention by signup date, entity type, or plan. We can't measure if the Command Center drives retention.
-- **Analytics Impact:** Unknown retention rates. Can't identify churn patterns.
+### Employee: Engineering Critic
 
-### PA36-4 — No A/B Test Infrastructure for Dashboard Changes
+| #   | Finding                                                                                                      | Severity | Status |
+| --- | ------------------------------------------------------------------------------------------------------------ | -------- | ------ |
+| 1   | **1311-line monolithic page** — 5 tabs in one file, no code splitting.                                       | HIGH     | ⬜     |
+| 2   | **JournalEntryDrawer manages its own keyboard listener** — duplicate Escape handler.                         | MEDIUM   | ⬜     |
+| 3   | **reverseMutation onClose calls parent onClose** — drawer closes before mutation completes.                  | HIGH     | ⬜     |
+| 4   | **Tab content renders all 5 tabs** — `tabContent` object created on every render, unused tabs still mounted. | MEDIUM   | ⬜     |
+| 5   | **No error boundary around tab content** — one bad tab crashes entire ledger.                                | HIGH     | ⬜     |
+| 6   | **TrialBalanceView has hidden undo trigger button** — `sr-only` button with no keyboard trigger.             | LOW      | ⬜     |
+| 7   | **Journal search input has no debouncing** — fires on every keystroke.                                       | LOW      | ⬜     |
+| 8   | **Entry detail drawer doesn't cancel in-flight queries on close** — stale data may flash.                    | LOW      | ⬜     |
 
-- **Severity:** LOW
-- **Issue:** No A/B testing framework for dashboard experiments. Every change is a full rollout with no controlled testing.
-- **Analytics Impact:** Risky deployments. No data on feature impact.
-
 ---
-
-### Summary — Product Analyst
 
-| Severity  | Count |
-| --------- | ----- |
-| HIGH      | 2     |
-| MEDIUM    | 1     |
-| LOW       | 1     |
-| **Total** | **4** |
+## DEPARTMENT: DESIGN
 
----
+### Employee: Design Critic
 
-## Employee #37: Product Reviewer — Quality Assurance
+| #   | Finding                                                                                               | Severity | Status |
+| --- | ----------------------------------------------------------------------------------------------------- | -------- | ------ |
+| 1   | **Tab list overflows horizontally on mobile** — 5 tabs require scrolling.                             | MEDIUM   | ⬜     |
+| 2   | **Entry detail drawer status badges use 10px text** — below readability minimum.                      | MEDIUM   | ⬜     |
+| 3   | **No skeleton loading for journal entry list** — entries pop in without placeholders.                 | MEDIUM   | ⬜     |
+| 4   | **Reverse confirmation dialog has no focus trap** — custom overlay, not shadcn Dialog.                | MEDIUM   | ⬜     |
+| 5   | **Balance check indicator is small** — 4px icon, easy to miss.                                        | LOW      | ⬜     |
+| 6   | **Entry lines table has no row hover state on mobile** — touch users can't see which row is selected. | LOW      | ⬜     |
+| 7   | **AI action buttons in drawer are full-width** — takes too much vertical space.                       | LOW      | ⬜     |
 
-**Scope:** Command Center page — feature completeness, edge cases, regression risks
-**Components reviewed:** `page.tsx`, `ai-input.tsx`, `conversation-thread.tsx`, `getting-started-checklist.tsx`
-
 ---
-
-### PR37-1 — No Feature Completeness Checklist
 
-- **Severity:** HIGH
-- **Issue:** The Command Center has no feature completeness checklist. Features are added ad-hoc without verification that they work end-to-end.
-- **Quality Impact:** Features may be incomplete or broken in production.
+## DEPARTMENT: CONTENT
 
-### PR37-2 — No Regression Testing After Changes
+### Employee: UX Writer
 
-- **Severity:** HIGH
-- **Issue:** When a component is changed, there's no regression testing to ensure existing functionality isn't broken. Changes are deployed without verification.
-- **Quality Impact:** Breaking changes reach production. Users encounter new bugs.
+| #   | Finding                                                                                   | Severity | Status |
+| --- | ----------------------------------------------------------------------------------------- | -------- | ------ |
+| 1   | **Tab labels are accounting jargon** — "Chart of Accounts" may confuse non-accountants.   | MEDIUM   | ⬜     |
+| 2   | **"Explain this entry" button is good** — clear AI-native action.                         | N/A      | ✅     |
+| 3   | **Reverse dialog text is brief** — doesn't explain consequences clearly.                  | MEDIUM   | ⬜     |
+| 4   | **Entry source label uses raw string** — "agent" shown as-is, not "AI Agent".             | LOW      | ⬜     |
+| 5   | **No empty state for journal tab** — shows blank when no entries exist.                   | MEDIUM   | ⬜     |
+| 6   | **Search placeholder "Search entries..." is generic** — could suggest what to search for. | LOW      | ⬜     |
 
-### PR37-3 — No Accessibility Audit
+### Employee: Copywriter
 
-- **Severity:** MEDIUM
-- **Issue:** The Command Center hasn't been audited for accessibility: WCAG compliance, screen reader support, keyboard navigation, color contrast.
-- **Quality Impact:** Users with disabilities can't use the product. Potential legal issues.
+| #   | Finding                                                                           | Severity | Status |
+| --- | --------------------------------------------------------------------------------- | -------- | ------ |
+| 1   | **Page title "Ledger" is traditional accounting term** — not AI-native.           | MEDIUM   | ⬜     |
+| 2   | **Tab labels are SaaS-style** — not leading with AI value.                        | LOW      | ⬜     |
+| 3   | **Reverse dialog copy is functional, not compelling** — doesn't explain AI value. | LOW      | ⬜     |
 
-### PR37-4 — No Performance Audit
+### Employee: Brand Voice
 
-- **Severity:** LOW
-- **Issue:** The Command Center hasn't been audited for performance: bundle size, render time, memory usage. Performance issues accumulate over time.
-- **Quality Impact:** Gradual performance degradation. Users experience slow UI.
+| #   | Finding                                                                                             | Severity | Status |
+| --- | --------------------------------------------------------------------------------------------------- | -------- | ------ |
+| 1   | **"Ledger" is traditional terminology** — brand says use AI-native language.                        | MEDIUM   | ⬜     |
+| 2   | **Tab labels are standard accounting** — not differentiated.                                        | LOW      | ⬜     |
+| 3   | **Reverse dialog uses "This will create a new entry"** — brand says be specific about consequences. | LOW      | ⬜     |
 
 ---
 
-### Summary — Product Reviewer
+## DEPARTMENT: LEADERSHIP
 
-| Severity  | Count |
-| --------- | ----- |
-| HIGH      | 2     |
-| MEDIUM    | 1     |
-| LOW       | 1     |
-| **Total** | **4** |
+### Employee: CEO/Founder
 
----
+| #   | Finding                                                                                        | Severity | Status |
+| --- | ---------------------------------------------------------------------------------------------- | -------- | ------ |
+| 1   | **Ledger doesn't show AI value prominently** — AI explain/audit buttons are secondary actions. | HIGH     | ⬜     |
+| 2   | **No competitive differentiation** — ledger looks like standard accounting software.           | MEDIUM   | ⬜     |
+| 3   | **No social proof or trust signals** — critical for financial records.                         | MEDIUM   | ⬜     |
+| 4   | **No conversion path** — full ledger available to free users.                                  | MEDIUM   | ⬜     |
 
-## Employee #38: Marketing Critique — Conversion Optimization
+### Employee: Customer Success Manager
 
-**Scope:** Command Center page — conversion copy, CTA effectiveness, user engagement
-**Components reviewed:** `ai-input.tsx`, `getting-started-checklist.tsx`, `proactive-briefing.tsx`, `ai-greeting.tsx`
+| #   | Finding                                                                      | Severity | Status |
+| --- | ---------------------------------------------------------------------------- | -------- | ------ |
+| 1   | **No onboarding for Ledger** — new users don't know which tab to start with. | HIGH     | ⬜     |
+| 2   | **No guided tour of AI features** — explain/audit buttons may be missed.     | MEDIUM   | ⬜     |
+| 3   | **No value demonstration** — shows entries, not what AI did to create them.  | MEDIUM   | ⬜     |
 
 ---
-
-### MC38-1 — No Clear Call-to-Action on Dashboard
 
-- **Severity:** HIGH
-- **Component:** `page.tsx`
-- **Issue:** The Command Center has no primary CTA. Users land on a greeting and chat input, but there's no "Start free trial" or "Upgrade to Pro" button. No conversion path.
-- **Marketing Impact:** No revenue from dashboard. Users don't discover paid features.
+## DEPARTMENT: DEVOPS
 
-### MC38-2 — Suggestion Chips Don't Drive Engagement
+### Employee: DevOps Engineer
 
-- **Severity:** MEDIUM
-- **Component:** `ai-input.tsx`
-- **Issue:** The 5 suggestion chips are static and don't adapt to user behavior. After first use, they become ignored. They don't drive repeated engagement.
-- **Marketing Impact:** Low engagement with suggestions. Wasted UI space.
+| #   | Finding                                                                                      | Severity | Status |
+| --- | -------------------------------------------------------------------------------------------- | -------- | ------ |
+| 1   | **No pagination limits on journal query** — could load thousands of entries.                 | HIGH     | ⬜     |
+| 2   | **No caching for COA data** — refetches on every tab switch.                                 | LOW      | ⬜     |
+| 3   | **Reverse mutation doesn't invalidate related queries** — trial balance may show stale data. | MEDIUM   | ⬜     |
 
-### MC38-3 — No Urgency or Scarcity in Onboarding
-
-- **Severity:** LOW
-- **Component:** `getting-started-checklist.tsx`
-- **Issue:** The checklist has no time pressure or urgency. Users can skip it without consequence. No "Limited time: Get AI setup in 5 minutes" urgency.
-- **Marketing Impact:** Low onboarding completion rate. Users procrastinate.
-
 ---
 
-### Summary — Marketing Critique
+## DEPARTMENT: TESTING
 
-| Severity  | Count |
-| --------- | ----- |
-| HIGH      | 1     |
-| MEDIUM    | 1     |
-| LOW       | 1     |
-| **Total** | **3** |
+### Employee: QA
 
----
+| #   | Finding                                                          | Severity | Status |
+| --- | ---------------------------------------------------------------- | -------- | ------ |
+| 1   | **Zero tests for Ledger** — no unit, integration, or e2e tests.  | HIGH     | ⬜     |
+| 2   | **Journal entry creation flow untested** — create, verify, post. | HIGH     | ⬜     |
+| 3   | **Reverse entry flow untested** — reverse, verify balance.       | HIGH     | ⬜     |
+| 4   | **Tab switching untested** — does data load correctly per tab?   | MEDIUM   | ⬜     |
+| 5   | **Search flow untested** — does search return correct results?   | MEDIUM   | ⬜     |
+| 6   | **Empty state untested** — what happens with no entries?         | MEDIUM   | ⬜     |
+| 7   | **Error state untested** — what happens when queries fail?       | HIGH     | ⬜     |
+| 8   | **Mobile responsive untested** — tab list on mobile.             | MEDIUM   | ⬜     |
 
-## Employee #39: Product Critique — Feature Quality
+### Employee: Data Analyst
 
-**Scope:** Command Center page — feature quality, user experience, AI-native patterns
-**Components reviewed:** `page.tsx`, `conversation-thread.tsx`, `proactive-briefing.tsx`, `ai-input.tsx`
+| #   | Finding                                                                   | Severity | Status |
+| --- | ------------------------------------------------------------------------- | -------- | ------ |
+| 1   | **No entry count metrics** — can't see total entries, entries per period. | MEDIUM   | ⬜     |
+| 2   | **No balance trend data** — trial balance shows current, not trend.       | MEDIUM   | ⬜     |
+| 3   | **No AI vs Human entry ratio** — can't measure AI adoption.               | LOW      | ⬜     |
+| 4   | **No reversal rate tracking** — can't measure entry quality.              | LOW      | ⬜     |
 
 ---
 
-### PC39-1 — AI Doesn't Proactively Help Users
+# PAGE: /dashboard/operations
 
-- **Severity:** HIGH
-- **Component:** `page.tsx`
-- **Issue:** The AI waits for user input. It doesn't proactively analyze data, suggest actions, or alert users to important changes. For an AI-native product, the AI should be doing work, not waiting.
-- **Product Impact:** Users don't perceive AI value. They think it's a chatbot, not an AI agent.
+Money in, money out. AI handles it, you approve. Layout: Money Flow Summary (AI-narrated) + Cash Flow Chart + Money Out (Bills, Banking, Expenses, Payroll) + Money In (Invoices, Estimates, Reconcile) + Banking Cards + Mobile Money Cards + Recent Transactions + Compliance & Close + People Grid + AI Quick Actions + Transaction Detail Drawer.
 
-### PC39-2 — No Progressive Disclosure of AI Capabilities
-
-- **Severity:** MEDIUM
-- **Issue:** The Command Center doesn't gradually reveal AI capabilities. Users see the same interface whether it's their first day or 100th day. No "New: AI can now do X" discovery.
-- **Product Impact:** Users don't discover new features. Feature adoption is low.
-
-### PC39-3 — No Trust-Building Mechanisms
-
-- **Severity:** LOW
-- **Issue:** The Command Center doesn't build trust over time. No "AI accuracy: 98%" metric, no "10,000 transactions processed" counter, no "99.9% uptime" badge.
-- **Product Impact:** Users don't develop trust in AI. Churn risk remains high.
-
 ---
-
-### Summary — Product Critique
 
-| Severity  | Count |
-| --------- | ----- |
-| HIGH      | 1     |
-| MEDIUM    | 1     |
-| LOW       | 1     |
-| **Total** | **3** |
+## DEPARTMENT: PRODUCT
 
----
-
-## Employee #40: Content Critique — Copy Quality
+### Employee: Product Manager
 
-**Scope:** Command Center page — copy clarity, brand consistency, error messages
-**Components reviewed:** `ai-greeting.tsx`, `ai-input.tsx`, `getting-started-checklist.tsx`, `conversation-thread.tsx`
+| #   | Finding                                                                                                                         | Severity | Status |
+| --- | ------------------------------------------------------------------------------------------------------------------------------- | -------- | ------ |
+| 1   | **Money Out/Money In sections use different interaction patterns** — some are Links, some are buttons opening AI. Inconsistent. | MEDIUM   | ⬜     |
+| 2   | **No quick-create actions** — can't create invoice, bill, or estimate directly from Operations.                                 | HIGH     | ⬜     |
+| 3   | **Recent Transactions has no filter/sort** — just a list, can't filter by type, date, or amount.                                | MEDIUM   | ⬜     |
+| 4   | **Compliance & Close section is collapsed by default** — users may miss critical close status.                                  | MEDIUM   | ⬜     |
+| 5   | **No bulk actions on transactions** — can't select multiple to categorize or reconcile.                                         | MEDIUM   | ⬜     |
+| 6   | **People Grid shows employees but no action** — can't pay, contact, or manage from here.                                        | LOW      | ⬜     |
+| 7   | **AI Quick Actions are generic** — don't adapt to entity state or time of month.                                                | LOW      | ⬜     |
+| 8   | **No export from Operations** — can't export money flow summary or transaction list.                                            | LOW      | ⬜     |
 
 ---
-
-### CC40-1 — Error Messages Are Technical, Not User-Friendly
-
-- **Severity:** HIGH
-- **File:** `use-dashboard-chat.ts`
-- **Issue:** Error messages like "SSE connection lost" and "timeout" are technical jargon. Users don't understand these. Brand voice says: "Plain English, never stack traces."
-- **Content Impact:** Users see confusing errors. Trust erodes.
-
-### CC40-2 — Inconsistent Terminology Across Components
 
-- **Severity:** MEDIUM
-- **Components:** Various
-- **Issue:** The same concept is called different things: "chat" vs "conversation", "AI" vs "AI agent", "approve" vs "confirm". Terminology is inconsistent.
-- **Content Impact:** Users are confused by inconsistent language.
+## DEPARTMENT: ENGINEERING
 
-### CC40-3 — No Microcopy for Loading States
+### Employee: Engineering Critic
 
-- **Severity:** LOW
-- **Components:** `conversation-thread.tsx`, `proactive-briefing.tsx`
-- **Issue:** Loading states show generic spinners or blank areas. No helpful microcopy: "Your AI is analyzing..." or "Preparing your briefing..."
-- **Content Impact:** Users don't know what's happening during loading.
+| #   | Finding                                                                                                  | Severity | Status |
+| --- | -------------------------------------------------------------------------------------------------------- | -------- | ------ |
+| 1   | **924-line monolithic page** — multiple sections in one file.                                            | HIGH     | ⬜     |
+| 2   | **MoneyFlowSummary fetches dashboardData and cashPosition** — may duplicate queries from other surfaces. | MEDIUM   | ⬜     |
+| 3   | **BankingCards has no loading skeleton** — blank area during load.                                       | MEDIUM   | ⬜     |
+| 4   | **Transaction Detail Drawer manages its own keyboard listener** — potential duplicate handlers.          | LOW      | ⬜     |
+| 5   | **Recent Transactions has no pagination** — could load hundreds of transactions.                         | HIGH     | ⬜     |
+| 6   | **No error boundary around sections** — one bad section crashes entire page.                             | HIGH     | ⬜     |
+| 7   | **MobileMoneyCards may not handle empty state** — what if no mobile money accounts?                      | LOW      | ⬜     |
+| 8   | **Cash Flow Chart receives raw cashPosition** — no error handling if data is malformed.                  | LOW      | ⬜     |
 
 ---
 
-### Summary — Content Critique
+## DEPARTMENT: DESIGN
 
-| Severity  | Count |
-| --------- | ----- |
-| HIGH      | 1     |
-| MEDIUM    | 1     |
-| LOW       | 1     |
-| **Total** | **3** |
+### Employee: Design Critic
 
----
-
-## Employee #41: Automation Specialist — Workflow Automation
+| #   | Finding                                                                                                      | Severity | Status |
+| --- | ------------------------------------------------------------------------------------------------------------ | -------- | ------ |
+| 1   | **Money Flow stats use 10px labels** — below WCAG readability minimum.                                       | MEDIUM   | ⬜     |
+| 2   | **No skeleton loading for Banking Cards** — content pops in.                                                 | MEDIUM   | ⬜     |
+| 3   | **Money Out/Money In cards have inconsistent padding** — different from other sections.                      | LOW      | ⬜     |
+| 4   | **Transaction Detail Drawer has no swipe-to-dismiss on mobile**                                              | LOW      | ⬜     |
+| 5   | **"Live" badge on Money Flow is decorative** — pulsing dot implies real-time but data refreshes every 5 min. | MEDIUM   | ⬜     |
+| 6   | **Recent Transactions list has no row hover on mobile** — touch users can't see selection.                   | LOW      | ⬜     |
+| 7   | **AI Quick Actions section uses inconsistent button styles** — mix of border and primary.                    | LOW      | ⬜     |
 
-**Scope:** Command Center page — automation opportunities, workflow optimization
-**Components reviewed:** `page.tsx`, `getting-started-checklist.tsx`, `proactive-briefing.tsx`, `conversation-thread.tsx`
-
 ---
-
-### AS41-1 — No Automated Onboarding Email Sequence
-
-- **Severity:** HIGH
-- **Component:** `getting-started-checklist.tsx`
-- **Issue:** When a user dismisses the checklist or stalls, there's no automated follow-up. No email sequence to re-engage. No in-app reminder.
-- **Automation Impact:** Users who stall churn silently. No automated recovery.
 
-### AS41-2 — No Automated Data Quality Checks
+## DEPARTMENT: CONTENT
 
-- **Severity:** MEDIUM
-- **Component:** `proactive-briefing.tsx`
-- **Issue:** The briefing shows data but doesn't run automated quality checks. Duplicate transactions, missing data, and anomalies are not automatically detected.
-- **Automation Impact:** Users miss data quality issues. Manual review required.
+### Employee: UX Writer
 
-### AS41-3 — No Automated Report Generation
+| #   | Finding                                                                                             | Severity | Status |
+| --- | --------------------------------------------------------------------------------------------------- | -------- | ------ |
+| 1   | **"Live" badge is misleading** — data refreshes every 5 min, not real-time.                         | HIGH     | ⬜     |
+| 2   | **Money Flow summary text is passive** — "Cash balance is $X" doesn't tell user what to do.         | MEDIUM   | ⬜     |
+| 3   | **Section labels are accounting terms** — "AR", "Payroll", "Reconcile" may confuse non-accountants. | MEDIUM   | ⬜     |
+| 4   | **No empty state for Recent Transactions** — shows blank when no transactions.                      | MEDIUM   | ⬜     |
+| 5   | **People Grid labels are generic** — "Employees", "Vendors" don't show AI value.                    | LOW      | ⬜     |
+| 6   | **AI Quick Actions don't explain what AI will do** — just action labels.                            | LOW      | ⬜     |
 
-- **Severity:** LOW
-- **Component:** `proactive-briefing.tsx`
-- **Issue:** The briefing is manual (user must ask). No automated weekly/monthly reports. Users must remember to check.
-- **Automation Impact:** Users miss regular insights. Engagement drops.
+### Employee: Copywriter
 
----
-
-### Summary — Automation Specialist
-
-| Severity  | Count |
-| --------- | ----- |
-| HIGH      | 1     |
-| MEDIUM    | 1     |
-| LOW       | 1     |
-| **Total** | **3** |
-
----
+| #   | Finding                                                                                               | Severity | Status |
+| --- | ----------------------------------------------------------------------------------------------------- | -------- | ------ |
+| 1   | **"Operations" is SaaS language** — not AI-native.                                                    | MEDIUM   | ⬜     |
+| 2   | **"Money Out" / "Money In" is good** — simple, clear, AI-native.                                      | N/A      | ✅     |
+| 3   | **Section labels don't lead with AI** — "Banking & Feeds" should be "AI-powered banking".             | LOW      | ⬜     |
+| 4   | **AI Quick Actions are instructional, not compelling** — tells user what to do, not what they'll get. | LOW      | ⬜     |
 
-## Employee #42: Sales Representative — Sales Enablement
+### Employee: Brand Voice
 
-**Scope:** Command Center page — demo readiness, objection handling, conversion
-**Components reviewed:** `page.tsx`, `ai-greeting.tsx`, `proactive-briefing.tsx`, `getting-started-checklist.tsx`
+| #   | Finding                                                                     | Severity | Status |
+| --- | --------------------------------------------------------------------------- | -------- | ------ |
+| 1   | **"Operations" is corporate jargon** — brand voice is Clear, not corporate. | MEDIUM   | ⬜     |
+| 2   | **"Live" badge violates brand** — brand says be honest about what AI does.  | MEDIUM   | ⬜     |
+| 3   | **Section labels use standard accounting terms** — not differentiated.      | LOW      | ⬜     |
 
 ---
 
-### SR42-1 — Command Center Not Demo-Ready
+## DEPARTMENT: LEADERSHIP
 
-- **Severity:** HIGH
-- **Issue:** The Command Center has multiple HIGH severity bugs (duplicate tables, broken approvals, infinite reconnect). These would be visible during a sales demo, killing the deal.
-- **Sales Impact:** Lost deals due to demo failures.
+### Employee: CEO/Founder
 
-### SR42-2 — No "Wow Moment" in First 30 Seconds
+| #   | Finding                                                                               | Severity | Status |
+| --- | ------------------------------------------------------------------------------------- | -------- | ------ |
+| 1   | **Operations doesn't show AI value prominently** — AI is secondary to manual actions. | HIGH     | ⬜     |
+| 2   | **No competitive differentiation** — looks like standard accounting operations.       | MEDIUM   | ⬜     |
+| 3   | **No conversion path** — full operations available to free users.                     | MEDIUM   | ⬜     |
+| 4   | **No social proof or trust signals** — critical for money management.                 | MEDIUM   | ⬜     |
 
-- **Severity:** HIGH
-- **Component:** `page.tsx`
-- **Issue:** When a prospect sees the Command Center for the first time, there's no immediate "wow" moment. They see a greeting and empty chat. The AI-native value isn't demonstrated instantly.
-- **Sales Impact:** Prospects don't understand the AI-native advantage in the first impression.
+### Employee: Customer Success Manager
 
-### SR42-3 — No Competitive Differentiation in UI
+| #   | Finding                                                                  | Severity | Status |
+| --- | ------------------------------------------------------------------------ | -------- | ------ |
+| 1   | **No onboarding for Operations** — new users don't know where to start.  | HIGH     | ⬜     |
+| 2   | **No guided tour of AI features** — money flow summary AI may be missed. | MEDIUM   | ⬜     |
+| 3   | **No daily engagement hook** — no reason to check Operations daily.      | MEDIUM   | ⬜     |
 
-- **Severity:** MEDIUM
-- **Component:** `ai-greeting.tsx`
-- **Issue:** The UI doesn't show what makes Xenboox different from QuickBooks/Xero. A prospect comparing screenshots would see no difference.
-- **Sales Impact:** Competitors look the same. No visual differentiation.
-
 ---
-
-### Summary — Sales Representative
 
-| Severity  | Count |
-| --------- | ----- |
-| HIGH      | 2     |
-| MEDIUM    | 1     |
-| LOW       | 0     |
-| **Total** | **3** |
+## DEPARTMENT: DEVOPS
 
----
+### Employee: DevOps Engineer
 
-## Employee #43: Lead Researcher — Lead Qualification
+| #   | Finding                                                                    | Severity | Status |
+| --- | -------------------------------------------------------------------------- | -------- | ------ |
+| 1   | **No polling for Recent Transactions** — stale data if user stays on page. | MEDIUM   | ⬜     |
+| 2   | **No error monitoring for Money Flow queries** — silent failures.          | MEDIUM   | ⬜     |
+| 3   | **Cash Flow Chart has no caching** — refetches on every render.            | LOW      | ⬜     |
 
-**Scope:** Command Center page — lead capture, qualification, conversion
-**Components reviewed:** `page.tsx`, `ai-input.tsx`, `getting-started-checklist.tsx`
-
 ---
-
-### LR43-1 — No Lead Capture Mechanism on Dashboard
 
-- **Severity:** HIGH
-- **Component:** `page.tsx`
-- **Issue:** The Command Center has no lead capture: no email signup, no trial extension, no upgrade prompt. Free users can use the dashboard indefinitely without conversion.
-- **Lead Impact:** No lead generation from product. Growth depends entirely on marketing.
+## DEPARTMENT: TESTING
 
-### LR43-2 — No Usage-Based Lead Scoring
+### Employee: QA
 
-- **Severity:** MEDIUM
-- **Issue:** The Command Center doesn't track usage patterns that indicate lead quality: frequency of AI queries, approval actions, checklist completion. High usage = high-quality lead.
-- **Lead Impact:** Can't prioritize sales outreach. All leads treated equally.
+| #   | Finding                                                                | Severity | Status |
+| --- | ---------------------------------------------------------------------- | -------- | ------ |
+| 1   | **Zero tests for Operations** — no unit, integration, or e2e tests.    | HIGH     | ⬜     |
+| 2   | **Money Flow summary flow untested** — AI click, see analysis.         | MEDIUM   | ⬜     |
+| 3   | **Transaction Detail flow untested** — click transaction, see drawer.  | MEDIUM   | ⬜     |
+| 4   | **Navigation to sub-pages untested** — Bills, Banking, Invoices links. | HIGH     | ⬜     |
+| 5   | **Empty state untested** — what happens with no bank accounts?         | MEDIUM   | ⬜     |
+| 6   | **Error state untested** — what happens when queries fail?             | HIGH     | ⬜     |
+| 7   | **Mobile responsive untested** — layout on mobile.                     | MEDIUM   | ⬜     |
 
-### LR43-3 — No Trial Expiration or Upgrade Nudge
+### Employee: Data Analyst
 
-- **Severity:** LOW
-- **Component:** `page.tsx`
-- **Issue:** Free tier users have no indication of limits or trial expiration. No nudge to upgrade when approaching limits.
-- **Lead Impact:** Free users don't convert. No urgency to upgrade.
-
----
-
-### Summary — Lead Researcher
-
-| Severity  | Count |
-| --------- | ----- |
-| HIGH      | 1     |
-| MEDIUM    | 1     |
-| LOW       | 1     |
-| **Total** | **3** |
-
----
+| #   | Finding                                                                         | Severity | Status |
+| --- | ------------------------------------------------------------------------------- | -------- | ------ |
+| 1   | **No transaction volume metrics** — can't see transactions per day/week.        | MEDIUM   | ⬜     |
+| 2   | **No AI categorization rate** — can't measure how many transactions AI handles. | HIGH     | ⬜     |
+| 3   | **No money flow trend data** — shows current, not trend.                        | MEDIUM   | ⬜     |
+| 4   | **No reconciliation completion rate** — can't measure progress.                 | LOW      | ⬜     |
