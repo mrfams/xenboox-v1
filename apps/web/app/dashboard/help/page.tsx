@@ -26,8 +26,19 @@ import {
 
 import { cn } from "@/lib/utils";
 import { AiSimulationTrigger } from "@/components/ai-ux/simulation-trigger";
-import { HelpAssistant } from "@/components/dashboard/help-assistant";
 import { ErrorBoundary } from "@/components/shared/error-boundary";
+import dynamic from "next/dynamic";
+
+const HelpAssistant = dynamic(
+  () =>
+    import("@/components/dashboard/help-assistant").then(
+      (m) => m.HelpAssistant,
+    ),
+  {
+    ssr: false,
+    loading: () => <div className="h-96 rounded-xl bg-muted animate-pulse" />,
+  },
+);
 
 // ─── Data ──────────────────────────────────────────────────────────────────
 
