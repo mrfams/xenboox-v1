@@ -17,6 +17,20 @@ metadata:
 
 The month-end close is the core autonomous workflow. All agents run continuously throughout the month. At month-end, the CFO Agent orchestrates a close sequence where every department head confirms their domain is clean.
 
+**Workflow Mode:** LOOP + GRAPH
+
+- **Loop:** Iterate through close sequence → verification → recovery until close is complete
+- **Graph:** For complex close flows, fan-out across departments, fan-in to aggregate
+- **Quality Gate:** Cannot declare PASS until close is complete and verified
+
+**Non-negotiable rules:**
+
+1. Every department must confirm independently
+2. Every confirmation must have confidence >= 0.7
+3. Every close must have a recovery path
+4. AI-native patterns must be preserved
+5. You provide evidence of close quality, not just claims
+
 ```
 CFO Agent triggers close
   │
@@ -357,6 +371,40 @@ export async function initiateRecovery(state: typeof CfoState.State) {
 5. **Not preserving history** — Every close version must be preserved for audit.
 6. **Closing without confidence check** — All confirmations must have confidence >= 0.7.
 7. **Missing error recovery** — Every close must have a recovery path.
+
+## AI-Native Close
+
+Since Xenboox is AI-native, close must reflect this:
+
+### AI-Native Close Principles
+
+1. **Autonomous execution** — AI agents handle the close, humans approve
+2. **Confidence scoring** — Every confirmation has confidence score
+3. **Narrative summary** — AI explains what happened in plain English
+4. **Proactive alerts** — AI surfaces issues before they become problems
+5. **Human-in-the-loop** — Owner approves final close
+
+### AI-Native Close Checklist
+
+- [ ] AI agents execute close autonomously
+- [ ] Confidence scores on all confirmations
+- [ ] Narrative summary explains what happened
+- [ ] Proactive alerts surface issues early
+- [ ] Human-in-the-loop for final approval
+
+### Evidence-Based Completion
+
+Before declaring close complete, provide:
+
+```
+EVIDENCE PACKAGE:
+├── Departments confirmed: [list all departments]
+├── Confidence scores: [list all scores]
+├── Issues found: [list all issues]
+├── Recovery paths: [defined for all error types]
+├── AI-native check: [close is AI-native, not SaaS]
+└── Audit trail: [complete close history]
+```
 
 ## Verification
 

@@ -11,6 +11,19 @@ description: Use when encountering any bug, test failure, or unexpected behavior
 
 **Violating the letter of this process is violating the spirit of debugging.**
 
+**Workflow Mode:** LOOP + GRAPH
+
+- **Loop:** Iterate through investigation → hypothesis → testing → implementation until root cause is found
+- **Graph:** For complex bugs (>3 components), fan-out across components, fan-in to aggregate
+- **Quality Gate:** Cannot declare PASS until root cause is found and verified
+
+**Non-negotiable rules:**
+
+1. Research before fixing — understand the system first
+2. Every fix must address root cause, not symptom
+3. Debugging must be AI-native, not SaaS-style
+4. You provide evidence of fix quality, not just claims
+
 ## The Iron Law
 
 ```
@@ -280,6 +293,43 @@ If systematic investigation reveals issue is truly environmental, timing-depende
 4. Add monitoring/logging for future investigation
 
 **But:** 95% of "no root cause" cases are incomplete investigation.
+
+## AI-Native Debugging
+
+Since Xenboox is AI-native, debugging must reflect this:
+
+### AI-Native Debugging Principles
+
+1. **Agent communication** — Debug agent-to-agent communication issues
+2. **Confidence scoring** — Debug confidence calculation issues
+3. **Human-in-the-loop** — Debug decision card issues
+4. **Entity scoping** — Debug entity isolation issues
+5. **Audit trail** — Debug logging issues
+
+### AI-Native Bug Patterns
+
+| Bug Pattern              | Debugging Focus                           |
+| ------------------------ | ----------------------------------------- |
+| **Agent not responding** | Check agent state, communication channels |
+| **Confidence wrong**     | Check confidence calculation logic        |
+| **Decision card broken** | Check decision card rendering and actions |
+| **Entity leak**          | Check entity scoping on all queries       |
+| **Audit missing**        | Check audit trail logging                 |
+
+### Evidence-Based Completion
+
+Before declaring debugging complete, provide:
+
+```
+EVIDENCE PACKAGE:
+├── Root cause found: [description]
+├── Fix implemented: [description]
+├── Tests added: [regression test]
+├── AI-native check: [debugging is AI-native, not SaaS]
+└── Verification: [fix verified]
+```
+
+---
 
 ## Supporting Techniques
 
