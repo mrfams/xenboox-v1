@@ -36,6 +36,7 @@ type DonorProject = {
   grantAmount: string;
   amountDisbursed: string;
   amountRemaining: string;
+  currency: string;
   reportingFormat: string;
   reportingCadence: string | null;
   status: string;
@@ -67,10 +68,10 @@ type DonorReportSnapshot = {
   generatedAt: string;
 };
 
-function formatCurrency(amount: number): string {
+function formatCurrency(amount: number, currency: string = "GMD"): string {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
-    currency: "GMD",
+    currency,
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
   }).format(amount);
@@ -93,6 +94,7 @@ function ProjectCard({
   const grantAmount = parseFloat(project.grantAmount);
   const disbursed = parseFloat(project.amountDisbursed);
   const remaining = parseFloat(project.amountRemaining);
+  const currency = project.currency ?? "GMD";
   const percentUsed = grantAmount > 0 ? (disbursed / grantAmount) * 100 : 0;
   const isLow = percentUsed > 80;
 
@@ -147,10 +149,10 @@ function ProjectCard({
           </div>
           <div className="flex items-center justify-between text-[11px]">
             <span className="text-muted-foreground">
-              {formatCurrency(disbursed)} disbursed
+              {formatCurrency(disbursed, currency)} disbursed
             </span>
             <span className="text-muted-foreground">
-              {formatCurrency(remaining)} remaining
+              {formatCurrency(remaining, currency)} remaining
             </span>
           </div>
         </div>
@@ -162,7 +164,7 @@ function ProjectCard({
               Grant Amount
             </p>
             <p className="text-sm font-bold text-foreground">
-              {formatCurrency(grantAmount)}
+              {formatCurrency(grantAmount, currency)}
             </p>
           </div>
           <div className="rounded-lg bg-background/50 p-2.5">
@@ -235,7 +237,7 @@ function ProjectCard({
                                 projectName: project.projectName,
                                 projectCode: project.projectCode,
                                 period: snapshot.period,
-                                currency: "GMD",
+                                currency: project.currency ?? "GMD",
                                 grantAmount: parseFloat(project.grantAmount),
                                 amountDisbursed: parseFloat(
                                   project.amountDisbursed,
@@ -270,13 +272,13 @@ function ProjectCard({
                       <div>
                         <span className="text-muted-foreground">Budgeted</span>
                         <p className="font-medium text-foreground">
-                          {formatCurrency(bva.totalBudgeted)}
+                          {formatCurrency(bva.totalBudgeted, currency)}
                         </p>
                       </div>
                       <div>
                         <span className="text-muted-foreground">Actual</span>
                         <p className="font-medium text-foreground">
-                          {formatCurrency(bva.totalActual)}
+                          {formatCurrency(bva.totalActual, currency)}
                         </p>
                       </div>
                       <div>
@@ -292,7 +294,7 @@ function ProjectCard({
                           )}
                         >
                           {bva.totalVariance > 0 ? "+" : ""}
-                          {formatCurrency(bva.totalVariance)}
+                          {formatCurrency(bva.totalVariance, currency)}
                         </p>
                       </div>
                     </div>
@@ -438,6 +440,7 @@ export default function DonorDashboardPage() {
     (s, p) => s + parseFloat(p.amountDisbursed),
     0,
   );
+  const primaryCurrency = projects[0]?.currency ?? "GMD";
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/30">
@@ -524,7 +527,7 @@ export default function DonorDashboardPage() {
               </p>
             </div>
             <p className="text-xl font-bold text-foreground">
-              {formatCurrency(totalGrant)}
+              {formatCurrency(totalGrant, primaryCurrency)}
             </p>
           </div>
           <div className="rounded-xl border border-border/40 bg-card/80 p-4">
@@ -535,7 +538,7 @@ export default function DonorDashboardPage() {
               </p>
             </div>
             <p className="text-xl font-bold text-foreground">
-              {formatCurrency(totalDisbursed)}
+              {formatCurrency(totalDisbursed, primaryCurrency)}
             </p>
           </div>
           <div className="rounded-xl border border-border/40 bg-card/80 p-4">
@@ -546,7 +549,7 @@ export default function DonorDashboardPage() {
               </p>
             </div>
             <p className="text-xl font-bold text-foreground">
-              {formatCurrency(totalGrant - totalDisbursed)}
+              {formatCurrency(totalGrant - totalDisbursed, primaryCurrency)}
             </p>
           </div>
         </div>

@@ -20,7 +20,7 @@ export const BRAND = {
 
 // ─── Number Formatting ─────────────────────────────────────────────────────
 
-export function formatAmount(value: number, currency: string = "GMD"): string {
+export function formatAmount(value: number, currency: string = "USD"): string {
   return `${currency} ${value.toLocaleString("en-US", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,

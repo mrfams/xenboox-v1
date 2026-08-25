@@ -1,7 +1,7 @@
 export { cn } from "@xenboox/ui";
 
-export function formatCurrency(amount: number, currency = "GMD"): string {
-  return new Intl.NumberFormat("en-GM", {
+export function formatCurrency(amount: number, currency = "USD"): string {
+  return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency,
     minimumFractionDigits: 2,
