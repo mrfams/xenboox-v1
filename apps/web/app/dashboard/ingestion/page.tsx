@@ -37,11 +37,15 @@ export default function IngestionPage() {
   const [currentBatchId, setCurrentBatchId] = useState<string | null>(null);
 
   // Fetch batch history
-  const { data: batches, isLoading: batchesLoading } =
-    trpc.batchIngestion.listBatches.useQuery(
-      { limit: 10 },
-      { enabled: !!entityId },
-    );
+  const {
+    data: batches,
+    isLoading: batchesLoading,
+    isError,
+    refetch,
+  } = trpc.batchIngestion.listBatches.useQuery(
+    { limit: 10 },
+    { enabled: !!entityId },
+  );
 
   // Handle batch start
   const handleBatchStart = useCallback((batchId: string) => {
@@ -60,13 +64,36 @@ export default function IngestionPage() {
         </p>
       </div>
 
+      {/* Error State */}
+      {isError && (
+        <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-4 text-center">
+          <XCircle
+            className="h-5 w-5 text-destructive mx-auto mb-2"
+            aria-hidden="true"
+          />
+          <p className="text-sm font-medium text-foreground">
+            Unable to load batch history
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Check your connection and try again.
+          </p>
+          <button
+            type="button"
+            onClick={() => refetch()}
+            className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/5 px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/10 transition-colors"
+          >
+            Retry
+          </button>
+        </div>
+      )}
+
       {/* Quick Stats */}
       <div className="grid grid-cols-4 gap-4">
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <FileText className="h-5 w-5 text-blue-600" />
+              <div className="p-2 bg-blue-100 dark:bg-blue-500/20 rounded-lg">
+                <FileText className="h-5 w-5 text-blue-600 dark:text-blue-400" />
               </div>
               <div>
                 <div className="text-2xl font-bold">
@@ -82,8 +109,8 @@ export default function IngestionPage() {
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-green-100 rounded-lg">
-                <CheckCircle className="h-5 w-5 text-green-600" />
+              <div className="p-2 bg-green-100 dark:bg-green-500/20 rounded-lg">
+                <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" />
               </div>
               <div>
                 <div className="text-2xl font-bold">
@@ -101,8 +128,8 @@ export default function IngestionPage() {
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-red-100 rounded-lg">
-                <XCircle className="h-5 w-5 text-red-600" />
+              <div className="p-2 bg-red-100 dark:bg-red-500/20 rounded-lg">
+                <XCircle className="h-5 w-5 text-red-600 dark:text-red-400" />
               </div>
               <div>
                 <div className="text-2xl font-bold">
@@ -119,8 +146,8 @@ export default function IngestionPage() {
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-amber-100 rounded-lg">
-                <Clock className="h-5 w-5 text-amber-600" />
+              <div className="p-2 bg-amber-100 dark:bg-amber-500/20 rounded-lg">
+                <Clock className="h-5 w-5 text-amber-600 dark:text-amber-400" />
               </div>
               <div>
                 <div className="text-2xl font-bold">
@@ -282,17 +309,17 @@ function BatchHistoryCard({
                 className={`
                   ${
                     batch.progress.status === "completed"
-                      ? "bg-green-100 text-green-800"
+                      ? "bg-green-100 dark:bg-green-500/20 text-green-800 dark:text-green-400"
                       : ""
                   }
                   ${
                     batch.progress.status === "failed"
-                      ? "bg-red-100 text-red-800"
+                      ? "bg-red-100 dark:bg-red-500/20 text-red-800 dark:text-red-400"
                       : ""
                   }
                   ${
                     batch.progress.status === "processing"
-                      ? "bg-blue-100 text-blue-800"
+                      ? "bg-blue-100 dark:bg-blue-500/20 text-blue-800 dark:text-blue-400"
                       : ""
                   }
                 `}

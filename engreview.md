@@ -1629,3 +1629,63 @@ Help center with search, topic cards, documentation links, AI assistant, and hea
 | --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------------ | ------ |
 | 1   | **Zero analytics on help usage** — no events for search queries, topic clicks, AI assistant opens, or external doc navigation. Can't measure help effectiveness or identify gaps. | MEDIUM   | Instrument search/click/navigation events. | ⬜     |
 | 2   | **No help-to-support conversion tracking** — can't measure how many users go from help → AI → email support. Critical funnel for support cost optimization.                       | LOW      | Track progression through help surfaces.   | ⬜     |
+
+# PAGE: /dashboard/ingestion
+
+Batch document ingestion pipeline with upload, progress tracking, and history.
+
+---
+
+## DEPARTMENT: PRODUCT
+
+### Employee: Product Manager
+
+| #   | Finding                                                                                                                                                                | Severity | Fix                                              | Status |
+| --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------------------ | ------ |
+| 1   | **No error handling on queries** — listBatches query doesn't handle errors; failed loads show "..." indefinitely.                                                      | HIGH     | Add error state with retry.                      | ⬜     |
+| 2   | **Failed batches have no retry** — failed batch shows status but no way to retry processing. Users must re-upload from scratch.                                        | HIGH     | Add "Retry" button on failed batches.            | ⬜     |
+| 3   | **Dropzone onDrop is empty** — `onDrop={() => {}}` does nothing; files dropped on the outer Dropzone are silently ignored. Only BatchUpload's internal dropzone works. | MEDIUM   | Wire outer Dropzone to BatchUpload or remove it. | ⬜     |
+| 4   | **No file type restrictions** — dropzone accepts any file type; users can upload executables, videos, or other non-document files that will fail processing.           | MEDIUM   | Restrict to PDF, images, CSV, Excel.             | ⬜     |
+| 5   | **Progress tab empty when no active batch** — shows "No active batch processing" even if there's a recently completed batch.                                           | LOW      | Show last batch or link to history.              | ⬜     |
+| 6   | **Stats are just counts** — no success rate, avg processing time, or other meaningful metrics.                                                                         | LOW      | Add success rate and avg duration.               | ⬜     |
+
+### Employee: UX Writer
+
+| #   | Finding                                                                                             | Severity | Fix                                                                | Status |
+| --- | --------------------------------------------------------------------------------------------------- | -------- | ------------------------------------------------------------------ | ------ |
+| 1   | **Batch ID truncated as engineer-speak** — "Batch a1b2c3d4..." means nothing to users.              | MEDIUM   | Show user-friendly label like "Batch #1" or use date-based naming. | ⬜     |
+| 2   | **"No batch history yet" empty state lacks guidance** — passive copy doesn't tell users what to do. | LOW      | "Upload your first documents to start processing."                 | ⬜     |
+
+---
+
+## DEPARTMENT: DESIGN
+
+### Employee: Design Critic
+
+| #   | Finding                                                                                                                                               | Severity | Fix                                          | Status |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | -------------------------------------------- | ------ |
+| 1   | **Hardcoded light-mode colors** — bg-blue-100, bg-green-100, bg-red-100, bg-amber-100 without dark mode variants. Same defect class across all pages. | HIGH     | Add dark: variants or use semantic tokens.   | ⬜     |
+| 2   | **Stats cards use raw Tailwind colors** — not theme-aware; dark mode renders pastel-on-dark failures.                                                 | MEDIUM   | Map to semantic color tokens.                | ⬜     |
+| 3   | **No loading skeleton parity** — stats show "..." while loading; should match final layout.                                                           | LOW      | Skeleton states matching final card heights. | ⬜     |
+
+---
+
+## DEPARTMENT: ENGINEERING
+
+### Employee: Engineering Critic
+
+| #   | Finding                                                                                                         | Severity | Fix                                           | Status |
+| --- | --------------------------------------------------------------------------------------------------------------- | -------- | --------------------------------------------- | ------ |
+| 1   | **Batch history not paginated** — `limit: 10` hardcoded; entities with many batches can't see older ones.       | MEDIUM   | Add pagination or "Load more".                | ⬜     |
+| 2   | **No polling on active batches** — progress tab doesn't auto-refresh; users must manually click to see updates. | MEDIUM   | Add refetchInterval when batch is processing. | ⬜     |
+
+---
+
+## DEPARTMENT: DATA
+
+### Employee: Data Analyst
+
+| #   | Finding                                                                                                                 | Severity | Fix                             | Status |
+| --- | ----------------------------------------------------------------------------------------------------------------------- | -------- | ------------------------------- | ------ |
+| 1   | **No ingestion metrics** — can't track documents processed per day, success rate over time, or avg processing duration. | MEDIUM   | Add time-series metrics.        | ⬜     |
+| 2   | **No document type breakdown** — can't see what types of documents are being ingested (invoices, receipts, statements). | LOW      | Add document type distribution. | ⬜     |
