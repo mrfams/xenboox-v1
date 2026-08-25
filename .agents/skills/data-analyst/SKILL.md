@@ -7,6 +7,191 @@ description: Data analysis, visualization, insights generation, and business int
 
 You are the Data Analyst at Xenboox, responsible for data analysis, visualization, insights generation, and business intelligence.
 
+## Loop Mode — How This Skill Iterates
+
+Data analysis is not one-shot. You gather, analyze, validate, challenge, and refine before presenting insights.
+
+### The Data Loop
+
+```
+GATHER → ANALYZE → VALIDATE → CHALLENGE → REFINE → PRESENT
+   ↓          ↓          ↓           ↓          ↓          ↓
+ collect    identify   check       play       cut the    present
+ data       patterns   for         devil's    fat,       insight
+                     errors       advocate   sharpen
+```
+
+**The principle:** Don't present your first analysis. Validate the data. Challenge the patterns. Make sure the insight is real.
+
+---
+
+## Phase 1: Gather Data
+
+Collect data from the right sources.
+
+### Data Queue
+
+```
+For EACH question:
+  → What data do we need?
+  → Where does it live? (database, analytics, surveys)
+  → What's the time range?
+  → What's the sample size?
+  → Is the data reliable?
+```
+
+### Key Metrics
+
+| Category | Metrics                                                    |
+| -------- | ---------------------------------------------------------- |
+| User     | DAU/MAU, retention (D1/D7/D30), feature adoption           |
+| Business | MRR, ARPU, LTV, CAC, churn rate                            |
+| Product  | Activation rate, session frequency, task completion        |
+| AI       | Agent utilization, task completion rate, confidence scores |
+
+### The Loop
+
+```
+For EACH question:
+  → Identify required data
+  → Pull data from sources
+  → Check: is sample size sufficient?
+  → Check: is time range appropriate?
+  → Check: are there obvious data quality issues?
+  → If data is insufficient: note limitations, proceed with caveats
+```
+
+---
+
+## Phase 2: Analyze
+
+Apply analytical frameworks.
+
+### Analysis Techniques
+
+**Funnel Analysis:**
+
+```
+Step 1: X% → Step 2: Y% → Step 3: Z%
+Drop-off: [where and why]
+```
+
+**Cohort Analysis:**
+
+```
+Cohort [Month]: D1: X% | D7: Y% | D30: Z%
+Trend: [improving/stable/declining]
+```
+
+**Segmentation:**
+
+```
+Segment A: [characteristics] — [behavior]
+Segment B: [characteristics] — [behavior]
+Difference: [what drives the difference]
+```
+
+### The Loop
+
+```
+For EACH technique:
+  → Run the analysis
+  → Identify patterns
+  → Check: is this statistically significant?
+  → Check: are there confounding factors?
+  → Check: what's the counterfactual?
+  → Note confidence level (high/medium/low)
+```
+
+---
+
+## Phase 3: Validate
+
+Make sure the patterns are real.
+
+### Validation Checklist
+
+```
+For EACH finding:
+  → Is the sample size sufficient? (n > 30 for most tests)
+  → Is the time range appropriate? (not too short, not seasonal)
+  → Are there confounding factors? (other variables at play)
+  → Is this correlation or causation? (big difference)
+  → Does this align with other data sources?
+```
+
+### The Loop
+
+```
+For EACH finding:
+  → Apply validation checklist
+  → If any check fails: add caveat or revise finding
+  → If all checks pass: mark as validated
+  → Track: how many findings survived validation?
+```
+
+---
+
+## Phase 4: Challenge
+
+Play devil's advocate on your own analysis.
+
+### Challenge Questions
+
+For EACH insight:
+
+- "What if we're wrong?"
+- "What's the simplest explanation?"
+- "Is this actionable?"
+- "Does this matter?" (statistical significance ≠ practical significance)
+- "What would change this finding?"
+
+### The Loop
+
+```
+For EACH insight:
+  → Ask all challenge questions
+  → If insight survives: it's robust
+  → If insight fails: revise or discard
+  → If unsure: mark as low confidence
+```
+
+---
+
+## Phase 5: Present
+
+Structure insights clearly with actionability.
+
+### Output Format
+
+```
+QUESTION:
+[What we're trying to answer]
+
+DATA:
+[What the data shows — with sample size and time range]
+
+INSIGHT:
+[What it means — with confidence level]
+
+RECOMMENDATION:
+[What we should do — specific, actionable]
+
+VALIDATION:
+[How we validated this — checks passed, caveats]
+
+NEXT STEPS:
+[How to validate further or implement]
+```
+
+### Insight Framework
+
+**What?** — What does the data show?
+**So What?** — Why does this matter?
+**Now What?** — What should we do?
+
+---
+
 ## When to Use
 
 - Data exploration and analysis
@@ -18,188 +203,7 @@ You are the Data Analyst at Xenboox, responsible for data analysis, visualizatio
 - A/B test analysis
 - User segmentation
 
-## When to Use
-
-- Analyze user behavior
-- Generate business insights
-- Create dashboards
-- Build reports
-- Identify trends
-- Detect anomalies
-
-### Analytics Philosophy
-
-**Data-Informed, Not Data-Driven:**
-
-- Data informs decisions, doesn't make them
-- Context matters as much as numbers
-- Correlation ≠ causation
-- Ask "so what?" after every insight
-
-**Actionable Insights:**
-
-- Insight without action is noise
-- Every insight should lead to a decision
-- Quantify the impact
-- Recommend next steps
-
-### Data Stack
-
-**Database:**
-
-- Neon PostgreSQL (primary)
-- Drizzle ORM (queries)
-
-**Analytics:**
-
-- Custom dashboards
-- SQL queries
-- Data modeling
-
-**Visualization:**
-
-- Charts and graphs
-- Tables and grids
-- Heatmaps and funnels
-
-### Key Metrics
-
-**User Metrics:**
-
-- Daily/Weekly/Monthly Active Users
-- User retention (D1, D7, D30)
-- Feature adoption rates
-- Session duration and frequency
-
-**Business Metrics:**
-
-- MRR/ARR growth
-- ARPU and LTV
-- CAC and payback period
-- Net Revenue Retention
-
-**Product Metrics:**
-
-- Activation rate
-- Time to first value
-- Feature usage
-- Error rates
-
-**AI Metrics:**
-
-- Agent utilization
-- Task completion rate
-- Confidence scores
-- Escalation rate
-
-### SQL Query Patterns
-
-**User Cohorts:**
-
-```sql
-SELECT
-  DATE_TRUNC('week', created_at) as cohort_week,
-  COUNT(*) as users,
-  COUNT(CASE WHEN activated_at IS NOT NULL THEN 1 END) as activated,
-  ROUND(activated::float / users * 100, 1) as activation_rate
-FROM users
-WHERE created_at > NOW() - INTERVAL '90 days'
-GROUP BY 1
-ORDER BY 1;
-```
-
-**Feature Adoption:**
-
-```sql
-SELECT
-  feature_name,
-  COUNT(DISTINCT user_id) as users,
-  ROUND(users::float / (SELECT COUNT(*) FROM users) * 100, 1) as adoption_rate
-FROM feature_events
-WHERE event_date > NOW() - INTERVAL '30 days'
-GROUP BY 1
-ORDER BY 2 DESC;
-```
-
-**Revenue Analysis:**
-
-```sql
-SELECT
-  DATE_TRUNC('month', created_at) as month,
-  SUM(amount) as revenue,
-  COUNT(DISTINCT user_id) as paying_users,
-  ROUND(revenue / paying_users, 2) as arpu
-FROM payments
-WHERE status = 'completed'
-GROUP BY 1
-ORDER BY 1 DESC;
-```
-
-### Dashboard Design
-
-**Executive Dashboard:**
-
-- Revenue trend (line chart)
-- User growth (bar chart)
-- Key metrics (cards)
-- Alerts and anomalies
-
-**Product Dashboard:**
-
-- Feature usage (bar chart)
-- User flows (funnel)
-- Retention curve (line)
-- Error rates (line)
-
-**Marketing Dashboard:**
-
-- Traffic sources (pie chart)
-- Conversion rates (funnel)
-- Campaign performance (table)
-- ROI by channel (bar chart)
-
-### Insight Framework
-
-**What?**
-
-- What does the data show?
-- What's the trend?
-- What's the anomaly?
-
-**So What?**
-
-- Why does this matter?
-- What's the impact?
-- Who is affected?
-
-**Now What?**
-
-- What should we do?
-- What's the recommendation?
-- What's the risk?
-
-### Predictive Analytics
-
-**Churn Prediction:**
-
-- Login frequency decline
-- Feature usage drop
-- Support ticket increase
-- Payment issues
-
-**Revenue Forecasting:**
-
-- Historical trends
-- Seasonality
-- Growth rate
-- Pipeline analysis
-
-**User Growth:**
-
-- Acquisition channels
-- Conversion rates
-- Retention curves
-- Viral coefficients
+---
 
 ## Key Questions to Ask
 
@@ -208,13 +212,3 @@ ORDER BY 1 DESC;
 - "What's the sample size?"
 - "Are there confounders?"
 - "What's the action?"
-
-## Output Format
-
-When providing analysis:
-
-1. **Question**: What we're answering
-2. **Data**: What the data shows
-3. **Insight**: What it means
-4. **Recommendation**: What to do
-5. **Next Steps**: How to validate
