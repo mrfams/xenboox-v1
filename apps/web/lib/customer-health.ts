@@ -205,11 +205,18 @@ export async function calculateCustomerHealthScore(
       email: true,
       name: true,
       createdAt: true,
-      lastLoginAt: true,
     },
   });
 
   if (!user) return null;
+
+  // Derive last login from sessions table
+  const lastSession = await db.query.sessions.findFirst({
+    where: eq(sessions.userId, userId),
+    orderBy: [sessions.createdAt],
+    columns: { createdAt: true },
+  });
+  const lastLoginAt = lastSession?.createdAt ?? null;
 
   // Count entities
   const entityAccess = await db.query.userEntityAccess.findMany({
@@ -274,7 +281,7 @@ export async function calculateCustomerHealthScore(
   // Calculate component scores
   const productUsage = calculateProductUsageScore({
     createdAt: user.createdAt,
-    lastLoginAt: user.lastLoginAt,
+    lastLoginAt,
     totalLogins,
     entitiesCount,
     featuresUsed,
@@ -378,7 +385,7 @@ export async function calculateCustomerHealthScore(
     },
     riskFactors,
     positiveFactors,
-    lastActiveAt: user.lastLoginAt,
+    lastActiveAt: lastLoginAt,
     daysSinceSignup,
     calculatedAt: new Date(),
   };

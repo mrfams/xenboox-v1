@@ -265,8 +265,8 @@
 | #   | Finding                                                                       | Severity | Fix                                                                                | Status |
 | --- | ----------------------------------------------------------------------------- | -------- | ---------------------------------------------------------------------------------- | ------ |
 | 1   | Help page has 3 support channels — docs, AI assistant, email                  | —        | Production-grade                                                                   | ✅     |
-| 2   | **No health scoring visible** — can't tell if users are engaging or churning  | HIGH     | Implement user health score based on login frequency, feature usage, approval rate | ⬜     |
-| 3   | **No proactive outreach triggers** — no detection of declining usage patterns | HIGH     | Set up alerts when login frequency drops 50%+ or approvals go unreviewed 48h+      | ⬜     |
+| 2   | **No health scoring visible** — can't tell if users are engaging or churning  | HIGH     | Implement user health score based on login frequency, feature usage, approval rate | ✅     |
+| 3   | **No proactive outreach triggers** — no detection of declining usage patterns | HIGH     | Set up alerts when login frequency drops 50%+ or approvals go unreviewed 48h+      | ✅     |
 
 ---
 
@@ -468,8 +468,8 @@
 
 | #     | Finding                                                                                                       | Severity | Fix                                                                                                                                                  | Status |
 | ----- | ------------------------------------------------------------------------------------------------------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
-| S13-1 | **No user health scoring** — the platform has no mechanism to detect declining engagement or at-risk accounts | HIGH     | Implement health score: login frequency (30%), approval response time (20%), feature usage (20%), support tickets (15%), days since last login (15%) | ⬜     |
-| S13-2 | **No proactive churn prevention** — no alerts when a user's usage drops below normal patterns                 | HIGH     | Set up automated alerts: login frequency drops 50%+ week-over-week, or approvals unreviewed for 48h+, or no activity for 7+ days                     | ⬜     |
+| S13-1 | **No user health scoring** — the platform has no mechanism to detect declining engagement or at-risk accounts | HIGH     | Implement health score: login frequency (30%), approval response time (20%), feature usage (20%), support tickets (15%), days since last login (15%) | ✅     |
+| S13-2 | **No proactive churn prevention** — no alerts when a user's usage drops below normal patterns                 | HIGH     | Set up automated alerts: login frequency drops 50%+ week-over-week, or approvals unreviewed for 48h+, or no activity for 7+ days                     | ✅     |
 
 ---
 
@@ -853,8 +853,8 @@
 
 | #     | Finding                                                                                                  | Severity | Fix                                                                                  | Status |
 | ----- | -------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------------------------------------------------------ | ------ |
-| T13-1 | **No user health scoring** — same finding from second pass, not yet implemented                          | HIGH     | Implement health score based on login frequency, AI interactions, approval rate      | ⬜     |
-| T13-2 | **No proactive churn prevention** — same finding from second pass, not yet implemented                   | HIGH     | Set up alerts for declining usage patterns                                           | ⬜     |
+| T13-1 | **No user health scoring** — same finding from second pass, not yet implemented                          | HIGH     | Implement health score based on login frequency, AI interactions, approval rate      | ✅     |
+| T13-2 | **No proactive churn prevention** — same finding from second pass, not yet implemented                   | HIGH     | Set up alerts for declining usage patterns                                           | ✅     |
 | T13-3 | **No in-app feedback mechanism** — users can't report bugs or suggest features from within the dashboard | MEDIUM   | Add a feedback button (e.g., in the help page or sidebar) that captures page context | ⬜     |
 
 ---
@@ -920,8 +920,8 @@
 | 4   | Donor portal entity validation still missing   | Security Engineer (#6)      | ⬜     |
 | 5   | Donor portal rate limiting (enterprise)        | Enterprise Readiness (#17)  | ⬜     |
 | 6   | No guided tour for first-time users            | Onboarding Specialist (#10) | ⬜     |
-| 7   | No user health scoring                         | Customer Success (#13)      | ⬜     |
-| 8   | No proactive churn prevention                  | Customer Success (#13)      | ⬜     |
+| 7   | No user health scoring                         | Customer Success (#13)      | ✅     |
+| 8   | No proactive churn prevention                  | Customer Success (#13)      | ✅     |
 
 ### Grand Total Across All Passes
 
