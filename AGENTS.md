@@ -293,34 +293,35 @@ When starting a task, auto-load the relevant skill(s) from `.agents/skills/` bas
 
 **Trigger phrases** → **Load this skill** (or say `fire [skill-name]`):
 
-| Trigger Phrase                            | Skill to Load           | When to Use                |
-| ----------------------------------------- | ----------------------- | -------------------------- |
-| "review code", "PR review", "check this"  | `review`                | Code quality review        |
-| "security audit", "is this secure"        | `cso`                   | Security assessment        |
-| "fix bug", "something's broken", "error"  | `diagnosing-bugs`       | Bug investigation          |
-| "add feature", "new feature", "build"     | `tdd`                   | Test-driven development    |
-| "architecture", "design", "how should we" | `plan-eng-review`       | Architecture planning      |
-| "what do users think", "validate"         | `office-hours`          | Product validation         |
-| "is this ready", "QA"                     | `qa`                    | Quality assurance          |
-| "migration", "schema change"              | `create-migration`      | Database changes           |
-| "API endpoint", "new route"               | `create-api-route`      | API development            |
-| "new module", "new page"                  | `create-module`         | Module scaffolding         |
-| "new agent", "AI agent"                   | `create-agent`          | Agent development          |
-| "close month", "period close"             | `month-end-close`       | Month-end close            |
-| "review design", "looks off"              | `design-critique`       | Design quality review      |
-| "review copy", "check wording"            | `content-critique`      | Content quality review     |
-| "product review", "is this right"         | `product-critique`      | Product quality review     |
-| "marketing review", "convert"             | `marketing-critique`    | Marketing quality review   |
-| "engineering review", "code quality"      | `engineering-critique`  | Engineering quality review |
-| "write blog", "content"                   | `blog-writer`           | Blog writing               |
-| "SEO", "search ranking"                   | `seo-audit`             | SEO optimization           |
-| "UX review", "user experience"            | `product-reviewer`      | UX quality review          |
-| "copy", "messaging"                       | `copywriter`            | Marketing copy             |
-| "design", "UI"                            | `design-taste-frontend` | Visual design              |
-| "run evals", "check agent scores"         | `eval-runner`           | Run agent eval suite       |
-| "test coverage", "what's untested"        | `test-coverage`         | Analyze test gaps          |
-| "agent eval", "golden dataset"            | `agent-eval`            | Create agent eval cases    |
-| "TDD", "red green refactor"               | `tdd`                   | Test-driven development    |
+| Trigger Phrase                              | Skill to Load           | When to Use                 |
+| ------------------------------------------- | ----------------------- | --------------------------- |
+| "review code", "PR review", "check this"    | `review`                | Code quality review         |
+| "security audit", "is this secure"          | `cso`                   | Security assessment         |
+| "fix bug", "something's broken", "error"    | `diagnosing-bugs`       | Bug investigation           |
+| "add feature", "new feature", "build"       | `tdd`                   | Test-driven development     |
+| "architecture", "design", "how should we"   | `plan-eng-review`       | Architecture planning       |
+| "what do users think", "validate"           | `office-hours`          | Product validation          |
+| "is this ready", "QA"                       | `qa`                    | Quality assurance           |
+| "migration", "schema change"                | `create-migration`      | Database changes            |
+| "API endpoint", "new route"                 | `create-api-route`      | API development             |
+| "new module", "new page"                    | `create-module`         | Module scaffolding          |
+| "new agent", "AI agent"                     | `create-agent`          | Agent development           |
+| "close month", "period close"               | `month-end-close`       | Month-end close             |
+| "review design", "looks off"                | `design-critique`       | Design quality review       |
+| "review copy", "check wording"              | `content-critique`      | Content quality review      |
+| "product review", "is this right"           | `product-critique`      | Product quality review      |
+| "marketing review", "convert"               | `marketing-critique`    | Marketing quality review    |
+| "engineering review", "code quality"        | `engineering-critique`  | Engineering quality review  |
+| "write blog", "content"                     | `blog-writer`           | Blog writing                |
+| "SEO", "search ranking"                     | `seo-audit`             | SEO optimization            |
+| "UX review", "user experience"              | `product-reviewer`      | UX quality review           |
+| "fire [employee]", "put [employee] to work" | `fire-employee`         | Fix issues for one employee |
+| "copy", "messaging"                         | `copywriter`            | Marketing copy              |
+| "design", "UI"                              | `design-taste-frontend` | Visual design               |
+| "run evals", "check agent scores"           | `eval-runner`           | Run agent eval suite        |
+| "test coverage", "what's untested"          | `test-coverage`         | Analyze test gaps           |
+| "agent eval", "golden dataset"              | `agent-eval`            | Create agent eval cases     |
+| "TDD", "red green refactor"                 | `tdd`                   | Test-driven development     |
 
 ### Critique Skills (Quality Gates)
 

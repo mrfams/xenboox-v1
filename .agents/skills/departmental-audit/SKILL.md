@@ -491,6 +491,22 @@ User: "Run product and engineering" → Run #1, #2, #22, #6, #7, #11, #16, #17
 
 ---
 
+## After Audit: Fix with fire-employee
+
+`departmental-audit` FINDS issues. `fire-employee` FIXES them.
+
+After the audit is complete, use `fire-employee` to put each employee to work fixing their findings:
+
+```
+User: "Fire the copywriter" → fire-employee fixes all copywriter findings
+User: "Fire employee #7" → fire-employee fixes all engineering-critique findings
+User: "Fire all engineering" → fire-employee fixes findings from #6, #7, #11, #16, #17
+```
+
+The audit finds the problems. The employee fixes them. That's the loop.
+
+---
+
 ## Failure Recovery
 
 ### Employee skill doesn't exist
