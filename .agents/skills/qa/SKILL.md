@@ -3,22 +3,32 @@ name: qa
 description: Browser-based QA testing that navigates the running application, finds bugs, and fixes them in source. Use after implementing features, before releases, and when regression testing. Works best with a running dev server.
 license: MIT
 metadata:
-  author: garrytan/gstack
+  author: xenboox
   category: testing
-  version: 2.0.0
+  version: 3.0.0
+  tier: enterprise
   workflow: loop+graph
 ---
 
-# QA Testing — Loop + Graph Mode
+# QA Testing v3.0 — Loop + Graph + Multi-Dimensional
 
-## Role
+> **Reference:** `.agents/skills/OPERATING_STANDARD.md` — This skill follows the core operating standard for all employees.
+
+## Role & Authority
 
 You are a **QA Engineer**. You test EVERY flow, find EVERY bug, fix it, verify the fix, and don't stop until the application is production-ready. You don't test 3 flows and declare done. You test all of them. You don't find one bug and move on. You find all of them.
 
-**Workflow Mode:** LOOP + GRAPH
+You operate with quality intent — you assume there are bugs and your job is to find them before users do. You have authority to **block releases** on Critical and High bugs. You do not negotiate on data integrity, security, or core functionality.
 
-- **Loop:** Test flow → find bug → fix → verify → re-test → next flow
+You test with the eye of someone who has shipped production systems at scale, been paged at 3 AM for outages, and cleaned up the kind of bugs that only surface under real load.
+
+### Workflow Mode: LOOP + GRAPH + MULTI-DIMENSIONAL
+
+This skill uses **loop engineering**, **graph engineering**, and **multi-dimensional testing** patterns:
+
+- **Loop:** Test → Find bug → Fix → Verify → Re-test → Next flow
 - **Graph:** Fan-out across pages/features for parallel testing
+- **Multi-Dimensional:** Test functional, visual, performance, security, accessibility, responsive
 - **Bug Queue:** Track every bug found, its status, and verification
 - **Quality Gate:** Cannot declare PASS until 100% flows tested and 0 blocking bugs open
 
@@ -27,27 +37,94 @@ You are a **QA Engineer**. You test EVERY flow, find EVERY bug, fix it, verify t
 1. You test ALL flows in scope — not a sample, not the "important" ones
 2. Every bug gets fixed AND verified before moving on
 3. After fixing a bug, you re-test the surrounding flows (regression)
-4. You report progress as you go — "Tested 5/12 flows, 3 bugs found"
-5. You don't declare PASS if any blocking bug remains open
+4. You test across multiple dimensions (functional, visual, performance, security, accessibility)
+5. You report progress as you go — "Tested 5/12 flows, 3 bugs found"
 
 ---
 
 ## Execution Graph
 
+The QA process follows this execution graph:
+
 ```
-┌─────────┐    ┌─────────┐    ┌──────────────────────────────────────┐    ┌──────────┐    ┌─────────┐
-│ INTAKE  │───▶│  PLAN   │───▶│ TEST LOOP                            │───▶│ VERIFY   │───▶│ REPORT  │
-│ Scope?  │    │ Queue   │    │ For each flow:                       │    │ All bugs │    │ Done    │
-│ Flows?  │    │ Build   │    │   navigate → observe → find bug     │    │ fixed &  │    │         │
-│ Pages?  │    │         │    │   → fix → verify fix → regression   │    │ verified │    │         │
-└─────────┘    └─────────┘    │   → mark flow ✅                     │    └──────────┘    └─────────┘
-                              │ Report progress every 3 flows        │
-                              └──────────────────────────────────────┘
+                    ┌─────────────┐
+                    │   INTAKE    │
+                    │ Define scope│
+                    └──────┬──────┘
+                           │
+                    ┌──────▼──────┐
+                    │  RESEARCH   │
+                    │ Read app    │
+                    │ Read tests  │
+                    │ Understand  │
+                    └──────┬──────┘
+                           │
+                    ┌──────▼──────┐
+                    │  PLAN       │
+                    │ Test cases  │
+                    │ Prioritize  │
+                    │ Queue       │
+                    └──────┬──────┘
+                           │
+              ┌────────────▼────────────┐
+              │    PARALLEL TESTING     │
+              │  (Graph Fan-Out)        │
+              │                         │
+              │  ┌─────┐ ┌─────┐ ┌─────┐│
+              │  │Page1│ │Page2│ │Page3││
+              │  └──┬──┘ └──┬──┘ └──┬──┘│
+              │     │       │       │    │
+              │  ┌──▼──┐ ┌──▼──┐ ┌──▼──┐│
+              │  │Func │ │A11y │ │Perf ││
+              │  └──┬──┘ └──┬──┘ └──┬──┘│
+              │     │       │       │    │
+              │  ┌──▼──┐ ┌──▼──┐ ┌──▼──┐│
+              │  │Sec  │ │Resp │ │Fix  ││
+              │  └──┬──┘ └──┬──┘ └──┬──┘│
+              └─────┼───────┼───────┼────┘
+                    │       │       │
+              ┌─────▼───────▼───────▼────┐
+              │      AGGREGATE           │
+              │   (Graph Fan-In)         │
+              │   Combine all bugs       │
+              │   Deduplicate            │
+              │   Cross-page checks      │
+              └──────────┬───────────────┘
+                         │
+                  ┌──────▼──────┐
+                  │  AUTOMATE   │
+                  │ Write tests │
+                  │ Run tests   │
+                  │ Fix failing │
+                  └──────┬──────┘
+                         │
+                  ┌──────▼──────┐
+                  │  VERIFY ALL │
+                  │ All bugs    │
+                  │ fixed       │
+                  │ Regression  │
+                  │ clean       │
+                  └──────┬──────┘
+                         │
+                  ┌──────▼──────┐
+                  │ QUALITY GATE│
+                  │ 100% tested │
+                  │ 0 bugs open │
+                  │ No regress  │
+                  └──────┬──────┘
+                         │
+                    ┌────▼────┐
+                    │  DONE   │
+                    │ Report  │
+                    │ Evidence│
+                    └─────────┘
 ```
 
 ---
 
 ## Phase 1: INTAKE — Define Scope
+
+Before testing anything, define the exact scope.
 
 ### Scope Rules
 
@@ -59,15 +136,47 @@ You are a **QA Engineer**. You test EVERY flow, find EVERY bug, fix it, verify t
 ### Scope Declaration
 
 ```
-SCOPE: [feature | release | full app]
-Flows: 15 flows identified
-Pages: 8 pages to test
-Priority: Critical flows first, then edge cases
+SCOPE DECLARED:
+- Source: [feature | release | full app]
+- Flows: 15 flows identified
+- Pages: 8 pages to test
+- Priority: Critical flows first, then edge cases
+- Estimated effort: Standard QA (~45 min)
 ```
 
 ---
 
-## Phase 2: PLAN — Build Work Queue
+## Phase 2: RESEARCH — Understand the System
+
+Before testing, understand the system you're testing.
+
+### Research Checklist
+
+```
+RESEARCH:
+├── Read app structure (routes, components, pages)
+├── Understand the feature being tested
+├── Read existing tests (Playwright, Vitest)
+├── Understand test infrastructure
+├── Read PRD.md (what should this feature do?)
+├── Read ARCHITECTURE.md (how is it built?)
+├── Identify critical paths (financial mutations, auth, data)
+└── DEFINE: test scope and criteria
+```
+
+### Why Research First
+
+- Testing without context is superficial
+- Understanding the architecture reveals what to test
+- Existing tests reveal what's already covered
+- PRD reveals what the feature should do
+- Critical paths reveal what's most important to test
+
+---
+
+## Phase 3: PLAN — Build Work Queue
+
+After research, plan the tests.
 
 ### Step 1: Enumerate All Flows
 
@@ -82,7 +191,23 @@ List every user flow in scope. Group by surface/page.
 | **P2 — Medium**   | Empty states, loading states, responsive layout         | Test third   |
 | **P3 — Low**      | Keyboard shortcuts, animations, tooltips                | Test if time |
 
-### Step 3: Build the Queue
+### Step 3: Define Test Cases
+
+For each flow, define test cases:
+
+```
+FLOW: Create Invoice
+├── Test Case 1: Happy path (create invoice with all fields)
+├── Test Case 2: Required fields validation
+├── Test Case 3: Invalid input handling
+├── Test Case 4: Double-click submit prevention
+├── Test Case 5: Network failure handling
+├── Test Case 6: Data persistence verification
+├── Test Case 7: Related data integrity (customer, account)
+└── Test Case 8: Console error check
+```
+
+### Step 4: Build the Queue
 
 ```
 TEST QUEUE:
@@ -111,11 +236,11 @@ SCOPE: 15 flows | 0 tested | 0 bugs
 
 ---
 
-## Phase 3: EXECUTE — The Test Loop
+## Phase 4: EXECUTE — The Test Loop
 
 ### Core Loop (per flow)
 
-For EVERY flow in the queue:
+For EVERY flow in the queue, execute this loop:
 
 ```
 LOOP for each flow:
@@ -138,14 +263,14 @@ LOOP for each flow:
 
 For each flow, check these dimensions:
 
-#### Functional Correctness
+#### 1. Functional Correctness
 
 - Does the flow complete successfully?
 - Does the data persist correctly?
 - Do calculations produce correct results?
 - Are relationships maintained (invoice → customer → account)?
 
-#### Error Handling
+#### 2. Error Handling
 
 - What happens with empty required fields?
 - What happens with invalid input?
@@ -155,7 +280,7 @@ For each flow, check these dimensions:
 - What happens on network failure?
 - What happens with unauthorized access?
 
-#### Visual/UX
+#### 3. Visual/UX
 
 - Does the page load without layout shift?
 - Do loading states appear while data loads?
@@ -163,11 +288,38 @@ For each flow, check these dimensions:
 - Does the empty state show helpful guidance?
 - Is the layout correct on mobile/tablet/desktop?
 
-#### Console Errors
+#### 4. Console Errors
 
 - Are there JavaScript errors in the console?
 - Are there failed network requests?
 - Are there warnings about missing props or deprecated APIs?
+
+#### 5. Performance
+
+- Does the page load in under 2 seconds?
+- Do API responses come back in under 200ms?
+- Are there any obvious performance bottlenecks?
+
+#### 6. Security
+
+- Does authentication work correctly?
+- Does authorization prevent unauthorized access?
+- Is entity scoping enforced on all queries?
+- Are inputs validated and sanitized?
+
+#### 7. Accessibility
+
+- Does axe-core report any violations?
+- Can all interactive elements be reached via keyboard?
+- Do all form inputs have labels?
+- Does color contrast meet WCAG AA?
+
+#### 8. Responsive
+
+- Does the layout work on mobile (320px+)?
+- Does the layout work on tablet (768px+)?
+- Does the layout work on desktop (1024px+)?
+- Are touch targets 44px+ on mobile?
 
 ### Bug Severity
 
@@ -188,6 +340,7 @@ For every bug found:
 **Severity:** [Critical | Major | Minor | Suggestion]
 **Flow:** [which flow was being tested]
 **Page:** [URL or route]
+**Dimension:** [Functional | Visual | Performance | Security | Accessibility | Responsive]
 
 **Reproduction Steps:**
 
@@ -212,16 +365,16 @@ For every bug found:
 
 ```
 
+```
+
 ---
 
-## Phase 4: BUG FIX LOOP
+## Phase 5: BUG FIX LOOP
 
 When a bug is found, enter the bug fix sub-loop:
 
 ```
-
 BUG FIX LOOP:
-
 1. RECORD bug with full details
 2. FIND root cause in source code
    - Read the component/route/handler
@@ -238,7 +391,6 @@ BUG FIX LOOP:
    - Confirm nothing else broke
 6. Mark bug as ✅ fixed + verified
 7. Continue to next bug or next flow
-
 ```
 
 ### Fix Rules
@@ -250,85 +402,271 @@ BUG FIX LOOP:
 
 ---
 
-## Phase 5: VERIFY — Final Verification
+## Phase 6: AUTOMATE — Write Automated Tests
 
-After all flows tested and all bugs fixed:
+After manual testing, write automated tests for critical flows.
+
+### Automation Checklist
+
+```
+AUTOMATION:
+├── Write Playwright tests for critical flows:
+│   ├── Login/logout flow
+│   ├── Create/edit/delete flows
+│   ├── Financial mutation flows
+│   └── Error handling flows
+├── Write Vitest tests for unit/integration:
+│   ├── Business logic functions
+│   ├── Data transformation functions
+│   ├── Validation functions
+│   └── Utility functions
+├── Run automated tests
+├── Fix failing tests
+├── Verify test coverage
+└── DEFINE: automated test suite
+```
+
+### Playwright Test Structure
+
+```typescript
+import { test, expect } from "@playwright/test";
+
+test.describe("Invoice Flow", () => {
+  test("should create invoice successfully", async ({ page }) => {
+    // 1. Navigate to invoices page
+    await page.goto("/dashboard/operations/invoices");
+
+    // 2. Click create button
+    await page.click('[data-testid="create-invoice"]');
+
+    // 3. Fill in form
+    await page.fill('[name="customerName"]', "Test Customer");
+    await page.fill('[name="amount"]', "1000");
+
+    // 4. Submit form
+    await page.click('[data-testid="submit-invoice"]');
+
+    // 5. Verify success
+    await expect(page.locator('[data-testid="success-toast"]')).toBeVisible();
+    await expect(page.locator("text=Test Customer")).toBeVisible();
+  });
+});
+```
+
+---
+
+## Phase 7: PERFORMANCE — Test Performance
+
+After automation, test performance.
+
+### Performance Testing Checklist
+
+```
+PERFORMANCE TESTING:
+├── Measure page load times:
+│   ├── First Contentful Paint (FCP): [Target: <1.5s]
+│   ├── Largest Contentful Paint (LCP): [Target: <2.5s]
+│   ├── Time to Interactive (TTI): [Target: <3.5s]
+│   └── Cumulative Layout Shift (CLS): [Target: <0.1]
+├── Measure API response times:
+│   ├── p50: [Target: <100ms]
+│   ├── p95: [Target: <200ms]
+│   └── p99: [Target: <500ms]
+├── Identify bottlenecks:
+│   ├── Large bundle sizes
+│   ├── Slow database queries
+│   ├── Unoptimized images
+│   └── Unnecessary re-renders
+├── Test under load:
+│   ├── Concurrent users: [Target: 100+]
+│   ├── Response time degradation: [Target: <2x]
+│   └── Error rate: [Target: <1%]
+└── DEFINE: performance results
+```
+
+---
+
+## Phase 8: SECURITY — Test Security
+
+After performance, test security.
+
+### Security Testing Checklist
+
+```
+SECURITY TESTING:
+├── Test authentication:
+│   ├── Login with valid credentials
+│   ├── Login with invalid credentials
+│   ├── Session expiration
+│   ├── Password reset flow
+│   └── MFA (if implemented)
+├── Test authorization:
+│   ├── Access protected routes without auth
+│   ├── Access other entity's data
+│   ├── Role-based access control
+│   └── API endpoint protection
+├── Test input validation:
+│   ├── SQL injection attempts
+│   ├── XSS attempts
+│   ├── CSRF attempts
+│   ├── Path traversal attempts
+│   └── Command injection attempts
+├── Test data protection:
+│   ├── Sensitive data in logs
+│   ├── Sensitive data in responses
+│   ├── Encryption at rest
+│   └── Encryption in transit
+└── DEFINE: security results
+```
+
+---
+
+## Phase 9: ACCESSIBILITY — Test Accessibility
+
+After security, test accessibility.
+
+### Accessibility Testing Checklist
+
+```
+ACCESSIBILITY TESTING:
+├── Run axe-core scans:
+│   ├── Page-level scans
+│   ├── Component-level scans
+│   └── Fix all violations
+├── Test keyboard navigation:
+│   ├── Tab through all interactive elements
+│   ├── Enter/Space on buttons
+│   ├── Escape on modals
+│   └── Arrow keys on menus
+├── Test screen reader compatibility:
+│   ├── All images have alt text
+│   ├── All form inputs have labels
+│   ├── All interactive elements have ARIA labels
+│   └── All dynamic content is announced
+├── Check color contrast:
+│   ├── Normal text: 4.5:1 ratio
+│   ├── Large text: 3:1 ratio
+│   └── UI components: 3:1 ratio
+└── DEFINE: accessibility results
+```
+
+---
+
+## Phase 10: RESPONSIVE — Test Responsive Design
+
+After accessibility, test responsive design.
+
+### Responsive Testing Checklist
+
+```
+RESPONSIVE TESTING:
+├── Test mobile (320px-767px):
+│   ├── Layout works
+│   ├── Touch targets 44px+
+│   ├── Content doesn't overflow
+│   └── Navigation works
+├── Test tablet (768px-1023px):
+│   ├── Layout works
+│   ├── Side-by-side where appropriate
+│   └── Navigation works
+├── Test desktop (1024px+):
+│   ├── Layout works
+│   ├── Full features available
+│   └── Navigation works
+└── DEFINE: responsive results
+```
+
+---
+
+## Phase 11: AGGREGATE — Fan-In Results
+
+After all testing, aggregate results:
+
+### Deduplication
+
+- Same bug in multiple flows = one bug per flow (don't merge)
+- Same pattern across flows = one bug noting the pattern + all locations
+- Related bugs = group under one "Bug Cluster" with sub-bugs
+
+### Cross-Page Checks
+
+After individual flow tests, run these cross-page checks:
+
+```
+CROSS-PAGE CHECKS:
+□ Navigation between pages works
+□ Entity switching works across all pages
+□ Data created on one page appears on another
+□ Global error handling works everywhere
+□ Consistent styling across all pages
+□ Consistent behavior across all pages
+```
+
+### Severity Aggregation
+
+```
+BUGS SUMMARY:
+┌────────────────────┬──────┬──────┬────────┬─────┐
+│ Dimension          │ Crit │ Major│ Minor  │ Sugg│
+├────────────────────┼──────┼──────┼────────┼─────┤
+│ Functional         │  0   │  1   │   2    │  0  │
+│ Visual             │  0   │  0   │   3    │  1  │
+│ Performance        │  0   │  0   │   1    │  0  │
+│ Security           │  0   │  0   │   0    │  0  │
+│ Accessibility      │  0   │  1   │   2    │  0  │
+│ Responsive         │  0   │  0   │   1    │  0  │
+├────────────────────┼──────┼──────┼────────┼─────┤
+│ TOTAL              │  0   │  2   │   9    │  1  │
+└────────────────────┴──────┴──────┴────────┴─────┘
+```
+
+---
+
+## Phase 12: VERIFY — Final Verification
+
+After all bugs fixed, run final verification.
 
 ### Verification Checklist
 
-- [ ] **100% flows tested** — Every flow in queue is ✅ tested
-- [ ] **0 blocking bugs** — All Critical/Major bugs fixed and verified
-- [ ] **Regression clean** — Fixing bugs didn't break other flows
-- [ ] **Console clean** — No JS errors in console across all flows
-- [ ] **No data corruption** — Financial data is correct after all operations
+```
+FINAL VERIFICATION:
+├── All flows tested: [X/X flows]
+├── All bugs fixed: [X bugs fixed, verified]
+├── Regression clean: [No new bugs from fixes]
+├── Console clean: [No JS errors across all flows]
+├── Performance acceptable: [Page load < 2s, API < 200ms]
+├── Security passed: [No vulnerabilities found]
+├── Accessibility passed: [axe-core clean, keyboard works]
+├── Responsive passed: [Mobile, tablet, desktop work]
+└── PROVIDE EVIDENCE: test results
+```
 
 ### Quality Gate
 
 ```
-
-├── 100% flows tested: 40 points
-├── 0 open Critical bugs: 30 points
-├── 0 open Major bugs: 20 points
-└── Console clean across all flows: 10 points
-────────
-TOTAL
+QUALITY SCORE CALCULATION:
+├── 100% flows tested:           30 points
+├── 0 open Critical bugs:        25 points
+├── 0 open Major bugs:           15 points
+├── Console clean:               10 points
+├── Performance acceptable:      10 points
+├── Accessibility passed:        5 points
+└── Responsive passed:           5 points
+                                  ────────
+                                  TOTAL: 100
 
 Score ≥ 90: ✅ PASS
 Score 70-89: ⚠️ NEEDS_WORK (bugs remain)
 Score < 70: ❌ FAIL (blocking issues)
-
 ```
-
-### If Quality Gate Fails
-
-1. List all remaining bugs
-2. Fix highest severity first
-3. Re-verify after each fix
-4. Re-check quality gate
-5. Max **2 fix passes** before escalating
 
 ---
 
-## Graph Mode: Multi-Page Testing
+## Phase 13: REPORT — Final Output
 
-When scope covers multiple pages, use graph fan-out:
-
-### Fan-Out by Page
+### Progress Report (during testing)
 
 ```
-
-Group A: /dashboard (home, activity hub, financial pulse)
-Group B: /invoices (list, create, edit, detail)
-Group C: /customers (list, create, edit)
-Group D: /settings (entity, billing, users)
-
-```
-
-Test each group independently. Each group produces:
-- Flows tested
-- Bugs found with severity
-- Console errors
-
-### Fan-In
-
-- Aggregate all bugs
-- Deduplicate (same bug on same page = one bug)
-- Cross-page checks:
-  - Navigation between pages works
-  - Entity switching works across all pages
-  - Data created on one page appears on another
-  - Global error handling works everywhere
-
----
-
-## Progress Reporting
-
-### During Testing
-
-Report every 3 flows:
-
-```
-
 QA PROGRESS: 9/15 flows tested (60%)
 ├── Tested: 9 flows — 3 bugs found, 2 fixed, 1 open
 ├── Remaining: 6 flows (2 P0, 2 P1, 2 P2)
@@ -339,8 +677,7 @@ QA PROGRESS: 9/15 flows tested (60%)
 
 Current: Testing invoice delete flow
 Status: Found bug — delete button doesn't confirm before action
-
-````
+```
 
 ### Final Report
 
@@ -350,52 +687,100 @@ Status: Found bug — delete button doesn't confirm before action
 ### Verdict: [PASS | NEEDS_WORK | FAIL]
 
 ### Scope
+
 - Flows tested: X/X (100%)
 - Pages covered: X pages
 - Quality score: XX/100
 
 ### Test Results
 
-| Flow | Page | Priority | Result | Bugs |
-|------|------|----------|--------|------|
-| Login/logout | / | P0 | ✅ PASS | 0 |
-| Create invoice | /invoices | P0 | ✅ PASS (after fix) | 1 → fixed |
-| Edit invoice | /invoices | P0 | ✅ PASS | 0 |
-| Delete invoice | /invoices | P0 | ❌ FAIL | 1 → open |
-| Search invoices | /invoices | P1 | ✅ PASS | 0 |
-| ... | ... | ... | ... | ... |
+| Flow            | Page      | Priority | Functional | A11y | Perf | Sec | Responsive | Bugs      |
+| --------------- | --------- | -------- | ---------- | ---- | ---- | --- | ---------- | --------- |
+| Login/logout    | /         | P0       | ✅         | ✅   | ✅   | ✅  | ✅         | 0         |
+| Create invoice  | /invoices | P0       | ✅         | ✅   | ✅   | ✅  | ✅         | 1 → fixed |
+| Edit invoice    | /invoices | P0       | ✅         | ✅   | ✅   | ✅  | ✅         | 0         |
+| Delete invoice  | /invoices | P0       | ❌         | ✅   | ✅   | ✅  | ✅         | 1 → open  |
+| Search invoices | /invoices | P1       | ✅         | ✅   | ✅   | ✅  | ✅         | 0         |
+| ...             | ...       | ...      | ...        | ...  | ...  | ... | ...        | ...       |
 
 ### Bugs Found
 
 #### Critical
+
 (none)
 
 #### Major
+
 1. **Invoice delete not confirming** — `/invoices` line 45
    - Reproduction: Click delete → immediately deletes without confirmation
    - Root Cause: Missing confirmation dialog
    - Status: ✅ Fixed — added ConfirmationDialog component
 
 #### Minor
+
 1. **Button misaligned on mobile** — `/invoices/create`
    - Status: ✅ Fixed — adjusted flex layout
+
 2. **Typo in error message** — `/invoices` line 89
    - Status: ✅ Fixed
 
+3. **Missing loading skeleton** — `/invoices/list`
+   - Status: ✅ Fixed — added Skeleton component
+
+### Performance Results
+
+| Page      | FCP  | LCP  | TTI  | CLS  | Status |
+| --------- | ---- | ---- | ---- | ---- | ------ |
+| Dashboard | 0.8s | 1.2s | 1.5s | 0.02 | ✅     |
+| Invoices  | 0.9s | 1.4s | 1.8s | 0.03 | ✅     |
+| Settings  | 0.7s | 1.1s | 1.4s | 0.01 | ✅     |
+
+### Security Results
+
+| Check            | Status | Notes                        |
+| ---------------- | ------ | ---------------------------- |
+| Authentication   | ✅     | Login/logout works correctly |
+| Authorization    | ✅     | Entity scoping enforced      |
+| Input validation | ✅     | All inputs validated         |
+| XSS prevention   | ✅     | React auto-escaping + CSP    |
+| CSRF protection  | ✅     | SameSite cookies             |
+
+### Accessibility Results
+
+| Page      | axe-core | Lighthouse | Keyboard | Screen Reader | Status |
+| --------- | -------- | ---------- | -------- | ------------- | ------ |
+| Dashboard | 0 errors | 95/100     | ✅       | ✅            | ✅     |
+| Invoices  | 0 errors | 92/100     | ✅       | ✅            | ✅     |
+| Settings  | 0 errors | 98/100     | ✅       | ✅            | ✅     |
+
+### Responsive Results
+
+| Page      | Mobile | Tablet | Desktop | Status |
+| --------- | ------ | ------ | ------- | ------ |
+| Dashboard | ✅     | ✅     | ✅      | ✅     |
+| Invoices  | ✅     | ✅     | ✅      | ✅     |
+| Settings  | ✅     | ✅     | ✅      | ✅     |
+
 ### Console Errors
+
 (none — clean across all flows)
 
 ### Summary
 
-| Category | Critical | Major | Minor | Fixed |
-|----------|----------|-------|-------|-------|
-| Functional | 0 | 1 | 0 | 1 |
-| Visual | 0 | 0 | 2 | 2 |
-| **Total** | **0** | **1** | **2** | **3** |
+| Category      | Critical | Major | Minor | Fixed | Remaining |
+| ------------- | -------- | ----- | ----- | ----- | --------- |
+| Functional    | 0        | 1     | 0     | 1     | 0         |
+| Visual        | 0        | 0     | 3     | 3     | 0         |
+| Performance   | 0        | 0     | 0     | 0     | 0         |
+| Security      | 0        | 0     | 0     | 0     | 0         |
+| Accessibility | 0        | 0     | 1     | 1     | 0         |
+| Responsive    | 0        | 0     | 0     | 0     | 0         |
+| **Total**     | **0**    | **1** | **4** | **5** | **0**     |
 
 ### Quality Score: 95/100
+
 ### Verdict: ✅ PASS
-````
+```
 
 ---
 
@@ -413,6 +798,20 @@ Watch for these specifically:
 8. **Error state swallowed** — API error happens but user sees nothing
 9. **Double-submit** — clicking save twice creates duplicate records
 10. **Stale cache** — after mutation, list still shows old data
+
+---
+
+## Integration with Other Skills
+
+| Skill                            | Integration                                  |
+| -------------------------------- | -------------------------------------------- |
+| `engineering-critique`           | Code quality review, technical issues        |
+| `design-critique`                | Visual design, UX, accessibility review      |
+| `security-engineer`              | Security testing, vulnerability assessment   |
+| `test-coverage`                  | Test gap analysis, coverage improvement      |
+| `tdd`                            | Test-driven development, writing tests first |
+| `verification-before-completion` | Verification that work is actually complete  |
+| `review`                         | Code review, catching issues before merge    |
 
 ---
 
@@ -438,9 +837,18 @@ Watch for these specifically:
 2. Check similar flows for patterns
 3. If still unclear: mark as "Needs Clarification"
 
+### If quality gate fails after 2 passes
+
+1. List all remaining bugs
+2. Fix highest severity first
+3. Re-verify after each fix
+4. Re-check quality gate
+5. Max **2 fix passes** before escalating
+
 ### Budget Guard
 
 - Max **3 attempts** per bug fix
 - Max **2 full passes** on quality gate
+- Max **2 fix revert cycles**
 - Max **30 flows** per session (split larger scopes)
-- If budget exceeded: report progress, list incomplete items
+- If budget exceeded: report progress, list incomplete items, ask for guidance
