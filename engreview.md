@@ -1748,7 +1748,7 @@ Knowledge base with semantic search, document processing, and citation audit tra
 
 | #   | Finding                                                                                                                                                     | Severity | Fix                                                  | Status |
 | --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ---------------------------------------------------- | ------ |
-| 1   | **No error handling on queries** — stats query doesn't handle errors; failed loads show "..." indefinitely.                                                 | HIGH     | Add error state with retry.                          | ⬜     |
+| 1   | **No error handling on queries** — stats query doesn't handle errors; failed loads show "..." indefinitely.                                                 | HIGH     | Add error state with retry.                          |        | ✅  |
 | 2   | **Audit trail has no pagination** — shows all recent citations without limit; entities with many searches get a long list.                                  | MEDIUM   | Add pagination or "Load more".                       | ⬜     |
 | 3   | **Onboarding banner doesn't track completion** — only tracks dismissal, not actual upload; user who uploads then dismisses still sees banner on next visit. | MEDIUM   | Track upload completion in localStorage.             | ⬜     |
 | 4   | **No file type validation visible** — DocumentProcessor may not validate file types client-side before upload.                                              | MEDIUM   | Show accepted file types and validate before upload. | ⬜     |
@@ -1768,7 +1768,7 @@ Knowledge base with semantic search, document processing, and citation audit tra
 
 | #   | Finding                                                                                                                                   | Severity | Fix                                        | Status |
 | --- | ----------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------------ | ------ |
-| 1   | **Hardcoded light-mode colors** — bg-blue-500/10, bg-emerald-500/10, etc. without dark mode variants. Same defect class across all pages. | HIGH     | Add dark: variants or use semantic tokens. | ⬜     |
+| 1   | **Hardcoded light-mode colors** — bg-blue-500/10, bg-emerald-500/10, etc. without dark mode variants. Same defect class across all pages. | HIGH     | Add dark: variants or use semantic tokens. |        | ✅  |
 | 2   | **Onboarding banner has no focus-visible on dismiss button** — keyboard users can't dismiss without focus ring.                           | MEDIUM   | Add focus-visible:ring-2.                  | ⬜     |
 
 ---
