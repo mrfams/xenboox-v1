@@ -44,7 +44,11 @@ import { BulkExportButton } from "@/components/shared/bulk-csv";
 // Replaces: journal, chart-of-accounts, trial-balance, fixed-assets, transactions
 
 type LedgerTab =
-  "journal" | "coa" | "trial-balance" | "fixed-assets" | "reconciliation";
+  | "journal"
+  | "coa"
+  | "trial-balance"
+  | "fixed-assets"
+  | "reconciliation";
 
 const TABS: { key: LedgerTab; label: string; icon: LucideIcon }[] = [
   { key: "journal", label: "Journal", icon: FileText },
@@ -321,7 +325,7 @@ function JournalEntryDrawer({
                   </div>
                 ) : (
                   <p className="text-xs text-muted-foreground py-4 text-center">
-                    No line items — contact support if you expect activity
+                    This entry has no line items yet.
                   </p>
                 )}
               </div>
@@ -578,7 +582,12 @@ function JournalView() {
     trpc.journal.listWithDetails.useQuery(
       {
         status: activeFilter as
-          "all" | "draft" | "pending" | "approved" | "posted" | "voided",
+          | "all"
+          | "draft"
+          | "pending"
+          | "approved"
+          | "posted"
+          | "voided",
         search: debouncedSearch || undefined,
         limit: pageSize,
         offset: page * pageSize,
@@ -718,83 +727,80 @@ function JournalView() {
         </div>
       ) : (
         <>
-          <div className="space-y-2">
-            {journalEntries.map((entry) => (
-              <button
-                key={entry.id}
-                type="button"
-                onClick={() => setSelectedEntryId(entry.id)}
-                className="w-full text-left rounded-xl border border-border/50 bg-card p-4 transition-all duration-200 hover:shadow-md hover:border-border/80 group"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <p className="text-sm font-medium text-foreground truncate group-hover:text-primary transition-colors">
-                        {entry.description ?? entry.entryNumber}
-                      </p>
-                      <span
-                        className={cn(
-                          "inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[9px] font-bold shrink-0",
-                          entry.statusColor === "emerald"
-                            ? "bg-emerald-500/10 text-emerald-500"
-                            : entry.statusColor === "blue"
-                              ? "bg-blue-500/10 text-blue-500"
-                              : entry.statusColor === "amber"
-                                ? "bg-amber-500/10 text-amber-500"
-                                : entry.statusColor === "red"
-                                  ? "bg-red-500/10 text-red-500"
-                                  : "bg-muted text-muted-foreground",
-                        )}
-                      >
-                        {entry.status}
-                      </span>
-                    </div>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {entry.entryNumber} ·{" "}
-                      {entry.date
-                        ? new Date(entry.date).toLocaleDateString("en-US")
-                        : ""}
-                      {entry.source && entry.source !== "Manual" && (
-                        <>
-                          {" · "}
-                          <span className="text-muted-foreground/70">
-                            {entry.source}
-                          </span>
-                        </>
-                      )}
-                    </p>
-                  </div>
-                  <div className="text-right shrink-0 flex items-center gap-3">
-                    <div>
-                      <p className="text-sm font-semibold text-foreground tabular-nums">
-                        {formatCurrency(entry.debit)}
-                      </p>
-                      {entry.credit > 0 && (
-                        <p className="text-[10px] text-muted-foreground tabular-nums">
-                          Cr: {formatCurrency(entry.credit)}
-                        </p>
-                      )}
-                    </div>
-                    <ChevronRight className="h-4 w-4 text-muted-foreground/30 group-hover:text-primary/50 transition-colors" />
-                  </div>
-                </div>
+          <div className="overflow-hidden rounded-xl border border-border/50 bg-card">
+            <div className="divide-y divide-border/40">
+              {journalEntries.map((entry) => (
+                <button
+                  key={entry.id}
+                  type="button"
+                  onClick={() => setSelectedEntryId(entry.id)}
+                  className="group flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-accent/50"
+                >
+                  <span
+                    aria-hidden="true"
+                    className={cn(
+                      "h-1.5 w-1.5 shrink-0 rounded-full",
+                      entry.statusColor === "emerald"
+                        ? "bg-emerald-500"
+                        : entry.statusColor === "blue"
+                          ? "bg-blue-500"
+                          : entry.statusColor === "amber"
+                            ? "bg-amber-500"
+                            : entry.statusColor === "red"
+                              ? "bg-red-500"
+                              : "bg-muted-foreground/30",
+                    )}
+                  />
+                  <span className="w-14 shrink-0 font-mono text-[11px] tabular-nums text-muted-foreground/70">
+                    #{String(entry.entryNumber).padStart(4, "0")}
+                  </span>
+                  <span className="min-w-0 flex-1 truncate text-xs text-foreground transition-colors group-hover:text-primary">
+                    {entry.description ?? entry.entryNumber}
+                  </span>
 
-                {/* Source + AI badge */}
-                <div className="mt-2 flex items-center gap-2">
-                  {entry.isAiGenerated && (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-1.5 py-0.5 text-[9px] font-bold text-primary">
-                      <Bot className="h-2.5 w-2.5" />
-                      AI-Posted
+                  <span className="hidden shrink-0 items-center gap-2 sm:flex">
+                    {entry.isAiGenerated && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-1.5 py-0.5 text-[9px] font-bold text-primary">
+                        <Bot className="h-2.5 w-2.5" aria-hidden="true" />
+                        AI
+                      </span>
+                    )}
+                    <span className="text-[10px] tabular-nums text-muted-foreground/60">
+                      {entry.date
+                        ? new Date(entry.date).toLocaleDateString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                          })
+                        : ""}
                     </span>
-                  )}
-                  {entry.createdBy && (
-                    <span className="text-[10px] text-muted-foreground/50">
-                      by {entry.createdBy}
+                    <span
+                      className={cn(
+                        "inline-flex items-center rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide",
+                        entry.statusColor === "emerald"
+                          ? "bg-emerald-500/10 text-emerald-500"
+                          : entry.statusColor === "blue"
+                            ? "bg-blue-500/10 text-blue-500"
+                            : entry.statusColor === "amber"
+                              ? "bg-amber-500/10 text-amber-500"
+                              : entry.statusColor === "red"
+                                ? "bg-red-500/10 text-red-500"
+                                : "bg-muted text-muted-foreground",
+                      )}
+                    >
+                      {entry.status}
                     </span>
-                  )}
-                </div>
-              </button>
-            ))}
+                  </span>
+
+                  <span className="w-24 shrink-0 text-right text-xs font-semibold tabular-nums text-foreground">
+                    {formatCurrency(entry.debit)}
+                  </span>
+                  <ChevronRight
+                    className="h-3.5 w-3.5 shrink-0 text-muted-foreground/30 transition-colors group-hover:text-primary/50"
+                    aria-hidden="true"
+                  />
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Pagination */}
@@ -1000,13 +1006,34 @@ function TrialBalanceView() {
   const { entityId } = useEntity();
   const { openWithFocus } = useModuleAi();
 
-  const { data: currentPeriod } = trpc.fiscal.getCurrent.useQuery(undefined, {
-    enabled: !!entityId,
-  });
+  const { data: currentPeriod, isSuccess: periodLoaded } =
+    trpc.fiscal.getCurrent.useQuery(undefined, {
+      enabled: !!entityId,
+    });
   const { data: tb, isLoading } = trpc.journal.getTrialBalance.useQuery(
     { periodId: currentPeriod?.id ?? "" },
     { enabled: !!entityId && !!currentPeriod },
   );
+
+  // No open fiscal period → say so instead of showing a misleading
+  // "no accounts" empty state over an eternal skeleton.
+  if (periodLoaded && !currentPeriod) {
+    return (
+      <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border/50 py-12 text-center">
+        <BookOpen
+          className="h-12 w-12 text-muted-foreground/30 mb-3"
+          aria-hidden="true"
+        />
+        <p className="text-sm font-medium text-foreground">
+          No accounting period is open
+        </p>
+        <p className="mt-1 max-w-sm text-xs text-muted-foreground">
+          A trial balance needs an open fiscal period. Ask the AI to open one,
+          or set your fiscal calendar in Settings.
+        </p>
+      </div>
+    );
+  }
 
   const accounts = tb?.accounts ?? [];
   const totalDebit = tb?.totalDebit ?? 0;
@@ -1264,7 +1291,7 @@ export default function LedgerPage() {
   return (
     <ModulePageShell
       title="Ledger"
-      description="The accounting records. AI-enhanced search and context."
+      description="The record of truth. Search, verify, and trace every entry."
       icon={BookOpen}
       disableAiCopilot={false}
       aiSuggestions={[

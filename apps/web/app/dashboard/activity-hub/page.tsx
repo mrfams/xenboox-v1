@@ -1065,7 +1065,7 @@ export default function ActivityHubPage() {
               label: "Review all",
               variant: "review",
               // Link to ingestion page for real bulk review — synthetic ID can't be approved directly
-              href: "/dashboard/operations",
+              href: "/dashboard/ingestion",
             },
           ],
         });
@@ -1225,7 +1225,6 @@ export default function ActivityHubPage() {
         setLastActions((prev) => ({ ...prev, [itemId]: action }));
         const actionLabel = action === "approve" ? "Approved" : "Rejected";
         toast.success(actionLabel, {
-          description: `Item has been ${actionLabel.toLowerCase()} successfully.`,
           duration: 6000,
           action: {
             label: "Undo",
@@ -1298,7 +1297,6 @@ export default function ActivityHubPage() {
         toast.success(
           `${actionLabel} ${itemCount} item${itemCount === 1 ? "" : "s"}`,
           {
-            description: `${itemCount} item${itemCount === 1 ? "" : "s"} ${actionLabel.toLowerCase()} successfully.`,
             duration: 5000,
             action: {
               label: "Undo",
@@ -1425,6 +1423,30 @@ export default function ActivityHubPage() {
   ).length;
   const completedCount = ingestionStats?.autoPosted ?? 0;
   const agentAlertCount = agentAlerts?.total ?? 0;
+
+  // Two-zone queue: decisions demand an action; info is awareness-only.
+  const decisionItems = filteredItems.filter((item) => item.type !== "info");
+  const fyiItems = filteredItems.filter((item) => item.type === "info");
+
+  const renderCard = (item: ActivityItemData) => {
+    const canSelect = item.actions.some(
+      (a) => a.variant === "approve" || a.variant === "reject",
+    );
+    return (
+      <ActivityItemCard
+        key={item.id}
+        item={item}
+        itemState={itemStates[item.id]}
+        lastAction={lastActions[item.id]}
+        onAction={handleAction}
+        onViewItem={setSelectedItem}
+        isSelected={selectedIds.has(item.id)}
+        onToggleSelect={toggleSelect}
+        canSelect={canSelect}
+        onSnooze={handleSnooze}
+      />
+    );
+  };
 
   return (
     <ModulePageShell
@@ -1778,32 +1800,51 @@ export default function ActivityHubPage() {
                 <CheckCircle2 className="h-6 w-6 text-emerald-500" />
               </div>
               <p className="text-sm font-medium text-foreground">
-                All caught up!
+                All caught up
               </p>
               <p className="text-xs text-muted-foreground mt-1">
                 No items matching this filter
               </p>
             </div>
           ) : (
-            <div className="space-y-3">
-              {filteredItems.map((item) => {
-                const canSelect = item.actions.some(
-                  (a) => a.variant === "approve" || a.variant === "reject",
-                );
-                return (
-                  <ActivityItemCard
-                    key={item.id}
-                    item={item}
-                    itemState={itemStates[item.id]}
-                    lastAction={lastActions[item.id]}
-                    onAction={handleAction}
-                    onViewItem={setSelectedItem}
-                    isSelected={selectedIds.has(item.id)}
-                    onToggleSelect={toggleSelect}
-                    canSelect={canSelect}
-                  />
-                );
-              })}
+            <div className="space-y-5">
+              {/* Zone 1 — items that need a human decision */}
+              {decisionItems.length > 0 && (
+                <section aria-labelledby="decisions-heading">
+                  <div className="flex items-center gap-2 px-1 pb-2">
+                    <h2
+                      id="decisions-heading"
+                      className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                    >
+                      Needs your decision
+                    </h2>
+                    <span className="inline-flex h-4 min-w-[16px] items-center justify-center rounded-full bg-primary/10 px-1 text-[9px] font-bold tabular-nums text-primary">
+                      {decisionItems.length}
+                    </span>
+                  </div>
+                  <div className="space-y-3">
+                    {decisionItems.map(renderCard)}
+                  </div>
+                </section>
+              )}
+
+              {/* Zone 2 — awareness only, no action required */}
+              {fyiItems.length > 0 && (
+                <section aria-labelledby="fyi-heading">
+                  <div className="flex items-center gap-2 px-1 pb-2">
+                    <h2
+                      id="fyi-heading"
+                      className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                    >
+                      For your awareness
+                    </h2>
+                    <span className="inline-flex h-4 min-w-[16px] items-center justify-center rounded-full bg-muted px-1 text-[9px] font-bold tabular-nums text-muted-foreground">
+                      {fyiItems.length}
+                    </span>
+                  </div>
+                  <div className="space-y-3">{fyiItems.map(renderCard)}</div>
+                </section>
+              )}
             </div>
           )}
 

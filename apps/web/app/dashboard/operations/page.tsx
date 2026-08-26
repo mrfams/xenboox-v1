@@ -7,6 +7,7 @@ import {
   TrendingDown,
   Wallet,
   CreditCard,
+  Building2,
   Users,
   Calendar,
   FileText,
@@ -424,8 +425,16 @@ function RecentTransactions({
         </div>
       ) : transactions.length === 0 ? (
         <div className="py-6 text-center">
-          <FileText className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
-          <p className="text-xs text-muted-foreground">No transactions yet</p>
+          <FileText
+            className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2"
+            aria-hidden="true"
+          />
+          <p className="text-xs font-medium text-foreground">
+            No transactions yet
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Connect a bank account or upload receipts to get started.
+          </p>
         </div>
       ) : (
         <div className="space-y-1">
@@ -574,7 +583,9 @@ function ComplianceClose() {
               <p className="text-xs font-medium text-foreground">
                 Month-end close
               </p>
-              <p className="text-[10px] text-muted-foreground">Loading...</p>
+              <p className="text-[10px] text-muted-foreground">
+                Checking close status...
+              </p>
             </div>
           </div>
         )}
@@ -587,7 +598,6 @@ function ComplianceClose() {
 
 function PeopleGrid() {
   const { entityId } = useEntity();
-  const { openWithFocus } = useModuleAi();
 
   const { data: customers } = trpc.customers.listCustomers.useQuery(
     { status: "all", limit: 1 },
@@ -596,6 +606,10 @@ function PeopleGrid() {
   const { data: billsOverview } = trpc.bills.getOverview.useQuery(undefined, {
     enabled: !!entityId,
   });
+  const { data: vendorsOverview } = trpc.ap.getVendorsOverview.useQuery(
+    {},
+    { enabled: !!entityId },
+  );
 
   const people = [
     {
@@ -604,7 +618,13 @@ function PeopleGrid() {
       icon: Users,
       color: "text-blue-500",
       href: "/dashboard/operations/customers",
-      prompt: "Show me my customer list. Who has outstanding invoices?",
+    },
+    {
+      label: "Vendors",
+      count: vendorsOverview?.totalVendors ?? 0,
+      icon: Building2,
+      color: "text-violet-500",
+      href: "/dashboard/operations/vendors",
     },
     {
       label: "Bills",
@@ -612,14 +632,6 @@ function PeopleGrid() {
       icon: CreditCard,
       color: "text-amber-500",
       href: "/dashboard/operations/bills",
-      prompt: "Show me my vendors. Who do I owe money to?",
-    },
-    {
-      label: "Employees",
-      count: null,
-      icon: Users,
-      color: "text-emerald-500",
-      prompt: "Show me my employee list and payroll status",
     },
   ];
 
@@ -627,115 +639,25 @@ function PeopleGrid() {
     <div className="rounded-xl border border-border/50 bg-card p-4">
       <h3 className="text-sm font-semibold text-foreground mb-3">People</h3>
       <div className="grid grid-cols-3 gap-3">
-        {people.map((person) => {
-          const content = (
-            <>
-              <person.icon
-                className={cn("h-4 w-4", person.color)}
-                aria-hidden="true"
-              />
-              <div>
-                <p className="text-xs font-medium text-foreground group-hover:text-primary transition-colors">
-                  {person.label}
-                </p>
-                <p className="text-[10px] text-muted-foreground">
-                  {person.count === null
-                    ? "Coming soon"
-                    : `${person.count} total`}
-                </p>
-              </div>
-            </>
-          );
-
-          const className =
-            "w-full text-left flex items-center gap-2 rounded-lg bg-background/50 p-3 transition-all hover:bg-accent group";
-
-          if (person.href) {
-            return (
-              <Link key={person.label} href={person.href} className={className}>
-                {content}
-              </Link>
-            );
-          }
-
-          return (
-            <button
-              key={person.label}
-              type="button"
-              onClick={() =>
-                openWithFocus(
-                  { kind: person.label, name: person.label },
-                  person.prompt,
-                )
-              }
-              className={className}
-            >
-              {content}
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-// ─── AI Quick Actions ──────────────────────────────────────────────────────
-
-function AiQuickActions() {
-  const { openWithFocus } = useModuleAi();
-
-  const actions = [
-    {
-      label: "Upload document",
-      icon: FileText,
-      prompt: "Help me upload and process a document",
-    },
-    {
-      label: "Generate payment link",
-      icon: ArrowUpRight,
-      prompt: "Generate a payment link for an outstanding invoice",
-    },
-    {
-      label: "Set up recurring",
-      icon: RefreshCw,
-      prompt: "Help me set up a recurring transaction or invoice",
-    },
-    {
-      label: "Reconcile accounts",
-      icon: RefreshCw,
-      prompt: "Help me reconcile my bank transactions",
-    },
-    {
-      label: "Close month-end",
-      icon: Calendar,
-      prompt: "Start the month-end close process",
-    },
-  ];
-
-  return (
-    <div className="rounded-xl border border-border/50 bg-card p-4">
-      <h3 className="text-sm font-semibold text-foreground mb-3">
-        AI Quick Actions
-      </h3>
-      <p className="text-xs text-muted-foreground/70 mb-3">
-        Click to ask the AI to handle these for you.
-      </p>
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-        {actions.map((action) => (
-          <button
-            key={action.label}
-            type="button"
-            onClick={() =>
-              openWithFocus(
-                { kind: "Operations", name: action.label },
-                action.prompt,
-              )
-            }
-            className="flex items-center gap-2 rounded-lg border border-border/50 bg-background px-3 py-2 text-xs text-foreground transition-all hover:border-primary/20 hover:bg-primary/5 hover:text-primary group"
+        {people.map((person) => (
+          <Link
+            key={person.label}
+            href={person.href}
+            className="w-full text-left flex items-center gap-2 rounded-lg bg-background/50 p-3 transition-all hover:bg-accent group"
           >
-            <action.icon className="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors" />
-            {action.label}
-          </button>
+            <person.icon
+              className={cn("h-4 w-4", person.color)}
+              aria-hidden="true"
+            />
+            <div>
+              <p className="text-xs font-medium text-foreground group-hover:text-primary transition-colors">
+                {person.label}
+              </p>
+              <p className="text-[10px] text-muted-foreground">
+                {person.count} total
+              </p>
+            </div>
+          </Link>
         ))}
       </div>
     </div>
@@ -766,6 +688,18 @@ export default function OperationsPage() {
     {},
     { enabled: !!entityId },
   );
+  const { data: estimatesOverview } = trpc.estimates.getOverview.useQuery(
+    undefined,
+    { enabled: !!entityId },
+  );
+
+  const arOutstanding = dashboardData?.businessHealth?.arOutstanding ?? 0;
+  const openEstimates = estimatesOverview
+    ? estimatesOverview.statusCounts.draft +
+      estimatesOverview.statusCounts.sent +
+      estimatesOverview.statusCounts.viewed +
+      estimatesOverview.statusCounts.accepted
+    : null;
 
   const overdueBills = billsOverview?.statusCounts.overdue ?? 0;
   const pendingBills =
@@ -897,7 +831,9 @@ export default function OperationsPage() {
                       Invoices Outstanding
                     </span>
                   </div>
-                  <span className="text-xs text-muted-foreground">AR</span>
+                  <span className="text-xs font-medium tabular-nums text-muted-foreground">
+                    {formatCurrency(arOutstanding)}
+                  </span>
                 </Link>
                 <button
                   type="button"
@@ -915,7 +851,9 @@ export default function OperationsPage() {
                       Estimates
                     </span>
                   </div>
-                  <span className="text-xs text-muted-foreground">Pending</span>
+                  <span className="text-xs font-medium tabular-nums text-muted-foreground">
+                    {openEstimates === null ? "—" : `${openEstimates} open`}
+                  </span>
                 </button>
                 <button
                   type="button"
@@ -939,23 +877,28 @@ export default function OperationsPage() {
             </div>
           </div>
 
-          {/* Banking Cards */}
-          <BankingCards />
-
-          {/* Mobile Money Cards */}
-          <MobileMoneyCards />
+          {/* Accounts & Rails — bank + mobile money unified */}
+          <section aria-labelledby="ops-accounts-heading">
+            <h2
+              id="ops-accounts-heading"
+              className="px-1 pb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+            >
+              Accounts
+            </h2>
+            <div className="space-y-4">
+              <BankingCards />
+              <MobileMoneyCards />
+            </div>
+          </section>
 
           {/* Recent Transactions */}
           <RecentTransactions onTransactionClick={setSelectedTransactionId} />
 
-          {/* Compliance & Close */}
-          <ComplianceClose />
-
-          {/* People Grid */}
-          <PeopleGrid />
-
-          {/* AI Quick Actions */}
-          <AiQuickActions />
+          {/* Status row — close progress beside people, one glance */}
+          <div className="grid gap-4 lg:grid-cols-2">
+            <ComplianceClose />
+            <PeopleGrid />
+          </div>
         </div>
       </ModulePageShell>
 
