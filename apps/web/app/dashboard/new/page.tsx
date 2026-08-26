@@ -143,9 +143,9 @@ export default function MissionControlPage() {
 
   return (
     <ErrorBoundary surface="mission-control">
-      <div className="flex h-full min-h-0 pb-16 md:pb-0">
-        {/* ── Main column ─────────────────────────────────────────────── */}
-        <div className="flex min-w-0 flex-1 flex-col">
+      <div className="flex h-[calc(100dvh-56px)] min-h-0 overflow-hidden pb-16 md:pb-0 isolate md:h-[calc(100dvh-56px)]">
+        {/* ── Main column — own scroll plane, isolated */}
+        <div className="flex min-w-0 flex-1 flex-col overflow-hidden isolate">
           {/* Top bar — fixed, no blurry backdrop */}
           <header className="sticky top-0 z-10 flex items-center justify-between gap-2 px-4 py-2 sm:px-6">
             {/* Blurry strip behind export/close — commented out
@@ -259,8 +259,8 @@ export default function MissionControlPage() {
           </div>
         </div>
 
-        {/* ── Workforce rail — switchable Agents / Conversations ───── */}
-        <aside className="hidden h-full w-[340px] shrink-0 flex-col border-l border-border/40 bg-card sm:flex">
+        {/* ── Workforce rail — separate component, full height, isolated scroll */}
+        <aside className="hidden h-full w-[340px] shrink-0 flex-col overflow-hidden border-l border-border/40 bg-card isolate sm:flex">
           <AgentConversationsRail
             entityId={entityId ?? ""}
             currentConversationId={conversationId ?? null}
