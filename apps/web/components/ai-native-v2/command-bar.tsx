@@ -1,9 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ArrowUp, Square } from "lucide-react";
+import { ArrowUp, Square, FileText, X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import {
+  ChatFileUpload,
+  type UploadedFile,
+} from "@/components/chat/chat-file-upload";
 
 // ─── CommandBar ───────────────────────────────────────────────────────────
 //
@@ -18,14 +22,24 @@ export function CommandBar({
   placeholder = "Tell your finance team what to do…",
   suggestions,
   autoFocus,
+  entityId,
+  uploadedFiles,
+  onFilesUploaded,
+  onRemoveFile,
+  onClearFiles,
   className,
 }: {
-  onSubmit: (value: string) => void;
+  onSubmit: (value: string, files?: UploadedFile[]) => void;
   busy?: boolean;
   onCancel?: () => void;
   placeholder?: string;
   suggestions?: string[];
   autoFocus?: boolean;
+  entityId?: string;
+  uploadedFiles?: UploadedFile[];
+  onFilesUploaded?: (files: UploadedFile[]) => void;
+  onRemoveFile?: (index: number) => void;
+  onClearFiles?: () => void;
   className?: string;
 }) {
   const [value, setValue] = useState("");
@@ -45,9 +59,15 @@ export function CommandBar({
 
   const submit = () => {
     const trimmed = value.trim();
-    if (!trimmed || busy) return;
-    onSubmit(trimmed);
+    const hasFiles = uploadedFiles && uploadedFiles.length > 0;
+    if ((!trimmed && !hasFiles) || busy) return;
+    onSubmit(
+      trimmed ||
+        `Shared ${uploadedFiles?.length} file${uploadedFiles?.length !== 1 ? "s" : ""}`,
+      hasFiles ? uploadedFiles : undefined,
+    );
     setValue("");
+    onClearFiles?.();
     if (inputRef.current) {
       inputRef.current.style.height = "auto";
     }
@@ -73,12 +93,44 @@ export function CommandBar({
         </div>
       )}
 
+      {/* Attached files — pill chips */}
+      {uploadedFiles && uploadedFiles.length > 0 && (
+        <div className="mb-1.5 flex flex-wrap gap-1.5">
+          {uploadedFiles.map((file, idx) => (
+            <div
+              key={`${file.documentId}-${idx}`}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-border/50 bg-muted/40 px-2 py-1 text-xs"
+            >
+              <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+              <span className="max-w-[140px] truncate font-medium text-foreground">
+                {file.name}
+              </span>
+              <button
+                type="button"
+                onClick={() => onRemoveFile?.(idx)}
+                className="ml-1 rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+                aria-label={`Remove ${file.name}`}
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
       <div
         className={cn(
           "relative flex items-end gap-1.5 rounded-xl border border-border/50 bg-card px-2 py-1.5 shadow-sm transition-colors focus-within:border-primary/30",
           busy && "opacity-90",
         )}
       >
+        {entityId && onFilesUploaded && (
+          <ChatFileUpload
+            entityId={entityId}
+            onFilesUploaded={onFilesUploaded}
+            disabled={busy}
+          />
+        )}
         <label htmlFor="v2-command-input" className="sr-only">
           Ask your finance team
         </label>

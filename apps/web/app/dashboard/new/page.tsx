@@ -85,6 +85,7 @@ export default function MissionControlPage() {
     dataTables,
     charts,
     pendingInput,
+    conversationId,
     sendMessage,
     cancelStream,
     loadConversation,
@@ -92,7 +93,12 @@ export default function MissionControlPage() {
   } = chat as ReturnType<typeof useDashboardChat> & {
     newChat: () => void;
     loadConversation: (id: string) => void;
+    conversationId: string | null;
   };
+
+  const [uploadedFiles, setUploadedFiles] = useState<
+    import("@/components/chat/chat-file-upload").UploadedFile[]
+  >([]);
 
   // ── Context strip data ────────────────────────────────────────────────
   const { data: closeStatus } = trpc.fiscal.getCurrent.useQuery(undefined, {
@@ -140,8 +146,11 @@ export default function MissionControlPage() {
       <div className="flex h-full min-h-0 pb-16 md:pb-0">
         {/* ── Main column ─────────────────────────────────────────────── */}
         <div className="flex min-w-0 flex-1 flex-col">
-          {/* Top bar — fixed, like /dashboard */}
-          <header className="sticky top-0 z-10 flex items-center justify-between gap-2 border-b border-border/30 bg-background/80 px-4 py-2 backdrop-blur-sm sm:px-6">
+          {/* Top bar — fixed, no blurry backdrop */}
+          <header className="sticky top-0 z-10 flex items-center justify-between gap-2 px-4 py-2 sm:px-6">
+            {/* Blurry strip behind export/close — commented out
+            <div className="absolute inset-0 -z-10 bg-background/80 backdrop-blur-sm border-b border-border/30" />
+            */}
             <div className="min-w-0">
               {!isChatting ? (
                 <h1 className="truncate text-sm font-semibold tracking-tight text-foreground">
@@ -205,10 +214,19 @@ export default function MissionControlPage() {
             )}
           </div>
 
-          {/* Command — compact with disclaimer */}
+          {/* Command — compact with file support */}
           <div className="sticky bottom-0 border-t border-border/30 bg-background/80 px-4 py-2 backdrop-blur-sm sm:px-6">
             <CommandBar
-              onSubmit={(v) => sendMessage(v)}
+              onSubmit={(v, files) => {
+                const filePayload = files?.map((f) => ({
+                  documentId: f.documentId,
+                  name: f.name,
+                  type: f.type,
+                }));
+                // Send with page context if needed
+                sendMessage(v, undefined, filePayload);
+                setUploadedFiles([]);
+              }}
               busy={isStreaming}
               onCancel={cancelStream}
               suggestions={
@@ -222,6 +240,15 @@ export default function MissionControlPage() {
               }
               placeholder="Ask anything, or hand off a job…"
               autoFocus
+              entityId={entityId ?? ""}
+              uploadedFiles={uploadedFiles}
+              onFilesUploaded={(files) =>
+                setUploadedFiles((prev) => [...prev, ...files])
+              }
+              onRemoveFile={(idx) =>
+                setUploadedFiles((prev) => prev.filter((_, i) => i !== idx))
+              }
+              onClearFiles={() => setUploadedFiles([])}
             />
             <p className="mt-1.5 text-center text-[10px] leading-none text-muted-foreground/60">
               AI can make mistakes. Verify important information.
@@ -233,6 +260,7 @@ export default function MissionControlPage() {
         <aside className="hidden h-full w-[340px] shrink-0 flex-col border-l border-border/40 bg-card sm:flex">
           <AgentConversationsRail
             entityId={entityId ?? ""}
+            currentConversationId={conversationId ?? null}
             onSelectConversation={(id) => {
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
               (loadConversation as any)?.(id);
@@ -252,9 +280,11 @@ export default function MissionControlPage() {
 
 function AgentConversationsRail({
   entityId,
+  currentConversationId,
   onSelectConversation,
 }: {
   entityId: string;
+  currentConversationId: string | null;
   onSelectConversation: (id: string) => void;
 }) {
   const [active, setActive] = useState<"agents" | "conversations">("agents");
@@ -324,26 +354,46 @@ function AgentConversationsRail({
               </div>
             ) : (
               <div className="space-y-0.5">
-                {conversations.slice(0, 30).map((c) => (
-                  <button
-                    key={c.id}
-                    type="button"
-                    onClick={() => onSelectConversation(c.id)}
-                    className="flex w-full items-start gap-2 rounded-lg px-2.5 py-2 text-left transition-colors hover:bg-accent"
-                  >
-                    <MessageSquare className="h-3.5 w-3.5 shrink-0 text-muted-foreground/50 mt-0.5" />
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-xs font-medium text-foreground">
-                        {c.title || "Untitled"}
-                      </span>
-                      {c.summary && (
-                        <span className="block truncate text-[11px] text-muted-foreground">
-                          {c.summary}
-                        </span>
+                {conversations.slice(0, 30).map((c) => {
+                  const isActive = c.id === currentConversationId;
+                  return (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => onSelectConversation(c.id)}
+                      className={cn(
+                        "flex w-full items-start gap-2 rounded-lg px-2.5 py-2 text-left transition-colors",
+                        isActive
+                          ? "bg-primary/10 text-primary"
+                          : "hover:bg-accent",
                       )}
-                    </span>
-                  </button>
-                ))}
+                    >
+                      <MessageSquare
+                        className={cn(
+                          "h-3.5 w-3.5 shrink-0 mt-0.5",
+                          isActive
+                            ? "text-primary"
+                            : "text-muted-foreground/50",
+                        )}
+                      />
+                      <span className="min-w-0 flex-1">
+                        <span
+                          className={cn(
+                            "block truncate text-xs font-medium",
+                            isActive ? "text-primary" : "text-foreground",
+                          )}
+                        >
+                          {c.title || "Untitled"}
+                        </span>
+                        {c.summary && (
+                          <span className="block truncate text-[11px] text-muted-foreground">
+                            {c.summary}
+                          </span>
+                        )}
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
             )}
           </div>
