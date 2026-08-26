@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { trpc } from "@/lib/trpc/client";
+import { ConversationMemory } from "./conversation-memory";
 
 // ─── Conversation Sidebar ──────────────────────────────────────────────────
 //
@@ -40,12 +41,14 @@ export function ConversationSidebar({
   currentConversationId,
   onSelectConversation,
   onNewChat,
+  currentQuery,
 }: {
   isOpen: boolean;
   onClose: () => void;
   currentConversationId: string | null;
   onSelectConversation: (id: string, title?: string | null) => void;
   onNewChat: () => void;
+  currentQuery?: string;
 }) {
   const [search, setSearch] = useState("");
   const [hoveredId, setHoveredId] = useState<string | null>(null);
@@ -275,6 +278,17 @@ export function ConversationSidebar({
             ))
           )}
         </div>
+
+        {/* Related conversations — subtle, where it belongs: in history context */}
+        {currentQuery && currentQuery.length >= 5 && (
+          <div className="border-t border-border/50">
+            <ConversationMemory
+              currentQuery={currentQuery}
+              currentConversationId={currentConversationId ?? undefined}
+              onJumpToConversation={(id) => onSelectConversation(id)}
+            />
+          </div>
+        )}
 
         {/* Footer */}
         <div className="border-t border-border px-4 py-2">

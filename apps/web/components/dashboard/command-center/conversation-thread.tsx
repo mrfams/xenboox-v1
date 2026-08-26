@@ -2,7 +2,6 @@
 
 import { useRef, useState, useEffect, useCallback } from "react";
 import {
-  Bot,
   RefreshCw,
   Send,
   AlertTriangle,
@@ -94,9 +93,6 @@ function InlineInputForm({
 
   return (
     <div className="flex gap-3">
-      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/8">
-        <Bot className="h-4 w-4 text-primary/70" />
-      </div>
       <div className="max-w-[85%] rounded-2xl border border-primary/20 bg-primary/[0.03] px-4 py-3">
         <p className="text-sm font-medium text-foreground mb-3">
           I need a few details to {spec.action.replace(/_/g, " ")}:
@@ -423,11 +419,6 @@ export function ConversationThread({
               msg.role === "user" ? "justify-end" : "justify-start",
             )}
           >
-            {msg.role === "assistant" && (
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/8">
-                <Bot className="h-4 w-4 text-primary/70" />
-              </div>
-            )}
             <div
               className={cn(
                 "max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed relative",
@@ -571,8 +562,8 @@ export function ConversationThread({
             />
           </div>
         ))}
-        {/* Thinking steps — shown while AI is processing */}
-        {isStreaming && thinkingEvents.length > 0 && (
+        {/* Thinking steps — collapsible, persists after streaming like Claude/ChatGPT */}
+        {thinkingEvents.length > 0 && (
           <ConversationThinkingSteps
             events={thinkingEvents}
             isStreaming={isStreaming}
@@ -588,9 +579,6 @@ export function ConversationThread({
         {/* Streaming response */}
         {isStreaming && streamedContent && (
           <div className="flex gap-3">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/8">
-              <Bot className="h-4 w-4 text-primary/70" />
-            </div>
             <div className="max-w-[85%] rounded-2xl bg-card border border-border/50 px-4 py-3 text-sm leading-relaxed text-foreground">
               <p className="whitespace-pre-wrap" aria-live="polite">
                 {streamedContent}
@@ -605,9 +593,6 @@ export function ConversationThread({
         {/* Thinking indicator */}
         {isStreaming && !streamedContent && (
           <div className="flex gap-3">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/8">
-              <Bot className="h-4 w-4 text-primary/70" />
-            </div>
             <div className="rounded-2xl bg-card border border-border/50 px-4 py-3">
               <div className="flex items-center gap-2">
                 <div className="flex gap-1">
@@ -629,9 +614,6 @@ export function ConversationThread({
         {/* Inline approval cards from streaming */}
         {approvals.map((approval, i) => (
           <div key={`approval-${i}`} className="flex gap-3">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/8">
-              <Bot className="h-4 w-4 text-primary/70" />
-            </div>
             <div className="max-w-[85%] rounded-2xl border border-amber-500/20 bg-amber-500/[0.03] px-4 py-3">
               <div className="flex items-start gap-2 mb-2">
                 <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
@@ -737,9 +719,6 @@ export function ConversationThread({
         {/* Data tables from AI (streaming and committed) — rendered once */}
         {dataTables.map((table, i) => (
           <div key={`table-${i}`} className="flex gap-3">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/8">
-              <Bot className="h-4 w-4 text-primary/70" />
-            </div>
             <div className="max-w-[90%]">
               <DataTableInline
                 title={table.title}
@@ -757,9 +736,6 @@ export function ConversationThread({
         {isStreaming &&
           charts.map((chart, i) => (
             <div key={`streaming-chart-${i}`} className="flex gap-3">
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/8">
-                <Bot className="h-4 w-4 text-primary/70" />
-              </div>
               <div className="max-w-[90%]">
                 <ChartInline
                   type={chart.chartType}
@@ -790,9 +766,6 @@ export function ConversationThread({
         {/* Document artifacts — Inline Document Viewer */}
         {documents.map((doc, i) => (
           <div key={`doc-${i}`} className="flex gap-3">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/8">
-              <Bot className="h-4 w-4 text-primary/70" />
-            </div>
             <div className="max-w-[85%]">
               <InlineDocumentViewer
                 artifactId={doc.artifactId}
@@ -836,9 +809,6 @@ function DocumentGeneratingIndicator({ content }: { content: string }) {
 
   return (
     <div className="flex gap-3">
-      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/8">
-        <Bot className="h-4 w-4 text-primary/70" />
-      </div>
       <div className="max-w-[85%]">
         <DocumentGenerating docType={docType} />
       </div>

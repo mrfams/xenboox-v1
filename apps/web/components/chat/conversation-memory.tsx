@@ -74,24 +74,24 @@ export function ConversationMemory({
   }
 
   return (
-    <div className="mb-3">
-      <Card className="border-primary/20 bg-primary/5">
-        <CardContent className="p-3">
-          {/* Header */}
+    <div className="px-3 py-2">
+      <Card className="border-border/30 bg-muted/20">
+        <CardContent className="p-2.5">
+          {/* Header — subtle, collapsed by default like Claude */}
           <button
             type="button"
             onClick={() => setIsExpanded(!isExpanded)}
             className="flex items-center gap-2 w-full text-left"
           >
-            <History className="h-4 w-4 text-primary" />
-            <span className="text-xs font-medium text-primary">
-              {relevantConversations.length} relevant past conversation
-              {relevantConversations.length !== 1 ? "s" : ""} found
+            <History className="h-3.5 w-3.5 text-muted-foreground" />
+            <span className="text-[11px] font-medium text-muted-foreground">
+              {relevantConversations.length} related conversation
+              {relevantConversations.length !== 1 ? "s" : ""}
             </span>
             {isExpanded ? (
-              <ChevronUp className="h-3.5 w-3.5 ml-auto text-primary" />
+              <ChevronUp className="h-3 w-3 ml-auto text-muted-foreground" />
             ) : (
-              <ChevronDown className="h-3.5 w-3.5 ml-auto text-primary" />
+              <ChevronDown className="h-3 w-3 ml-auto text-muted-foreground" />
             )}
           </button>
 

@@ -10,7 +10,6 @@ import {
   FileText,
   Send,
   RefreshCw,
-  Bot,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -120,28 +119,16 @@ export function AiInput({
         )}
       >
         <div className="relative flex items-end gap-3 px-4 py-3">
-          <div className="flex items-center gap-1 shrink-0 self-center">
+          <div className="flex items-center shrink-0 self-center">
             <ChatFileUpload
               entityId={entityId}
               onFilesUploaded={onFilesUploaded}
               disabled={isResponding}
             />
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/8 text-primary/70 transition-colors group-focus-within:bg-primary/12 group-focus-within:text-primary">
-              <Bot className="h-4 w-4" />
-            </div>
           </div>
           <label htmlFor="ai-chat-input" className="sr-only">
             Ask your AI CFO anything
           </label>
-          {/* Context pins indicator */}
-          {pageContext && (
-            <div className="absolute -top-6 left-4 flex items-center gap-1">
-              <span className="inline-flex items-center gap-1 rounded-full border border-primary/20 bg-primary/5 px-2 py-0.5 text-[9px] font-medium text-primary">
-                <Sparkles className="h-2.5 w-2.5" />
-                {pageContext.page} context attached
-              </span>
-            </div>
-          )}
           <textarea
             id="ai-chat-input"
             ref={textareaRef}
