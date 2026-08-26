@@ -295,11 +295,11 @@ function AgentConversationsRail({
 
   return (
     <div className="flex h-full min-h-0 w-full flex-col bg-card">
-      {/* Tabs — fixed, never scroll, full width bg same as panel */}
+      {/* Tabs — fixed header, never scrolls, full bleed */}
       <div
         role="tablist"
         aria-label="Agents and conversations"
-        className="flex w-full items-center gap-1 border-b border-border/40 bg-card p-1.5"
+        className="sticky top-0 z-10 flex w-full shrink-0 items-stretch gap-0 border-b border-border/40 bg-card"
       >
         <button
           type="button"
@@ -307,10 +307,10 @@ function AgentConversationsRail({
           aria-selected={active === "agents"}
           onClick={() => setActive("agents")}
           className={cn(
-            "flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all duration-200",
+            "flex flex-1 items-center justify-center gap-1.5 px-3 py-3 text-xs font-medium transition-all duration-200",
             active === "agents"
-              ? "bg-primary text-primary-foreground shadow-sm"
-              : "text-muted-foreground hover:text-foreground hover:bg-muted",
+              ? "bg-primary text-primary-foreground"
+              : "bg-card text-muted-foreground hover:bg-muted hover:text-foreground",
           )}
         >
           <Bot className="h-3.5 w-3.5" />
@@ -322,10 +322,10 @@ function AgentConversationsRail({
           aria-selected={active === "conversations"}
           onClick={() => setActive("conversations")}
           className={cn(
-            "flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all duration-200",
+            "flex flex-1 items-center justify-center gap-1.5 px-3 py-3 text-xs font-medium transition-all duration-200",
             active === "conversations"
-              ? "bg-primary text-primary-foreground shadow-sm"
-              : "text-muted-foreground hover:text-foreground hover:bg-muted",
+              ? "bg-primary text-primary-foreground"
+              : "bg-card text-muted-foreground hover:bg-muted hover:text-foreground",
           )}
         >
           <MessageSquare className="h-3.5 w-3.5" />
@@ -343,16 +343,16 @@ function AgentConversationsRail({
             />
           </div>
         ) : (
-          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2">
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
             {!conversations || conversations.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-12 text-center">
+              <div className="flex h-full min-h-[200px] flex-col items-center justify-center p-4 text-center">
                 <MessageSquare className="h-6 w-6 text-muted-foreground/30 mb-2" />
                 <p className="text-xs text-muted-foreground">
                   No conversations yet
                 </p>
               </div>
             ) : (
-              <div className="space-y-0.5">
+              <div className="space-y-0.5 p-1">
                 {conversations.slice(0, 30).map((c) => {
                   const isActive = c.id === currentConversationId;
                   return (
