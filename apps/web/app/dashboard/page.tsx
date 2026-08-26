@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useSession } from "next-auth/react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Suspense } from "react";
-import { MessageSquare, X } from "lucide-react";
+import { MessageSquare, X, Download } from "lucide-react";
 
 import { useEntity } from "@/lib/entity-context";
 import { activationEvents } from "@/lib/analytics/feature-tracking";
@@ -133,6 +133,25 @@ function CommandCenterInner() {
     [sendMessage, pageContext],
   );
 
+  const handleExport = useCallback(() => {
+    const lines = messages.map((m) => {
+      const role = m.role === "user" ? "You" : "AI";
+      return `**${role}:** ${m.content}`;
+    });
+    const md = `# Conversation Export\n\nDate: ${new Date().toLocaleDateString()}\n\n---\n\n${lines.join("\n\n")}`;
+    const blob = new Blob([md], { type: "text/markdown;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `conversation-${new Date().toISOString().split("T")[0]}.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [messages]);
+
+  const handleRemoveFile = useCallback((index: number) => {
+    setUploadedFiles((prev) => prev.filter((_, i) => i !== index));
+  }, []);
+
   const isChatting = messages.length > 0 || isStreaming;
 
   return (
@@ -162,14 +181,37 @@ function CommandCenterInner() {
               <AIGreeting firstName={firstName} />
               <div className="flex items-center gap-1.5">
                 {isChatting && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={handleExport}
+                      className="inline-flex items-center gap-1 rounded-lg border border-border/50 bg-background/50 p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+                      aria-label="Export chat"
+                      title="Export chat"
+                    >
+                      <Download className="h-4 w-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => newChat()}
+                      className="inline-flex items-center gap-1 rounded-lg border border-border/50 bg-background/50 p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+                      aria-label="Close chat and return to briefing"
+                      title="Close chat"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </>
+                )}
+                {!isChatting && messages.length === 0 && (
                   <button
                     type="button"
-                    onClick={() => newChat()}
-                    className="inline-flex items-center gap-1 rounded-lg border border-border/50 bg-background/50 p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
-                    aria-label="Close chat and return to briefing"
-                    title="Close chat"
+                    onClick={handleExport}
+                    className="hidden sm:inline-flex items-center gap-1 rounded-lg border border-transparent px-2 py-1 text-[10px] font-medium text-muted-foreground hover:text-foreground transition-colors"
+                    aria-label="Export chat"
+                    title="Export chat"
                   >
-                    <X className="h-4 w-4" />
+                    <Download className="h-3 w-3" />
+                    Export
                   </button>
                 )}
                 <button
@@ -225,6 +267,7 @@ function CommandCenterInner() {
                 setUploadedFiles((prev) => [...prev, ...files])
               }
               onClearFiles={() => setUploadedFiles([])}
+              onRemoveFile={handleRemoveFile}
               messages={messages}
             />
           </div>

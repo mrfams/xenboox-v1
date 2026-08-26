@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import {
   CalendarCheck,
@@ -8,11 +8,13 @@ import {
   Landmark,
   Sparkles,
   Wallet,
+  Bot,
+  MessageSquare,
 } from "lucide-react";
 
 import { useEntity } from "@/lib/entity-context";
 import { trpc } from "@/lib/trpc/client";
-import { formatCurrency } from "@/lib/utils";
+import { cn, formatCurrency } from "@/lib/utils";
 import { useDashboardChat } from "@/lib/hooks/use-dashboard-chat";
 import { activationEvents } from "@/lib/analytics/feature-tracking";
 import { ErrorBoundary } from "@/components/shared/error-boundary";
@@ -85,6 +87,7 @@ export default function MissionControlPage() {
     pendingInput,
     sendMessage,
     cancelStream,
+    loadConversation,
   } = chat;
 
   // ── Context strip data ────────────────────────────────────────────────
@@ -106,7 +109,7 @@ export default function MissionControlPage() {
 
   return (
     <ErrorBoundary surface="mission-control">
-      <div className="flex h-full min-h-0 gap-4 pb-16 md:pb-0">
+      <div className="flex h-full min-h-0 pb-16 md:pb-0">
         {/* ── Main column ─────────────────────────────────────────────── */}
         <div className="flex min-w-0 flex-1 flex-col">
           {/* Context strip */}
@@ -201,12 +204,125 @@ export default function MissionControlPage() {
           </div>
         </div>
 
-        {/* ── Workforce rail ──────────────────────────────────────────── */}
-        <aside className="hidden w-[320px] shrink-0 px-0 py-5 pr-4 sm:block sm:pr-6">
-          <AgentStream entityId={entityId ?? ""} className="max-h-full" />
+        {/* ── Workforce rail — switchable Agents / Conversations ───── */}
+        <aside className="hidden w-[340px] shrink-0 flex-col border-l border-border/40 bg-card/30 sm:flex">
+          <AgentConversationsRail
+            entityId={entityId ?? ""}
+            onSelectConversation={(id) => {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              (loadConversation as any)?.(id);
+            }}
+          />
         </aside>
       </div>
     </ErrorBoundary>
+  );
+}
+
+// ─── Agent / Conversations Rail ─────────────────────────────────────────
+//
+// Right rail with fixed tabs (Agents · Conversations). Tabs stay pinned,
+// contents scroll. Agents shows live runs; Conversations mirrors the
+// history from /dashboard for quick switching.
+
+function AgentConversationsRail({
+  entityId,
+  onSelectConversation,
+}: {
+  entityId: string;
+  onSelectConversation: (id: string) => void;
+}) {
+  const [active, setActive] = useState<"agents" | "conversations">("agents");
+
+  const { data: conversations } = trpc.chat.listConversations.useQuery(
+    undefined,
+    { enabled: active === "conversations" },
+  );
+
+  return (
+    <div className="flex h-full min-h-0 flex-col">
+      {/* Tabs — fixed, never scroll */}
+      <div
+        role="tablist"
+        aria-label="Agents and conversations"
+        className="sticky top-0 z-10 flex items-center gap-1 border-b border-border/40 bg-card/80 px-2 py-2 backdrop-blur-sm"
+      >
+        <button
+          type="button"
+          role="tab"
+          aria-selected={active === "agents"}
+          onClick={() => setActive("agents")}
+          className={cn(
+            "flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors",
+            active === "agents"
+              ? "bg-primary text-primary-foreground"
+              : "text-muted-foreground hover:text-foreground hover:bg-muted/50",
+          )}
+        >
+          <Bot className="h-3.5 w-3.5" />
+          Agents
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={active === "conversations"}
+          onClick={() => setActive("conversations")}
+          className={cn(
+            "flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors",
+            active === "conversations"
+              ? "bg-primary text-primary-foreground"
+              : "text-muted-foreground hover:text-foreground hover:bg-muted/50",
+          )}
+        >
+          <MessageSquare className="h-3.5 w-3.5" />
+          Conversations
+        </button>
+      </div>
+
+      {/* Content — scrollable */}
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        {active === "agents" ? (
+          <AgentStream
+            entityId={entityId}
+            className="h-full rounded-none border-0"
+          />
+        ) : (
+          <div className="p-2">
+            {!conversations || conversations.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <MessageSquare className="h-6 w-6 text-muted-foreground/30 mb-2" />
+                <p className="text-xs text-muted-foreground">
+                  No conversations yet
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-0.5">
+                {conversations.slice(0, 30).map((c) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => onSelectConversation(c.id)}
+                    className="flex w-full items-start gap-2 rounded-lg px-2.5 py-2 text-left transition-colors hover:bg-accent"
+                  >
+                    <MessageSquare className="h-3.5 w-3.5 shrink-0 text-muted-foreground/50 mt-0.5" />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-xs font-medium text-foreground">
+                        {c.title || "Untitled"}
+                      </span>
+                      {c.summary && (
+                        <span className="block truncate text-[11px] text-muted-foreground">
+                          {c.summary}
+                        </span>
+                      )}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 

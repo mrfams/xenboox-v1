@@ -10,6 +10,7 @@ import {
   FileText,
   Send,
   RefreshCw,
+  X,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -36,6 +37,7 @@ export function AiInput({
   uploadedFiles,
   onFilesUploaded,
   onClearFiles,
+  onRemoveFile,
   messages,
 }: {
   onSubmit: (value: string, files?: UploadedFile[]) => void;
@@ -45,6 +47,7 @@ export function AiInput({
   uploadedFiles: UploadedFile[];
   onFilesUploaded: (files: UploadedFile[]) => void;
   onClearFiles: () => void;
+  onRemoveFile?: (index: number) => void;
   messages: ReturnType<typeof useDashboardChat>["messages"];
 }) {
   const pageContext = usePageContext();
@@ -79,8 +82,16 @@ export function AiInput({
     { label: "Close books", icon: FileText, color: "text-indigo-500" },
   ];
 
+  const handleRemoveFile = (index: number) => {
+    if (onRemoveFile) onRemoveFile(index);
+    else {
+      // fallback: clear all if no per-file handler
+      onClearFiles();
+    }
+  };
+
   return (
-    <div className="mx-auto w-full max-w-3xl space-y-2 px-3 pb-4 sm:px-4">
+    <div className="mx-auto w-full max-w-3xl space-y-2 px-3 pb-3 sm:px-4">
       {/* Suggestions */}
       <div className="flex items-center gap-1.5 overflow-x-auto py-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {suggestions.map((suggestion) => {
@@ -92,8 +103,8 @@ export function AiInput({
               onClick={() => handleSubmit(suggestion.label)}
               disabled={isResponding}
               className={cn(
-                "inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-border/40 bg-background/50",
-                "px-2.5 py-1.5 text-[11px] font-medium text-muted-foreground/70 transition-all duration-200",
+                "inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border/40 bg-background/50",
+                "px-2.5 py-1 text-[11px] font-medium text-muted-foreground/70 transition-all duration-200",
                 "hover:border-primary/25 hover:text-primary/80 hover:bg-primary/[0.03]",
                 "active:scale-[0.97]",
                 "disabled:opacity-40 disabled:pointer-events-none",
@@ -109,16 +120,41 @@ export function AiInput({
         })}
       </div>
 
+      {/* Attached files — ChatGPT/Claude style chips */}
+      {uploadedFiles.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {uploadedFiles.map((file, index) => (
+            <div
+              key={`${file.documentId}-${index}`}
+              className="group inline-flex items-center gap-2 rounded-lg border border-border/50 bg-muted/40 px-2.5 py-1.5 text-xs"
+            >
+              <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+              <span className="max-w-[140px] truncate font-medium text-foreground">
+                {file.name}
+              </span>
+              <button
+                type="button"
+                onClick={() => handleRemoveFile(index)}
+                className="ml-1 rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                aria-label={`Remove ${file.name}`}
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Input */}
       <div
         className={cn(
-          "relative group rounded-2xl border bg-card transition-all duration-300",
+          "relative group rounded-xl border bg-card transition-all duration-200",
           isFocused
-            ? "border-primary/40 shadow-lg shadow-primary/[0.06]"
-            : "border-border/40 shadow-sm hover:border-border/60 hover:shadow-md",
+            ? "border-primary/30 shadow-md shadow-primary/[0.04]"
+            : "border-border/50 shadow-sm",
         )}
       >
-        <div className="relative flex items-end gap-3 px-4 py-3">
+        <div className="relative flex items-end gap-2.5 px-3 py-2.5">
           <div className="flex items-center shrink-0 self-center">
             <ChatFileUpload
               entityId={entityId}
@@ -161,61 +197,21 @@ export function AiInput({
               !isResponding && !inputValue.trim() && uploadedFiles.length === 0
             }
             className={cn(
-              "h-10 w-10 rounded-xl p-0 transition-all shrink-0",
+              "h-8 w-8 rounded-lg p-0 transition-all shrink-0",
               isResponding
                 ? "bg-red-500 hover:bg-red-600 text-white shadow-sm"
-                : inputValue.trim()
+                : inputValue.trim() || uploadedFiles.length > 0
                   ? "bg-primary hover:bg-primary/90 text-white shadow-sm"
-                  : "bg-primary text-white",
+                  : "bg-muted text-muted-foreground",
             )}
           >
             {isResponding ? (
-              <span className="h-3 w-3 rounded-sm bg-white" />
+              <span className="h-2.5 w-2.5 rounded-sm bg-white" />
             ) : (
-              <Send className="h-4 w-4" />
+              <Send className="h-3.5 w-3.5" />
             )}
           </Button>
         </div>
-        {/* Export conversation button */}
-        <div className="flex items-center justify-end px-4 py-1">
-          <button
-            type="button"
-            onClick={() => {
-              // Export conversation as markdown
-              const lines = messages.map((m) => {
-                const role = m.role === "user" ? "You" : "AI";
-                return `**${role}:** ${m.content}`;
-              });
-              const md = `# Conversation Export\n\nDate: ${new Date().toLocaleDateString()}\n\n---\n\n${lines.join("\n\n")}`;
-              const blob = new Blob([md], {
-                type: "text/markdown;charset=utf-8;",
-              });
-              const url = URL.createObjectURL(blob);
-              const a = document.createElement("a");
-              a.href = url;
-              a.download = `conversation-${new Date().toISOString().split("T")[0]}.md`;
-              a.click();
-              URL.revokeObjectURL(url);
-            }}
-            className="text-[10px] text-muted-foreground hover:text-foreground transition-colors"
-          >
-            Export chat
-          </button>
-        </div>
-        {isFocused && (
-          <div className="border-t border-border/30 px-4 py-1.5">
-            <p className="text-[9px] text-muted-foreground/40">
-              <kbd className="inline-flex items-center rounded border border-border/40 bg-muted/40 px-1 py-px text-[9px] font-mono">
-                Enter
-              </kbd>{" "}
-              send ·{" "}
-              <kbd className="inline-flex items-center rounded border border-border/40 bg-muted/40 px-1 py-px text-[9px] font-mono">
-                Shift+Enter
-              </kbd>{" "}
-              newline
-            </p>
-          </div>
-        )}
       </div>
     </div>
   );

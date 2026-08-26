@@ -402,29 +402,29 @@ export function ConversationThread({
   );
 
   return (
-    <div className="flex-1 overflow-y-auto px-4 py-6">
+    <div className="flex-1 overflow-y-auto px-3 py-4 sm:px-4">
       {/* Pinned Messages Panel */}
       <PinnedMessagesPanel
         messages={pinnedMessages}
         onUnpin={handleUnpin}
         onJumpTo={handleJumpTo}
       />
-      <div className="mx-auto max-w-3xl space-y-4">
+      <div className="mx-auto max-w-2xl space-y-3">
         {messages.map((msg) => (
           <div
             key={msg.id}
             id={`message-${msg.id}`}
             className={cn(
-              "flex gap-3 group relative",
+              "flex gap-2 group relative",
               msg.role === "user" ? "justify-end" : "justify-start",
             )}
           >
             <div
               className={cn(
-                "max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed relative",
+                "relative text-[13.5px] leading-[1.6]",
                 msg.role === "assistant"
-                  ? "bg-card border border-border/50 text-foreground"
-                  : "bg-primary text-primary-foreground",
+                  ? "w-full max-w-none px-1 py-1 text-foreground"
+                  : "max-w-[75%] rounded-2xl bg-primary px-3.5 py-2 text-primary-foreground",
               )}
             >
               <p className="whitespace-pre-wrap">{msg.content}</p>
@@ -578,8 +578,8 @@ export function ConversationThread({
         ))}
         {/* Streaming response */}
         {isStreaming && streamedContent && (
-          <div className="flex gap-3">
-            <div className="max-w-[85%] rounded-2xl bg-card border border-border/50 px-4 py-3 text-sm leading-relaxed text-foreground">
+          <div className="flex gap-2 justify-start">
+            <div className="w-full px-1 py-1 text-[13.5px] leading-[1.6] text-foreground">
               <p className="whitespace-pre-wrap" aria-live="polite">
                 {streamedContent}
               </p>
@@ -592,8 +592,8 @@ export function ConversationThread({
         )}
         {/* Thinking indicator */}
         {isStreaming && !streamedContent && (
-          <div className="flex gap-3">
-            <div className="rounded-2xl bg-card border border-border/50 px-4 py-3">
+          <div className="flex gap-2 justify-start">
+            <div className="px-1 py-1">
               <div className="flex items-center gap-2">
                 <div className="flex gap-1">
                   <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary/60" />
