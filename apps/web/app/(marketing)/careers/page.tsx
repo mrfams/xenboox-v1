@@ -17,6 +17,7 @@ import {
   TrendingUp,
   Filter,
   ChevronDown,
+  Check,
 } from "lucide-react";
 
 import { FadeInUp } from "@/components/marketing/reveal";
@@ -284,8 +285,8 @@ export default function CareersPage() {
             {benefits.map((benefit, index) => (
               <FadeInUp key={benefit} delay={index * 0.05}>
                 <div className="flex items-center gap-3 rounded-xl border border-border bg-card p-4 transition-all duration-200 hover:shadow-md">
-                  <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary text-sm">
-                    ✓
+                  <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                    <Check className="h-4 w-4" />
                   </span>
                   <span className="text-sm font-medium text-foreground">
                     {benefit}
@@ -316,8 +317,12 @@ export default function CareersPage() {
             <div className="mb-6 space-y-4">
               {/* Search Bar */}
               <div className="relative">
+                <label htmlFor="careers-search" className="sr-only">
+                  Search careers
+                </label>
                 <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <input
+                  id="careers-search"
                   type="text"
                   placeholder="Search roles by title, department, or skill..."
                   value={searchQuery}
@@ -331,6 +336,8 @@ export default function CareersPage() {
                 <button
                   onClick={() => setShowFilters(!showFilters)}
                   className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                  aria-expanded={showFilters}
+                  aria-label={showFilters ? "Hide filters" : "Show filters"}
                 >
                   <Filter className="h-4 w-4" />
                   Filters
@@ -421,14 +428,26 @@ export default function CareersPage() {
           {/* Job Listings */}
           <div className="space-y-3">
             {isLoading ? (
-              <FadeInUp>
-                <div className="rounded-2xl border border-border bg-card p-12 text-center">
-                  <Briefcase className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4 animate-pulse" />
-                  <h3 className="text-lg font-semibold text-foreground mb-2">
-                    Loading positions...
-                  </h3>
-                </div>
-              </FadeInUp>
+              <>
+                {[1, 2, 3].map((n) => (
+                  <FadeInUp key={n} delay={n * 0.05}>
+                    <div className="rounded-2xl border border-border bg-card p-6">
+                      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="flex-1 space-y-3">
+                          <div className="h-5 w-48 rounded bg-muted animate-pulse" />
+                          <div className="h-4 w-72 rounded bg-muted animate-pulse opacity-60" />
+                          <div className="flex gap-4">
+                            <div className="h-3 w-20 rounded bg-muted animate-pulse opacity-40" />
+                            <div className="h-3 w-24 rounded bg-muted animate-pulse opacity-40" />
+                            <div className="h-3 w-16 rounded bg-muted animate-pulse opacity-40" />
+                          </div>
+                        </div>
+                        <div className="h-4 w-20 rounded bg-muted animate-pulse opacity-40" />
+                      </div>
+                    </div>
+                  </FadeInUp>
+                ))}
+              </>
             ) : filteredJobs.length === 0 ? (
               <FadeInUp>
                 <div className="rounded-2xl border border-border bg-card p-12 text-center">

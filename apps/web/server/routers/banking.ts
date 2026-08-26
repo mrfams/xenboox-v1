@@ -842,7 +842,7 @@ export const bankingRouter = router({
             category: input.category,
             glAccountId: input.glAccountId ?? existing.glAccountId,
             categorizedBy: "manual",
-            categorizationConfidence: 1.0,
+            categorizationConfidence: "1.0",
           })
           .where(eq(bankTransactions.id, input.transactionId));
 
@@ -926,21 +926,23 @@ export const bankingRouter = router({
             let matches = false;
 
             switch (rule.matchType) {
-              case "contains":
+              case "description_contains":
                 matches = desc.includes(matchVal);
                 break;
-              case "starts_with":
-                matches = desc.startsWith(matchVal);
-                break;
-              case "exact":
+              case "description_equals":
                 matches = desc === matchVal;
                 break;
-              case "regex":
-                try {
-                  matches = new RegExp(rule.matchValue, "i").test(desc);
-                } catch {
-                  matches = false;
-                }
+              case "reference_contains":
+                matches = (tx.reference ?? "").toLowerCase().includes(matchVal);
+                break;
+              case "amount_equals":
+                matches = Number(tx.amount) === Number(rule.matchValue);
+                break;
+              case "amount_above":
+                matches = Number(tx.amount) > Number(rule.matchValue);
+                break;
+              case "amount_below":
+                matches = Number(tx.amount) < Number(rule.matchValue);
                 break;
             }
 
@@ -1012,7 +1014,7 @@ export const bankingRouter = router({
             ) {
               matchedCategory = "Marketing";
               confidence = 0.7;
-            } else if (tx.amount > 0) {
+            } else if (Number(tx.amount) > 0) {
               matchedCategory = "Revenue";
               confidence = 0.6;
             }
@@ -1100,21 +1102,23 @@ export const bankingRouter = router({
             let matches = false;
 
             switch (rule.matchType) {
-              case "contains":
+              case "description_contains":
                 matches = desc.includes(matchVal);
                 break;
-              case "starts_with":
-                matches = desc.startsWith(matchVal);
-                break;
-              case "exact":
+              case "description_equals":
                 matches = desc === matchVal;
                 break;
-              case "regex":
-                try {
-                  matches = new RegExp(rule.matchValue, "i").test(desc);
-                } catch {
-                  matches = false;
-                }
+              case "reference_contains":
+                matches = (tx.reference ?? "").toLowerCase().includes(matchVal);
+                break;
+              case "amount_equals":
+                matches = Number(tx.amount) === Number(rule.matchValue);
+                break;
+              case "amount_above":
+                matches = Number(tx.amount) > Number(rule.matchValue);
+                break;
+              case "amount_below":
+                matches = Number(tx.amount) < Number(rule.matchValue);
                 break;
             }
 
@@ -1186,7 +1190,7 @@ export const bankingRouter = router({
             ) {
               matchedCategory = "Marketing";
               confidence = 0.7;
-            } else if (tx.amount > 0) {
+            } else if (Number(tx.amount) > 0) {
               matchedCategory = "Revenue";
               confidence = 0.6;
             }
@@ -1529,10 +1533,10 @@ export const reconciliationRouter = router({
       await db.insert(auditLog).values({
         entityId,
         entityType: "bank_transaction",
-        entityId2: input.bankTransactionId,
+        entityIdRef: input.bankTransactionId,
         action: "reconciled",
-        performedBy: ctx.userId ?? "system",
-        details: {
+        userId: ctx.userId ?? null,
+        newValues: {
           journalEntryId: input.journalEntryId,
         },
       });

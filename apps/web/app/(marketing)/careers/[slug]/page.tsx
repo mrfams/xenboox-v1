@@ -13,6 +13,7 @@ import {
   Sparkles,
   Send,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import type { Metadata } from "next";
 
 import { FadeInUp } from "@/components/marketing/reveal";
@@ -67,11 +68,11 @@ export default async function JobDetailPage({
   return (
     <>
       {/* Back Link */}
-      <div className="bg-white border-b border-slate-200">
+      <div className="bg-card border-b border-border">
         <div className="mx-auto max-w-4xl px-4 py-4">
           <Link
             href="/careers"
-            className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-slate-900 transition-colors"
+            className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
             <ArrowLeft className="h-4 w-4" />
             Back to Careers
@@ -80,15 +81,15 @@ export default async function JobDetailPage({
       </div>
 
       {/* Job Header */}
-      <article className="bg-white">
+      <article className="bg-card">
         <div className="mx-auto max-w-4xl px-4 py-12 sm:py-16">
           <FadeInUp>
             <div className="flex flex-wrap items-center gap-3 mb-6">
-              <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-3 py-1 text-xs font-medium text-blue-700">
+              <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
                 <Briefcase className="h-3 w-3" />
                 {job.department}
               </span>
-              <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
+              <span className="inline-flex items-center gap-1 rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground">
                 <Clock className="h-3 w-3" />
                 {job.type}
               </span>
@@ -99,30 +100,30 @@ export default async function JobDetailPage({
               )}
             </div>
 
-            <h1 className="text-4xl sm:text-5xl font-bold tracking-tight text-slate-900 leading-[1.1]">
+            <h1 className="text-4xl sm:text-5xl font-bold tracking-tight text-foreground leading-[1.1]">
               {job.title}
             </h1>
 
-            <div className="mt-6 flex flex-wrap items-center gap-6 text-sm text-slate-600">
+            <div className="mt-6 flex flex-wrap items-center gap-6 text-sm text-muted-foreground">
               <span className="flex items-center gap-2">
-                <MapPin className="h-4 w-4 text-slate-400" />
+                <MapPin className="h-4 w-4 text-muted-foreground/60" />
                 {job.location}
               </span>
               {job.salary && (
                 <span className="flex items-center gap-2">
-                  <DollarSign className="h-4 w-4 text-slate-400" />
+                  <DollarSign className="h-4 w-4 text-muted-foreground/60" />
                   {job.salary}
                 </span>
               )}
               {job.teamSize && (
                 <span className="flex items-center gap-2">
-                  <Users className="h-4 w-4 text-slate-400" />
+                  <Users className="h-4 w-4 text-muted-foreground/60" />
                   {job.teamSize}
                 </span>
               )}
               {job.reportsTo && (
                 <span className="flex items-center gap-2">
-                  <Building2 className="h-4 w-4 text-slate-400" />
+                  <Building2 className="h-4 w-4 text-muted-foreground/60" />
                   Reports to {job.reportsTo}
                 </span>
               )}
@@ -131,7 +132,7 @@ export default async function JobDetailPage({
             <div className="mt-8 flex flex-wrap gap-4">
               <a
                 href="#apply"
-                className="inline-flex h-12 items-center rounded-xl bg-blue-600 px-8 text-sm font-semibold text-white shadow-lg shadow-blue-600/20 transition-all duration-200 hover:bg-blue-500 hover:shadow-blue-600/30"
+                className="inline-flex h-12 items-center rounded-xl bg-primary px-8 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/25 transition-all duration-300 hover:shadow-primary/40 hover:scale-105"
               >
                 <Send className="mr-2 h-4 w-4" />
                 Apply Now
@@ -143,7 +144,7 @@ export default async function JobDetailPage({
       </article>
 
       {/* Job Content */}
-      <section className="bg-slate-50 border-t border-slate-200">
+      <section className="bg-paper-2/60 border-t border-border">
         <div className="mx-auto max-w-4xl px-4 py-12">
           <div className="grid gap-12 lg:grid-cols-3">
             {/* Main Content */}
@@ -151,10 +152,10 @@ export default async function JobDetailPage({
               {/* Description */}
               <FadeInUp>
                 <div>
-                  <h2 className="text-2xl font-bold text-slate-900 mb-4">
+                  <h2 className="text-2xl font-bold text-foreground mb-4">
                     About the Role
                   </h2>
-                  <p className="text-slate-700 leading-relaxed">
+                  <p className="text-muted-foreground leading-relaxed">
                     {job.description}
                   </p>
                 </div>
@@ -163,14 +164,14 @@ export default async function JobDetailPage({
               {/* Responsibilities */}
               <FadeInUp delay={0.1}>
                 <div>
-                  <h2 className="text-2xl font-bold text-slate-900 mb-4">
+                  <h2 className="text-2xl font-bold text-foreground mb-4">
                     What You&apos;ll Do
                   </h2>
                   <ul className="space-y-3">
                     {job.responsibilities.map((item, index) => (
                       <li key={index} className="flex items-start gap-3">
-                        <CheckCircle2 className="h-5 w-5 text-blue-500 mt-0.5 shrink-0" />
-                        <span className="text-slate-700">{item}</span>
+                        <CheckCircle2 className="h-5 w-5 text-primary mt-0.5 shrink-0" />
+                        <span className="text-muted-foreground">{item}</span>
                       </li>
                     ))}
                   </ul>
@@ -180,16 +181,16 @@ export default async function JobDetailPage({
               {/* Requirements */}
               <FadeInUp delay={0.2}>
                 <div>
-                  <h2 className="text-2xl font-bold text-slate-900 mb-4">
+                  <h2 className="text-2xl font-bold text-foreground mb-4">
                     What We&apos;re Looking For
                   </h2>
                   <ul className="space-y-3">
                     {job.requirements.map((item, index) => (
                       <li key={index} className="flex items-start gap-3">
-                        <span className="h-5 w-5 rounded-full bg-slate-200 flex items-center justify-center text-xs font-bold text-slate-600 mt-0.5 shrink-0">
+                        <span className="h-5 w-5 rounded-full bg-muted flex items-center justify-center text-xs font-bold text-muted-foreground mt-0.5 shrink-0">
                           {index + 1}
                         </span>
-                        <span className="text-slate-700">{item}</span>
+                        <span className="text-muted-foreground">{item}</span>
                       </li>
                     ))}
                   </ul>
@@ -200,14 +201,14 @@ export default async function JobDetailPage({
               {job.niceToHave && job.niceToHave.length > 0 && (
                 <FadeInUp delay={0.3}>
                   <div>
-                    <h2 className="text-2xl font-bold text-slate-900 mb-4">
+                    <h2 className="text-2xl font-bold text-foreground mb-4">
                       Nice to Have
                     </h2>
                     <ul className="space-y-3">
                       {job.niceToHave.map((item, index) => (
                         <li key={index} className="flex items-start gap-3">
                           <Sparkles className="h-5 w-5 text-amber-500 mt-0.5 shrink-0" />
-                          <span className="text-slate-700">{item}</span>
+                          <span className="text-muted-foreground">{item}</span>
                         </li>
                       ))}
                     </ul>
@@ -221,17 +222,17 @@ export default async function JobDetailPage({
               <FadeInUp delay={0.1}>
                 <div className="sticky top-24 space-y-6">
                   {/* Benefits Card */}
-                  <div className="rounded-2xl border border-slate-200 bg-white p-6">
-                    <h3 className="font-semibold text-slate-900 mb-4">
+                  <div className="rounded-2xl border border-border bg-card p-6">
+                    <h3 className="font-semibold text-foreground mb-4">
                       Benefits & Perks
                     </h3>
                     <ul className="space-y-3">
                       {job.benefits.map((benefit, index) => (
                         <li
                           key={index}
-                          className="flex items-center gap-3 text-sm text-slate-600"
+                          className="flex items-center gap-3 text-sm text-muted-foreground"
                         >
-                          <span className="h-1.5 w-1.5 rounded-full bg-blue-500" />
+                          <span className="h-1.5 w-1.5 rounded-full bg-primary" />
                           {benefit}
                         </li>
                       ))}
@@ -239,13 +240,13 @@ export default async function JobDetailPage({
                   </div>
 
                   {/* Tags Card */}
-                  <div className="rounded-2xl border border-slate-200 bg-white p-6">
-                    <h3 className="font-semibold text-slate-900 mb-4">Tags</h3>
+                  <div className="rounded-2xl border border-border bg-card p-6">
+                    <h3 className="font-semibold text-foreground mb-4">Tags</h3>
                     <div className="flex flex-wrap gap-2">
                       {job.tags.map((tag) => (
                         <span
                           key={tag}
-                          className="inline-flex items-center rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600"
+                          className="inline-flex items-center rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground"
                         >
                           {tag}
                         </span>
@@ -256,16 +257,16 @@ export default async function JobDetailPage({
                   {/* Application CTA */}
                   <div
                     id="apply"
-                    className="rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-600 p-6 text-white"
+                    className="rounded-2xl bg-gradient-to-br from-primary to-primary/80 p-6 text-primary-foreground"
                   >
                     <h3 className="font-semibold mb-2">Ready to apply?</h3>
-                    <p className="text-sm text-blue-100 mb-4">
+                    <p className="text-sm opacity-90 mb-4">
                       Send your resume and a brief note about why you&apos;re
                       interested.
                     </p>
                     <a
                       href={`mailto:careers@xenboox.com?subject=Application: ${job.title}&body=Hi team,%0A%0AI'm interested in the ${job.title} role.%0A%0ABest regards`}
-                      className="inline-flex w-full items-center justify-center rounded-xl bg-white px-6 py-3 text-sm font-semibold text-blue-600 transition-all hover:bg-blue-50"
+                      className="inline-flex w-full items-center justify-center rounded-xl bg-card px-6 py-3 text-sm font-semibold text-primary transition-all hover:bg-card/90"
                     >
                       <Send className="mr-2 h-4 w-4" />
                       Apply via Email
@@ -280,10 +281,10 @@ export default async function JobDetailPage({
 
       {/* Related Jobs */}
       {relatedJobs.length > 0 && (
-        <section className="py-16 bg-white border-t border-slate-200">
+        <section className="py-16 bg-card border-t border-border">
           <div className="mx-auto max-w-4xl px-4">
             <FadeInUp>
-              <h2 className="text-2xl font-bold text-slate-900 mb-8">
+              <h2 className="text-2xl font-bold text-foreground mb-8">
                 Other Open Positions
               </h2>
             </FadeInUp>
@@ -292,13 +293,13 @@ export default async function JobDetailPage({
                 <FadeInUp key={relatedJob.id} delay={index * 0.1}>
                   <Link
                     href={`/careers/${relatedJob.slug}`}
-                    className="group flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 p-6 transition-all duration-300 hover:shadow-lg hover:bg-white hover:-translate-y-0.5"
+                    className="group flex items-center justify-between rounded-2xl border border-border bg-paper-2/60 p-6 transition-all duration-300 hover:shadow-elevated hover:bg-card hover:-translate-y-0.5"
                   >
                     <div>
-                      <h3 className="font-semibold text-slate-900 group-hover:text-blue-600 transition-colors">
+                      <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors">
                         {relatedJob.title}
                       </h3>
-                      <div className="mt-2 flex items-center gap-4 text-sm text-slate-500">
+                      <div className="mt-2 flex items-center gap-4 text-sm text-muted-foreground">
                         <span className="flex items-center gap-1">
                           <Briefcase className="h-3.5 w-3.5" />
                           {relatedJob.department}
@@ -309,7 +310,7 @@ export default async function JobDetailPage({
                         </span>
                       </div>
                     </div>
-                    <ArrowRight className="h-5 w-5 text-slate-400 group-hover:text-blue-600 transition-colors" />
+                    <ArrowRight className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
                   </Link>
                 </FadeInUp>
               ))}
