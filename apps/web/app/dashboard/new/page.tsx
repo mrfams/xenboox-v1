@@ -10,6 +10,8 @@ import {
   Wallet,
   Bot,
   MessageSquare,
+  X,
+  Download,
 } from "lucide-react";
 
 import { useEntity } from "@/lib/entity-context";
@@ -88,7 +90,11 @@ export default function MissionControlPage() {
     sendMessage,
     cancelStream,
     loadConversation,
-  } = chat;
+    newChat,
+  } = chat as ReturnType<typeof useDashboardChat> & {
+    newChat: () => void;
+    loadConversation: (id: string) => void;
+  };
 
   // ── Context strip data ────────────────────────────────────────────────
   const { data: dash, isLoading: dashLoading } =
@@ -99,6 +105,33 @@ export default function MissionControlPage() {
 
   const health = dash?.businessHealth;
   const hasMessages = messages.length > 0;
+  const isChatting = hasMessages || isStreaming;
+
+  function getGreeting() {
+    const hour = new Date().getHours();
+    const base =
+      hour < 12
+        ? "Good morning"
+        : hour < 17
+          ? "Good afternoon"
+          : "Good evening";
+    return firstName ? `${base}, ${firstName}` : base;
+  }
+
+  const handleExport = () => {
+    const lines = messages.map((m) => {
+      const role = m.role === "user" ? "You" : "AI";
+      return `**${role}:** ${m.content}`;
+    });
+    const md = `# Conversation Export\n\nDate: ${new Date().toLocaleDateString()}\n\n---\n\n${lines.join("\n\n")}`;
+    const blob = new Blob([md], { type: "text/markdown;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `conversation-${new Date().toISOString().split("T")[0]}.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   // Activation tracking mirrors the primary surface.
   useEffect(() => {
@@ -112,26 +145,48 @@ export default function MissionControlPage() {
       <div className="flex h-full min-h-0 pb-16 md:pb-0">
         {/* ── Main column ─────────────────────────────────────────────── */}
         <div className="flex min-w-0 flex-1 flex-col">
-          {/* Greeting — compact, professional */}
-          <header className="px-4 pt-3 sm:px-6">
-            <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-              <h1 className="text-base font-semibold tracking-tight text-foreground">
-                {firstName ? `Good morning, ${firstName}` : "Good morning"}
-              </h1>
-              <p className="font-mono text-[11px] tabular-nums text-muted-foreground">
-                {closeStatus
-                  ? `${closeStatus.year}·${String(closeStatus.month).padStart(2, "0")}`
-                  : "FY open"}
-              </p>
+          {/* Top bar — fixed, like /dashboard */}
+          <header className="sticky top-0 z-10 flex items-center justify-between gap-2 border-b border-border/30 bg-background/80 px-4 py-2 backdrop-blur-sm sm:px-6">
+            <div className="min-w-0">
+              {!isChatting ? (
+                <h1 className="truncate text-sm font-semibold tracking-tight text-foreground">
+                  {getGreeting()}
+                </h1>
+              ) : (
+                <span className="text-xs font-medium text-muted-foreground">
+                  Chat
+                </span>
+              )}
             </div>
-            {/* Cash/runway strip — commented for now
-            <div className="mt-2 grid grid-cols-2 gap-3 rounded-xl border border-border/50 bg-card/60 px-4 py-3 sm:grid-cols-4">
-              <MetricNarrative label="Cash" value={formatCurrency(health?.cashBalance ?? 0)} loading={dashLoading && !health} size="sm" />
-              <MetricNarrative label="Runway" value={health?.runwayMonths != null ? `${health.runwayMonths.toFixed(1)} mo` : "—"} narrative={health?.runwayMonths != null && health.runwayMonths < 6 ? "Under six months — worth a look." : undefined} size="sm" />
-              <MetricNarrative label="Owed to you" value={formatCurrency(health?.arOutstanding ?? 0)} loading={dashLoading && !health} size="sm" />
-              <MetricNarrative label="You owe" value={formatCurrency(health?.apOutstanding ?? 0)} loading={dashLoading && !health} size="sm" />
+            <div className="flex shrink-0 items-center gap-1.5">
+              <button
+                type="button"
+                onClick={handleExport}
+                className="inline-flex items-center gap-1 rounded-lg border border-border/50 bg-background/50 p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors sm:px-2.5 sm:py-1.5 sm:text-[10px] sm:font-medium"
+                aria-label="Export chat"
+                title="Export chat"
+              >
+                <Download className="h-4 w-4 sm:h-3 sm:w-3" />
+                <span className="hidden sm:inline">Export</span>
+              </button>
+              {isChatting ? (
+                <button
+                  type="button"
+                  onClick={() => (newChat as () => void)?.()}
+                  className="inline-flex items-center gap-1 rounded-lg border border-border/50 bg-background/50 p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+                  aria-label="Close chat"
+                  title="Close chat"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              ) : (
+                <span className="hidden sm:inline-flex items-center gap-1 font-mono text-[11px] tabular-nums text-muted-foreground">
+                  {closeStatus
+                    ? `${closeStatus.year}·${String(closeStatus.month).padStart(2, "0")}`
+                    : "FY open"}
+                </span>
+              )}
             </div>
-            */}
           </header>
 
           {/* Work area */}
@@ -155,7 +210,7 @@ export default function MissionControlPage() {
             )}
           </div>
 
-          {/* Command — compact */}
+          {/* Command — compact with disclaimer */}
           <div className="sticky bottom-0 border-t border-border/30 bg-background/80 px-4 py-2 backdrop-blur-sm sm:px-6">
             <CommandBar
               onSubmit={(v) => sendMessage(v)}
@@ -173,6 +228,9 @@ export default function MissionControlPage() {
               placeholder="Ask anything, or hand off a job…"
               autoFocus
             />
+            <p className="mt-1.5 text-center text-[10px] leading-none text-muted-foreground/60">
+              AI can make mistakes. Verify important information.
+            </p>
           </div>
         </div>
 

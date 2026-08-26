@@ -261,7 +261,8 @@ export default function DashboardLayout({
                   <div className="h-16 md:hidden" />
                 </div>
 
-                {/* Right Panel Toggle Button (when closed) */}
+                {/* Right Panel Toggle Button — commented for now */}
+                {/*
                 {!chatOpen && (
                   <button
                     type="button"
@@ -276,10 +277,8 @@ export default function DashboardLayout({
                   </button>
                 )}
 
-                {/* Right Panel */}
                 {chatOpen && (
                   <>
-                    {/* Drag Handle */}
                     <div
                       onMouseDown={handleDragStart}
                       className={cn(
@@ -291,8 +290,6 @@ export default function DashboardLayout({
                         <div className="w-1 h-8 rounded-full bg-muted-foreground/30" />
                       </div>
                     </div>
-
-                    {/* Chat Panel */}
                     <div
                       className="flex-shrink-0 border-l bg-card h-full overflow-hidden"
                       style={{ width: `${panelWidth}px` }}
@@ -304,10 +301,12 @@ export default function DashboardLayout({
                     </div>
                   </>
                 )}
+                */}
               </div>
             </div>
 
-            {/* Floating CFO Agent button (when panel is closed) */}
+            {/* Floating CFO Agent button — commented for now */}
+            {/*
             {!chatOpen && (
               <button
                 type="button"
@@ -321,6 +320,7 @@ export default function DashboardLayout({
                 </span>
               </button>
             )}
+            */}
 
             {/* Mobile bottom navigation — visible on small screens */}
             <MobileBottomNav />

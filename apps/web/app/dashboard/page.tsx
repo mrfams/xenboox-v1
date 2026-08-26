@@ -270,6 +270,9 @@ function CommandCenterInner() {
               onRemoveFile={handleRemoveFile}
               messages={messages}
             />
+            <p className="pb-2 text-center text-[10px] leading-none text-muted-foreground/60">
+              AI can make mistakes. Verify important information.
+            </p>
           </div>
         </div>
       </div>

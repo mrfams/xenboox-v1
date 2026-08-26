@@ -421,13 +421,13 @@ export function ConversationThread({
           >
             <div
               className={cn(
-                "relative text-[13.5px] leading-[1.6]",
+                "relative text-[14px] leading-7",
                 msg.role === "assistant"
                   ? "w-full max-w-none px-1 py-1 text-foreground"
-                  : "max-w-[75%] rounded-2xl bg-primary px-3.5 py-2 text-primary-foreground",
+                  : "max-w-[75%] rounded-2xl bg-primary px-3.5 py-2.5 text-primary-foreground",
               )}
             >
-              <p className="whitespace-pre-wrap">{msg.content}</p>
+              <p className="whitespace-pre-wrap break-words">{msg.content}</p>
 
               {/* Retry button for error messages */}
               {msg.role === "assistant" && msg.status === "error" && (
@@ -443,17 +443,14 @@ export function ConversationThread({
                 </div>
               )}
 
-              {/* Confidence badge on assistant messages */}
+              {/* Confidence badge — hidden for cleaner thread */}
+              {/*
               {msg.role === "assistant" && msg.confidence !== undefined && (
                 <div className="mt-2">
                   <ConfidenceBadge score={msg.confidence / 100} />
-                  {msg.confidence < 40 && (
-                    <p className="mt-1 text-[10px] text-muted-foreground/70">
-                      Low confidence — consider flagging for human review.
-                    </p>
-                  )}
                 </div>
               )}
+              */}
 
               {/* Actor badge */}
               {msg.role === "assistant" && (
