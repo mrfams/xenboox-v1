@@ -1,6 +1,250 @@
 # BUILD_LOG.md
 
-> Build session log. Each entry records what was built, verified, and shipped.
+> Build session log. Each entry recorded what was built, verified, and shipped.
+
+---
+
+## 2026-08-25 — FIX SESSION 2b: diagnosing-bugs — login down (environment, not code)
+
+**Reproduce-first diagnosis.** User reported login broken (DB verified fine by user).
+
+### Root cause
+
+Dev server couldn't boot — two broken platform binaries (npm optional-deps bug npm/cli#4828):
+
+1. Corrupt `@next/swc-win32-x64-msvc` `.node` file → Next exited code 1 before serving
+2. Missing `@rollup/rollup-win32-x64-msvc` → middleware compile failure once SWC restored
+
+### Fix (environment only, zero source changes)
+
+1. Purged corrupt SWC fallback dir + `pnpm install`
+2. `pnpm add -w -D @rollup/rollup-win32-x64-msvc`
+
+### Verification evidence
+
+- Before: `Failed to load SWC binary for win32/x64` → exit 1 (log captured)
+- After: `Ready in 25.6s`, middleware compiled 5.9s, **GET /login → HTTP 200** (curl)
+- Dev server left running at localhost:3000 for interactive test
+
+Full write-up: engreview.md → FIX SESSION 2b.
+
+---
+
+## 2026-08-25 — FIX SESSION 2: Engineering Critic #2 — tRPC entity-context root cause
+
+**Scope:** Root-cause fix recommended by Session 1's loop: attach entity facts to tRPC context so routers stop referencing non-existent `ctx.currency/entityName/userId` (and stop hardcoding currency fallbacks).
+
+### What shipped
+
+`apps/web/lib/trpc/server.ts` — `entityScopingMiddleware`:
+
+- Entity query now selects `currency` + `name` alongside `id`/`organizationId`
+- Both middleware branches attach `entityCurrency`, `entityName`, `userId` to ctx
+- Zero additional queries — reuses the auth lookup already running per request
+
+### Call sites migrated
+
+- banking.ts ×2 (`ctx.currency ?? "GMD"` → `ctx.entityCurrency ?? "USD"`)
+- get-ai-narrative.ts, get-ai-forecast.ts (same)
+- get-ai-briefing.ts: `ctx.userId` now valid — no edit needed
+
+### Verification
+
+Post-fix typecheck diff vs baseline: all 7 targeted errors GONE (banking 1375/1484; briefing 32 userId; narrative/forecast entityName+currency). Remaining errors in those files are unrelated pre-existing debt, still tracked under engreview N1. Post-session error count: 171 (baseline count was not logged before Session 1 — process fix: always log counts before/after).
+
+### Status impact
+
+- N1: currency/name/userId cluster resolved (7 of ~60 errors)
+- N2: server-side root fixed; UI-side GMD sweep still queued (charts defaults ×4, create-dialogs ×3, donor-portal regression, invoices-view hardcode)
+
+### Next
+
+1. Engineering Critic #3 — banking.ts + chat.ts type debt (largest financial-path clusters)
+2. N2 UI sweep with new context field
+3. Resume tracker queue
+
+---
+
+## 2026-08-25 — FIX SESSION 1: Engineering Critic — CRITICAL bug package
+
+**Scope:** First fix session against engreview.md. One employee (Engineering Critic), one package: the three CRITICAL code-correctness bugs. Loop+graph discipline: verify-before-edit caught 2 of 3 already fixed; 1 fix applied; loop surfaced 2 new systemic findings.
+
+### Fixes
+
+| Finding                                           | Action                                                                                        | Verification                                                                                                |
+| ------------------------------------------------- | --------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| Ledger COA crash (`accounts.length` on undefined) | Already fixed in codebase                                                                     | Re-read confirmed `accounts?.length ?? 0` at ledger/page.tsx:887-889 — closed with evidence, no edit        |
+| CC Eng#1 + Help PM#1: dead `?prompt=` handoff     | Already implemented                                                                           | dashboard/page.tsx:105-118 consumes param, once-guarded auto-send + URL cleanup; layout uses router.replace |
+| FP PM#1/Eng#4: hardcoded GMD fallbacks ×6         | **Fixed**: added `displayCurrency = entityCurrency \|\| "USD"` constant, replaced all 6 sites | Grep confirms zero `\|\| "GMD"` remain in financial-pulse/page.tsx                                          |
+
+### New findings raised (logged as N1/N2 in engreview.md)
+
+- **N1 CRITICAL:** repo fails typecheck with ~60 pre-existing errors (banking.ts, chat.ts, dashboard AI routers, invoicing `paymentsAr`, agents orchestrator/treasury…). CI gate red. Root-cause overlap noted: ctx.currency/entityName errors = same cause as currency findings.
+- **N2 HIGH:** GMD hardcoding is systemic — ~15 additional files incl. chart defaults, 3 create-dialogs, donor portal (empworks regression), invoices-view full hardcode.
+
+### Runtime verification
+
+`pnpm typecheck --filter=@xenboox/web`: exit 2 from PRE-EXISTING errors only — zero errors reference files touched this session. Full error list captured in tool output; clusters documented in engreview N1.
+
+### Next
+
+1. Engineering Critic #2 — tRPC context exposes entityCurrency/entityName (kills N1 subset + N2 root together)
+2. Engineering Critic #3 — banking.ts/chat.ts type debt
+3. Resume tracker queue
+
+---
+
+## 2026-08-25 — engreview.md Audit Continued (+7 routes, route-level)
+
+**Scope:** Audit-only continuation. All 7 remaining dashboard routes audited at route-file level; wrapped components queued explicitly. No production code changed.
+
+### Newly audited routes
+
+| Route           | Findings | Headline criticals                                                                                                                                                                                 |
+| --------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| auto-approve    | 3        | Fourth conflicting confidence-threshold artifact (0.7/0.4 in comments vs UI variants) — centralization now has in-repo proof                                                                       |
+| qbr             | 2        | Component + cross-surface KPI parity queued                                                                                                                                                        |
+| referrals       | 1        | Fraud-review flagged for component pass                                                                                                                                                            |
+| ingestion       | 7        | **Dead dropzone** (`onDrop={() => {}}`); all four stat cards capped at 10 batches; prompt-injection front door queued for verification                                                             |
+| knowledge       | 5        | Mislabeled "Recent Searches" stat; entity-wide visibility of raw query text in citation history                                                                                                    |
+| knowledge-graph | 5        | Build Graph fails silently (no error path); **dev test bank "GTBank" hardcoded in product suggestion copy**; entityCurrency used correctly here — first PASS reference for the global currency fix |
+| donor-reporting | 6        | **CRITICAL: "Recent Reports" shows only project[0]'s snapshots**; **CRITICAL: overdrawn grants (>100%) stay amber, never red**; stats totals ignore currency mixing while cards do it right        |
+
+### Final audit coverage
+
+- **19 surfaces audited** (13 deep page audits + 6 route-level) — ~700 findings in `engreview.md`
+- Every dashboard route now has findings logged. Remaining work is COMPONENT-level passes, explicitly queued at the bottom of the tracker: AutoApproveRules, QBRReport, ReferralDashboard, ingestion trio, knowledge duo, GraphVisualization, donor report-builder, 21 settings sections, shared chat/banking/finance components.
+
+### Verification
+
+- Read-only session: only `engreview.md` + `BUILD_LOG.md` modified. No app code touched.
+
+---
+
+## 2026-08-25 — engreview.md Audit Continued (+1 surface: help center)
+
+**Scope:** Audit-only continuation. 7 employee audits on /dashboard/help; no production code changed.
+
+### Newly audited
+
+| Page            | Findings | Headline criticals                                                                                                                                                                                            |
+| --------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| /dashboard/help | 25       | Zero-results "Ask Xenboox AI" uses the dead `?prompt=` handoff (2nd victim of the Command Center CRITICAL); health badge renders "API connected" while status still unknown; AND-only search with no fallback |
+
+PASS baselines recorded: dynamic-import-with-skeleton pattern (missing in settings shell), search placeholder craft, curly-quote empty-state echo.
+
+### Cumulative state
+
+- **12 surfaces fully audited** — ~655 findings in `engreview.md`
+- **Remaining queue:** auto-approve, donor-reporting, ingestion, knowledge, knowledge-graph, qbr, referrals + 21 settings section components
+
+### Verification
+
+- Read-only session: only `engreview.md` + `BUILD_LOG.md` modified. No app code touched.
+
+---
+
+## 2026-08-25 — engreview.md Audit Continued (+1 surface: settings shell)
+
+**Scope:** Audit-only continuation. 7 employee audits on the settings shell; no production code changed.
+
+### Newly audited
+
+| Page                        | Findings | Headline criticals                                                                                                                                                        |
+| --------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| /dashboard/settings (shell) | 27       | **GDPR-critical Privacy group (data export + account deletion) hidden behind "advanced settings" toggle**; tabs absent from URL (no deep links/back); no mobile nav story |
+
+Also queued explicitly: all 21 lazy-loaded section components need their own passes (priority order recorded in Data Analyst #4: taxes, currency, api-keys, sso, security first — financial + credential surfaces). Security flagged dual audit UIs (settings audit-log section vs /dashboard/audit-trail) for consolidation.
+
+### Cumulative state
+
+- **11 surfaces fully audited** — ~630 findings in `engreview.md`
+- **Remaining queue:** help, auto-approve, donor-reporting, ingestion, knowledge, knowledge-graph, qbr, referrals + 21 settings sections
+
+### Verification
+
+- Read-only session: only `engreview.md` + `BUILD_LOG.md` modified. No app code touched.
+
+---
+
+## 2026-08-25 — engreview.md Audit Continued (+4 pages: invoices, bills, banking, customers+vendors)
+
+**Scope:** Audit-only continuation. 28 more employee audits across 5 routes (customers/vendors audited as twins); no production code changed.
+
+### Newly audited pages
+
+| Page                            | Findings | Headline criticals                                                                                                                       |
+| ------------------------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| /dashboard/operations/invoices  | 35       | Pagination illusion (limit 50/offset 0 vs client paging — rows 51+ unreachable); Send can email DRAFT invoices to customers              |
+| /dashboard/operations/bills     | 32       | Every action button dead code (Eye/Send have no onClick); no create-bill entry point; pending stat counts approved bills                 |
+| /dashboard/operations/banking   | 31       | False undo on batch categorize ("reverted" toast, nothing reverts); sanitizeCell now triplicated; uncategorized counter counts page only |
+| /dashboard/operations/customers | 23       | Filter chips decorative (state never reaches query); pagination illusion twin; no customer detail view anywhere                          |
+| /dashboard/operations/vendors   | 20       | Same twins + 1099 compliance flag with no guardrails/edit path/audit                                                                     |
+
+### Cumulative state
+
+- **10 pages/routes fully audited** — ~600 findings in `engreview.md`
+- New recurring patterns logged: pagination-illusion family (invoices/customers/vendors), empty-refetch family (now 6 instances), drill-down-dead-end (8 instances), decorative/dead controls (bills actions, directory filters)
+- PASS baselines documented for reuse: bills' server-side pagination wiring + server-aggregated stats, banking's honest export toast + empty states, audit-trail's sanitizeCell (needs extraction — triplicated)
+
+### Remaining queue (tracker in engreview.md)
+
+settings, help, auto-approve, donor-reporting, ingestion, knowledge, knowledge-graph, qbr, referrals — same 7-employee cycle next session.
+
+### Verification
+
+- Read-only session: only `engreview.md` + `BUILD_LOG.md` modified. No app code touched.
+
+---
+
+## 2026-08-25 — engreview.md Audit Continued (+2 pages: operations, audit-trail)
+
+**Scope:** Audit-only continuation of approved full-surface employee audit. 14 more employee audits; no production code changed.
+
+### Newly audited pages (7 employees each)
+
+| Page                   | Findings | Notable Criticals                                                                                                                                              |
+| ---------------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| /dashboard/operations  | 42       | Null runway rendered as "Sustainable" (3rd instance of fabricated-assurance pattern); Employees tile hardcoded `count: 0`; Vendors count actually counts bills |
+| /dashboard/audit-trail | 36       | Actor shown as truncated UUID (`User 8a1f2c3d…`) on the "who did what" surface; no oldValues → no before/after diff; newValues secret-redaction unverified     |
+
+### Cumulative state
+
+- **6 pages fully audited** (dashboard, activity-hub, financial-pulse, ledger, operations, audit-trail) — ~460 findings in `engreview.md`
+- Recurring defect classes now tracked as global items: hardcoded light-mode-only chip colors, float money math client-side, hover-only affordances, frozen relative timestamps, missing isError handling (failures render as zeros/empty), silent page-limited exports, drill-down-dead-end anti-pattern (7 instances), uninstrumented funnels
+- **Remaining queued** (tracker at bottom of engreview.md): operations subpages ×5 (invoices/bills/banking/customers/vendors), settings, help, auto-approve, donor-reporting, ingestion, knowledge, knowledge-graph, qbr, referrals
+
+### Verification
+
+- Read-only session: only `engreview.md` + `BUILD_LOG.md` modified. No app code touched.
+
+---
+
+## 2026-08-25 — Full-Surface Employee Audit → engreview.md (4 pages, 28 employees)
+
+**Scope:** Audit-only session. No production code changed. Fired 7 department employees per dashboard page, one at a time; every finding logged to `engreview.md` for future fix sessions.
+
+### Pages fully audited (all 7 employees each)
+
+| Page                        | Employees                                                                   | Findings | Notable Criticals                                                                                                                    |
+| --------------------------- | --------------------------------------------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| /dashboard (Command Center) | PM, Product Critic, UX Writer, Design Critic, Eng Critic, CSO, Data Analyst | 117      | `/dashboard?prompt=` handoff dead end-to-end (7 entry points, zero consumers)                                                        |
+| /dashboard/activity-hub     | Same 7                                                                      | 71       | "Auto-approve" sends fake documentId `"pending-review"`; Undo doesn't undo server-side                                               |
+| /dashboard/financial-pulse  | Same 7                                                                      | 54       | Hardcoded `"GMD"` fallbacks (6 sites, `entityCurrency` ignored); "Cash Flow" chart + downloadable statement fabricated from P&L data |
+| /dashboard/ledger           | Same 7                                                                      | 46       | COA tab crashes on open (`accounts.length` pre-data); float math on money in drawer totals                                           |
+
+### Deliverables
+
+- `engreview.md` — created. Announcement header with agent instructions (mark ✅ only when fixed+verified), findings organized **page → department → employee**, real issues in tables (severity/fix/status), PAGE PROGRESS TRACKER for continuation.
+- Cross-page themes surfaced: hardcoded GMD fallbacks, three conflicting confidence thresholds (0.8/0.6 vs 0.8/0.5 vs AGENTS 0.7/0.4), non-persistent optimistic features (pins/reactions/snooze), hover-only affordances, drawer dialog-semantics gaps, missing analytics on activation/approval funnels.
+
+### Remaining pages queued (tracker at bottom of engreview.md)
+
+operations (+ invoices/bills/banking/customers/vendors), settings, help, audit-trail, auto-approve, donor-reporting, ingestion, knowledge, knowledge-graph, qbr, referrals — fire the same 7 employees in the same order next session.
+
+### Verification
+
+- Read-only session: `git status` should show only `engreview.md` (new) and `BUILD_LOG.md` (this entry). No app code touched; no typecheck/lint impact.
 
 ---
 
@@ -554,7 +798,7 @@ Donor report generated
 | Area       | Change                                                                                            | Closes                                                 |
 | ---------- | ------------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
 | Marketing  | DemoVideo poster+modal+VideoObject JSON-LD on homepage                                            | Sales #9 #3                                            |
-| Marketing  | ComparisonTeaser table on pricing linking to /compare/*                                           | Sales #9 #5                                            |
+| Marketing  | ComparisonTeaser table on pricing linking to /compare/\*                                          | Sales #9 #5                                            |
 | Marketing  | Most Popular badge a11y polish (ring + pulse)                                                     | Sales #9 #6                                            |
 | Onboarding | AhaMoment step after bank connection (247 txns, 89% categorized, runway, confidence badge)        | Onboarding #10 #4, #7 (now 7 steps)                    |
 | Onboarding | getAhaInsight entity-scoped query                                                                 | Onboarding #10 #4                                      |

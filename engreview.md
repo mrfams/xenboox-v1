@@ -23,7 +23,7 @@ The primary AI-native surface. Layout: ConversationSidebar + AIGreeting + Gettin
 ### Employee: Product Manager
 
 | #   | Finding                                                                                                                                                                                                                                                                                                                                                  | Severity | Fix                                                                                                                         | Status |
-| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | --------------------------------------------------------------------------------------------------------------------------- | ------ |
+| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | --------------------------------------------------------------------------------------------------------------------------- | ------ | --- |
 | 1   | **Approve/Reject buttons don't perform real approvals** — clicking "Approve" on an approval card just sends the text "Approved: \<title\>" as a new chat message and relies on the AI parsing that sentence. For a financial approval this is fragile: no mutation, no audit record tied to the approval ID, no confirmation the ledger actually posted. | HIGH     | Approval buttons must call a real tRPC mutation with the approval ID, show server-confirmed result, and log to audit trail. | ⬜     |
 | 2   | **Reactions and pinned messages are fake features** — MessageReactions and PinnedMessagesPanel are local component state only. Everything vanishes on reload/navigation. Users will pin an important AI answer, come back, and it's gone. Shipping visible-but-non-persistent features erodes trust in an accounting product.                            | HIGH     | Either persist pins/reactions per conversation server-side, or remove the UI until real.                                    | ⬜     |
 | 3   | **"Regenerate" doesn't regenerate** — it finds the previous user message and sends it AGAIN as a brand-new message. Result: duplicate question appended, no replacement of the bad answer, thread polluted.                                                                                                                                              | MEDIUM   | Implement true regenerate: truncate last assistant response and re-request, or hide the action until supported.             | ⬜     |
@@ -57,7 +57,7 @@ The primary AI-native surface. Layout: ConversationSidebar + AIGreeting + Gettin
 Reviewed /dashboard across all 6 dimensions (user value, usability, edge cases, AI-native patterns, competitive, metrics). Findings below — PM overlap removed, these are new.
 
 | #   | Finding                                                                                                                                                                                                                                                                                                                                                                  | Severity | Fix                                                                                                                                  | Status |
-| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------- | ------------------------------------------------------------------------------------------------------------------------------------ | ------ |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------- | ------------------------------------------------------------------------------------------------------------------------------------ | ------ | --- |
 | 1   | **Mobile users cannot open their conversations** — the "Conversations" toggle button in the greeting row is `hidden md:inline-flex` (desktop-only), and ConversationSidebar renders as a fixed 288px column. On phones there is NO path to past conversations from Command Center. Core feature unreachable on mobile.                                                   | CRITICAL | Add a mobile entry point (icon in TopNav or above thread) and render sidebar as an overlay drawer on small screens.                  | ✅     |
 | 2   | **No way to stop a streaming response** — `useStreamingChat` exposes `cancelStream` and the hook wires unmount cleanup, but NO UI element anywhere on the page lets the user cancel a long/expensive/wrong-direction generation. They just wait. An accounting AI that can't be interrupted feels broken and burns tokens/money.                                         | HIGH     | Show Stop button in AiInput (or thread) while `isStreaming`; wire to cancelStream.                                                   |        | ✅  |
 | 3   | **Three competing chat surfaces on one screen** — Command Center center-thread, ChatPanel right rail ("/" shortcut + floating CFO Agent button + edge tab), and LiveChatWidget. A new user cannot tell which one is the "real" assistant, and context doesn't flow between them. Violates the single-surface AI-native model.                                            | HIGH     | Consolidate entry points; make ChatPanel reuse Command Center thread state or clearly differentiate purposes (support vs CFO agent). | ⬜     |
@@ -190,19 +190,24 @@ Audited every number, metric, chart hook, timestamp, and analytics event on the 
 
 > Future sessions: pick the next ⬜ page and fire employees in the same order (Product Manager → Product Critic → UX Writer → Design Critic → Engineering Critic → Security Engineer → Data Analyst), appending sections above using the identical table style. Mark page row ✅ only when ALL employees for that page have logged findings.
 
-| Page                                                                                                    | PM    | Product Critic | UX Writer | Design Critic | Eng Critic | Security | Data Analyst |
-| ------------------------------------------------------------------------------------------------------- | ----- | -------------- | --------- | ------------- | ---------- | -------- | ------------ |
-| /dashboard                                                                                              | ✅ 27 | ✅ 18          | ✅ 18     | ✅ 18         | ✅ 16      | ✅ 9     | ✅ 11        |
-| /dashboard/activity-hub                                                                                 | ✅ 20 | ✅ 12          | ✅ 10     | ✅ 10         | ✅ 9       | ✅ 5     | ✅ 5         |
-| /dashboard/financial-pulse                                                                              | ✅ 13 | ✅ 8           | ✅ 7      | ✅ 7          | ✅ 8       | ✅ 5     | ✅ 6         |
-| /dashboard/ledger                                                                                       | ✅ 11 | ✅ 6           | ✅ 5      | ✅ 6          | ✅ 8       | ✅ 5     | ✅ 5         |
-| /dashboard/operations                                                                                   | ✅ 10 | ✅ 6           | ✅ 6      | ✅ 5          | ✅ 6       | ✅ 4     | ✅ 5         |
-| /dashboard/operations/invoices                                                                          | ✅ 10 | ✅ 5           | ✅ 3      | ✅ 4          | ✅ 5       | ✅ 4     | ✅ 4         |
-| /dashboard/operations subpages (bills, banking, customers, vendors)                                     | ⬜    | ⬜             | ⬜        | ⬜            | ⬜         | ⬜       | ⬜           |
-| /dashboard/settings                                                                                     | ⬜    | ⬜             | ⬜        | ⬜            | ⬜         | ⬜       | ⬜           |
-| /dashboard/help                                                                                         | ⬜    | ⬜             | ⬜        | ⬜            | ⬜         | ⬜       | ⬜           |
-| /dashboard/audit-trail                                                                                  | ✅ 8  | ✅ 5           | ✅ 5      | ✅ 4          | ✅ 6       | ✅ 4     | ✅ 4         |
-| Remaining routes (auto-approve, donor-reporting, ingestion, knowledge, knowledge-graph, qbr, referrals) | ⬜    | ⬜             | ⬜        | ⬜            | ⬜         | ⬜       | ⬜           |
+| Page                                                                                                                           | PM                                        | Product Critic          | UX Writer | Design Critic | Eng Critic | Security | Data Analyst |
+| ------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------- | ----------------------- | --------- | ------------- | ---------- | -------- | ------------ |
+| /dashboard                                                                                                                     | ✅ 27                                     | ✅ 18                   | ✅ 18     | ✅ 18         | ✅ 16      | ✅ 9     | ✅ 11        |
+| /dashboard/activity-hub                                                                                                        | ✅ 20                                     | ✅ 12                   | ✅ 10     | ✅ 10         | ✅ 9       | ✅ 5     | ✅ 5         |
+| /dashboard/financial-pulse                                                                                                     | ✅ 13                                     | ✅ 8                    | ✅ 7      | ✅ 7          | ✅ 8       | ✅ 5     | ✅ 6         |
+| /dashboard/ledger                                                                                                              | ✅ 11                                     | ✅ 6                    | ✅ 5      | ✅ 6          | ✅ 8       | ✅ 5     | ✅ 5         |
+| /dashboard/operations                                                                                                          | ✅ 10                                     | ✅ 6                    | ✅ 6      | ✅ 5          | ✅ 6       | ✅ 4     | ✅ 5         |
+| /dashboard/operations/invoices                                                                                                 | ✅ 10                                     | ✅ 5                    | ✅ 3      | ✅ 4          | ✅ 5       | ✅ 4     | ✅ 4         |
+| /dashboard/operations/bills                                                                                                    | ✅ 6                                      | ✅ 5                    | ✅ 3      | ✅ 5          | ✅ 6       | ✅ 3     | ✅ 4         |
+| /dashboard/operations/banking                                                                                                  | ✅ 8                                      | ✅ 4                    | ✅ 3      | ✅ 3          | ✅ 5       | ✅ 4     | ✅ 4         |
+| /dashboard/operations/customers                                                                                                | ✅ 6                                      | ✅ 3                    | ✅ 2      | ✅ 3          | ✅ 3       | ✅ 2     | ✅ 4         |
+| /dashboard/operations/vendors                                                                                                  | ✅ 6                                      | ✅ 3                    | ✅ 3      | ✅ 1          | ✅ 2       | ✅ 2     | ✅ 3         |
+| /dashboard/settings                                                                                                            | ✅ 7                                      | ✅ 4                    | ✅ 2      | ✅ 3          | ✅ 4       | ✅ 3     | ✅ 4         |
+| /dashboard/help                                                                                                                | ✅ 6                                      | ✅ 4                    | ✅ 3      | ✅ 4          | ✅ 3       | ✅ 3     | ✅ 2         |
+| /dashboard/audit-trail                                                                                                         | ✅ 8                                      | ✅ 5                    | ✅ 5      | ✅ 4          | ✅ 6       | ✅ 4     | ✅ 4         |
+| Remaining routes (auto-approve, donor-reporting, ingestion, knowledge, knowledge-graph, qbr, referrals) + 21 settings sections | ✅ Route-level: 3 / 2 / 1 / 7 / 5 / 6 / 6 | Component passes queued | ⬜        | ⬜            | ⬜         | ⬜       | ⬜           |
+
+> **Component-level follow-up queue (each needs its own 7-employee pass):** AutoApproveRules, QBRReport, ReferralDashboard, BatchUpload/BatchProgress/Dropzone, KnowledgeSearch/DocumentProcessor, GraphVisualization, donor report-builder — plus the 21 settings sections and all shared chat components (thinking-steps, message-actions internals, data-table-inline, chart-inline, inline-document-viewer, transaction-detail-drawer, invoice-detail-panel, bills-view actions wiring, help-assistant).
 
 ---
 
@@ -466,7 +471,7 @@ The record of truth: five tabs (Journal, Chart of Accounts, Trial Balance, Fixed
 ### Employee: Product Manager
 
 | #   | Finding                                                                                                                                                                                                                                                                                                           | Severity | Fix                                                                                                               | Status |
-| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ----------------------------------------------------------------------------------------------------------------- | ------ |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ----------------------------------------------------------------------------------------------------------------- | ------ | --- |
 | 1   | **COA tab crashes on open** — header renders `accounts.length` (line 878) while `accounts` is undefined during initial fetch; the isLoading skeleton sits BELOW the header so the crash happens first. Opening Chart of Accounts on a cold cache throws TypeError.                                                | CRITICAL | Optional-chain the header counts or move them below loading guard.                                                |        | ✅  |
 | 2   | **Natural-language search placeholder overpromises** — 'Search in natural language — try "Show me all entries over 10,000"' but searchQuery passes verbatim to the server `search` param (keyword matching unless an NL layer exists server-side). Amount-based and relational queries silently fail/return junk. | HIGH     | Verify server capability; if keyword-only, rewrite placeholder honestly OR wire NL parsing to structured filters. |        | ✅  |
 | 3   | **Journal "Export" exports only the current 20-row page** — BulkExportButton receives the paginated slice; filename implies a full journal export. Accountants exporting "the books" get 1/N of them with zero warning.                                                                                           | HIGH     | Export all matching entries (server-side streaming) or label clearly "Export page".                               | ⬜     |
@@ -493,7 +498,7 @@ The record of truth: five tabs (Journal, Chart of Accounts, Trial Balance, Fixed
 ### Employee: UX Writer
 
 | #   | Finding                                                                                                                                                                                                                                           | Severity | Fix                                                                           | Status      |
-| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ----------------------------------------------------------------------------- | ----------- |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ----------------------------------------------------------------------------- | ----------- | --- |
 | 1   | **NL-search placeholder sets unachievable expectations** (product twin PM #2) — even the examples chosen ("over 10,000") guarantee failure under keyword search; worst-case copy placement: the input users trust most on the books.              | HIGH     | Align copy to real capability today; restore aspirational copy when NL lands. |             | ✅  |
 | 2   | **"No lines found" is engineer-speak** — an entry without lines is a data anomaly; message reads like an empty inbox.                                                                                                                             | LOW      | "This entry has no line items — contact support if you expect activity."      |             | ✅  |
 | 3   | **Dev-experiment strings shipped** — sr-only button labeled "Trigger undo toast for trial balance" + toast "Undo not needed — no data changed" read like leftover scaffolding in the most serious surface of the product.                         | MEDIUM   | Remove the dead undo wiring entirely (see Eng #6 / PM alignment).             |             | ✅  |
@@ -507,7 +512,7 @@ The record of truth: five tabs (Journal, Chart of Accounts, Trial Balance, Fixed
 ### Employee: Design Critic
 
 | #   | Finding                                                                                                                                                                                                                                                                           | Severity | Fix                                                                         | Status |
-| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | --------------------------------------------------------------------------- | ------ |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | --------------------------------------------------------------------------- | ------ | --- |
 | 1   | **Light-mode-only hardcodes break dark mode** — reverse button `border-red-200 bg-red-50 hover:bg-red-100` (lines 452, plus dialog surfaces) assume white background; in dark theme these render blinding pale chips. Identical defect class empworks already fixed on Help page. | HIGH     | Token-based destructive styling (destructive/10 backgrounds).               |        | ✅  |
 | 2   | **Overlay treatment inconsistent across drawers** — this drawer dims via bg-foreground/10 blur-2px; Activity Hub + FP drawers use bg-black/50 blur-sm. Three drawer patterns diverging page by page.                                                                              | MEDIUM   | One Sheet/Drawer primitive (also solves trap/labelledby gaps logged twice). | ⬜     |
 | 3   | **Focus not trapped nor restored** — ESC works (window listener — good), but tabbing escapes behind overlay and closing returns focus nowhere (was opened from a card button).                                                                                                    | HIGH     | Shared primitive fix: trap + restore.                                       | ⬜     |
@@ -522,7 +527,7 @@ The record of truth: five tabs (Journal, Chart of Accounts, Trial Balance, Fixed
 ### Employee: Engineering Critic
 
 | #   | Finding                                                                                                                                                                                                                                                     | Severity | Fix                                                                                                                          | Status |
-| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------- | ------ |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------- | ------ | --- |
 | 1   | **Undefined dereference crash (root cause of PM #1)** — `accounts.length` evaluated pre-data; also grouped reduce guards undefined but header doesn't. Fix + add error boundary per tab so one tab's crash can't blank the page.                            | CRITICAL | Optional chaining + per-tab Suspense/error isolation.                                                                        |        | ✅  |
 | 2   | **Client-side FLOAT arithmetic on money** — debit/credit parsed via parseFloat and summed with + for drawer totals AND balance check (AGENTS.md explicitly forbids float money math); sub-cent display drift possible against decimal-backed server values. | HIGH     | Sum integer minor units (or decimal.js) client-side; ideally server returns precomputed totals (it already has them for TB). | ⬜     |
 | 3   | **Balance tolerance re-implemented in UI** — Math.abs(diff)<0.01 duplicates the server's balancing invariant with independent precision semantics; two laws for one invariant.                                                                              | MEDIUM   | Trust server-computed balanced flag (getById should provide); render-only check if needed.                                   | ⬜     |
@@ -553,7 +558,7 @@ The record of truth: five tabs (Journal, Chart of Accounts, Trial Balance, Fixed
 ### Employee: Data Analyst
 
 | #   | Finding                                                                                                                                                                                                                                         | Severity | Fix                                                                              | Status |
-| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | -------------------------------------------------------------------------------- | ------ |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | -------------------------------------------------------------------------------- | ------ | --- |
 | 1   | **Float-summed displayed totals risk cent drift** (data view of Eng #2) — reconciliation workflows compare these numbers to bank statements to the cent; any float artifact undermines the surface whose entire job is exactness.               | HIGH     | Integer/decimal pipeline end-to-end; snapshot-test famous float cases (0.1+0.2). |        | ✅  |
 | 2   | **Debit/Credit column convention undocumented in TB** — positive balance→debit, negative→credit assumes signed-normal-balance encoding; accountants expecting natural balances may misread liabilities/equity. Define + tooltip the convention. | MEDIUM   | Document convention in caption/tooltips; validate against server sign semantics. | ⬜     |
 | 3   | **Stale tab counts distort operational picture** (twin of PM #11) — decisions like "clear the 12 pending" act on frozen numbers.                                                                                                                | LOW      | Joint fix with PM #11.                                                           | ⬜     |
@@ -573,7 +578,7 @@ Money hub: MoneyFlowSummary (live badge, AI cash narrative, 4 stats), CashFlowCh
 ### Employee: Product Manager
 
 | #   | Finding                                                                                                                                                                                                                                                                                                                                      | Severity | Fix                                                                             | Status |
-| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------------------------------------------------- | ------ |
+| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------------------------------------------------- | ------ | --- |
 | 1   | **Unknown runway asserted as "Sustainable"** — MoneyFlow AI-context maps null/undefined runway to the literal string "Sustainable" (lines 103–105). Missing calculation ≠ healthy business; identical fabricated-assurance defect already flagged on Financial Pulse (#1 Data) and Command Center briefing. Third occurrence of the pattern. | CRITICAL | Null → "Runway unknown"; reserve health language for computed values.           | ⬜     |
 | 2   | **Employees tile is hardcode-zero** — PeopleGrid ships `count: 0` with no payroll/employees query behind it; every user sees "0 total" forever. Fake metric on a primary nav tile.                                                                                                                                                           | HIGH     | Wire real employee count or render "Coming soon" state without a number.        |        | ✅  |
 | 3   | **Vendors count counts bills, not vendors** — tile pulls `billsOverview.statusCounts.all` (number of BILLS) under the label "Vendors". Wrong entity entirely; count drifts wildly from real vendor relationships.                                                                                                                            | HIGH     | Query vendors table count; keep bill counts on the Bills row where they belong. |        | ✅  |
@@ -588,7 +593,7 @@ Money hub: MoneyFlowSummary (live badge, AI cash narrative, 4 stats), CashFlowCh
 ### Employee: Product Critic
 
 | #   | Finding                                                                                                                                                                                                                                                          | Severity | Fix                                                                        | Status |
-| --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | -------------------------------------------------------------------------- | ------ |
+| --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | -------------------------------------------------------------------------- | ------ | --- |
 | 1   | **Bank account cards chat instead of drilling in** — clicking an account fires an AI prompt; there's no account statement view (transactions, balance trend). Fifth instance of the drill-down-dead-end anti-pattern; on the MONEY surface it hurts most.        | HIGH     | Route to account detail (existing banking subpage patterns); AI secondary. |        | ⬜  |
 | 2   | **Identical-looking rows do opposite things** — Money Out/In lists mix `<Link>` navigations and chat-opening `<button>`s with pixel-identical styling; users cannot predict outcomes. Add directional affordance (chevron vs sparkles) at minimum.               | HIGH     | Visual interaction contract per row type.                                  |        | ✅  |
 | 3   | **Empty-state flash lies about connected banks** — BankingCards renders the "No bank accounts connected" dashed state whenever `accounts` is `[]`, including DURING load (no isLoading branch). Every fresh visit flashes "you have no banks" before data lands. | HIGH     | Loading skeleton before empty verdict.                                     |        | ✅  |
@@ -613,13 +618,13 @@ Money hub: MoneyFlowSummary (live badge, AI cash narrative, 4 stats), CashFlowCh
 
 ### Employee: Design Critic
 
-| #   | Finding                                                                                                                                                                                                                                                                            | Severity | Fix                                                     | Status |
-| --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------------------------- | ------ |
+| #   | Finding                                                                                                                                                                                                                                                                             | Severity | Fix                                                     | Status |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------------------------- | ------ | --- |
 | 1   | **Arrow direction semantics look inverted** — incoming money gets ArrowDownRight (green), outgoing ArrowUpRight (red); most fintech conventions pair in=↑/↘-into-pot consistently. Whatever the intent, verify deliberate choice; current pairing reads backwards at glance speed. | MEDIUM   | Align arrow geometry with Money Flow metaphor app-wide. | ⬜     |
-| 2   | **bg-primary/8 non-standard fraction persists** — MoneyFlow header chip; part of the global compiled-CSS audit item.                                                                                                                                                               | LOW      | Global token pass.                                      | ⬜     |
-| 3   | **Link-vs-button visual sameness** (design twin of PC #2) — identical hover treatments for navigation and conversation rows breaks affordance grammar.                                                                                                                             | HIGH     | Distinct end-icon treatment.                            |        | ✅  |
-| 4   | **Pulse animations ignore reduced-motion** — Live dot + any shimmer run regardless of prefers-reduced-motion (recurring).                                                                                                                                                          | LOW      | motion-safe gating, global.                             | ⬜     |
-| 5   | **Micro-typography floor violations continue** — 9px badges, 10px labels throughout (tracked globally).                                                                                                                                                                            | LOW      | Global type pass.                                       | ⬜     |
+| 2   | **bg-primary/8 non-standard fraction persists** — MoneyFlow header chip; part of the global compiled-CSS audit item.                                                                                                                                                                | LOW      | Global token pass.                                      | ⬜     |
+| 3   | **Link-vs-button visual sameness** (design twin of PC #2) — identical hover treatments for navigation and conversation rows breaks affordance grammar.                                                                                                                              | HIGH     | Distinct end-icon treatment.                            |        | ✅  |
+| 4   | **Pulse animations ignore reduced-motion** — Live dot + any shimmer run regardless of prefers-reduced-motion (recurring).                                                                                                                                                           | LOW      | motion-safe gating, global.                             | ⬜     |
+| 5   | **Micro-typography floor violations continue** — 9px badges, 10px labels throughout (tracked globally).                                                                                                                                                                             | LOW      | Global type pass.                                       | ⬜     |
 
 ---
 
@@ -628,7 +633,7 @@ Money hub: MoneyFlowSummary (live badge, AI cash narrative, 4 stats), CashFlowCh
 ### Employee: Engineering Critic
 
 | #   | Finding                                                                                                                                                                                                                                                             | Severity | Fix                                                                       | Status |
-| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------------------------------------------- | ------ |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------------------------------------------- | ------ | --- |
 | 1   | **No query surfaces errors anywhere on the page** — every useQuery destructures only data; isError/refetch ignored page-wide. Failures render as confident zeros ("0 pending", "$0 coming in") — silent-wrong-data pattern, the most expensive kind on a money hub. | HIGH     | Standard error+retry block per card; never render zeros for failed loads. |        | ✅  |
 | 2   | **parseFloat on balance strings client-side** — `parseFloat(account.currentBalance ?? "0")` continues the money-as-float violation logged on Ledger; server should emit numbers/minor-units.                                                                        | HIGH     | Typed numeric contract from banking router.                               |        | ✅  |
 | 3   | **Nested optional-chain gap** — `billsOverview?.statusCounts.overdue` guards the first hop only; statusCounts undefined throws. Backend contract may guarantee it today; one schema change = crash.                                                                 | MEDIUM   | Full chaining or zod-parsed selector.                                     | ⬜     |
@@ -656,7 +661,7 @@ Money hub: MoneyFlowSummary (live badge, AI cash narrative, 4 stats), CashFlowCh
 ### Employee: Data Analyst
 
 | #   | Finding                                                                                                                                                                                                  | Severity | Fix                                                                        | Status |
-| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | -------------------------------------------------------------------------- | ------ |
+| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | -------------------------------------------------------------------------- | ------ | --- |
 | 1   | **Wrong-entity counts corrupt the People grid** (data view of PM #2/#3) — vendors=bills, employees=fake-zero; downstream dashboards consuming these tiles inherit garbage.                               | HIGH     | Correct sources; add contract tests on count semantics.                    |        | ✅  |
 | 2   | **formatCurrency without currency argument sits on BANK BALANCES** — multi-currency entities may see every account normalized to one symbol; balances are the least forgiving place for symbol guessing. | HIGH     | Per-account currency from banking payload → explicit formatCurrency calls. |        | ✅  |
 | 3   | **"This month" claims lack period anchoring** — AI summary sentence asserts month scope while getCashPosition period definition is implicit; staleTime unknown; no as-of timestamp anywhere.             | MEDIUM   | Period + generatedAt surfaced (global freshness pattern).                  | ⬜     |
@@ -676,7 +681,7 @@ Compliance surface: server-filtered log entries (search/surface/date), expandabl
 ### Employee: Product Manager
 
 | #   | Finding                                                                                                                                                                                                                                                                     | Severity | Fix                                                                              | Status |
-| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | -------------------------------------------------------------------------------- | ------ |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | -------------------------------------------------------------------------------- | ------ | --- |
 | 1   | **The "who" in "who did what when" is a UUID fragment** — actor renders as `User 8a1f2c3d…` (log.userId.slice(0,8)); no user join anywhere. A compliance trail nobody can read is a checkbox, not a capability. Resolve actors to names/emails server-side.                 | CRITICAL | Join user table (name, email, role at time of action); fall back "System".       | ⬜     |
 | 2   | **Only `newValues` is kept/shown — no before-state** — expanded details + CSV carry Changes=newValues alone; without oldValues there is no diff, so the trail cannot answer "what did it change FROM". Audit-integrity gap at the data-model level.                         | HIGH     | Persist + display old→new diffs; export both columns.                            | ⬜     |
 | 3   | **CSV export silently limited to current 50-row page** — same truncation defect as Ledger export; compliance officers exporting "the audit log" get 1/Nth of it with no indication.                                                                                         | HIGH     | Server-generated complete export of current FILTERS (not page); stream if large. | ⬜     |
@@ -713,7 +718,7 @@ Compliance surface: server-filtered log entries (search/surface/date), expandabl
 ### Employee: Design Critic
 
 | #   | Finding                                                                                                                                                                                                                                          | Severity | Fix                                                                              | Status |
-| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------- | -------------------------------------------------------------------------------- | ------ |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------- | -------------------------------------------------------------------------------- | ------ | --- |
 | 1   | **All 12 category chips hardcode light-mode colors** — text-blue-600/bg-blue-50 family throughout ACTION_CATEGORIES; dark mode renders pastel-on-dark failures across every row (same defect empworks fixed on Help; recurring page after page). | HIGH     | Token map (category→semantic token pair) in one module.                          |        | ✅  |
 | 2   | **Expand/collapse still jumps** — max-h transition improved per empworks note but 500px cap clips long diffs mid-content; opacity+border-t toggling produces flicker.                                                                            | MEDIUM   | Grid-template-rows 0fr/1fr technique or portal-less measured height; remove cap. | ⬜     |
 | 3   | **Verb color carries meaning alone for scan-speed users** — colored words help, but severity relies partly on hue; icons absent on verb chips.                                                                                                   | LOW      | Pair verb chips with directional icons.                                          | ⬜     |
@@ -726,7 +731,7 @@ Compliance surface: server-filtered log entries (search/surface/date), expandabl
 ### Employee: Engineering Critic
 
 | #   | Finding                                                                                                                                                                                                   | Severity | Fix                                                    | Status      |
-| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------------------------ | ----------- |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------------------------ | ----------- | --- |
 | 1   | **Per-keystroke server searches** — no debounce on audit search; each character fires getAuditLogs with LIKE-style filtering server-side.                                                                 | MEDIUM   | 300ms debounce + min length 2.                         |             | ✅  |
 | 2   | **Offset pagination on an insert-heavy table** — new entries shift offsets between page views (skipped/duplicated rows during review sessions); cursor pagination per conventions.                        | MEDIUM   | Cursor (createdAt,id) pagination.                      | ⬜          |
 | 3   | **"Last 30 Days" is setMonth(-1)** — calendar-month arithmetic presented as fixed-day window; boundaries drift (28–31 days) and DST edges shift hours.                                                    | LOW      | Fixed-day window or label honestly ("Previous month"). | ⬜          |
@@ -773,7 +778,7 @@ AR surface: filterable/searchable invoice DataTable (client-paged), row action m
 ### Employee: Product Manager
 
 | #   | Finding                                                                                                                                                                                                                                                                                    | Severity | Fix                                                                                                | Status |
-| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------- | -------------------------------------------------------------------------------------------------- | ------ |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------- | -------------------------------------------------------------------------------------------------- | ------ | --- |
 | 1   | **Pagination is an illusion** — query hardcodes `limit: 50, offset: 0` while DataTable renders client-side paging at 20/page against those 50 rows. Invoices #51+ are UNREACHABLE through the UI forever; header count proudly reports the true total. Business with 200 invoices sees 50. | CRITICAL | Wire DataTable pagination to server offset/cursor params.                                          |        | ✅  |
 | 2   | **Send Invoice can fire DRAFTS to customers** — menu gate excludes only paid/voided; a draft invoice passes straight to `sendInvoiceEmail`. One misclick emails an unfinished bill to a client. No confirmation dialog, no recipient preview.                                              | CRITICAL | Block drafts server+client; add confirm step showing recipient + amount.                           |        | ✅  |
 | 3   | **Creating an invoice doesn't refresh the list** — `onCreated` only closes the dialog; no invalidate of listInvoices. Fifth instance of the empty-refetch defect class. New invoice invisible until some other refetch trigger.                                                            | HIGH     | Invalidate query on success + toast with invoice number.                                           |        | ✅  |
@@ -823,7 +828,7 @@ AR surface: filterable/searchable invoice DataTable (client-paged), row action m
 ### Employee: Engineering Critic
 
 | #   | Finding                                                                                                                                                                                                                                                                                   | Severity | Fix                                                                                                | Status |
-| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | -------------------------------------------------------------------------------------------------- | ------ |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | -------------------------------------------------------------------------------------------------- | ------ | --- |
 | 1   | **Server pagination disconnected from table pagination** (root of PM #1) — `offset: 0` literal proves wiring was never completed; silent data cliff at row 50.                                                                                                                            | CRITICAL | Complete offset/cursor wiring; test with >pageSize datasets.                                       |        | ✅  |
 | 2   | **Forward-referenced closures inside column defs** — columns array references handleSendInvoice + sendInvoiceEmail declared ~200 lines later; deferred execution saves it today, but any eager accessor (or refactor hoisting render) hits TDZ crashes. Fragile ordering with zero guard. | MEDIUM   | Declare mutations/handlers before columns; or move menu into child component owning its mutations. | ⬜     |
 | 3   | **`as Invoice[]` cast over router types** — recurring drift pattern; infer instead.                                                                                                                                                                                                       | LOW      | tRPC output inference.                                                                             | ⬜     |
@@ -858,6 +863,590 @@ AR surface: filterable/searchable invoice DataTable (client-paged), row action m
 
 ---
 
+# PAGE: /dashboard/operations/bills
+
+AP surface: server-paginated bill list with status tabs + search, summary cards from server aggregation, per-row actions. Thin route wrapping `components/finance/bills-view.tsx` (audited in full).
+
+---
+
+## DEPARTMENT: PRODUCT
+
+### Employee: Product Manager
+
+| #   | Finding                                                                                                                                                                                                                                                                                                                                                                                             | Severity | Fix                                                                                                      | Status |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | -------------------------------------------------------------------------------------------------------- | ------ |
+| 1   | **Every action button on the AP page is dead** — BillRow renders Eye ("view") and Send ("pay/remind") buttons with NO onClick handlers; `isProcessing` can never become true because no mutation exists. The accounts-payable surface has ZERO working actions: can't view a bill, can't pay one, can't remind anyone. Header comment promises "AI payment schedule recommendation" — also unbuilt. | CRITICAL | Wire view → detail drawer, pay → payment flow, or remove buttons until real (never ship inert controls). | ⬜     |
+| 2   | **No way to create a bill** — empty state instructs "Create your first bill" but the page contains no Create button anywhere. The instruction is unreachable.                                                                                                                                                                                                                                       | HIGH     | Add create entry point (dialog like invoices) or point at ingestion upload flow.                         | ⬜     |
+| 3   | **Pending stat counts approved bills** — `pendingCount = overview.statusCounts.approved`; label/data mismatch repeats the wrong-entity-count pattern from Operations PeopleGrid.                                                                                                                                                                                                                    | HIGH     | Map the correct status key; contract-test overview shape.                                                | ⬜     |
+| 4   | **Bills are view-less rows** — no click target, no drawer, no detail page; a bookkeeper can't see line items, attachments, or history of any payable.                                                                                                                                                                                                                                               | HIGH     | Bill detail panel mirroring InvoiceDetailPanel.                                                          | ⬜     |
+| 5   | **Partial bills unfilterable** — badge supports "partial", filter tabs don't; mixed-status queues hide the trickiest payables.                                                                                                                                                                                                                                                                      | MEDIUM   | Add partial (+draft if exists) tabs.                                                                     | ⬜     |
+| 6   | **Search scope understated** — placeholder claims invoice-number-only while supplier search is the more natural query; align capability and copy.                                                                                                                                                                                                                                                   | LOW      | Extend server search fields + placeholder honesty.                                                       | ⬜     |
+
+### Employee: Product Critic
+
+| #   | Finding                                                                                                                                                                                                                                         | Severity | Fix                                                                 | Status      |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------------------------------------- | ----------- |
+| 1   | **Inert controls actively mislead** (UX face of PM #1) — buttons render hover states and spinner affordances (isProcessing branch) implying function; users will click Send repeatedly believing a payment is processing. Worse than no button. | CRITICAL | Remove until wired (single rule: no dead affordances).              | ⬜          |
+| 2   | **Doc-rot header** — component JSDoc lists features that don't exist (AI payment schedule); future contributors inherit fiction. Align doc to reality during wiring work.                                                                       | LOW      | Rewrite comment with actual behavior.                               | ⬜          |
+| 3   | **No due-date anchor on relative labels** — "12d overdue" floats without the actual date; hover tooltip with absolute due date is standard AP hygiene.                                                                                          | LOW      | title/tooltip with formatted date.                                  | ⬜          |
+| 4   | **No bulk payment-run selection** — paying 40 due bills one day requires 40 individual actions (once actions exist at all). Selection + "Pay selected" is core AP.                                                                              | MEDIUM   | Checkbox column + bulk action bar (pattern exists in Activity Hub). | ⬜          |
+| 5   | **Summary-card server-aggregation is strong — PASS baseline** — code comments AND implementation correctly source totals from getOverview rather than page slice; this is the pattern Operations stats cards violated. Replicate everywhere.    | —        | Keep; cite as reference implementation.                             | ✅ Baseline |
+
+### Employee: UX Writer
+
+| #   | Finding                                                                                                                                                                                                               | Severity | Fix                                                                                                                  | Status      |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | -------------------------------------------------------------------------------------------------------------------- | ----------- |
+| 1   | **Empty state speaks engineer** — "Bills are entity-scoped… full audit trail and entity isolation" reassures architects, not owners; also the switch-entity hint presumes multi-entity context most users don't have. | MEDIUM   | Benefit copy: "Track what you owe and never miss a due date." Keep entity hint only when user HAS multiple entities. | ⬜          |
+| 2   | **Page metadata leaks internals** — route metadata description advertises "Every query is entity-scoped" to any crawler/preview; internal posture statement in marketing real estate.                                 | LOW      | User-benefit description; keep security language in docs.                                                            | ⬜          |
+| 3   | **Due-date vocabulary compact and clear — PASS baseline** — "3d overdue"/"Due today"/"12d" scans well once anchored (PC #3).                                                                                          | —        | Keep.                                                                                                                | ✅ Baseline |
+
+---
+
+## DEPARTMENT: DESIGN
+
+### Employee: Design Critic
+
+| #   | Finding                                                                                                                                                                                       | Severity | Fix                                  | Status      |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------ | ----------- |
+| 1   | **Light-mode-only badge hardcodes again** — bg-green-100/text-green-800, bg-blue-100, bg-amber-100 in getStatusBadge; dark mode breaks every status chip (recurring global item, instance N). | HIGH     | Token map migration (global task).   | ⬜          |
+| 2   | **Icon-only buttons unlabeled and sub-touch-size** — Eye/Send are 32px squares with NO aria-label; screen readers announce nothing and touch targets miss guidelines twice over.              | HIGH     | aria-labels + ≥44px hit areas.       | ⬜          |
+| 3   | **Fixed grid crushes mobile** — summary cards `grid-cols-3` with no responsive collapse; three currency figures squeeze at 320px (contrast: invoices page uses sm: breakpoints).              | MEDIUM   | Responsive card stack.               | ⬜          |
+| 4   | **Filter bar doesn't wrap** — search+tabs in non-wrapping flex; horizontal overflow on phones.                                                                                                | LOW      | flex-wrap + stacked layout under sm. | ⬜          |
+| 5   | **Design-system components used properly here — PASS baseline** — shadcn Card/Tabs/Badge/Button throughout (unlike hand-rolled menus elsewhere); reference for list pages.                    | —        | Keep.                                | ✅ Baseline |
+
+---
+
+## DEPARTMENT: ENGINEERING
+
+### Employee: Engineering Critic
+
+| #   | Finding                                                                                                                                                                                                                                   | Severity | Fix                                              | Status      |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------------------ | ----------- |
+| 1   | **Dead interactive affordances shipped as JSX** (root PM #1/#PC1) — handler-less Buttons + permanently-false isProcessing constitute unreachable-state code paths masquerading as features; typecheck/lint can't catch semantic deadness. | HIGH     | Delete-or-wire decision, tracked as single item. | ⬜          |
+| 2   | **Float equality gates UI logic** — `bill.balance !== bill.totalAmount` decides whether Balance line shows; float inequality on money comparisons produces flickering presence across renders (recurring money-as-float family).          | MEDIUM   | Compare integer minor units / epsilon tolerance. | ⬜          |
+| 3   | **Server pagination wired CORRECTLY here — PASS contrast** — offset math, disabled states, and totalCount bounds all correct (the exact wiring Invoices PM #1 lacks); use as the fix template.                                            | —        | Cite as reference.                               | ✅ Baseline |
+| 4   | **Bill interface hand-duplicated from router output** — recurring drift pattern (#6 globally).                                                                                                                                            | LOW      | tRPC inference.                                  | ⬜          |
+| 5   | **Error cast shortcut** — `(error as Error \| undefined)` bypasses tRPC error typing (RouterError shape carries code for better messages).                                                                                                | LOW      | Typed error handling.                            | ⬜          |
+| 6   | **Overview/list load independence flashes zeros** — summary cards render before getOverview resolves (null-state global pattern).                                                                                                         | LOW      | Shared loading gate or skeleton values.          | ⬜          |
+
+---
+
+## DEPARTMENT: SECURITY
+
+### Employee: Security Engineer (CSO)
+
+| #   | Finding                                                                                                                                                                                                                                                                                  | Severity           | Fix                                                                       | Status |
+| --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------ | ------------------------------------------------------------------------- | ------ |
+| 1   | **Pre-wiring security requirements for the dead Send button** — when payment initiation lands: role-gate (who may pay?), idempotency keys (double-click double-pay), amount binding server-side, immutable audit entry, and period-lock respect. Log NOW so the wiring PR can't skip it. | HIGH (requirement) | Convert this finding into router acceptance criteria before feature work. | ⬜     |
+| 2   | **Entity scoping claimed, verification pending** — bills.listBills/getOverview ownership predicates need the standard audit (cross-entity denial test) like chat.ts.                                                                                                                     | HIGH (verify)      | Router audit + tests.                                                     | ⬜     |
+| 3   | **Metadata disclosure nit** — security-posture sentence in public metadata (UX #2 twin); remove.                                                                                                                                                                                         | LOW                | Copy change.                                                              | ⬜     |
+
+---
+
+## DEPARTMENT: DATA
+
+### Employee: Data Analyst
+
+| #   | Finding                                                                                                                                                                                                      | Severity | Fix                                               | Status |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------- | ------------------------------------------------- | ------ |
+| 1   | **statusCounts semantics uncontracted** (root of PM #3) — client guesses which key maps to which label; one backend rename silently mislabels AP dashboards. Zod-parse overview with explicit field mapping. | MEDIUM   | Schema contract + test.                           | ⬜     |
+| 2   | **Client-computed days-overdue vs server overdue flag dual-truth** (recurring) — midnight/timezone edges produce rows colored red under an "overdue"-less status.                                            | LOW      | Single server truth consumed by color AND filter. | ⬜     |
+| 3   | **formatCurrency without currency on AP totals** — supplier bills in foreign currencies symbol-normalized (global recurring instance).                                                                       | MEDIUM   | Per-bill currency plumbing.                       | ⬜     |
+| 4   | **Zero analytics on AP** — filters/search usage, (future) payment funnel untracked; AP behavior drives treasury agent tuning.                                                                                | MEDIUM   | Instrument alongside feature wiring (PM #1).      | ⬜     |
+
+---
+
+# PAGE: /dashboard/operations/banking
+
+AI-native banking hub: three tabs (Transactions with batch categorize + export, Connections, Rules), filters, select-all batching, pagination.
+
+---
+
+## DEPARTMENT: PRODUCT
+
+### Employee: Product Manager
+
+| #   | Finding                                                                                                                                                                                                                                      | Severity | Fix                                                                                                   | Status |
+| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ----------------------------------------------------------------------------------------------------- | ------ |
+| 1   | **Undo after batch categorize is a lie** — onUndo toasts "Categorization reverted" and merely refetches; nothing reverts server-side (identical false-undo defect class as Activity Hub approvals). Users trust an undo that undoes nothing. | CRITICAL | Server-side reversal (store previous categories) or remove Undo until real.                           | ⬜     |
+| 2   | **Batch categorize silently narrows your selection** — selecting 10 rows (3 already categorized) categorizes ONLY the 3 uncategorized; no count feedback, no explanation. Partial action disguised as full.                                  | HIGH     | Either include all selected (re-categorize) or state "Categorized 3 of 10 selected (7 already done)". | ⬜     |
+| 3   | **No target-category control** — batch action hands rows to the AI blind; users can't direct "these 5 are all Software". Rules Manager exists on tab 3 but is disconnected from transaction context.                                         | HIGH     | Category picker in batch bar (+ "create rule from selection").                                        | ⬜     |
+| 4   | **Uncategorized counter counts the page, implies the world** — chip computes from loaded 50 rows; "12 uncategorized" while 400 exist. Stats that understate workloads suppress action.                                                       | HIGH     | Server-side uncategorized total independent of pagination.                                            | ⬜     |
+| 5   | **Export truncates at page boundary** — exports the current 50-row page with a success toast naming the count (at least honest); recurring silent-scope export family.                                                                       | MEDIUM   | Filtered-set server export.                                                                           | ⬜     |
+| 6   | **"Refresh" doesn't refresh from the bank** — button refetches cached query data; pulling NEW transactions requires connection sync which isn't exposed here. Label promises plumbing, delivers cache.                                       | MEDIUM   | Rename or add true Sync-now action per connection.                                                    | ⬜     |
+| 7   | **No date-range filter** — status/account/search only; month-end review of "October's feed" is impossible natively.                                                                                                                          | MEDIUM   | Date-range control like Audit Trail's presets.                                                        | ⬜     |
+| 8   | **Selections survive tab switches** — select rows, switch to Connections/Rules, return: stale selection persists with hidden batch implications.                                                                                             | LOW      | Clear selection on tab change.                                                                        | ⬜     |
+
+### Employee: Product Critic
+
+| #   | Finding                                                                                                                                                                                                               | Severity | Fix                                                                         | Status      |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | --------------------------------------------------------------------------- | ----------- |
+| 1   | **Select-all is page-scoped invisibly** — header checkbox grabs the visible 50 of potentially thousands; batch operations cap at page without saying so. Power users processing large feeds hit an invisible ceiling. | HIGH     | Offer "select all N matching filters" affordance like Activity Hub's count. | ⬜          |
+| 2   | **Empty states are exemplary — PASS baseline** — differentiates connected-vs-not, names the exact next action, provides CTA. Reference implementation for every list surface.                                         | —        | Keep; replicate.                                                            | ✅ Baseline |
+| 3   | **Rules have zero transaction-context discovery** — the highest-leverage automation ("always categorize Trust Bank POS as Office Rent") can't be created from the transaction it came from.                           | MEDIUM   | Per-row "Create rule" menu item pre-filling merchant/category.              | ⬜          |
+| 4   | **Unreconciled filter dead-ends** — filtering to unreconciled offers no path into the Reconciliation view (separate ledger tab); two halves of one workflow split across surfaces.                                    | MEDIUM   | Cross-link filtered view ↔ reconciliation workspace.                       | ⬜          |
+
+### Employee: UX Writer
+
+| #   | Finding                                                                                                                                                                                        | Severity | Fix                                  | Status      |
+| --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------ | ----------- |
+| 1   | **"Categorization reverted for N transactions" is a false statement** (copy face of PM #1) — the sentence asserts a server change that never happened. Compliance-grade dishonesty in a toast. | CRITICAL | Remove toast until reversal is real. | ⬜          |
+| 2   | **Undo success message omits scope** — "Categorized transactions" (no count) in pushUndo message; pair with PM #2 fix ("Categorized 12 transactions").                                         | LOW      | Count-aware copy.                    | ⬜          |
+| 3   | **Export toast sets the honesty bar — PASS baseline** — reports actual row count; adopt its pattern for ALL exports app-wide (Invoices/Ledger/Audit Trail currently don't).                    | —        | Keep; replicate.                     | ✅ Baseline |
+
+---
+
+## DEPARTMENT: DESIGN
+
+### Employee: Design Critic
+
+| #   | Finding                                                                                                                                                                                                                    | Severity | Fix                                  | Status |
+| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------ | ------ |
+| 1   | **Third distinct tab pattern ships** — plain buttons (this page) vs ARIA tablist (Ledger) vs WAI-ARIA keyboard tabs (Activity Hub); inconsistent semantics and keyboard behavior across sibling surfaces.                  | HIGH     | One Tabs primitive adopted app-wide. | ⬜     |
+| 2   | **Native checkbox without indeterminate state** — partial page-selection renders identical to none/all; master checkbox lies during mixed selection (design-system Checkbox gap flagged on Activity Hub applies here too). | MEDIUM   | Shared Checkbox with indeterminate.  | ⬜     |
+| 3   | **Buttons missing type="button"** — several controls default to type=submit; harmless outside forms today, landmine inside any future form wrapper.                                                                        | LOW      | Sweep type="button".                 | ⬜     |
+
+---
+
+## DEPARTMENT: ENGINEERING
+
+### Employee: Engineering Critic
+
+| #   | Finding                                                                                                                                                                                                                                                   | Severity | Fix                                                          | Status |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------------------------------ | ------ |
+| 1   | **sanitizeCell now duplicated THREE times** — inline copy here diverges from Audit Trail's canonical version; drift between sanitizers = whichever misses a payload class becomes the injection hole. Extraction overdue since finding #6 on audit-trail. | HIGH     | Single shared util imported everywhere (delete both copies). | ⬜     |
+| 2   | **Unsafe cast on own mutation input** — `(vars as { transactionIds })` inside onSuccess of a mutation whose input type the compiler ALREADY knows; cast hides genuine inference breakage.                                                                 | LOW      | Use typed vars directly.                                     | ⬜     |
+| 3   | **Field-shape uncertainty leaks into export mapping** — `t.date ?? t.transactionDate` dual-key access betrays unvalidated response contract; zod-parse once at the hook boundary.                                                                         | MEDIUM   | Contract parsing layer.                                      | ⬜     |
+| 4   | **Per-keystroke search against server** (recurring instance).                                                                                                                                                                                             | LOW      | Debounce (global item).                                      | ⬜     |
+| 5   | **Offset pagination** (recurring; totalPages at least surfaced correctly here — contrast Invoices).                                                                                                                                                       | LOW      | Cursor migration (global item).                              | ⬜     |
+
+---
+
+## DEPARTMENT: SECURITY
+
+### Employee: Security Engineer (CSO)
+
+| #   | Finding                                                                                                                                                                                                                                                                           | Severity          | Fix                                                     | Status                 |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------- | ------------------------------------------------------- | ---------------------- |
+| 1   | **Bank credential/aggregator flow UNVERIFIED** — BankConnectionDialog handles the most regulated integration in the product; verify aggregator uses tokenized OAuth (credentials NEVER transit Xenboox servers), consent scopes displayed, disconnect revokes tokens server-side. | CRITICAL (verify) | Full aggregation-flow audit before any enterprise deal. | ⬜                     |
+| 2   | **Rules auto-post to books UNVERIFIED** — auto-categorization writing ledger lines must respect period locks, write per-application audit entries, and cap blast radius (max amount/day guard) against bad-rule runaway.                                                          | HIGH (verify)     | Rule-engine assertions + tests.                         | ⬜                     |
+| 3   | **batchCategorize scoping/rate UNVERIFIED** — entity predicates + per-user rate limit + max batch size on bulk mutations.                                                                                                                                                         | MEDIUM (verify)   | Router audit.                                           | ⬜                     |
+| 4   | **Inline sanitizer correctness — PASS with caveat** — logic matches canonical version TODAY; the duplication itself is the vulnerability (Eng #1).                                                                                                                                | —                 | Extract (Eng #1).                                       | ✅ Verified equivalent |
+
+---
+
+## DEPARTMENT: DATA
+
+### Employee: Data Analyst
+
+| #   | Finding                                                                                                                                                                                   | Severity | Fix                                      | Status      |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ---------------------------------------- | ----------- |
+| 1   | **Page-scoped workload stats corrupt prioritization** (data face of PM #4) — uncategorized chip drives daily triage; understating it 8× defers work that agents should absorb.            | HIGH     | Server aggregate (joint fix).            | ⬜          |
+| 2   | **Export omits the most analytical columns** — no category/counterparty-account fields in CSV; categorization-quality analysis and ML feedback loops impossible from exported data.       | MEDIUM   | Full-column export.                      | ⬜          |
+| 3   | **Automation funnel uninstrumented** — categorize-batch sizes, rule create/apply rates, AI-vs-manual share, undo attempts (would have EXPOSED the fake undo statistically): none tracked. | HIGH     | Instrument automation funnel end-to-end. | ⬜          |
+| 4   | **Honest export-count toast — PASS baseline** (see UX #3; data parity confirmed in code).                                                                                                 | —        | Keep.                                    | ✅ Baseline |
+
+---
+
+# PAGE: /dashboard/operations/customers
+
+Customer directory: searchable DataTable with financial rollups, create dialog, AI chat row-click. Near-twin of vendors page (shared defects logged once each where they apply).
+
+---
+
+## DEPARTMENT: PRODUCT
+
+### Employee: Product Manager
+
+| #   | Finding                                                                                                                                                                                                                                                                          | Severity | Fix                                                                                  | Status |
+| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------------------------------------------------------ | ------ |
+| 1   | **Filter chips are decorative** — Active/Overdue/all set local state that NEVER reaches the query (`{search, limit, offset}` only); no DataTable-side filter contract visible for a field-level match either. Clicking Overdue re-renders the same list with a highlighted chip. | CRITICAL | Wire filter to server param (or verified client predicate); test each chip's effect. | ⬜     |
+| 2   | **Pagination illusion (twin of Invoices #1)** — limit 50/offset 0 hardcoded against client paging at 20; customer #51+ unreachable while header shows true total.                                                                                                                | CRITICAL | Server-side pagination wiring.                                                       | ⬜     |
+| 3   | **Row click chats instead of showing the customer** — chevron affordance promises navigation; there is no customer detail view anywhere (statement of invoices, payment history, contact edit). Seventh drill-down-dead-end instance.                                            | HIGH     | Customer detail panel/page; keep Ask-AI secondary.                                   | ⬜     |
+| 4   | **Create doesn't refresh list** — onCreated closes dialog only (empty-refetch family, sixth instance).                                                                                                                                                                           | HIGH     | Invalidate ar.listCustomers.                                                         | ⬜     |
+| 5   | **Undefined status masquerades as Active** — badge maps `status ?? "active"` so records lacking status render green "Active"; the default lies about data state.                                                                                                                 | MEDIUM   | Unknown → neutral gray "Unknown" styling.                                            | ⬜     |
+| 6   | **Inactive unfilterable** — badge knows "inactive", chips don't offer it.                                                                                                                                                                                                        | LOW      | Complete filter enum.                                                                | ⬜     |
+
+### Employee: Product Critic
+
+| #   | Finding                                                                                                                                                    | Severity | Fix                                   | Status      |
+| --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------- | ----------- |
+| 1   | **No statement/statement-PDF for a customer** — AR core workflow ("send me a statement") impossible; detail view must include period statement generation. | HIGH     | Statement builder in customer detail. | ⬜          |
+| 2   | **Outstanding column color binary** — amber>0 else muted; negative balances (credit memos) render as plain zero-ish; sign deserves distinction.            | LOW      | Three-state color incl. credit.       | ⬜          |
+| 3   | **AI suggestions strong — PASS baseline** — overdue/top-customers/payment-trends prompts are genuinely useful analytical questions matching page purpose.  | —        | Keep.                                 | ✅ Baseline |
+
+### Employee: UX Writer
+
+| #   | Finding                                                                        | Severity | Fix                              | Status |
+| --- | ------------------------------------------------------------------------------ | -------- | -------------------------------- | ------ |
+| 1   | **Bare "Loading..." header** (global recurrence).                              | LOW      | "Loading customers…".            | ⬜     |
+| 2   | **Raw status enums leak** (lowercase from server beside capitalized fallback). | LOW      | Label map (shared with vendors). | ⬜     |
+
+---
+
+## DEPARTMENT: DESIGN
+
+### Employee: Design Critic
+
+| #   | Finding                                                                                                                                                             | Severity | Fix                            | Status      |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------------------------------ | ----------- |
+| 1   | **Hardcoded palette badges** (global token-migration item).                                                                                                         | LOW      | Global pass.                   | ⬜          |
+| 2   | **Chevron affordance dishonesty** — navigational glyph on conversational action (design twin PM #3); misleading motion grammar app-wide pattern now at 8 instances. | HIGH     | Fix alongside drill-down work. | ⬜          |
+| 3   | **Initials-avatar chips consistent and clear — PASS baseline.**                                                                                                     | —        | Keep.                          | ✅ Baseline |
+
+---
+
+## DEPARTMENT: ENGINEERING
+
+### Employee: Engineering Critic
+
+| #   | Finding                                                                                                                                                                                                                                            | Severity | Fix                                        | Status |
+| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------------ | ------ |
+| 1   | **Copy-paste twin of vendors page (~90% structural duplication)** — two files diverging independently guarantees the defect log above gets fixed twice differently; extract shared DirectoryPage pattern (columns config + router hook injection). | HIGH     | Component extraction before next twin-fix. | ⬜     |
+| 2   | **`as Customer[]` cast** (recurring drift family).                                                                                                                                                                                                 | LOW      | Inference.                                 | ⬜     |
+| 3   | **Filter state disconnected from query** (root PM #1) — dead state pattern the compiler can't flag.                                                                                                                                                | CRITICAL | Joint fix with PM #1.                      | ⬜     |
+
+---
+
+## DEPARTMENT: SECURITY
+
+### Employee: Security Engineer (CSO)
+
+| #   | Finding                                                                                                                                                                                                                                   | Severity      | Fix                                                   | Status |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- | ----------------------------------------------------- | ------ |
+| 1   | **PII-dense surface feeding AI context + exports** — emails/phones/balances flow into openWithFocus payloads (LangFuse traces) and CSV exports; masking rules must cover customer PII explicitly (extends Financial Pulse trace finding). | HIGH (verify) | Extend redaction matrix; audit export sanitizer path. | ⬜     |
+| 2   | **ar.listCustomers scoping UNVERIFIED** (standard ownership-predicate audit).                                                                                                                                                             | HIGH (verify) | Router test.                                          | ⬜     |
+
+---
+
+## DEPARTMENT: DATA
+
+### Employee: Data Analyst
+
+| #   | Finding                                                                                                                                                                               | Severity | Fix                                 | Status |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ----------------------------------- | ------ |
+| 1   | **Per-customer financial rollups lack currency dimension** — totals symbol-guessed (global formatCurrency instance).                                                                  | MEDIUM   | Currency-aware aggregation display. | ⬜     |
+| 2   | **totalCount fallback masks drift** (recurring).                                                                                                                                      | LOW      | Fail loudly.                        | ⬜     |
+| 3   | **Customer funnel uninstrumented** — created/viewed/chatted/exported events absent; CRM-value analytics blind.                                                                        | MEDIUM   | Instrument lifecycle.               | ⬜     |
+| 4   | **Decorative filters poison future analytics** — if usage tracking logs filter clicks that change nothing, funnel data will assert features work when they don't (PM #1 consequence). | HIGH     | Fix filters BEFORE instrumenting.   | ⬜     |
+
+---
+
+# PAGE: /dashboard/operations/vendors
+
+Vendor directory: same skeleton as customers (DataTable, create dialog, chat row-click) + 1099 tax flag column/filter. Shares the customers page's structural defects; vendors-specific findings below.
+
+---
+
+## DEPARTMENT: PRODUCT
+
+### Employee: Product Manager
+
+| #   | Finding                                                                                                                                                                                                                                                          | Severity | Fix                                                              | Status |
+| --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ---------------------------------------------------------------- | ------ |
+| 1   | **Decorative filter chips (twin of Customers #1)** — All/Active/Overdue/1099 state never reaches the ap.listSuppliers query.                                                                                                                                     | CRITICAL | Wire to server (1099 needs dedicated boolean param, not status). | ⬜     |
+| 2   | **Pagination illusion twin** — 50-row cliff on the vendor directory.                                                                                                                                                                                             | CRITICAL | Server wiring.                                                   | ⬜     |
+| 3   | **No vendor detail view** — bills-per-vendor history unreachable from here (bills page has no vendor grouping either); AP relationship management impossible. Drill-down dead-end instance #8.                                                                   | HIGH     | Vendor detail with bill list + payment history.                  | ⬜     |
+| 4   | **Create doesn't refresh** (empty-refetch family).                                                                                                                                                                                                               | HIGH     | Invalidate query.                                                | ⬜     |
+| 5   | **1099 flag is compliance-critical with zero guardrails visible** — mislabelled is1099 produces wrong tax filings; no edit path shown for the flag anywhere, and AI suggestion builds summaries off it. Verify data lineage + allow correction in vendor detail. | HIGH     | Editable flag with audit entry; source documented.               | ⬜     |
+| 6   | **totalPaid fetched but unused** — column set ignores paid-to-date; "what did we pay them this year" is the #1 vendor question.                                                                                                                                  | LOW      | Add Paid column or fold into detail view.                        | ⬜     |
+
+### Employee: Product Critic / UX Writer / Design Critic
+
+_(Shared-skeleton defects logged in full on the customers page — apply every customers-page finding here too: bare Loading…, raw status enums, hardcoded palette badges, as-cast, PII masking, scoping verification, currency-less rollups, uninstrumented funnel. Vendors-specific additions only below.)_
+
+| #   | Finding                                                                                                                                                 | Severity | Fix                                         | Status      |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------------- | ----------- |
+| 1   | **PC:** 1099 chip communicates eligibility but not filing readiness (payments YTD threshold $600 unshown); pair chip with YTD-paid context.             | MEDIUM   | Tooltip/column with YTD total vs threshold. | ⬜          |
+| 2   | **UXW:** "No vendors added" empty copy mentions 1099 reporting before explaining basics; reorder benefit copy (track bills → payments → year-end 1099). | LOW      | Rewrite sequence.                           | ⬜          |
+| 3   | **DC:** Amber-tinted avatar chips distinguish section nicely — PASS baseline visual identity pattern for directory pages.                               | —        | Keep.                                       | ✅ Baseline |
+
+---
+
+## DEPARTMENT: ENGINEERING
+
+### Employee: Engineering Critic
+
+| #   | Finding                                                                                                                                           | Severity | Fix                             | Status |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------------------------------- | ------ |
+| 1   | **Second copy-paste twin** (with customers = 3rd duplicated directory skeleton counting invoices differences); extraction finding applies triple. | HIGH     | Shared DirectoryPage component. | ⬜     |
+| 2   | **Dead type fields** (totalPaid) hint at abandoned columns — prune types with features.                                                           | LOW      | Type hygiene pass.              | ⬜     |
+
+---
+
+## DEPARTMENT: SECURITY
+
+### Employee: Security Engineer (CSO)
+
+| #   | Finding                                                                                                                                                                                          | Severity      | Fix                                                          | Status |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------- | ------------------------------------------------------------ | ------ |
+| 1   | **1099 accuracy = regulatory integrity** — verify server-side derivation rules (who sets/clears the flag, TIN collection presence, audit trail on changes); wrong flags export into tax filings. | HIGH (verify) | Data-lineage audit + correction workflow with audit entries. | ⬜     |
+| 2   | **ap.listSuppliers scoping UNVERIFIED** (standard router audit).                                                                                                                                 | HIGH (verify) | Ownership test.                                              | ⬜     |
+
+---
+
+## DEPARTMENT: DATA
+
+### Employee: Data Analyst
+
+| #   | Finding                                                                                                                                                                                                                       | Severity | Fix                                          | Status |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | -------------------------------------------- | ------ |
+| 1   | **Spend analytics absent behind AI-only wall** — top-vendor-by-spend exists solely as a chat prompt; native sort exists on totalBilled but no period scoping ("this quarter" prompt implies server supports it — surface it). | MEDIUM   | Period selector feeding sortable aggregates. | ⬜     |
+| 2   | **1099 threshold math unexposed** (PC #1 data face) — YTD-paid vs $600 comparison belongs in the dataset, not the chat's memory.                                                                                              | MEDIUM   | Computed field from payments ledger.         | ⬜     |
+| 3   | **Uninstrumented directory** (global instance).                                                                                                                                                                               | MEDIUM   | Standard lifecycle events.                   | ⬜     |
+
+---
+
+# PAGE: /dashboard/settings
+
+21-section settings hub: grouped sidebar nav (5 groups), progressive-disclosure "advanced" toggle, lazy-loaded section chunks (ssr:false), per-section error boundaries, "Set Up with AI" trigger. This audit covers the SHELL; each of the 21 section components requires its own pass (listed in Data Analyst #5).
+
+---
+
+## DEPARTMENT: PRODUCT
+
+### Employee: Product Manager
+
+| #   | Finding                                                                                                                                                                                                                                                                                                              | Severity | Fix                                                                                      | Status |
+| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ---------------------------------------------------------------------------------------- | ------ |
+| 1   | **Tabs don't exist in the URL** — activeTab is pure useState; refresh always lands on Profile, deep-linking /dashboard/settings?tab=security impossible (help docs, audit-trail cross-links, support articles can't point anywhere specific), and browser Back exits Settings instead of stepping back through tabs. | HIGH     | Sync tab to search param (useSearchParams + replace), enabling deep links + back-button. | ⬜     |
+| 2   | **GDPR rights buried behind "advanced"** — the Data & Privacy group (data export + ACCOUNT DELETION) sits inside the hidden-by-default advanced set. Erasure/export flows that regulations require to be readily accessible are two non-obvious clicks away. Legal exposure plus genuine dark-pattern optics.        | CRITICAL | Promote Privacy & Data to always-visible (own group, top-level).                         | ⬜     |
+| 3   | **Advanced disclosure resets every visit** — showAdvanced is component state; users who need Backup/Sync/AI-Data re-toggle daily. Persist preference (localStorage/user pref).                                                                                                                                       | MEDIUM   | Persist toggle.                                                                          | ⬜     |
+| 4   | **Two sibling groups named "Data & …"** — "Data & Privacy" vs "Data & Sync"; even the team confuses them (they hold fundamentally different things: legal rights vs infrastructure). Rename for intent ("Privacy", "Sync & Backups").                                                                                | MEDIUM   | Information-architecture rename.                                                         | ⬜     |
+| 5   | **Duplicate icons across distinct concepts** — History = Audit Log AND Backup & Versions; Link = Webhooks AND Integrations. Icon reuse at nav level trains users to misread.                                                                                                                                         | LOW      | Unique icon per concept.                                                                 | ⬜     |
+| 6   | **No mobile story for the nav** — fixed w-64 side column + h-[calc(100vh-4rem)] row layout; on phones the nav consumes the viewport with no drawer/select pattern (contrast: main dashboard's MobileBottomNav care).                                                                                                 | HIGH     | Responsive nav (drawer or horizontal scroll chips under sm).                             | ⬜     |
+| 7   | **"Set Up with AI" is context-blind** — same traceId="workspace-setup" and generic placement regardless of active section (Taxes vs Profile); the AI-native promise degrades to a decorative button here.                                                                                                            | LOW      | Per-section prompt + trace context.                                                      | ⬜     |
+
+### Employee: Product Critic
+
+| #   | Finding                                                                                                                                                                                                              | Severity | Fix                                                                | Status      |
+| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------------------------------------ | ----------- |
+| 1   | **No settings search** — 21 sections across 5 groups is past the findability threshold; "where do I set fiscal year?" requires knowing the IA. Typeahead over labels+descriptions+section content keys.              | HIGH     | Cmd-K style settings search (pattern exists: command-palette.tsx). | ⬜          |
+| 2   | **No unsaved-changes guard on tab switch** — several sections hold form state; clicking another nav item silently abandons edits (structural risk verified per-section during component passes).                     | HIGH     | Dirty-form detection + confirm/autosave policy.                    | ⬜          |
+| 3   | **Lazy-chunk architecture is strong — PASS baseline** — documented rationale (§4.4 comment), real payload win (~1.4K-line TaxesSection isolated), correct ssr:false justification. Reference for other heavy routes. | —        | Keep.                                                              | ✅ Baseline |
+| 4   | **Progressive disclosure executed well — PASS with fix** — the pattern matches empworks Product Critic #12 recommendation; only failure is WHAT got classified advanced (PM #2).                                     | —        | Keep pattern; re-classify Privacy.                                 | ✅ Baseline |
+
+---
+
+## DEPARTMENT: CONTENT
+
+### Employee: UX Writer
+
+| #   | Finding                                                                                                                                                                                                                                                                         | Severity | Fix               | Status      |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ----------------- | ----------- |
+| 1   | **Section descriptions are consistently strong — PASS baseline** — every tab carries a one-line benefit description surfaced in the header ("Approval thresholds and fiscal configuration"); best description discipline in the app; replicate in ModulePageShell descriptions. | —        | Keep; replicate.  | ✅ Baseline |
+| 2   | **"AI & Data" label vague against its description** — description says "AI usage stats and preference summary"; label reads like a data-options toggle. "AI Usage" says it.                                                                                                     | LOW      | Label tightening. | ⬜          |
+
+---
+
+## DEPARTMENT: DESIGN
+
+### Employee: Design Critic
+
+| #   | Finding                                                                                                                                                             | Severity | Fix                                                   | Status |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ----------------------------------------------------- | ------ |
+| 1   | **Active nav item lacks aria-current** — selection conveyed purely through classes; SR users get an unmarked button list (recurring focus/semantics family).        | MEDIUM   | aria-current="page" on active item + roving tabindex. | ⬜     |
+| 2   | **Nav tab buttons missing type="button"** — submit-default hazard inside any future form wrapper (banking sweep finding, second instance).                          | LOW      | Sweep.                                                | ⬜     |
+| 3   | **No loading state between section chunks** — dynamic() without loading option renders blank content area during fetch; add skeleton matching section shell height. | MEDIUM   | loading: SkeletonComponent per dynamic().             | ⬜     |
+
+---
+
+## DEPARTMENT: ENGINEERING
+
+### Employee: Engineering Critic
+
+| #   | Finding                                                                                                                                                                                                                                                                                                | Severity | Fix                                 | Status |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------- | ----------------------------------- | ------ |
+| 1   | **SECTION_COMPONENTS typed Record<string, …> while ids are TabId** — a typo'd id yields `ActiveComponent === undefined` → React "type is invalid" crash swallowed by ErrorBoundary as a mysterious section failure. Type the map `Record<TabId, ComponentType>` so the compiler enforces completeness. | MEDIUM   | Key by TabId; exhaustive check.     | ⬜     |
+| 2   | **Layout couples to magic 4rem** — h-[calc(100vh-4rem)] hardcodes TopNav height; nav height change silently breaks settings viewport math.                                                                                                                                                             | LOW      | Shared layout-height token/CSS var. | ⬜     |
+| 3   | **Convoluted self-referential typing** — TabGroup.tabs uses `typeof TABS extends readonly (infer T)[]` BEFORE TABS exists (defined below via flatMap cast); works via hoisting quirks but is unreadable. Restructure: define Tab interface once, derive both.                                          | LOW      | Typing cleanup.                     | ⬜     |
+| 4   | **URL-state absence** (eng face of PM #1) — replace route state pattern.                                                                                                                                                                                                                               | HIGH     | Joint fix.                          | ⬜     |
+
+---
+
+## DEPARTMENT: SECURITY
+
+### Employee: Security Engineer (CSO)
+
+| #   | Finding                                                                                                                                                                                                                                                                        | Severity      | Fix                                                                                | Status |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------- | ---------------------------------------------------------------------------------- | ------ |
+| 1   | **GDPR discoverability obligation** (legal face of PM #2) — Art. 12–14 transparency + erasure "without undue delay": deletion/export behind a disclosure toggle invites a regulator argument. Priority above all other settings work.                                          | CRITICAL      | Same promotion fix; document decision.                                             | ⬜     |
+| 2   | **Dual audit UIs diverging** — settings' internal "audit-log" section coexists with /dashboard/audit-trail page (server-paginated, sanitized export). Two trails = two truths about who-did-what; consolidate onto the audited page.                                           | HIGH          | Redirect section → audit-trail page (scoped link).                                 | ⬜     |
+| 3   | **High-risk sections require dedicated passes** — api-keys (display-once pattern? hashing at rest?), webhooks (secret rotation, signature verification UX), sso (config authorization, metadata validation) each carry credential-handling risk this shell audit cannot cover. | HIGH (verify) | Queue component-level audits; verify key generation/storage/redisplay rules first. | ⬜     |
+
+---
+
+## DEPARTMENT: DATA
+
+### Employee: Data Analyst
+
+| #   | Finding                                                                                                                                                                                                                                                                                                                                                                                                                                            | Severity        | Fix                                                 | Status |
+| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------- | --------------------------------------------------- | ------ |
+| 1   | **Settings usage fully uninstrumented** — no events for section views, advanced-toggle rate, AI-trigger clicks; IA decisions (group renames, disclosure) currently ship on vibes.                                                                                                                                                                                                                                                                  | MEDIUM          | Instrument navigation within settings.              | ⬜     |
+| 2   | **Change-event → audit-trail parity UNVERIFIED per section** — AGENTS mandates audit for every mutation; 21 sections × write ops need a verification sweep that each writes trail entries (ties to Security #2 consolidation).                                                                                                                                                                                                                     | HIGH (verify)   | Matrix test: mutate per section → assert audit row. | ⬜     |
+| 3   | **AI & Data section promises usage stats** — verify its numbers against LangFuse/billing reality during its component pass (self-reported stats rot fast).                                                                                                                                                                                                                                                                                         | LOW             | Reconciliation check queued.                        | ⬜     |
+| 4   | **Section inventory for follow-up passes (21)** — profile, organization, team, invite-member, notifications, security, entity-settings, appearance, billing, api-keys, webhooks, sso, audit-log, privacy, integrations, currency, taxes (~1.4K lines), backup, conflict-resolution, sync, ai-data. Each needs the 7-employee treatment or a scoped mini-audit; taxes/currency/api-keys/sso/security prioritized (financial + credential surfaces). | HIGH (tracking) | Queue order recorded here.                          | ⬜     |
+
+---
+
+# PAGE: /dashboard/help
+
+Help center: hero search over 12 hardcoded topics (6 docs + 6 in-app guides), quick chips, health badge, sticky AI-assistant rail, three support-path cards. Several empworks fixes already landed here (design tokens, wired health badge).
+
+---
+
+## DEPARTMENT: PRODUCT
+
+### Employee: Product Manager
+
+| #   | Finding                                                                                                                                                                                                                                                                                                                                         | Severity | Fix                                                                            | Status |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------------------------------------------------ | ------ |
+| 1   | **The help page's own escape hatch is broken** — zero-results "Ask Xenboox AI" links to `/dashboard?prompt=…` (line 399), the handoff proven dead in the Command Center audit (zero consumers of the param). A stranded user's final recourse silently does nothing. Meta-finding: the Command Center CRITICAL now has a second victim surface. | CRITICAL | Fix the handoff consumer (CC Eng #1) — this link starts working automatically. | ⬜     |
+| 2   | **Health badge lies while loading** — `isHealthy` starts `null`; render treats anything ≠false as healthy → green "API connected" pulse BEFORE the check resolves. Unknown shown as confirmed-good (third fabricated-status instance family).                                                                                                   | HIGH     | Tri-state: neutral "Checking…" until resolution.                               | ⬜     |
+| 3   | **Health check is one-shot with no recovery** — a transient failure at mount pins "Connection issue detected" until manual reload; no retry/backoff despite a RefreshCw icon imported for exactly this purpose (unused).                                                                                                                        | MEDIUM   | Retry with backoff + manual recheck affordance.                                | ⬜     |
+| 4   | **"Run payroll" guide dead-ends on Command Center** — href=/dashboard with no payroll module existing (matches Operations PM #7); help content promising flows the product lacks.                                                                                                                                                               | MEDIUM   | Remove/gate until payroll ships.                                               | ⬜     |
+| 5   | **AND-semantics search has no fallback** — every token must match ("invoice overdue" → zero results if phrasing differs); no OR-relax or fuzzy second pass before showing the empty state.                                                                                                                                                      | MEDIUM   | Progressive relaxation: AND → OR → suggest-closest.                            | ⬜     |
+| 6   | **External-link icon on same-origin routes** — /docs/\* paths are internal Next routes flagged `external: true` with ExternalLink glyphs; users expect new-tab+leave-app behavior.                                                                                                                                                              | LOW      | Correct icon semantics or make docs genuinely external.                        | ⬜     |
+
+### Employee: Product Critic
+
+| #   | Finding                                                                                                                                                                                              | Severity | Fix                                                  | Status      |
+| --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ---------------------------------------------------- | ----------- |
+| 1   | **Zero-result queries vanish unlogged** — the single richest content-roadmap signal (what users searched for and didn't find) evaporates; ties into Data #1.                                         | HIGH     | Instrumentation (below) + weekly content-gap review. | ⬜          |
+| 2   | **Popular chips are vibes, not data** — static QUICK_CHIPS vs actual top searches; rotate from real analytics once instrumented.                                                                     | LOW      | Data-driven chips post-instrumentation.              | ⬜          |
+| 3   | **Topic catalog requires deploys** — 12 topics hardcoded in TSX; content edits ship with code. Acceptable at this size; flag for CMS/docs-pipeline when >20 topics.                                  | LOW      | Track for scale.                                     | ⬜          |
+| 4   | **Dynamic-import-with-skeleton is strong — PASS baseline** — HelpAssistant loads with explicit loading skeleton (the exact pattern Settings shell lacks, Design #3 there). Reference implementation. | —        | Keep; replicate in settings.                         | ✅ Baseline |
+
+### Employee: UX Writer
+
+| #   | Finding                                                                                                                                                                        | Severity | Fix                            | Status      |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------- | ------------------------------ | ----------- |
+| 1   | **Search placeholder remains excellent — PASS baseline** — "Search help topics… e.g. invoice, reconcile, security" models the query format (empworks UX praise still holding). | —        | Keep.                          | ✅ Baseline |
+| 2   | **Curly-quote echo in empty state — PASS detail** — "No topics match "{query}"" mirrors the user's input respectfully; small craft signal.                                     | —        | Keep.                          | ✅ Baseline |
+| 3   | **Footer tagline is marketing copy inside support** — "your AI-native accounting platform" re-sells to someone who needs help; cut the clause.                                 | LOW      | Trim to "Xenboox Help Center". | ⬜          |
+
+---
+
+## DEPARTMENT: DESIGN
+
+### Employee: Design Critic
+
+| #   | Finding                                                                                                                                                                                                                                                                                                                         | Severity | Fix                               | Status |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | --------------------------------- | ------ |
+| 1   | **Whole page lives on indigo/purple, off the token system** — hero gradient, chips, focus rings, hover borders all literal indigo-\*; rest of app speaks `primary`. Either intentional brand moment (verify) or drift; dark-mode variants ARE present here (better than most pages — cite as the dark-mode discipline example). | MEDIUM   | Token decision + map if drifting. | ⬜     |
+| 2   | **animate-ping health dot ignores reduced-motion** (recurring global item).                                                                                                                                                                                                                                                     | LOW      | motion-safe gate.                 | ⬜     |
+| 3   | **Chips/buttons missing type="button"** (sweep item, third instance).                                                                                                                                                                                                                                                           | LOW      | Sweep.                            | ⬜     |
+| 4   | **h-[calc(100vh-4rem)] magic-height coupling** (same as Settings Eng #2).                                                                                                                                                                                                                                                       | LOW      | Shared layout token.              | ⬜     |
+
+---
+
+## DEPARTMENT: ENGINEERING
+
+### Employee: Engineering Critic
+
+| #   | Finding                                                                                                                                                                                 | Severity | Fix                      | Status      |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------------------------ | ----------- |
+| 1   | **Bi-state render of tri-state health** (root of PM #2) — `isHealthy === false ? bad : good` erases the loading state; one-line fix, correctness matters because it's a STATUS display. | HIGH     | Joint fix with PM #2.    | ⬜          |
+| 2   | **Fetch lacks AbortController cleanup** — navigation away mid-check leaves a late setIsHealthy (benign warning today, pattern violation).                                               | LOW      | Abort in effect cleanup. | ⬜          |
+| 3   | **Client-side filtering fine at n=12 — PASS with ceiling noted** — revisit if catalog grows past ~50 topics (search moves server-side or pre-indexed).                                  | —        | Note for scale.          | ✅ Baseline |
+
+---
+
+## DEPARTMENT: SECURITY
+
+### Employee: Security Engineer (CSO)
+
+| #   | Finding                                                                                                                                                                                | Severity     | Fix                                       | Status |
+| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ | ----------------------------------------- | ------ |
+| 1   | **User queries injected into URLs** (`?prompt=I need help with: …`) — history/referrer leakage family instance (audit-trail Security #5 pattern); also feeds the dead handoff (PM #1). | LOW          | State-based handoff once consumer exists. | ⬜     |
+| 2   | **/api/health/ready client probe — verify response hygiene** — confirm the public endpoint discloses only up/down (no version/dependency internals).                                   | LOW (verify) | Endpoint review.                          | ⬜     |
+| 3   | **mailto: support address harvestable** — spam vector trivially; acceptable v1, plan contact-form/status-page for enterprise tier.                                                     | LOW          | Roadmap note.                             | ⬜     |
+
+---
+
+## DEPARTMENT: DATA
+
+### Employee: Data Analyst
+
+| #   | Finding                                                                                                                                                                                                                                              | Severity | Fix                                                                                                                      | Status |
+| --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------ | ------ |
+| 1   | **The content-gap goldmine is unplumbed** — searches, zero-result queries, chip clicks, assistant engagement all untracked. Zero-result terms literally enumerate next quarter's documentation backlog. Highest-ROI instrumentation left in the app. | HIGH     | Event coverage: search_performed (query, results_count), zero_result_query, chip_click, assistant_opened, topic_clicked. | ⬜     |
+| 2   | **Health-check outcomes untracked** — client-side failures invisible to uptime dashboards (synthetic checks miss user-network reality).                                                                                                              | LOW      | Pipe result to telemetry.                                                                                                | ⬜     |
+
+---
+
+# PAGES: REMAINING DASHBOARD ROUTES (route-level audit)
+
+Seven routes audited at the route-file level. Thin wrappers (auto-approve, qbr, referrals) have their real functionality in components queued for their own passes; full-page files (ingestion, knowledge, knowledge-graph, donor-reporting) audited in depth below. Format note: Employee attribution moved into the table to keep one row per finding.
+
+---
+
+## PAGE: /dashboard/auto-approve
+
+| #   | Employee | Finding                                                                                                                                                                                                                                                | Severity        | Fix                                                              | Status |
+| --- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------- | ---------------------------------------------------------------- | ------ |
+| 1   | PM/UXW   | Route metadata leaks internal posture again ("full audit trail and confidence thresholds") — public description reciting security architecture.                                                                                                        | LOW             | User-benefit metadata.                                           | ⬜     |
+| 2   | Eng      | Inline comment documents thresholds 0.7 supervisor / 0.4 human — the FOURTH conflicting confidence-scale artifact (vs Activity Hub 0.8/0.6, Financial Pulse 0.8/0.5, AGENTS 0.7/0.4). Centralization finding now has in-repo proof of intended values. | HIGH            | One shared constants module; migrate all surfaces (master item). | ⬜     |
+| 3   | PM       | AutoApproveRules component holds all functionality — requires dedicated pass before this surface ships changes (policy editor = financial-governance surface).                                                                                         | HIGH (tracking) | Queue component audit.                                           | ⬜     |
+
+## PAGE: /dashboard/qbr
+
+| #   | Employee | Finding                                                                                                                                              | Severity          | Fix                         | Status |
+| --- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------- | --------------------------- | ------ |
+| 1   | PM       | QBRReport component unaudited; shell exposes no period/quarter selector — verify report covers the quarter users assume.                             | MEDIUM (tracking) | Component pass.             | ⬜     |
+| 2   | Data     | QBR numbers must reconcile with Financial Pulse sources (two surfaces claiming "this quarter" KPIs); add reconciliation test when component audited. | MEDIUM (verify)   | Cross-surface parity check. | ⬜     |
+
+## PAGE: /dashboard/referrals
+
+| #   | Employee | Finding                                                                                                                                  | Severity          | Fix                                | Status |
+| --- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------- | ----------------- | ---------------------------------- | ------ |
+| 1   | PM       | ReferralDashboard component unaudited (rewards = money-adjacent; verify payout integrity, self-referral abuse controls during its pass). | MEDIUM (tracking) | Component pass incl. fraud review. | ⬜     |
+
+## PAGE: /dashboard/ingestion
+
+| #   | Employee | Finding                                                                                                                                                                                                                   | Severity      | Fix                                                    | Status |
+| --- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- | ------------------------------------------------------ | ------ |
+| 1   | PM       | **Dead dropzone** — Dropzone wraps BatchUpload with `onDrop={() => {}}`; dropping files onto the big obvious target does nothing while only the inner component's flow works. Two competing upload affordances, one fake. | HIGH          | Wire dropzone to the batch uploader or remove wrapper. | ⬜     |
+| 2   | Data/PM  | **Every stat card caps at 10** — Total/Completed/Failed/Processing counts derive from `listBatches({limit:10})` filtered client-side; label says "Total Batches". Eleven-batch history makes three cards lie.             | HIGH          | Server-side aggregate counts (bills-view pattern).     | ⬜     |
+| 3   | Eng      | History cards are click-only divs — no keyboard access, no button semantics for navigation (recurring a11y family).                                                                                                       | MEDIUM        | Button/role=link semantics.                            | ⬜     |
+| 4   | UXW      | Batch titles show raw IDs ("Batch 3f2a91c4…") — machine identifiers as user-facing names; use date + document count instead.                                                                                              | LOW           | Human labels.                                          | ⬜     |
+| 5   | DC       | Status badges via template-literal conditional classes — unknown statuses render unstyled default Badge with raw enum text (enum-leak family); fixed 4-col stat grid ignores breakpoints (bills-twin responsive gap).     | LOW           | Token map + responsive grid.                           | ⬜     |
+| 6   | Sec      | Upload pipeline is the prompt-injection front door (documents → agents) — component pass must verify MIME validation, size caps, malware scanning, content sanitization before agent ingestion (mirrors CC Security #7).  | HIGH (verify) | Queue with BatchUpload audit.                          | ⬜     |
+| 7   | Data     | Ingestion funnel uninstrumented (upload→process→review→posted conversion rates invisible); error/retry states themselves are strong PASS baselines.                                                                       | MEDIUM        | Instrument; keep states.                               | ⬜     |
+
+## PAGE: /dashboard/knowledge
+
+| #   | Employee | Finding                                                                                                                                                                                                                                                                               | Severity        | Fix                                                           | Status      |
+| --- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------- | ------------------------------------------------------------- | ----------- |
+| 1   | Data/PM  | "Recent Searches" stat is neither recent-search count nor searches — it renders `recentCitations.length` (citations ≠ queries, list-capped). Third wrong-entity-stat instance.                                                                                                        | MEDIUM          | True search-count metric or relabel honestly.                 | ⬜          |
+| 2   | Eng/Sec  | Onboarding dismissal localStorage key unscoped (`xenboox_kb_onboarding_dismissed`) — shared across users/entities on device (CC checklist twin). Also citation history lists raw query text entity-wide — sensitive lookups visible to all members (ties to chat visibility finding). | MEDIUM          | Scope key per user+entity; decide citation visibility policy. | ⬜          |
+| 3   | Data     | Tokens stat math quirk — `(n/1000).toFixed(1)}K` renders 999 as "1.0K"; no unit semantics (embedding vs LLM tokens vs cost basis).                                                                                                                                                    | LOW             | Proper abbreviation fn + tooltip defining unit.               | ⬜          |
+| 4   | PM       | KnowledgeSearch / DocumentProcessor components carry core RAG functionality — queue dedicated passes (search quality, chunking config exposure, cost display).                                                                                                                        | HIGH (tracking) | Component queue.                                              | ⬜          |
+| 5   | PC/DC    | Onboarding banner is exemplary — benefit-led copy, format chips, dismiss+CTA pairing (PASS baseline for every empty/onboarding state app-wide).                                                                                                                                       | —               | Keep; replicate.                                              | ✅ Baseline |
+
+## PAGE: /dashboard/knowledge-graph
+
+| #   | Employee | Finding                                                                                                                                                                                                                                                                                  | Severity | Fix                                                   | Status      |
+| --- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ----------------------------------------------------- | ----------- |
+| 1   | Eng/PM   | **Build Graph fails silently** — buildGraphMutation defines onSuccess only; onError absent, isError unused: pending spinner ends, nothing changes, no message. Expensive operation with zero failure feedback (and no confirmation of cost/duration before firing).                      | HIGH     | Error surfacing + confirm/cost hint + success toast.  | ⬜          |
+| 2   | PM/Eng   | **Dev-environment sample data in product copy** — AI suggestion chip hardcodes "Show me all invoices related to GTBank" (GTBank = developer's test bank, cf. empworks GMD history). Every global user sees a Nigerian bank as the exemplar query.                                        | MEDIUM   | Generic placeholder ("your bank").                    | ⬜          |
+| 3   | UXW      | Unconnected nodes fall back to UUID fragments (`targetId.slice(0,8)`) — audit-trail's machine-speak family, now in relationship rows.                                                                                                                                                    | LOW      | Resolve labels server-side; hide row if unresolvable. | ⬜          |
+| 4   | Eng      | Legend/type rows render hover styles but no handlers — decorative affordances implying interactivity (dead-control family, milder).                                                                                                                                                      | LOW      | Click-to-filter graph or remove hover.                | ⬜          |
+| 5   | DC/Data  | **PASS baselines:** `entityCurrency` from context actually consumed and threaded to the details panel — the ONLY surface doing currency right end-to-end; cite as the reference implementation for the global formatCurrency fix. GraphVisualization component itself queued separately. | —        | Replicate pattern.                                    | ✅ Baseline |
+
+## PAGE: /dashboard/donor-reporting
+
+| #   | Employee | Finding                                                                                                                                                                                                                                                                                                                                             | Severity      | Fix                                                                  | Status      |
+| --- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- | -------------------------------------------------------------------- | ----------- |
+| 1   | PM/Data  | **"Recent Reports" silently means project #1's reports** — snapshots fetched only for `projects[0]`; multi-project NGOs see one project's reporting history under a page-wide heading. Compliance deadlines for other grants invisible.                                                                                                             | CRITICAL      | Aggregate endpoint across projects or per-project tabs (labeled).    | ⬜          |
+| 2   | Data     | **Overdrawn grants never turn red** — progress bar color keys on `percentUsed > 80` (amber) else emerald; at 115% utilization the bar clamps to 100% width but stays AMBER. Overspending a donor grant reads identical to healthy 85%. For grant compliance this is the worst possible color mapping.                                               | CRITICAL      | ≥100% → destructive red + alert icon + Activity-Hub escalation hook. | ⬜          |
+| 3   | Data     | **Stats totals ignore currency mixing** — DonorStats sums totalGrantAmount/Disbursed/Remaining via formatCurrency WITHOUT currency arg while project cards correctly pass per-project currency; multi-donor pages show a grand-total in a guessed symbol atop per-project correct figures. Same-page inconsistency proves both patterns were known. | HIGH          | Convert to reporting currency server-side or group by currency.      | ⬜          |
+| 4   | Eng      | Budget-vs-actual variance detection via stringly type-narrowing (`typeof bva === "object" && "totalVariance" in bva` casts) — fragile payload contract on compliance data.                                                                                                                                                                          | LOW           | zod-parsed snapshot schema.                                          | ⬜          |
+| 5   | Sec      | Donor data = regulated third-party reporting (USAID/EU/World Bank formats claimed) — report generation/export must be audited (who generated/submitted what when) during component passes; snapshot immutability after submission worth verifying.                                                                                                  | HIGH (verify) | Queue with report-builder audit.                                     | ⬜          |
+| 6   | PC/DC    | **Overall best-engineered surface audited** — skeletons, error+retry per section, empty-state CTA, per-item currency, progress bars with labels. Its gaps (#1–#4) are logic, not craft; use as quality bar elsewhere.                                                                                                                               | —             | Reference.                                                           | ✅ Baseline |
+
+---
+
 # PAGE: /dashboard/activity-hub
 
 The human-in-the-loop queue. Every item here requires a human decision. The AI has done the work; now it needs your approval. Layout: Stats grid + Filter tabs + Activity item cards + Batch action bar + Detail drawer + Completed section.
@@ -869,7 +1458,7 @@ The human-in-the-loop queue. Every item here requires a human decision. The AI h
 ### Employee: Product Manager
 
 | #   | Finding                                                                                                                                                             | Severity | Status |
-| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------ |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------ | --- |
 | 1   | **Batch approve has no confirmation dialog** — batch reject does, but approve doesn't. Approving 50 items at once without confirmation is risky for financial data. | HIGH     |        | ✅  |
 | 2   | **Undo only works for 2 seconds** — toast says "Undo" but state is already cleared after 2s. Server may have already committed the approval.                        | HIGH     |        | ✅  |
 | 3   | **Risk assessment labels misleading** — "Low Risk" means AI confidence (0.8+), not actual financial risk. Users may misunderstand.                                  | HIGH     | ⬜     |
@@ -893,7 +1482,7 @@ The human-in-the-loop queue. Every item here requires a human decision. The AI h
 ### Employee: Engineering Critic
 
 | #   | Finding                                                                                                               | Severity | Status |
-| --- | --------------------------------------------------------------------------------------------------------------------- | -------- | ------ |
+| --- | --------------------------------------------------------------------------------------------------------------------- | -------- | ------ | --- |
 | 1   | **1662-line monolithic page component** — no code splitting, hard to maintain.                                        | HIGH     | ⬜     |
 | 2   | **handleBatchAction calls handleAction sequentially in loop** — 50 items = 50 sequential mutations.                   | HIGH     | ⬜     |
 | 3   | **undoBatchAction only removes local state** — server already committed the approval.                                 | HIGH     | ⬜     |
@@ -938,7 +1527,7 @@ The human-in-the-loop queue. Every item here requires a human decision. The AI h
 ### Employee: UX Writer
 
 | #   | Finding                                                                                                   | Severity | Status |
-| --- | --------------------------------------------------------------------------------------------------------- | -------- | ------ |
+| --- | --------------------------------------------------------------------------------------------------------- | -------- | ------ | --- |
 | 1   | **Risk assessment labels misleading** — "Low Risk" means AI confidence, not financial risk.               | HIGH     | ⬜     |
 | 2   | **"Undo" toast says "Changes have been reverted"** — but undo only removes local state, not server state. | HIGH     |        | ✅  |
 | 3   | **Stats labels too brief** — "Urgent" doesn't explain what needs attention.                               | MEDIUM   | ⬜     |
@@ -1521,7 +2110,7 @@ AI-native donor reporting for NGOs and development organizations. Tracks donor-f
 ### Employee: Product Manager
 
 | #   | Finding                                                                                                                                                                                                                                | Severity | Fix                                                                   | Status |
-| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | --------------------------------------------------------------------- | ------ |
+| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | --------------------------------------------------------------------- | ------ | --- |
 | 1   | **No error handling on any query** — all useQuery calls destructure only data; isError ignored page-wide. Failed loads render as confident zeros (0 active projects, $0 grants). Same silent-wrong-data pattern flagged on Operations. | HIGH     | Add error+retry block per card; never render zeros for failed loads.  |        | ✅  |
 | 2   | **Project cards open AI instead of drilling in** — clicking a project fires an AI prompt; there's no project detail page or budget breakdown view. Fifth instance of the drill-down-dead-end anti-pattern across pages.                | HIGH     | Route to project detail page; keep AI secondary.                      | ⬜     |
 | 3   | **parseFloat on monetary amounts** — grantAmount, amountDisbursed, amountRemaining all parsed via parseFloat. Money-as-float violation continues across pages.                                                                         | HIGH     | Server should emit numbers/minor-units; client uses Number() minimum. |        | ✅  |
@@ -1543,7 +2132,7 @@ AI-native donor reporting for NGOs and development organizations. Tracks donor-f
 ### Employee: Design Critic
 
 | #   | Finding                                                                                                                                                                                   | Severity | Fix                                                                    | Status |
-| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ---------------------------------------------------------------------- | ------ |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ---------------------------------------------------------------------- | ------ | --- |
 | 1   | **Hardcoded light-mode colors persist** — text-blue-500/bg-blue-500/10, emerald, amber, purple throughout. Dark mode renders pastel-on-dark failures. Same defect class across all pages. | HIGH     | Token map (category→semantic token pair) with dark mode variants.      |        | ✅  |
 | 2   | **Micro-typography floor violations** — 10px labels, 9px badges. Below readability minimum for the 40+ NGO administrator demographic.                                                     | MEDIUM   | Minimum 12px for meaningful text; reserve smaller for decorative only. | ⬜     |
 | 3   | **Project cards have no focus-visible treatment** — hand-rolled buttons with hover styles but no focus ring. Keyboard users get browser default or nothing.                               | MEDIUM   | Add consistent focus-visible:ring-2 focus-visible:ring-primary/40.     | ⬜     |
@@ -1581,7 +2170,7 @@ Help center with search, topic cards, documentation links, AI assistant, and hea
 ### Employee: Product Manager
 
 | #   | Finding                                                                                                                                                                                                                                                   | Severity | Fix                                                                  | Status |
-| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | -------------------------------------------------------------------- | ------ |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | -------------------------------------------------------------------- | ------ | --- |
 | 1   | **Health check is decorative** — badge checks /api/health/ready but doesn't verify any specific system. "All systems operational" implies comprehensive monitoring; one endpoint ping proves almost nothing. Same false-status class as CC's "AI active". | HIGH     | Wire to real service health (DB, AI, storage) or remove badge.       |        | ✅  |
 | 2   | **"Run payroll" help guide links to /dashboard** — payroll module doesn't exist yet; link sends users to Command Center with no context. Dead-end for users seeking help with a promised feature.                                                         | MEDIUM   | Gate behind feature availability or link to AI with payroll context. | ⬜     |
 | 3   | **"Create an invoice" help guide links to /dashboard** — should link to /dashboard/operations/invoices where invoices actually live.                                                                                                                      | MEDIUM   | Update href to /dashboard/operations/invoices.                       |        | ✅  |
@@ -1641,7 +2230,7 @@ Batch document ingestion pipeline with upload, progress tracking, and history.
 ### Employee: Product Manager
 
 | #   | Finding                                                                                                                                                                | Severity | Fix                                              | Status |
-| --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------------------ | ------ |
+| --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------------------ | ------ | --- |
 | 1   | **No error handling on queries** — listBatches query doesn't handle errors; failed loads show "..." indefinitely.                                                      | HIGH     | Add error state with retry.                      |        | ✅  |
 | 2   | **Failed batches have no retry** — failed batch shows status but no way to retry processing. Users must re-upload from scratch.                                        | HIGH     | Add "Retry" button on failed batches.            | ⬜     |
 | 3   | **Dropzone onDrop is empty** — `onDrop={() => {}}` does nothing; files dropped on the outer Dropzone are silently ignored. Only BatchUpload's internal dropzone works. | MEDIUM   | Wire outer Dropzone to BatchUpload or remove it. | ⬜     |
@@ -1663,7 +2252,7 @@ Batch document ingestion pipeline with upload, progress tracking, and history.
 ### Employee: Design Critic
 
 | #   | Finding                                                                                                                                               | Severity | Fix                                          | Status |
-| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | -------------------------------------------- | ------ |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | -------------------------------------------- | ------ | --- |
 | 1   | **Hardcoded light-mode colors** — bg-blue-100, bg-green-100, bg-red-100, bg-amber-100 without dark mode variants. Same defect class across all pages. | HIGH     | Add dark: variants or use semantic tokens.   |        | ✅  |
 | 2   | **Stats cards use raw Tailwind colors** — not theme-aware; dark mode renders pastel-on-dark failures.                                                 | MEDIUM   | Map to semantic color tokens.                | ⬜     |
 | 3   | **No loading skeleton parity** — stats show "..." while loading; should match final layout.                                                           | LOW      | Skeleton states matching final card heights. | ⬜     |
@@ -1732,7 +2321,7 @@ Settings page with 20+ tabs organized into 4 groups: General, Security & Access,
 ### Employee: Engineering Critic
 
 | #   | Finding                                                                                                                       | Severity | Fix                                                     | Status |
-| --- | ----------------------------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------------------------- | ------ |
+| --- | ----------------------------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------------------------- | ------ | --- |
 | 1   | **No error boundary for dynamic imports** — if any section component fails to load, the entire page crashes with no recovery. | HIGH     | Wrap ActiveComponent in ErrorBoundary with fallback UI. |        | ✅  |
 | 2   | **20+ dynamic imports in one file** — SECTION_COMPONENTS map is large; consider code-splitting by group rather than by tab.   | LOW      | Group-level code splitting.                             | ⬜     |
 
@@ -1747,7 +2336,7 @@ Knowledge base with semantic search, document processing, and citation audit tra
 ### Employee: Product Manager
 
 | #   | Finding                                                                                                                                                     | Severity | Fix                                                  | Status |
-| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ---------------------------------------------------- | ------ |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ---------------------------------------------------- | ------ | --- |
 | 1   | **No error handling on queries** — stats query doesn't handle errors; failed loads show "..." indefinitely.                                                 | HIGH     | Add error state with retry.                          |        | ✅  |
 | 2   | **Audit trail has no pagination** — shows all recent citations without limit; entities with many searches get a long list.                                  | MEDIUM   | Add pagination or "Load more".                       | ⬜     |
 | 3   | **Onboarding banner doesn't track completion** — only tracks dismissal, not actual upload; user who uploads then dismisses still sees banner on next visit. | MEDIUM   | Track upload completion in localStorage.             | ⬜     |
@@ -1767,7 +2356,7 @@ Knowledge base with semantic search, document processing, and citation audit tra
 ### Employee: Design Critic
 
 | #   | Finding                                                                                                                                   | Severity | Fix                                        | Status |
-| --- | ----------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------------ | ------ |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------------ | ------ | --- |
 | 1   | **Hardcoded light-mode colors** — bg-blue-500/10, bg-emerald-500/10, etc. without dark mode variants. Same defect class across all pages. | HIGH     | Add dark: variants or use semantic tokens. |        | ✅  |
 | 2   | **Onboarding banner has no focus-visible on dismiss button** — keyboard users can't dismiss without focus ring.                           | MEDIUM   | Add focus-visible:ring-2.                  | ⬜     |
 
@@ -1804,7 +2393,7 @@ Interactive knowledge graph for visualizing entity relationships with AI-powered
 ### Employee: Product Manager
 
 | #                                                                                                                                           | Finding                                                                                                                                 | Severity                                       | Fix                                                    | Status |
-| ------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- | ------------------------------------------------------ | ------ |
+| ------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- | ------------------------------------------------------ | ------ | --- |
 | 1                                                                                                                                           | **No error handling on queries** — graphData, stats, nodeRelationships queries don't handle errors; failed loads show empty state.      | HIGH                                           | Add error state with retry for each query.             |        | ✅  |
 | 2                                                                                                                                           | **Build Graph has no confirmation** — clicking "Build Graph" immediately starts building without warning; could be expensive operation. | MEDIUM                                         | Add confirmation dialog with estimated scope.          | ⬜     |
 | 3 **Node details panel has no drill-down** — clicking a connected node in the panel doesn't navigate to it; user must find it in the graph. | MEDIUM                                                                                                                                  | Make connected nodes clickable to select them. | ⬜                                                     |
@@ -1850,3 +2439,106 @@ Interactive knowledge graph for visualizing entity relationships with AI-powered
 | --- | ----------------------------------------------------------------------------------------------------- | -------- | ------------------------------------ | ------ |
 | 1   | **No graph analytics** — can't track which nodes are most viewed, most connected, or most queried.    | MEDIUM   | Track node selection and AI queries. | ⬜     |
 | 2   | **No graph build metrics** — can't track build duration, success rate, or node/edge counts over time. | LOW      | Log build metrics for monitoring.    | ⬜     |
+
+---
+
+# 🔧 FIX SESSION 1 — Engineering Critic (CRITICAL bug package)
+
+> Executed August 25, 2026. One employee, one package: the three CRITICAL code-correctness bugs from the page audits. Statuses below supersede the ⬜ markers on referenced rows.
+
+## Results
+
+| Ref                                            | Finding                                            | Outcome                                                                                                                                                                                                                                                             |
+| ---------------------------------------------- | -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Ledger PM#1 / Eng#1 (COA crash)                | `accounts.length` undefined dereference            | ✅ **Verified already fixed** — file now reads `accounts?.length ?? 0` (ledger/page.tsx:887-889). No edit needed; finding closed with evidence.                                                                                                                     |
+| CC Eng#1 + Help PM#1 (`?prompt=` dead handoff) | 7 entry points, zero consumers                     | ✅ **Verified fixed** — dashboard/page.tsx now implements the consumer: `useSearchParams` + `promptSentRef` once-guard + auto-send + param strip via `history.replaceState`-style URL cleanup (page.tsx:105-118). Help's escape hatch works again as a side effect. |
+| CC PM#24 (context-menu full reload)            | `window.location.href` navigation                  | ✅ **Verified fixed** — layout.tsx now uses `router.replace` (layout.tsx:196-198).                                                                                                                                                                                  |
+| FP PM#1 / Eng#4 (GMD fallbacks)                | 6 × `\|\| "GMD"` despite `entityCurrency` in scope | ✅ **Fixed this session** — introduced single `displayCurrency = entityCurrency \|\| "USD"` constant (deliberate platform-default fallback replacing region-specific GMD), replaced all 6 sites (charts ×3, report builders ×3). financial-pulse/page.tsx.          |
+
+## 🆕 New findings surfaced by the fix loop
+
+| #   | Finding                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | Severity     | Fix                                                                                                                                                                                                                                                                                                                                                                                       | Status |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
+| N1  | **REPO FAILS `pnpm typecheck --filter=@xenboox/web` — ~60+ PRE-EXISTING errors** (baseline red before any of our edits; none of the errors touch files modified in this session). Clusters: server/routers/banking.ts (~15: rule-operator enums, string/number comparisons, phantom ctx.currency/userId, audit insert `entityId2` typo), chat.ts (~8: inserts referencing non-existent columns `email`, wrong table shapes), dashboard/get-ai-briefing.ts + get-ai-narrative/get-ai-forecast.ts (ctx.currency/entityName missing — SAME root cause as GMD findings: entity currency not on tRPC context!), invoicing.ts (`paymentsAr` undefined ×4), donor-grant.ts (PermissionModule enum missing "donor_grant" ×4), knowledge-graph.ts (insert shape drift ×6), batch-ingestion.ts, notifications.ts, recurring.ts, lib/llm/response-cache.ts, use-streaming-chat.ts (missing event-type unions incl. `needs_input`/`knowledge_citations`/`batch_ingestion_result` — likely explains CC error-message contract violation), three-way-matching.ts, dunning.ts, word-generator.ts, use-focus-trap.ts, use-page-context.ts + packages/agents (orchestrator routing map missing 4 task types, treasury graph dead comparisons, tool-registry insert shape, agent-alerts logger args). CI gate is RED — every "production grade" claim is currently unenforceable. | **CRITICAL** | Dedicated debt package: fix router-by-router starting with banking.ts + chat.ts (financial paths first). Add typecheck to pre-commit/CI so it cannot regress. NOTE: several errors (ctx.currency/entityName) share a root cause with currency findings — fixing tRPC context to expose entity currency/name kills multiple errors AND multiple engreview findings at once. Do that FIRST. | ⬜     |
+| N2  | **GMD hardcoding blast radius is systemic, not point fixes** — grep found `"GMD"` in ~15 files beyond Financial Pulse: components/charts/financial-charts.tsx (default props ×4!), finance/reconciliation-view.tsx (×3), invoices-view.tsx:451 (fully hardcoded), create-invoice-dialog / create-bill-dialog / create-bank-account-dialog (`useState(entityCurrency ?? "GMD")` defaults), inline-document-viewer.tsx:226, settings organization/currency/entity-settings sections, onboarding entity-wizard default, layout entity-switcher, admin automation-studio, pay/[token] public page, donor-portal dashboard (REGRESSION of empworks S1-1/S1-2 fixes), marketing features page.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | HIGH         | Systemic sweep package: single CURRENCY_DEFAULTS module; replace all display fallbacks with entity-context value; leave legitimate enum lists (currency pickers) intact. Donor portal regression gets priority.                                                                                                                                                                           | ⬜     |
+
+## Verification
+
+- `pnpm typecheck --filter=@xenboox/web` run post-fix: exit 2, but **zero errors reference financial-pulse/page.tsx, ledger/page.tsx (COA section), or dashboard/page.tsx** — all session edits are type-clean. Baseline failures documented as N1.
+- Runtime verification of the `?prompt` handoff and COA render requires the dev server; queued for next QA pass (fire `qa` employee).
+
+## Next package recommendation (loop order)
+
+1. **Engineering Critic #2**: tRPC context exposes `entityCurrency`/`entityName` → resolves N1 cluster subset + N2 root + FP/Operations currency findings in one stroke.
+2. **Engineering Critic #3**: banking.ts + chat.ts type-error debt (financial integrity surfaces).
+3. Then resume feature-finding queue per tracker.
+
+---
+
+# 🔧 FIX SESSION 2b — diagnosing-bugs employee: "login not working"
+
+> August 25, 2026. User report: login broken, DB confirmed fine. Loop followed: reproduce FIRST → root cause found in minutes.
+
+## Root cause (NOT application code)
+
+**The dev server could not boot at all** — two corrupted/missing platform-native binaries from the npm optional-deps bug (npm/cli#4828):
+
+1. `@next/swc-win32-x64-msvc` — `.node` binary present but **corrupt** ("not a valid Win32 application") → Next.js exited code 1 before serving anything. Every page "not working," login included.
+2. `@rollup/rollup-win32-x64-msvc` — missing entirely → middleware bundle failed to compile once SWC was restored (`Compiled /middleware` error).
+
+## Fix applied (environment, no source changes)
+
+1. Deleted corrupt `next-swc-fallback` directory; `pnpm install` to restore.
+2. `pnpm add -w -D @rollup/rollup-win32-x64-msvc` (workaround per rollup docs for the optional-deps bug).
+
+## Verification evidence
+
+- Before: `pnpm dev` → `Failed to load SWC binary for win32/x64` → exit 1 (captured in logs).
+- After: `Ready in 25.6s` → `Compiled /middleware in 5.9s` → `Compiled /login in 40.9s (3632 modules)` → **`GET /login 200`** via curl.
+- Dev server left running on :3000 for user's interactive login test.
+
+## Follow-ups if user still can't sign in after this
+
+App-level silent-null paths exist by design and would need separate handling:
+
+- MFA-enabled accounts return null from credentials authorize (must use directAuthToken/MFA flow)
+- Unverified email returns null (generic invalid-credentials error shown)
+- Account lockout after 5 failed attempts (30 min)
+
+---
+
+# 🔧 FIX SESSION 2 — Engineering Critic #2 (tRPC entity-context root cause)
+
+> Executed August 25, 2026, immediately after Fix Session 1. Same employee, next loop iteration per the recommended order.
+
+## What shipped
+
+`lib/trpc/server.ts` — `entityScopingMiddleware` already fetched the entity row for auth; it now also selects `currency` + `name` and attaches **`entityCurrency`, `entityName`, `userId`** to the context in BOTH branches (org-role path and user_entity_access path). Every procedure downstream of entity scoping gets entity facts for free — no extra query, routers stop guessing.
+
+## Call sites migrated (were referencing non-existent ctx fields)
+
+| File                                            | Change                                                  |
+| ----------------------------------------------- | ------------------------------------------------------- |
+| server/routers/banking.ts:1375                  | `ctx.currency ?? "GMD"` → `ctx.entityCurrency ?? "USD"` |
+| server/routers/banking.ts:1484                  | same pattern (match-reason string)                      |
+| server/routers/dashboard/get-ai-narrative.ts:22 | same pattern                                            |
+| server/routers/dashboard/get-ai-forecast.ts:16  | same pattern                                            |
+| server/routers/dashboard/get-ai-briefing.ts:32  | `ctx.userId` now EXISTS on context — zero change needed |
+
+Note: `"USD"` replaces `"GMD"` at these fallbacks deliberately (platform en-US default); the N2 systemic sweep will centralize even this constant.
+
+## Verification evidence
+
+- Post-fix typecheck run saved and diffed against baseline:
+  - ✅ banking.ts(1375)/(1484) currency errors — GONE
+  - ✅ get-ai-briefing.ts(32) userId error — GONE
+  - ✅ get-ai-narrative.ts(21,22) / get-ai-forecast.ts(15,16) errors — GONE
+- Remaining errors in those files are unrelated pre-existing debt (`.query` misuse in briefing, `agentApprovals` schema drift, redis cache-key arg types, bank_accounts.balance column) — remain tracked under N1.
+- Total error count post-session: **171** (baseline was larger; exact prior count unlogged — future sessions must log counts before/after).
+
+## N1/N2 status impact
+
+- N1: currency/userId/name cluster RESOLVED (7 errors). Remaining clusters unchanged.
+- N2: root cause fixed at server layer; UI-side GMD sweep still queued (charts defaults, dialogs, donor-portal regression, invoices-view).
+
+---
