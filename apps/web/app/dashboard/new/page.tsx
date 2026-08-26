@@ -6,7 +6,6 @@ import {
   CalendarCheck,
   HandCoins,
   Landmark,
-  Sparkles,
   Wallet,
   Bot,
   MessageSquare,
@@ -16,14 +15,13 @@ import {
 
 import { useEntity } from "@/lib/entity-context";
 import { trpc } from "@/lib/trpc/client";
-import { cn, formatCurrency } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import { useDashboardChat } from "@/lib/hooks/use-dashboard-chat";
 import { activationEvents } from "@/lib/analytics/feature-tracking";
 import { ErrorBoundary } from "@/components/shared/error-boundary";
 import { ConversationThread } from "@/components/dashboard/command-center";
 import { AgentStream } from "@/components/ai-native-v2/stream-feed";
 import { CommandBar } from "@/components/ai-native-v2/command-bar";
-import { MetricNarrative } from "@/components/ai-native-v2/metric-narrative";
 
 // ─── Mission Control (/dashboard/new) ─────────────────────────────────────
 //
@@ -97,13 +95,10 @@ export default function MissionControlPage() {
   };
 
   // ── Context strip data ────────────────────────────────────────────────
-  const { data: dash, isLoading: dashLoading } =
-    trpc.dashboard.getDashboardData.useQuery({}, { enabled: !!entityId });
   const { data: closeStatus } = trpc.fiscal.getCurrent.useQuery(undefined, {
     enabled: !!entityId,
   });
 
-  const health = dash?.businessHealth;
   const hasMessages = messages.length > 0;
   const isChatting = hasMessages || isStreaming;
 
@@ -235,7 +230,7 @@ export default function MissionControlPage() {
         </div>
 
         {/* ── Workforce rail — switchable Agents / Conversations ───── */}
-        <aside className="hidden w-[340px] shrink-0 flex-col border-l border-border/40 bg-card/30 sm:flex">
+        <aside className="hidden h-full w-[340px] shrink-0 flex-col border-l border-border/40 bg-card sm:flex">
           <AgentConversationsRail
             entityId={entityId ?? ""}
             onSelectConversation={(id) => {
@@ -270,12 +265,12 @@ function AgentConversationsRail({
   );
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
-      {/* Tabs — fixed, never scroll */}
+    <div className="flex h-full min-h-0 w-full flex-col bg-card">
+      {/* Tabs — fixed, never scroll, full width bg same as panel */}
       <div
         role="tablist"
         aria-label="Agents and conversations"
-        className="sticky top-0 z-10 flex items-center gap-1 border-b border-border/40 bg-card/80 px-2 py-2 backdrop-blur-sm"
+        className="flex w-full items-center gap-1 border-b border-border/40 bg-card p-1.5"
       >
         <button
           type="button"
@@ -283,10 +278,10 @@ function AgentConversationsRail({
           aria-selected={active === "agents"}
           onClick={() => setActive("agents")}
           className={cn(
-            "flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors",
+            "flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all duration-200",
             active === "agents"
-              ? "bg-primary text-primary-foreground"
-              : "text-muted-foreground hover:text-foreground hover:bg-muted/50",
+              ? "bg-primary text-primary-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground hover:bg-muted",
           )}
         >
           <Bot className="h-3.5 w-3.5" />
@@ -298,10 +293,10 @@ function AgentConversationsRail({
           aria-selected={active === "conversations"}
           onClick={() => setActive("conversations")}
           className={cn(
-            "flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors",
+            "flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all duration-200",
             active === "conversations"
-              ? "bg-primary text-primary-foreground"
-              : "text-muted-foreground hover:text-foreground hover:bg-muted/50",
+              ? "bg-primary text-primary-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground hover:bg-muted",
           )}
         >
           <MessageSquare className="h-3.5 w-3.5" />
@@ -309,12 +304,12 @@ function AgentConversationsRail({
         </button>
       </div>
 
-      {/* Content — scrollable */}
-      <div className="min-h-0 flex-1 overflow-y-auto">
+      {/* Content — scrollable, full width/height same bg */}
+      <div className="min-h-0 flex-1 overflow-y-auto bg-card">
         {active === "agents" ? (
           <AgentStream
             entityId={entityId}
-            className="h-full rounded-none border-0"
+            className="h-full w-full rounded-none border-0 bg-card"
           />
         ) : (
           <div className="p-2">
@@ -367,19 +362,12 @@ function MissionsBoard({ onLaunch }: { onLaunch: (brief: string) => void }) {
       aria-labelledby="missions-heading"
       className="mx-auto max-w-2xl pb-8"
     >
-      <div className="mb-4 flex items-center gap-2">
-        <Sparkles className="h-4 w-4 text-primary" aria-hidden="true" />
-        <h2
-          id="missions-heading"
-          className="text-sm font-semibold text-foreground"
-        >
-          Give your finance team a mission
-        </h2>
-      </div>
-      <p className="mb-5 max-w-md text-xs leading-relaxed text-muted-foreground">
-        Agents do the work end to end and stop for your call when it matters.
-        Pick a mission or type your own below.
-      </p>
+      <h2
+        id="missions-heading"
+        className="mb-6 text-center text-sm font-bold tracking-tight text-foreground"
+      >
+        What would you like to handle today?
+      </h2>
       <div className="grid gap-3 sm:grid-cols-2">
         {MISSIONS.map((m) => (
           <button
@@ -388,19 +376,19 @@ function MissionsBoard({ onLaunch }: { onLaunch: (brief: string) => void }) {
             onClick={() => onLaunch(m.brief)}
             className="group rounded-xl border border-border/50 bg-card p-4 text-left transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md"
           >
-            <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
               <m.icon
-                className="h-4 w-4 text-muted-foreground transition-colors group-hover:text-primary"
+                className="h-4 w-4 shrink-0 text-muted-foreground transition-colors group-hover:text-primary"
                 aria-hidden="true"
               />
-              <span className="rounded-full bg-muted/50 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
+              <span className="flex-1 truncate text-sm font-medium text-foreground group-hover:text-primary">
+                {m.title}
+              </span>
+              <span className="shrink-0 rounded-full bg-muted/50 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
                 {m.tag}
               </span>
             </div>
-            <p className="mt-2.5 text-sm font-medium text-foreground group-hover:text-primary">
-              {m.title}
-            </p>
-            <p className="mt-1 line-clamp-2 text-[11px] leading-snug text-muted-foreground">
+            <p className="mt-2 line-clamp-2 text-[11px] leading-snug text-muted-foreground">
               {m.brief}
             </p>
           </button>
