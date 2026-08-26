@@ -13,7 +13,7 @@ import { safeQuery, fillMonthlyWindow } from "./_helpers";
 export const getAiForecast = rlsProtectedProcedure.query(async ({ ctx }) => {
   const entityId = ctx.entityId!;
   const entityName = ctx.entityName ?? "your business";
-  const currency = ctx.currency ?? "GMD";
+  const currency = ctx.entityCurrency ?? "USD";
   const now = new Date();
   const cacheKey = `forecast:${entityId}`;
 
@@ -160,8 +160,9 @@ Rules:
 - Return ONLY valid JSON, no markdown`;
 
   try {
-    const { getLLMRegistry } =
-      await import("@xenboox/agents/core/llm/registry");
+    const { getLLMRegistry } = await import(
+      "@xenboox/agents/core/llm/registry"
+    );
     const registry = getLLMRegistry();
     const { model } = await registry.getModel("fast");
 

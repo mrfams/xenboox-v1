@@ -250,7 +250,7 @@ const entityScopingMiddleware = t.middleware(async ({ ctx, next }) => {
   // Find the entity to get its orgId, then check if user has org-level role
   const entity = await db.query.entities.findFirst({
     where: eq(entities.id, entityId),
-    columns: { id: true, organizationId: true },
+    columns: { id: true, organizationId: true, currency: true, name: true },
   });
 
   let billingPlan: string | undefined;
@@ -279,6 +279,11 @@ const entityScopingMiddleware = t.middleware(async ({ ctx, next }) => {
           entityRole: orgRole.role,
           permissionScope: "full",
           billingPlan,
+          // Entity facts every financial procedure needs — resolved once here
+          // so routers never re-query or hardcode fallbacks (engreview N1/N2).
+          entityCurrency: entity?.currency ?? null,
+          entityName: entity?.name ?? null,
+          userId,
         },
       });
     }
@@ -300,7 +305,17 @@ const entityScopingMiddleware = t.middleware(async ({ ctx, next }) => {
   }
 
   return next({
-    ctx: { ...ctx, entityId, entityRole: access.role, billingPlan },
+    ctx: {
+      ...ctx,
+      entityId,
+      entityRole: access.role,
+      billingPlan,
+      // Entity facts every financial procedure needs — resolved once here
+      // so routers never re-query or hardcode fallbacks (engreview N1/N2).
+      entityCurrency: entity?.currency ?? null,
+      entityName: entity?.name ?? null,
+      userId,
+    },
   });
 });
 

@@ -1372,7 +1372,7 @@ export const reconciliationRouter = router({
         journalEntryCount: jeTotal,
         accounts,
         recentReconciliations,
-        currency: ctx.currency ?? "GMD",
+        currency: ctx.entityCurrency ?? "USD",
       };
     }),
 
@@ -1481,7 +1481,7 @@ export const reconciliationRouter = router({
                 bankTransactionId: tx.id,
                 journalEntryId: je.id,
                 confidence: daysDiff <= 1 ? 0.95 : daysDiff <= 3 ? 0.85 : 0.75,
-                reason: `Exact amount match (${ctx.currency ?? "GMD"} ${txAmount.toLocaleString()})${daysDiff <= 1 ? ", same day" : `, ${Math.round(daysDiff)} days apart`}`,
+                reason: `Exact amount match (${ctx.entityCurrency ?? "USD"} ${txAmount.toLocaleString()})${daysDiff <= 1 ? ", same day" : `, ${Math.round(daysDiff)} days apart`}`,
               });
               break; // One match per bank tx
             }
