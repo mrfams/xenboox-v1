@@ -151,13 +151,13 @@ export function AiInput({
       {/* Input */}
       <div
         className={cn(
-          "relative group rounded-xl border bg-card transition-all duration-200",
+          "relative group rounded-2xl border bg-card transition-all duration-200",
           isFocused
-            ? "border-primary/30 shadow-md shadow-primary/[0.04]"
-            : "border-border/50 shadow-sm",
+            ? "border-primary/50 shadow-lg shadow-primary/10 ring-2 ring-primary/10"
+            : "border-border bg-card shadow-md",
         )}
       >
-        <div className="relative flex items-end gap-2.5 px-3 py-2.5">
+        <div className="relative flex items-end gap-2.5 px-3 py-2">
           <div className="flex items-center shrink-0 self-center">
             <ChatFileUpload
               entityId={entityId}
@@ -183,7 +183,7 @@ export function AiInput({
               }
             }}
             placeholder="Ask anything about your accounting..."
-            className="max-h-[120px] min-h-[24px] flex-1 resize-none overflow-y-auto bg-transparent py-1 text-sm leading-normal text-foreground placeholder:text-muted-foreground/50 outline-none"
+            className="max-h-[120px] min-h-[44px] flex-1 resize-none overflow-y-auto bg-transparent py-2 text-[14px] leading-5 text-foreground placeholder:text-muted-foreground/60 outline-none"
           />
           <Button
             type="button"
@@ -200,18 +200,18 @@ export function AiInput({
               !isResponding && !inputValue.trim() && uploadedFiles.length === 0
             }
             className={cn(
-              "h-8 w-8 rounded-lg p-0 transition-all shrink-0",
+              "h-9 w-9 rounded-xl p-0 transition-all shrink-0 shadow-sm",
               isResponding
-                ? "bg-red-500 hover:bg-red-600 text-white shadow-sm"
+                ? "bg-red-500 hover:bg-red-600 text-white"
                 : inputValue.trim() || uploadedFiles.length > 0
-                  ? "bg-primary hover:bg-primary/90 text-white shadow-sm"
+                  ? "bg-primary hover:bg-primary/90 text-white shadow"
                   : "bg-muted text-muted-foreground",
             )}
           >
             {isResponding ? (
-              <span className="h-2.5 w-2.5 rounded-sm bg-white" />
+              <span className="h-3 w-3 rounded-sm bg-white" />
             ) : (
-              <Send className="h-3.5 w-3.5" />
+              <Send className="h-4 w-4" />
             )}
           </Button>
         </div>

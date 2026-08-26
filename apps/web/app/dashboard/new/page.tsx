@@ -163,38 +163,41 @@ export default function MissionControlPage() {
               )}
             </div>
             <div className="flex shrink-0 items-center gap-1.5">
-              <button
-                type="button"
-                onClick={handleExport}
-                className="inline-flex items-center gap-1 rounded-lg border border-border/50 bg-background/50 p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors sm:px-2.5 sm:py-1.5 sm:text-[10px] sm:font-medium"
-                aria-label="Export chat"
-                title="Export chat"
-              >
-                <Download className="h-4 w-4 sm:h-3 sm:w-3" />
-                <span className="hidden sm:inline">Export</span>
-              </button>
-              {isChatting ? (
-                <button
-                  type="button"
-                  onClick={() => (newChat as () => void)?.()}
-                  className="inline-flex items-center gap-1 rounded-lg border border-border/50 bg-background/50 p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
-                  aria-label="Close chat"
-                  title="Close chat"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              ) : (
-                <span className="hidden sm:inline-flex items-center gap-1 font-mono text-[11px] tabular-nums text-muted-foreground">
-                  {closeStatus
-                    ? `${closeStatus.year}·${String(closeStatus.month).padStart(2, "0")}`
-                    : "FY open"}
-                </span>
+              {isChatting && (
+                <>
+                  <button
+                    type="button"
+                    onClick={handleExport}
+                    className="inline-flex items-center gap-1 rounded-lg border border-border/50 bg-background/50 p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors sm:px-2.5 sm:py-1.5 sm:text-[10px] sm:font-medium"
+                    aria-label="Export chat"
+                    title="Export chat"
+                  >
+                    <Download className="h-4 w-4 sm:h-3 sm:w-3" />
+                    <span className="hidden sm:inline">Export</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => (newChat as () => void)?.()}
+                    className="inline-flex items-center gap-1 rounded-lg border border-border/50 bg-background/50 p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+                    aria-label="Close chat"
+                    title="Close chat"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </>
               )}
             </div>
           </header>
 
-          {/* Work area — isolated scroll plane */}
-          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pt-4 sm:px-6">
+          {/* Work area — isolated scroll plane; missions centered */}
+          <div
+            className={cn(
+              "flex min-h-0 flex-1 flex-col px-4 sm:px-6",
+              isChatting
+                ? "overflow-y-auto overscroll-contain pt-4"
+                : "items-center justify-center overflow-hidden py-8",
+            )}
+          >
             {hasMessages || isStreaming ? (
               <ConversationThread
                 messages={messages}

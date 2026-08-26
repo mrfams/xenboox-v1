@@ -120,7 +120,7 @@ export function CommandBar({
 
       <div
         className={cn(
-          "relative flex items-end gap-1.5 rounded-xl border border-border/50 bg-card px-2 py-1.5 shadow-sm transition-colors focus-within:border-primary/30",
+          "relative flex items-end gap-2 rounded-2xl border border-border bg-card px-3 py-2 shadow-md transition-all focus-within:border-primary/50 focus-within:shadow-lg focus-within:ring-2 focus-within:ring-primary/10",
           busy && "opacity-90",
         )}
       >
@@ -153,16 +153,16 @@ export function CommandBar({
             }
           }}
           placeholder={placeholder}
-          className="max-h-36 min-h-[32px] flex-1 resize-none bg-transparent px-2 py-1 text-[13px] text-foreground placeholder:text-muted-foreground/50 focus:outline-none"
+          className="max-h-36 min-h-[44px] flex-1 resize-none bg-transparent px-2 py-2 text-[14px] leading-5 text-foreground placeholder:text-muted-foreground/60 focus:outline-none"
         />
         {busy && onCancel ? (
           <button
             type="button"
             onClick={onCancel}
             aria-label="Stop the agent"
-            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-destructive/10 text-destructive transition-colors hover:bg-destructive/20"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-destructive/10 text-destructive transition-colors hover:bg-destructive/20"
           >
-            <Square className="h-3 w-3" />
+            <Square className="h-3.5 w-3.5" />
           </button>
         ) : (
           <button
@@ -170,9 +170,9 @@ export function CommandBar({
             onClick={submit}
             disabled={!value.trim() || busy}
             aria-label="Send"
-            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground transition-all hover:bg-primary/90 disabled:opacity-30"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm transition-all hover:bg-primary/90 hover:shadow disabled:opacity-30"
           >
-            <ArrowUp className="h-3.5 w-3.5" />
+            <ArrowUp className="h-4 w-4" />
           </button>
         )}
       </div>
