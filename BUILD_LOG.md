@@ -4,6 +4,61 @@
 
 ---
 
+## 2026-08-26 — OPERATIONS TABS: ledger-style tabbed surface
+
+**Scope:** /operations rebuilt with keyboard-navigable tabs mirroring the Ledger surface. Sub-pages became embedded views; legacy routes preserved as thin wrappers.
+
+### Shipped
+
+- Tab system: `Overview · Invoices · Bills · Customers · Vendors · Banking` — role=tablist/tab/tabpanel, Arrow/Home/End keys, icons, active underline (identical pattern to LedgerTabList)
+- Deep links: active tab mirrors to `?tab=` via router.replace (overview strips param)
+- New views in `components/operations/`: overview-view (full money-flow body incl. drawer; internal links upgraded from route Links to tab switches), invoices-view, customers-view, vendors-view, banking-view. Bills reuses existing `components/finance/bills-view`
+- Legacy routes (`operations/{invoices,bills,customers,vendors,banking}`) → ModulePageShell wrappers rendering their views — old bookmarks work unchanged
+
+### Verification
+
+- eslint: **0 problems, 0 warnings** across all 10 touched files (fixed carried dead code: VendorStatusBadge, unused setSearch ×3; auto-fixed import order)
+- tsc: shell page 0 errors; view bodies carry 22 pre-existing type-debt lines verbatim from old routes — proven via git-stash baseline test (32 error lines at HEAD incl. drawer/page paths vs 22 now)
+- Runtime: dev server up; all Operations routes + ?tab= variants return 307 (auth middleware); dev log clean; BillsView export verified. Authenticated click-through deferred to user's browser session
+
+### Employee pipeline
+
+product-critique (IA pass) → design-taste-frontend (build) → content-critique (labels) → engineering-critique (gates + stash evidence) → design-critique+qa (compile-gate verification)
+
+### Next
+
+1. User commits this batch when satisfied
+2. Authenticated visual click-through of 6 tabs in browser
+3. Same tab treatment candidate for other multi-page surfaces if wanted
+
+---
+
+## 2026-08-26 — PRODUCTION PASS: 4 core surfaces (7-employee pipeline)
+
+**Scope:** Command Center, Activity Hub, Ledger, Operations rebuilt toward production grade. Employee order: product-critique → ux-writer → design-taste-frontend → content-critique → engineering-critique → design-critique (qa pending dev-server runtime pass).
+
+### Shipped
+
+- **Operations:** restructured (cash hero → chart → In/Out lanes → Accounts group → feed → close|people pair); live AR/vendor/estimates counts replace dead labels; AiQuickActions cut (redundant with copilot)
+- **Activity Hub:** two-zone queue ("Needs your decision" / "For your awareness"); dead snooze handler wired; review-all link → /dashboard/ingestion; toast copy trimmed
+- **Ledger:** dense register-style journal rows; honest "no fiscal period" empty state on Trial Balance
+- Copy/jargon sweep (1 exclamation, 0 jargon); Ledger description rewrite; a11y sections aria-labelledby
+
+### Verification
+
+tsc clean on all touched files across every employee pass; eslint 0 errors (36 pre-existing warnings untouched); engineering review dismissed null-guard finding via schema evidence (journal.entry_number notNull).
+
+### Committed
+
+`43bce6d0 feat(dashboard): production-grade pass across core surfaces` → origin/master. QA runtime pass deferred — dev server boot timed out at session end.
+
+### Next
+
+1. QA runtime verification (4 surfaces against live server)
+2. Operations tabs proposal (user request)
+
+---
+
 ## 2026-08-25 — FIX SESSION 2b: diagnosing-bugs — login down (environment, not code)
 
 **Reproduce-first diagnosis.** User reported login broken (DB verified fine by user).
