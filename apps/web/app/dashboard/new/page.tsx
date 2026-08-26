@@ -148,15 +148,8 @@ export default function MissionControlPage() {
         <div className="flex min-w-0 flex-1 flex-col overflow-hidden isolate">
           {/* Top bar — fixed, no blurry backdrop */}
           <header className="sticky top-0 z-10 flex items-center justify-between gap-2 px-4 py-2 sm:px-6">
-            {/* Blurry strip behind export/close — commented out
-            <div className="absolute inset-0 -z-10 bg-background/80 backdrop-blur-sm border-b border-border/30" />
-            */}
             <div className="min-w-0">
-              {!isChatting ? (
-                <h1 className="truncate text-sm font-semibold tracking-tight text-foreground">
-                  {getGreeting()}
-                </h1>
-              ) : (
+              {isChatting && (
                 <span className="text-xs font-medium text-muted-foreground">
                   Chat
                 </span>
@@ -213,7 +206,10 @@ export default function MissionControlPage() {
                 onSendMessage={sendMessage}
               />
             ) : (
-              <MissionsBoard onLaunch={(brief) => sendMessage(brief)} />
+              <MissionsBoard
+                greeting={getGreeting()}
+                onLaunch={(brief) => sendMessage(brief)}
+              />
             )}
           </div>
 
@@ -411,7 +407,17 @@ function AgentConversationsRail({
 // Empty state as launchpad: goal-shaped cards, not prompt examples.
 // Launching one hands the agent a full brief, not a keyword.
 
-function MissionsBoard({ onLaunch }: { onLaunch: (brief: string) => void }) {
+function MissionsBoard({
+  greeting,
+  onLaunch,
+}: {
+  greeting: string;
+  onLaunch: (brief: string) => void;
+}) {
+  const [title] = useState(() =>
+    Math.random() < 0.5 ? greeting : "What would you like to handle today?",
+  );
+
   return (
     <section
       aria-labelledby="missions-heading"
@@ -419,9 +425,9 @@ function MissionsBoard({ onLaunch }: { onLaunch: (brief: string) => void }) {
     >
       <h2
         id="missions-heading"
-        className="mb-6 text-center text-sm font-bold tracking-tight text-foreground"
+        className="mb-6 text-center text-[15px] font-bold tracking-tight text-foreground"
       >
-        What would you like to handle today?
+        {title}
       </h2>
       <div className="grid gap-3 sm:grid-cols-2">
         {MISSIONS.map((m) => (
