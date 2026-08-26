@@ -4,9 +4,9 @@
 
 ---
 
-## 2026-08-26 — AI-NATIVE v2: 4 greenfield surfaces + shared agent kit
+## 2026-08-26 — AI-NATIVE v2: 5 greenfield surfaces + shared agent kit
 
-**Scope:** Ground-up AI-native pages at /dashboard/new, /activity-hub/new, /operations/new, /ledger/new. Design thesis from Basis/Cursor/Devin research: runs-not-pages, decision briefs, intent previews, provenance everywhere, command-first. Old surfaces untouched; no backend changes.
+**Scope:** Ground-up AI-native pages at /dashboard/new, /activity-hub/new, /operations/new, /ledger/new, /financial-pulse/new. Design thesis from Basis/Cursor/Devin research: runs-not-pages, decision briefs, intent previews, provenance everywhere, command-first. Old surfaces untouched; no backend changes.
 
 ### Shipped
 
@@ -15,18 +15,19 @@
 - **Decisions** (/activity-hub/new): two-pane triage; every item a decision brief (what/why/evidence/confidence); keyboard j/k/a/r/s; reject-with-note teaches the agent; "Ask the CFO" hands off via ?prompt=
 - **Money Flows** (/operations/new): runway hero + narrative; In/Out chronological streams w/ reconciliation state chips; overdue-bills → agent handoff
 - **The Book** (/ledger/new): plain-language search as primary interface; register rows carry provenance dots; inline line-item expansion with balance check; counts strip
+- **Financial Health** (/financial-pulse/new): AI narrative hero w/ provenance & highlights/concerns; KPI strip where every number carries its read; anomaly feed; chart grid each with Ask affordance; forecast + follow-up CommandBar
 
 ### Employee pipeline
 
-design-taste-frontend (build ×4) → ux-writer (inline) → engineering-critique (gates: caught stale liveOutput guard + dead prop + hook deps) → departmental audit product/design/content (2 fixes: SR announce on triage cursor, dead delta prop) → qa compile-gate
+design-taste-frontend (build ×5) → ux-writer (inline) → engineering-critique (gates: caught stale liveOutput guard + dead prop + hook deps + unused imports) → departmental audit product/design/content (2 fixes: SR announce on triage cursor, dead delta prop) → qa compile-gate
 
 ### Verification
 
-tsc 0 errors · eslint 0 problems across all 9 new files · all four routes serve through auth middleware, dev log clean · entity scoping preserved (all queries rlsProtectedProcedure routers)
+tsc 0 errors · eslint 0 problems across all 10 new files · all five routes serve through auth middleware (307), dev log clean · entity scoping preserved (all queries rlsProtectedProcedure routers)
 
 ### Next
 
-1. Authenticated visual pass of all four /new routes
+1. Authenticated visual pass of all five /new routes
 2. Sidebar cutover decision (v1 ↔ v2) — needs user approval per AGENTS.md
 3. Wire missions to real run-launch API when Phase 6 orchestration lands
 
