@@ -155,8 +155,8 @@ export default function MissionControlPage() {
             )}
           </div>
 
-          {/* Command */}
-          <div className="sticky bottom-0 border-t border-border/30 bg-background/80 px-4 py-3 backdrop-blur-sm sm:px-6">
+          {/* Command — compact */}
+          <div className="sticky bottom-0 border-t border-border/30 bg-background/80 px-4 py-2 backdrop-blur-sm sm:px-6">
             <CommandBar
               onSubmit={(v) => sendMessage(v)}
               busy={isStreaming}

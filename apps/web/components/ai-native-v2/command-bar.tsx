@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ArrowUp, Command, Square } from "lucide-react";
+import { ArrowUp, Square } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
@@ -53,7 +53,7 @@ export function CommandBar({
   return (
     <div className={cn("w-full", className)}>
       {suggestions && suggestions.length > 0 && !value && !busy && (
-        <div className="mb-2 flex flex-wrap gap-1.5">
+        <div className="mb-1.5 flex flex-wrap gap-1">
           {suggestions.map((s) => (
             <button
               key={s}
@@ -62,7 +62,7 @@ export function CommandBar({
                 setValue(s);
                 inputRef.current?.focus();
               }}
-              className="rounded-full border border-border/50 bg-card/60 px-3 py-1 text-[11px] text-muted-foreground transition-colors hover:border-primary/30 hover:bg-primary/5 hover:text-primary"
+              className="rounded-full border border-border/50 bg-card/60 px-2.5 py-0.5 text-[10px] text-muted-foreground transition-colors hover:border-primary/30 hover:bg-primary/5 hover:text-primary"
             >
               {s}
             </button>
@@ -72,7 +72,7 @@ export function CommandBar({
 
       <div
         className={cn(
-          "relative flex items-end gap-2 rounded-xl border border-border/60 bg-card p-2 shadow-sm transition-colors focus-within:border-primary/40",
+          "relative flex items-end gap-1.5 rounded-xl border border-border/50 bg-card px-2 py-1.5 shadow-sm transition-colors focus-within:border-primary/30",
           busy && "opacity-90",
         )}
       >
@@ -98,16 +98,16 @@ export function CommandBar({
             }
           }}
           placeholder={placeholder}
-          className="max-h-40 min-h-[36px] flex-1 resize-none bg-transparent px-2 py-1.5 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none"
+          className="max-h-36 min-h-[32px] flex-1 resize-none bg-transparent px-2 py-1 text-[13px] text-foreground placeholder:text-muted-foreground/50 focus:outline-none"
         />
         {busy && onCancel ? (
           <button
             type="button"
             onClick={onCancel}
             aria-label="Stop the agent"
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-destructive/10 text-destructive transition-colors hover:bg-destructive/20"
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-destructive/10 text-destructive transition-colors hover:bg-destructive/20"
           >
-            <Square className="h-3.5 w-3.5" />
+            <Square className="h-3 w-3" />
           </button>
         ) : (
           <button
@@ -115,19 +115,12 @@ export function CommandBar({
             onClick={submit}
             disabled={!value.trim() || busy}
             aria-label="Send"
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground transition-all hover:bg-primary/90 disabled:opacity-30"
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground transition-all hover:bg-primary/90 disabled:opacity-30"
           >
-            <ArrowUp className="h-4 w-4" />
+            <ArrowUp className="h-3.5 w-3.5" />
           </button>
         )}
       </div>
-
-      <p className="mt-1.5 hidden items-center gap-1 px-1 text-[10px] text-muted-foreground/50 sm:flex">
-        <kbd className="inline-flex items-center gap-0.5 rounded border border-border/50 bg-muted/40 px-1 py-px font-mono text-[9px]">
-          <Command className="h-2.5 w-2.5" aria-hidden="true" />K
-        </kbd>
-        focus · Enter send · Shift+Enter newline
-      </p>
     </div>
   );
 }
