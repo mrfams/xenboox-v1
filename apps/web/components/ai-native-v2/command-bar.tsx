@@ -48,6 +48,9 @@ export function CommandBar({
     if (!trimmed || busy) return;
     onSubmit(trimmed);
     setValue("");
+    if (inputRef.current) {
+      inputRef.current.style.height = "auto";
+    }
   };
 
   return (

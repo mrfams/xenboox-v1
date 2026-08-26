@@ -72,6 +72,9 @@ export function AiInput({
     );
     setInputValue("");
     onClearFiles();
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto";
+    }
   };
 
   const suggestions = [

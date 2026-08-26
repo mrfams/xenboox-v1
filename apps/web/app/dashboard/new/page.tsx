@@ -184,8 +184,8 @@ export default function MissionControlPage() {
             </div>
           </header>
 
-          {/* Work area */}
-          <div className="min-h-0 flex-1 overflow-y-auto px-4 pt-4 sm:px-6">
+          {/* Work area — isolated scroll plane */}
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pt-4 sm:px-6">
             {hasMessages || isStreaming ? (
               <ConversationThread
                 messages={messages}
@@ -304,15 +304,17 @@ function AgentConversationsRail({
         </button>
       </div>
 
-      {/* Content — scrollable, full width/height same bg */}
-      <div className="min-h-0 flex-1 overflow-y-auto bg-card">
+      {/* Content — each tab is its own scroll plane */}
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-card">
         {active === "agents" ? (
-          <AgentStream
-            entityId={entityId}
-            className="h-full w-full rounded-none border-0 bg-card"
-          />
+          <div className="min-h-0 flex-1 overflow-hidden">
+            <AgentStream
+              entityId={entityId}
+              className="h-full w-full rounded-none border-0 bg-card"
+            />
+          </div>
         ) : (
-          <div className="p-2">
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2">
             {!conversations || conversations.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 text-center">
                 <MessageSquare className="h-6 w-6 text-muted-foreground/30 mb-2" />

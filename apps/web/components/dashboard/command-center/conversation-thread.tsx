@@ -402,7 +402,7 @@ export function ConversationThread({
   );
 
   return (
-    <div className="flex-1 overflow-y-auto px-3 py-4 sm:px-4">
+    <div className="flex-1 overflow-y-auto overscroll-contain px-3 py-4 sm:px-4">
       {/* Pinned Messages Panel */}
       <PinnedMessagesPanel
         messages={pinnedMessages}
