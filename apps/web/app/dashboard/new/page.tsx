@@ -112,13 +112,11 @@ export default function MissionControlPage() {
       <div className="flex h-full min-h-0 pb-16 md:pb-0">
         {/* ── Main column ─────────────────────────────────────────────── */}
         <div className="flex min-w-0 flex-1 flex-col">
-          {/* Context strip */}
-          <header className="px-4 pt-5 sm:px-6">
-            <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-              <h1 className="text-lg font-semibold tracking-tight text-foreground">
-                {firstName
-                  ? `Good to see you, ${firstName}`
-                  : "Mission Control"}
+          {/* Greeting — compact, professional */}
+          <header className="px-4 pt-3 sm:px-6">
+            <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+              <h1 className="text-base font-semibold tracking-tight text-foreground">
+                {firstName ? `Good morning, ${firstName}` : "Good morning"}
               </h1>
               <p className="font-mono text-[11px] tabular-nums text-muted-foreground">
                 {closeStatus
@@ -126,40 +124,14 @@ export default function MissionControlPage() {
                   : "FY open"}
               </p>
             </div>
-            <div className="mt-3 grid grid-cols-2 gap-4 rounded-xl border border-border/50 bg-card/60 px-4 py-3 sm:grid-cols-4">
-              <MetricNarrative
-                label="Cash"
-                value={formatCurrency(health?.cashBalance ?? 0)}
-                loading={dashLoading && !health}
-                size="sm"
-              />
-              <MetricNarrative
-                label="Runway"
-                value={
-                  health?.runwayMonths != null
-                    ? `${health.runwayMonths.toFixed(1)} mo`
-                    : "—"
-                }
-                narrative={
-                  health?.runwayMonths != null && health.runwayMonths < 6
-                    ? "Under six months — worth a look."
-                    : undefined
-                }
-                size="sm"
-              />
-              <MetricNarrative
-                label="Owed to you"
-                value={formatCurrency(health?.arOutstanding ?? 0)}
-                loading={dashLoading && !health}
-                size="sm"
-              />
-              <MetricNarrative
-                label="You owe"
-                value={formatCurrency(health?.apOutstanding ?? 0)}
-                loading={dashLoading && !health}
-                size="sm"
-              />
+            {/* Cash/runway strip — commented for now
+            <div className="mt-2 grid grid-cols-2 gap-3 rounded-xl border border-border/50 bg-card/60 px-4 py-3 sm:grid-cols-4">
+              <MetricNarrative label="Cash" value={formatCurrency(health?.cashBalance ?? 0)} loading={dashLoading && !health} size="sm" />
+              <MetricNarrative label="Runway" value={health?.runwayMonths != null ? `${health.runwayMonths.toFixed(1)} mo` : "—"} narrative={health?.runwayMonths != null && health.runwayMonths < 6 ? "Under six months — worth a look." : undefined} size="sm" />
+              <MetricNarrative label="Owed to you" value={formatCurrency(health?.arOutstanding ?? 0)} loading={dashLoading && !health} size="sm" />
+              <MetricNarrative label="You owe" value={formatCurrency(health?.apOutstanding ?? 0)} loading={dashLoading && !health} size="sm" />
             </div>
+            */}
           </header>
 
           {/* Work area */}

@@ -119,8 +119,7 @@ export function MessageActions({
     <TooltipProvider delayDuration={300}>
       <div
         className={cn(
-          "absolute -top-8 right-0 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity",
-          "bg-background/95 backdrop-blur-sm border border-border/50 rounded-lg px-1 py-0.5 shadow-sm",
+          "mt-1 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity",
         )}
         role="toolbar"
         aria-label="Message actions"
@@ -132,13 +131,13 @@ export function MessageActions({
               variant="ghost"
               size="sm"
               onClick={handleCopy}
-              className="h-7 w-7 p-0"
+              className="h-6 w-6 p-0"
               aria-label={copied ? "Copied" : "Copy message"}
             >
               {copied ? (
-                <Check className="h-3.5 w-3.5 text-green-500" />
+                <Check className="h-3 w-3 text-green-500" />
               ) : (
-                <Copy className="h-3.5 w-3.5" />
+                <Copy className="h-3 w-3" />
               )}
             </Button>
           </TooltipTrigger>
@@ -155,10 +154,10 @@ export function MessageActions({
                 variant="ghost"
                 size="sm"
                 onClick={() => setShowShareMenu(!showShareMenu)}
-                className="h-7 w-7 p-0"
+                className="h-6 w-6 p-0"
                 aria-label="Share message"
               >
-                <Share2 className="h-3.5 w-3.5" />
+                <Share2 className="h-3 w-3" />
               </Button>
             </TooltipTrigger>
             <TooltipContent>
@@ -204,14 +203,11 @@ export function MessageActions({
                 size="sm"
                 onClick={handleRegenerate}
                 disabled={isRegenerating}
-                className="h-7 w-7 p-0"
+                className="h-6 w-6 p-0"
                 aria-label="Regenerate response"
               >
                 <RefreshCw
-                  className={cn(
-                    "h-3.5 w-3.5",
-                    isRegenerating && "animate-spin",
-                  )}
+                  className={cn("h-3 w-3", isRegenerating && "animate-spin")}
                 />
               </Button>
             </TooltipTrigger>
@@ -230,15 +226,15 @@ export function MessageActions({
                 size="sm"
                 onClick={handlePin}
                 className={cn(
-                  "h-7 w-7 p-0",
+                  "h-6 w-6 p-0",
                   isPinned && "text-amber-500 hover:text-amber-600",
                 )}
                 aria-label={isPinned ? "Unpin message" : "Pin message"}
               >
                 {isPinned ? (
-                  <PinOff className="h-3.5 w-3.5" />
+                  <PinOff className="h-3 w-3" />
                 ) : (
-                  <Pin className="h-3.5 w-3.5" />
+                  <Pin className="h-3 w-3" />
                 )}
               </Button>
             </TooltipTrigger>

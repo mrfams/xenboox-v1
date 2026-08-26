@@ -98,123 +98,80 @@ export function ConversationThinkingSteps({
     0,
   );
 
+  // Plain text style like ChatGPT/Claude — no card, no border, right above response
+  const totalSec =
+    totalDuration > 0
+      ? (totalDuration / 1000).toFixed(1)
+      : elapsed > 0
+        ? (elapsed / 1000).toFixed(1)
+        : null;
+
   return (
-    <div className="flex gap-3">
-      <div className="max-w-[85%] rounded-2xl border border-primary/10 bg-primary/[0.02] px-4 py-3">
-        {/* Header — always visible */}
-        <button
-          type="button"
-          onClick={() => setIsExpanded(!isExpanded)}
-          className="flex items-center justify-between w-full text-left"
-          aria-expanded={isExpanded}
-        >
-          <div className="flex items-center gap-2">
-            {isStreaming ? (
-              <Loader2
-                className="h-3.5 w-3.5 text-primary animate-spin"
-                aria-hidden="true"
-              />
-            ) : (
-              <CheckCircle2
-                className="h-3.5 w-3.5 text-emerald-500"
-                aria-hidden="true"
-              />
-            )}
-            <span className="text-xs font-medium text-foreground">
-              {isStreaming
-                ? "Processing..."
-                : `${completedCount} steps completed`}
-            </span>
-            {elapsed > 0 && (
-              <span className="text-[10px] text-muted-foreground flex items-center gap-1">
-                <Clock className="h-2.5 w-2.5" aria-hidden="true" />
-                {(elapsed / 1000).toFixed(1)}s
-              </span>
-            )}
-          </div>
-          {isExpanded ? (
-            <ChevronUp
-              className="h-3.5 w-3.5 text-muted-foreground"
+    <div className="w-full py-1">
+      <button
+        type="button"
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="flex items-center gap-1.5 text-left"
+        aria-expanded={isExpanded}
+      >
+        {isStreaming ? (
+          <>
+            <Loader2
+              className="h-3 w-3 text-muted-foreground animate-spin shrink-0"
               aria-hidden="true"
             />
-          ) : (
-            <ChevronDown
-              className="h-3.5 w-3.5 text-muted-foreground"
-              aria-hidden="true"
-            />
-          )}
-        </button>
+            <span className="text-[11px] text-muted-foreground">Thinking…</span>
+          </>
+        ) : (
+          <span className="text-[11px] text-muted-foreground">
+            Thought for {totalSec ?? "—"}s
+          </span>
+        )}
+        {isExpanded ? (
+          <ChevronUp
+            className="h-3 w-3 text-muted-foreground/60"
+            aria-hidden="true"
+          />
+        ) : (
+          <ChevronDown
+            className="h-3 w-3 text-muted-foreground/60"
+            aria-hidden="true"
+          />
+        )}
+      </button>
 
-        {/* Steps — expandable */}
-        {isExpanded && (
-          <div className="mt-2 space-y-1.5">
-            {uniqueEvents.map((event, i) => {
-              const isComplete = event.durationMs !== undefined;
-              const label = getStepLabel(event);
-
-              return (
-                <div
-                  key={`${event.step || i}`}
-                  className="flex items-center gap-2"
-                >
-                  {isComplete ? (
-                    <CheckCircle2
-                      className="h-3 w-3 text-emerald-500 shrink-0"
-                      aria-hidden="true"
-                    />
-                  ) : (
-                    <Loader2
-                      className="h-3 w-3 text-primary animate-spin shrink-0"
-                      aria-hidden="true"
-                    />
-                  )}
-                  <span
-                    className={cn(
-                      "text-[11px]",
-                      isComplete ? "text-emerald-600" : "text-foreground",
-                    )}
-                  >
-                    {label}
-                  </span>
-                  {event.durationMs !== undefined && (
-                    <span className="text-[10px] text-muted-foreground/50">
-                      {event.durationMs}ms
-                    </span>
-                  )}
-                  {event.text && (
-                    <span className="text-[10px] text-muted-foreground/50 truncate max-w-[200px]">
-                      — {event.text}
-                    </span>
-                  )}
-                </div>
-              );
-            })}
-
-            {/* Active step indicator */}
-            {isStreaming &&
-              uniqueEvents.length > 0 &&
-              !uniqueEvents[uniqueEvents.length - 1]?.durationMs && (
-                <div className="flex items-center gap-2">
-                  <Zap
-                    className="h-3 w-3 text-primary shrink-0"
+      {isExpanded && (
+        <div className="mt-1.5 space-y-1 pl-1">
+          {uniqueEvents.map((event, i) => {
+            const isComplete = event.durationMs !== undefined;
+            const label = getStepLabel(event);
+            return (
+              <div
+                key={`${event.step || i}`}
+                className="flex items-center gap-2 text-[11px]"
+              >
+                {isComplete ? (
+                  <CheckCircle2
+                    className="h-3 w-3 text-muted-foreground/50 shrink-0"
                     aria-hidden="true"
                   />
-                  <span className="text-[11px] text-primary font-medium">
-                    {getStepLabel(uniqueEvents[uniqueEvents.length - 1])}
+                ) : (
+                  <Loader2
+                    className="h-3 w-3 text-muted-foreground animate-spin shrink-0"
+                    aria-hidden="true"
+                  />
+                )}
+                <span className="text-muted-foreground">{label}</span>
+                {event.durationMs !== undefined && (
+                  <span className="text-[10px] text-muted-foreground/40">
+                    {event.durationMs}ms
                   </span>
-                </div>
-              )}
-          </div>
-        )}
-
-        {/* Summary line when collapsed */}
-        {!isExpanded && !isStreaming && totalDuration > 0 && (
-          <p className="text-[10px] text-muted-foreground/50 mt-1">
-            ⚡ {uniqueEvents.length} steps in{" "}
-            {(totalDuration / 1000).toFixed(1)}s
-          </p>
-        )}
-      </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
