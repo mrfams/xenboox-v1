@@ -142,32 +142,32 @@ function AgentBadge({ agentId }: { agentId: string }) {
       "reconciliation-agent": {
         name: "Reconciliation Agent",
         abbr: "RC",
-        color: "bg-emerald-500",
+        color: "bg-balanced-green",
       },
       "ap-agent": {
         name: "AP Automation Agent",
         abbr: "AP",
-        color: "bg-blue-500",
+        color: "bg-primary",
       },
       "invoice-agent": {
         name: "Invoice Processing Agent",
         abbr: "IN",
-        color: "bg-amber-500",
+        color: "bg-attention-amber",
       },
       "payments-agent": {
         name: "Payments Agent",
         abbr: "PA",
-        color: "bg-purple-500",
+        color: "bg-signal-indigo",
       },
       "bookkeeping-agent": {
         name: "Bookkeeping Agent",
         abbr: "BK",
-        color: "bg-indigo-500",
+        color: "bg-primary",
       },
       "tax-agent": {
         name: "Tax Preparation Agent",
         abbr: "TX",
-        color: "bg-red-500",
+        color: "bg-error-clay",
       },
       "document-agent": {
         name: "Document Agent",
@@ -302,7 +302,10 @@ function DetailPanel({ item, onClose }: { item: any; onClose: () => void }) {
 
   const handleAction = async (
     action:
-      "approve_match" | "create_new_record" | "request_more_info" | "escalate",
+      | "approve_match"
+      | "create_new_record"
+      | "request_more_info"
+      | "escalate",
   ) => {
     setPendingAction(action);
     setDiffOpen(true);
@@ -325,7 +328,7 @@ function DetailPanel({ item, onClose }: { item: any; onClose: () => void }) {
       <div className="p-4 border-b">
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-2">
-            <Clock className="h-5 w-5 text-amber-500" />
+            <Clock className="h-5 w-5 text-attention-amber" />
             <h3 className="font-semibold">{item.title}</h3>
           </div>
           <div className="flex items-center gap-2">

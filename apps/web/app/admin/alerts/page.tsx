@@ -60,7 +60,7 @@ export default function AlertsPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Critical</CardTitle>
-            <AlertCircle className="h-4 w-4 text-red-500" />
+            <AlertCircle className="h-4 w-4 text-error-clay" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-red-600">
@@ -88,7 +88,7 @@ export default function AlertsPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">All Clear</CardTitle>
-            <CheckCircle2 className="h-4 w-4 text-green-500" />
+            <CheckCircle2 className="h-4 w-4 text-balanced-green" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-600">
@@ -146,7 +146,7 @@ export default function AlertsPage() {
               ))
             ) : (
               <div className="text-center py-8">
-                <CheckCircle2 className="h-12 w-12 text-green-500 mx-auto mb-4" />
+                <CheckCircle2 className="h-12 w-12 text-balanced-green mx-auto mb-4" />
                 <p className="text-muted-foreground">No active alerts</p>
                 <p className="text-sm text-muted-foreground mt-1">
                   All systems operating normally

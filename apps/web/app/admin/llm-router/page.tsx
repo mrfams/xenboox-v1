@@ -57,11 +57,11 @@ function StatusBadge({ status }: { status: string }) {
         className={cn(
           "h-1.5 w-1.5 rounded-full",
           status === "healthy" || status === "active"
-            ? "bg-emerald-500"
+            ? "bg-balanced-green"
             : status === "degraded"
-              ? "bg-amber-500"
+              ? "bg-attention-amber"
               : status === "offline"
-                ? "bg-red-500"
+                ? "bg-error-clay"
                 : "bg-slate-400",
         )}
       />
@@ -119,11 +119,11 @@ function KpiCard({
   const isLatency = label.includes("Latency") || label.includes("Error");
   const deltaColor = isLatency
     ? isPositive
-      ? "text-red-500"
-      : "text-emerald-500"
+      ? "text-error-clay"
+      : "text-balanced-green"
     : isPositive
-      ? "text-emerald-500"
-      : "text-red-500";
+      ? "text-balanced-green"
+      : "text-error-clay";
 
   return (
     <Card className="transition-all hover:shadow-md">
@@ -269,11 +269,11 @@ function RoutingPoliciesCard({
   }[];
 }) {
   const icons: Record<string, React.ReactNode> = {
-    default: <Settings className="h-4 w-4 text-violet-500" />,
-    cost: <Zap className="h-4 w-4 text-emerald-500" />,
-    latency: <Clock className="h-4 w-4 text-blue-500" />,
-    quality: <Box className="h-4 w-4 text-violet-500" />,
-    fallback: <Activity className="h-4 w-4 text-amber-500" />,
+    default: <Settings className="h-4 w-4 text-signal-indigo" />,
+    cost: <Zap className="h-4 w-4 text-balanced-green" />,
+    latency: <Clock className="h-4 w-4 text-primary" />,
+    quality: <Box className="h-4 w-4 text-signal-indigo" />,
+    fallback: <Activity className="h-4 w-4 text-attention-amber" />,
   };
 
   return (
@@ -333,23 +333,23 @@ function RecentChangesCard({
   > = {
     model_added: {
       icon: <CheckCircle2 className="h-4 w-4" />,
-      color: "text-emerald-500",
-      bg: "bg-emerald-500/10",
+      color: "text-balanced-green",
+      bg: "bg-balanced-green/10",
     },
     routing_updated: {
       icon: <Info className="h-4 w-4" />,
-      color: "text-blue-500",
-      bg: "bg-blue-500/10",
+      color: "text-primary",
+      bg: "bg-primary/10",
     },
     fallback_enabled: {
       icon: <CheckCircle2 className="h-4 w-4" />,
-      color: "text-emerald-500",
-      bg: "bg-emerald-500/10",
+      color: "text-balanced-green",
+      bg: "bg-balanced-green/10",
     },
     provider_degraded: {
       icon: <AlertTriangle className="h-4 w-4" />,
-      color: "text-amber-500",
-      bg: "bg-amber-500/10",
+      color: "text-attention-amber",
+      bg: "bg-attention-amber/10",
     },
   };
 
@@ -467,8 +467,8 @@ export default function LlmRouterPage() {
       <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-6">
         <KpiCard
           icon={<Zap className="h-4 w-4" />}
-          iconBg="bg-violet-500/10"
-          iconColor="text-violet-500"
+          iconBg="bg-signal-indigo/10"
+          iconColor="text-signal-indigo"
           label="Active Providers"
           value={data?.summary.activeProviders ?? 0}
           delta={1}
@@ -476,8 +476,8 @@ export default function LlmRouterPage() {
         />
         <KpiCard
           icon={<Box className="h-4 w-4" />}
-          iconBg="bg-emerald-500/10"
-          iconColor="text-emerald-500"
+          iconBg="bg-balanced-green/10"
+          iconColor="text-balanced-green"
           label="Active Models"
           value={data?.summary.activeModels ?? 0}
           delta={3}
@@ -485,8 +485,8 @@ export default function LlmRouterPage() {
         />
         <KpiCard
           icon={<Activity className="h-4 w-4" />}
-          iconBg="bg-blue-500/10"
-          iconColor="text-blue-500"
+          iconBg="bg-primary/10"
+          iconColor="text-primary"
           label="Total Requests (24h)"
           value={data?.summary.totalRequestsDisplay ?? "0"}
           delta={23.6}
@@ -494,8 +494,8 @@ export default function LlmRouterPage() {
         />
         <KpiCard
           icon={<Database className="h-4 w-4" />}
-          iconBg="bg-amber-500/10"
-          iconColor="text-amber-500"
+          iconBg="bg-attention-amber/10"
+          iconColor="text-attention-amber"
           label="Total Tokens (24h)"
           value={data?.summary.totalTokensDisplay ?? "0"}
           delta={18.4}
@@ -503,8 +503,8 @@ export default function LlmRouterPage() {
         />
         <KpiCard
           icon={<Clock className="h-4 w-4" />}
-          iconBg="bg-blue-500/10"
-          iconColor="text-blue-500"
+          iconBg="bg-primary/10"
+          iconColor="text-primary"
           label="Avg. Latency (24h)"
           value={`${data?.summary.avgLatency ?? "0"}s`}
           delta={-0.18}
@@ -512,8 +512,8 @@ export default function LlmRouterPage() {
         />
         <KpiCard
           icon={<AlertTriangle className="h-4 w-4" />}
-          iconBg="bg-red-500/10"
-          iconColor="text-red-500"
+          iconBg="bg-error-clay/10"
+          iconColor="text-error-clay"
           label="Error Rate (24h)"
           value={`${data?.summary.avgErrorRate ?? "0"}%`}
           delta={-0.21}

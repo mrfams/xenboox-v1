@@ -398,7 +398,7 @@ export default function OrganizationsPage() {
                               size="sm"
                               onClick={() => openDeleteDialog(org as any)}
                             >
-                              <Trash2 className="h-4 w-4 text-red-500" />
+                              <Trash2 className="h-4 w-4 text-error-clay" />
                             </Button>
                           </div>
                         </TableCell>

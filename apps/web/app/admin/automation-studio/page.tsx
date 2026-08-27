@@ -54,11 +54,11 @@ function KpiCard({
   const isNegativeGood = label === "Exceptions";
   const deltaColor = isNegativeGood
     ? isPositive
-      ? "text-red-500"
-      : "text-emerald-500"
+      ? "text-error-clay"
+      : "text-balanced-green"
     : isPositive
-      ? "text-emerald-500"
-      : "text-red-500";
+      ? "text-balanced-green"
+      : "text-error-clay";
 
   return (
     <div className="bg-white rounded-xl p-4 border border-gray-200">
@@ -180,7 +180,7 @@ function ConfidenceBar({ value }: { value: number }) {
     <div className="flex items-center gap-2">
       <div className="w-20 h-2 bg-gray-100 rounded-full overflow-hidden">
         <div
-          className="h-full bg-purple-500 rounded-full"
+          className="h-full bg-signal-indigo rounded-full"
           style={{ width: `${value}%` }}
         />
       </div>
@@ -505,17 +505,19 @@ export default function AutomationStudioPage() {
                 Pre-built automations for common accounting workflows.
               </p>
               <div className="grid grid-cols-5 gap-3">
-                {templates?.slice(0, 5).map((t: any) => (
-                  <TemplateCard
-                    key={t.id}
-                    name={t.name}
-                    description={t.description}
-                    tag={t.tag}
-                    icon={t.icon}
-                    iconColor={t.iconColor}
-                    iconBg={t.iconBg}
-                  />
-                ))}
+                {templates
+                  ?.slice(0, 5)
+                  .map((t: any) => (
+                    <TemplateCard
+                      key={t.id}
+                      name={t.name}
+                      description={t.description}
+                      tag={t.tag}
+                      icon={t.icon}
+                      iconColor={t.iconColor}
+                      iconBg={t.iconBg}
+                    />
+                  ))}
               </div>
             </div>
           </div>
@@ -689,7 +691,7 @@ export default function AutomationStudioPage() {
                     key={i}
                     className="w-full p-3 text-left text-sm text-gray-700 bg-gray-50 rounded-lg hover:bg-gray-100 flex items-center gap-3"
                   >
-                    <span className="text-purple-500">{action.icon}</span>
+                    <span className="text-signal-indigo">{action.icon}</span>
                     {action.text}
                   </button>
                 ))}

@@ -43,7 +43,7 @@ function KpiCard({
   iconBg: string;
 }) {
   const isPositive = delta !== undefined && delta >= 0;
-  const deltaColor = isPositive ? "text-emerald-500" : "text-red-500";
+  const deltaColor = isPositive ? "text-balanced-green" : "text-error-clay";
 
   return (
     <Card className="relative overflow-hidden">
@@ -125,13 +125,13 @@ function TraceTimeline({ spans }: { spans: any[] }) {
 
   const getBarColor = (serviceName: string) => {
     const colors: Record<string, string> = {
-      "reconciliation-service": "bg-purple-500",
+      "reconciliation-service": "bg-signal-indigo",
       database: "bg-orange-500",
-      external: "bg-blue-500",
-      cache: "bg-amber-500",
+      external: "bg-primary",
+      cache: "bg-attention-amber",
       storage: "bg-cyan-500",
     };
-    return colors[serviceName] || "bg-violet-500";
+    return colors[serviceName] || "bg-signal-indigo";
   };
 
   return (
@@ -708,9 +708,9 @@ export default function LogsTracesPage() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         {trace.status === "success" ? (
-                          <div className="h-2 w-2 rounded-full bg-emerald-500" />
+                          <div className="h-2 w-2 rounded-full bg-balanced-green" />
                         ) : (
-                          <div className="h-2 w-2 rounded-full bg-red-500" />
+                          <div className="h-2 w-2 rounded-full bg-error-clay" />
                         )}
                         <p className="text-sm font-medium truncate">
                           {trace.rootOperation}

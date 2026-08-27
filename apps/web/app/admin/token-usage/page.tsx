@@ -40,11 +40,11 @@ function KpiCard({
   const isPositive = delta >= 0;
   const color = inverted
     ? isPositive
-      ? "text-red-500"
-      : "text-emerald-500"
+      ? "text-error-clay"
+      : "text-balanced-green"
     : isPositive
-      ? "text-emerald-500"
-      : "text-red-500";
+      ? "text-balanced-green"
+      : "text-error-clay";
 
   return (
     <Card className="transition-all hover:shadow-md">
@@ -289,7 +289,7 @@ function HorizontalBarList({
             </div>
             <div className="h-1.5 bg-muted rounded-full overflow-hidden">
               <div
-                className="h-full rounded-full bg-violet-500"
+                className="h-full rounded-full bg-signal-indigo"
                 style={{ width: `${item.percentage}%` }}
               />
             </div>
@@ -313,9 +313,9 @@ function InsightsCard({
   }[];
 }) {
   const icons: Record<string, React.ReactNode> = {
-    increase: <TrendingUp className="h-4 w-4 text-emerald-500" />,
-    attention: <AlertTriangle className="h-4 w-4 text-amber-500" />,
-    info: <Info className="h-4 w-4 text-blue-500" />,
+    increase: <TrendingUp className="h-4 w-4 text-balanced-green" />,
+    attention: <AlertTriangle className="h-4 w-4 text-attention-amber" />,
+    info: <Info className="h-4 w-4 text-primary" />,
   };
   const badgeStyles: Record<string, string> = {
     Increase: "bg-emerald-100 text-emerald-700",
@@ -469,13 +469,13 @@ export default function TokenUsagePage() {
           <CardContent>
             <div className="flex items-center gap-4 mb-2">
               <div className="flex items-center gap-1.5">
-                <div className="h-2.5 w-2.5 rounded-full bg-violet-500" />
+                <div className="h-2.5 w-2.5 rounded-full bg-signal-indigo" />
                 <span className="text-[10px] text-muted-foreground">
                   Input Tokens
                 </span>
               </div>
               <div className="flex items-center gap-1.5">
-                <div className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
+                <div className="h-2.5 w-2.5 rounded-full bg-balanced-green" />
                 <span className="text-[10px] text-muted-foreground">
                   Output Tokens
                 </span>
@@ -649,10 +649,10 @@ export default function TokenUsagePage() {
               <div className="flex-1 space-y-2">
                 {data?.contextBreakdown.map((c, i) => {
                   const colors = [
-                    "bg-emerald-500",
-                    "bg-blue-500",
-                    "bg-amber-500",
-                    "bg-red-500",
+                    "bg-balanced-green",
+                    "bg-primary",
+                    "bg-attention-amber",
+                    "bg-error-clay",
                   ];
                   return (
                     <div

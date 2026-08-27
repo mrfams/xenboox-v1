@@ -552,7 +552,7 @@ function DetailPanel({
                       }
                       disabled={setStatus.isPending}
                     >
-                      <Trash2 className="h-3 w-3 mr-1 text-red-500" />
+                      <Trash2 className="h-3 w-3 mr-1 text-error-clay" />
                       {prompt.status === "deprecated" ? "Restore" : "Deprecate"}
                     </Button>
                     <Button

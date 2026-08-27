@@ -99,7 +99,7 @@ export default function MoneyFlowsPage() {
             </p>
             {overdueBills > 0 ? (
               <>
-                <p className="mt-0.5 text-lg font-semibold tabular-nums text-red-500">
+                <p className="mt-0.5 text-lg font-semibold tabular-nums text-error-clay">
                   {overdueBills}
                 </p>
                 <button
@@ -117,7 +117,7 @@ export default function MoneyFlowsPage() {
               </>
             ) : (
               <>
-                <p className="mt-0.5 flex items-center gap-1.5 text-lg font-semibold text-emerald-500">
+                <p className="mt-0.5 flex items-center gap-1.5 text-lg font-semibold text-balanced-green">
                   <CheckCircle2 className="h-4 w-4" aria-hidden="true" /> None
                 </p>
                 <p className="mt-0.5 text-[11px] text-muted-foreground">
@@ -223,14 +223,14 @@ function FlowStream({
         <span
           className={cn(
             "flex h-7 w-7 items-center justify-center rounded-lg",
-            tone === "emerald" ? "bg-emerald-500/10" : "bg-red-500/10",
+            tone === "emerald" ? "bg-balanced-green/10" : "bg-error-clay/10",
           )}
           aria-hidden="true"
         >
           <Icon
             className={cn(
               "h-3.5 w-3.5",
-              tone === "emerald" ? "text-emerald-500" : "text-red-500",
+              tone === "emerald" ? "text-balanced-green" : "text-error-clay",
             )}
           />
         </span>
@@ -260,14 +260,16 @@ function FlowStream({
               <span
                 className={cn(
                   "flex h-6 w-6 shrink-0 items-center justify-center rounded-md",
-                  tone === "emerald" ? "bg-emerald-500/10" : "bg-red-500/10",
+                  tone === "emerald"
+                    ? "bg-balanced-green/10"
+                    : "bg-error-clay/10",
                 )}
                 aria-hidden="true"
               >
                 {tone === "emerald" ? (
-                  <ArrowDownLeft className="h-3 w-3 text-emerald-500" />
+                  <ArrowDownLeft className="h-3 w-3 text-balanced-green" />
                 ) : (
-                  <ArrowUpRight className="h-3 w-3 text-red-500" />
+                  <ArrowUpRight className="h-3 w-3 text-error-clay" />
                 )}
               </span>
               <span className="min-w-0 flex-1">
@@ -284,9 +286,9 @@ function FlowStream({
                     className={cn(
                       "inline-flex items-center gap-0.5 rounded-full px-1.5 text-[9px] font-bold uppercase tracking-wide",
                       r.state.tone === "ok"
-                        ? "bg-emerald-500/10 text-emerald-600"
+                        ? "bg-balanced-green/10 text-balanced-green"
                         : r.state.tone === "warn"
-                          ? "bg-amber-500/10 text-amber-600"
+                          ? "bg-attention-amber/10 text-attention-amber"
                           : "bg-primary/10 text-primary",
                     )}
                   >
@@ -302,7 +304,9 @@ function FlowStream({
               <span
                 className={cn(
                   "shrink-0 text-xs font-semibold tabular-nums",
-                  tone === "emerald" ? "text-emerald-500" : "text-foreground",
+                  tone === "emerald"
+                    ? "text-balanced-green"
+                    : "text-foreground",
                 )}
               >
                 {tone === "emerald" ? "+" : ""}

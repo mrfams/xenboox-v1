@@ -54,7 +54,7 @@ function KpiCard({
     label.includes("Resolve") || label.includes("Satisfaction")
       ? !isPositive
       : isPositive;
-  const deltaColor = isGood ? "text-emerald-500" : "text-red-500";
+  const deltaColor = isGood ? "text-balanced-green" : "text-error-clay";
 
   return (
     <Card className="relative overflow-hidden transition-all hover:shadow-md">
@@ -308,7 +308,7 @@ function HorizontalBarChart({
           </div>
           <div className="h-2 bg-muted rounded-full overflow-hidden">
             <div
-              className="h-full bg-purple-500 rounded-full transition-all"
+              className="h-full bg-signal-indigo rounded-full transition-all"
               style={{ width: `${(item.count / maxCount) * 100}%` }}
             />
           </div>
@@ -617,7 +617,7 @@ export default function CustomerDiagnosticsPage() {
             <div className="space-y-4">
               {overview?.recentCriticalIssues?.map((issue: any) => (
                 <div key={issue.id} className="flex items-start gap-3">
-                  <AlertCircle className="h-5 w-5 text-red-500 mt-0.5 shrink-0" />
+                  <AlertCircle className="h-5 w-5 text-error-clay mt-0.5 shrink-0" />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium truncate">
                       {issue.title}
@@ -815,11 +815,11 @@ export default function CustomerDiagnosticsPage() {
                   className="flex items-start gap-3 p-3 rounded-lg border"
                 >
                   {insight.iconType === "error" ? (
-                    <AlertCircle className="h-5 w-5 text-red-500 mt-0.5 shrink-0" />
+                    <AlertCircle className="h-5 w-5 text-error-clay mt-0.5 shrink-0" />
                   ) : insight.iconType === "warning" ? (
-                    <AlertTriangle className="h-5 w-5 text-amber-500 mt-0.5 shrink-0" />
+                    <AlertTriangle className="h-5 w-5 text-attention-amber mt-0.5 shrink-0" />
                   ) : (
-                    <Info className="h-5 w-5 text-blue-500 mt-0.5 shrink-0" />
+                    <Info className="h-5 w-5 text-primary mt-0.5 shrink-0" />
                   )}
                   <div className="flex-1">
                     <p className="text-sm font-medium">{insight.title}</p>

@@ -74,14 +74,14 @@ function KpiCard({
         {delta !== undefined && (
           <div className="flex items-center gap-1 mt-1">
             {isPositive ? (
-              <ArrowUp className="h-3 w-3 text-emerald-500" />
+              <ArrowUp className="h-3 w-3 text-balanced-green" />
             ) : (
-              <ArrowDown className="h-3 w-3 text-red-500" />
+              <ArrowDown className="h-3 w-3 text-error-clay" />
             )}
             <span
               className={cn(
                 "text-xs font-medium",
-                isPositive ? "text-emerald-500" : "text-red-500",
+                isPositive ? "text-balanced-green" : "text-error-clay",
               )}
             >
               {isPositive ? "↑" : "↓"} {Math.abs(delta)}
@@ -256,7 +256,7 @@ function HorizontalBarChart({
           </div>
           <div className="h-2 bg-muted rounded-full overflow-hidden">
             <div
-              className="h-full bg-purple-500 rounded-full"
+              className="h-full bg-signal-indigo rounded-full"
               style={{ width: `${(item.value / item.maxValue) * 100}%` }}
             />
           </div>

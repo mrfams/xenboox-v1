@@ -22,7 +22,7 @@ export default function BillsPage() {
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <span className="inline-flex items-center gap-1.5 rounded-full border border-border/50 bg-card px-2.5 py-1">
             <span
-              className="h-1.5 w-1.5 rounded-full bg-emerald-500"
+              className="h-1.5 w-1.5 rounded-full bg-balanced-green"
               aria-hidden
             />
             Live • entity-scoped

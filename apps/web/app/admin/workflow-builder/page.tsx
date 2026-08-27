@@ -169,14 +169,18 @@ function useWorkflowBuilderData() {
     {
       label: "Success Rate",
       value: `${successRate}%`,
-      color: "bg-emerald-500",
+      color: "bg-balanced-green",
     },
-    { label: "Avg Duration", value: `${avgDuration}s`, color: "bg-blue-500" },
-    { label: "Total Runs", value: String(totalRuns), color: "bg-purple-500" },
+    { label: "Avg Duration", value: `${avgDuration}s`, color: "bg-primary" },
+    {
+      label: "Total Runs",
+      value: String(totalRuns),
+      color: "bg-signal-indigo",
+    },
     {
       label: "Steps",
       value: String(wf?.totalSteps ?? nodes.length),
-      color: "bg-amber-500",
+      color: "bg-attention-amber",
     },
   ];
 
@@ -188,14 +192,14 @@ function useWorkflowBuilderData() {
           percentage: latestRun.status === "completed" ? "100%" : "0%",
           color:
             latestRun.status === "completed"
-              ? "bg-emerald-500"
-              : "bg-amber-500",
+              ? "bg-balanced-green"
+              : "bg-attention-amber",
         },
         {
           label: "Steps Done",
           count: latestRun.completedSteps ?? 0,
           percentage: `${latestRun.completedSteps ?? 0}/${latestRun.totalSteps ?? 0}`,
-          color: "bg-blue-500",
+          color: "bg-primary",
         },
       ]
     : [];
@@ -331,10 +335,10 @@ function StatusBadge({ status }: { status: string }) {
 
 function StepIndicator({ step, status }: { step: number; status: string }) {
   const colors: Record<string, string> = {
-    completed: "bg-emerald-500 text-white",
-    running: "bg-blue-500 text-white",
+    completed: "bg-balanced-green text-white",
+    running: "bg-primary text-white",
     pending: "bg-gray-200 text-gray-500",
-    error: "bg-red-500 text-white",
+    error: "bg-error-clay text-white",
   };
   return (
     <div
@@ -389,12 +393,12 @@ function CanvasNode({ node }: { node: WorkflowNode }) {
         </span>
       )}
       {node.status === "completed" && (
-        <div className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full flex items-center justify-center">
+        <div className="absolute -top-1 -right-1 w-4 h-4 bg-balanced-green rounded-full flex items-center justify-center">
           <Check className="h-2.5 w-2.5 text-white" />
         </div>
       )}
       {node.status === "error" && (
-        <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center">
+        <div className="absolute -top-1 -right-1 w-4 h-4 bg-error-clay rounded-full flex items-center justify-center">
           <X className="h-2.5 w-2.5 text-white" />
         </div>
       )}
@@ -514,7 +518,7 @@ export default function WorkflowBuilderPage() {
           </div>
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2 text-sm text-gray-500">
-              <span className="text-emerald-500">●</span>
+              <span className="text-balanced-green">●</span>
               Saved 2 min ago
             </div>
             <div className="flex items-center gap-2">
@@ -939,15 +943,15 @@ export default function WorkflowBuilderPage() {
                 </h4>
                 <div className="space-y-2">
                   <button className="w-full p-2 text-left text-sm text-gray-700 bg-gray-50 rounded-lg hover:bg-gray-100 flex items-center gap-2">
-                    <Zap className="h-4 w-4 text-indigo-500" />
+                    <Zap className="h-4 w-4 text-primary" />
                     Simulate with sample data
                   </button>
                   <button className="w-full p-2 text-left text-sm text-gray-700 bg-gray-50 rounded-lg hover:bg-gray-100 flex items-center gap-2">
-                    <Download className="h-4 w-4 text-indigo-500" />
+                    <Download className="h-4 w-4 text-primary" />
                     Export workflow JSON
                   </button>
                   <button className="w-full p-2 text-left text-sm text-gray-700 bg-gray-50 rounded-lg hover:bg-gray-100 flex items-center gap-2">
-                    <Copy className="h-4 w-4 text-indigo-500" />
+                    <Copy className="h-4 w-4 text-primary" />
                     Clone this workflow
                   </button>
                 </div>
@@ -1024,7 +1028,7 @@ export default function WorkflowBuilderPage() {
               </button>
             </div>
             <div className="flex items-center gap-2 mb-3">
-              <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+              <CheckCircle2 className="h-4 w-4 text-balanced-green" />
               <span className="text-sm font-medium text-emerald-700">
                 Run completed successfully
               </span>

@@ -65,7 +65,7 @@ function KpiCard({
             <div
               className={cn(
                 "flex items-center gap-1 text-xs font-medium",
-                isPositive ? "text-emerald-500" : "text-red-500",
+                isPositive ? "text-balanced-green" : "text-error-clay",
               )}
             >
               {isPositive ? (
@@ -158,7 +158,7 @@ function RolloutBar({ percent }: { percent: number }) {
     <div className="flex items-center gap-2">
       <div className="w-24 h-2 bg-muted rounded-full overflow-hidden">
         <div
-          className="h-full bg-purple-500 rounded-full"
+          className="h-full bg-signal-indigo rounded-full"
           style={{ width: `${percent}%` }}
         />
       </div>
@@ -298,7 +298,7 @@ function FlagDetailPanel({
             <button
               className={cn(
                 "w-10 h-5 rounded-full transition-colors",
-                flag.status === "on" ? "bg-emerald-500" : "bg-gray-300",
+                flag.status === "on" ? "bg-balanced-green" : "bg-gray-300",
               )}
             >
               <div

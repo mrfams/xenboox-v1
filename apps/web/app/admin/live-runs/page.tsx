@@ -100,7 +100,7 @@ function StepProgress({
           <div key={step.stepNumber} className="flex items-center gap-3">
             <div className="flex items-center justify-center w-5">
               {step.status === "completed" ? (
-                <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                <CheckCircle2 className="h-4 w-4 text-balanced-green" />
               ) : step.status === "in_progress" ? (
                 <div className="h-4 w-4 rounded-full border-2 border-violet-500 border-t-transparent animate-spin" />
               ) : (
@@ -418,7 +418,7 @@ export default function LiveAgentRunsPage() {
                   Live Agent Runs
                 </h1>
                 <span className="flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-medium text-emerald-700">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  <span className="h-1.5 w-1.5 rounded-full bg-balanced-green animate-pulse" />
                   Real-time
                 </span>
               </div>
@@ -463,7 +463,7 @@ export default function LiveAgentRunsPage() {
             <Card>
               <CardContent className="p-4">
                 <div className="flex items-center gap-2 mb-1">
-                  <Activity className="h-4 w-4 text-violet-500" />
+                  <Activity className="h-4 w-4 text-signal-indigo" />
                   <span className="text-xs text-muted-foreground">
                     Live Runs
                   </span>
@@ -499,7 +499,7 @@ export default function LiveAgentRunsPage() {
             <Card>
               <CardContent className="p-4">
                 <div className="flex items-center gap-2 mb-1">
-                  <Loader2 className="h-4 w-4 text-blue-500" />
+                  <Loader2 className="h-4 w-4 text-primary" />
                   <span className="text-xs text-muted-foreground">
                     In Progress
                   </span>
@@ -521,7 +521,7 @@ export default function LiveAgentRunsPage() {
             <Card>
               <CardContent className="p-4">
                 <div className="flex items-center gap-2 mb-1">
-                  <Pause className="h-4 w-4 text-amber-500" />
+                  <Pause className="h-4 w-4 text-attention-amber" />
                   <span className="text-xs text-muted-foreground">
                     Waiting for Input
                   </span>
@@ -540,7 +540,7 @@ export default function LiveAgentRunsPage() {
             <Card>
               <CardContent className="p-4">
                 <div className="flex items-center gap-2 mb-1">
-                  <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                  <CheckCircle2 className="h-4 w-4 text-balanced-green" />
                   <span className="text-xs text-muted-foreground">
                     Completed (1h)
                   </span>
@@ -562,7 +562,7 @@ export default function LiveAgentRunsPage() {
             <Card>
               <CardContent className="p-4">
                 <div className="flex items-center gap-2 mb-1">
-                  <XCircle className="h-4 w-4 text-red-500" />
+                  <XCircle className="h-4 w-4 text-error-clay" />
                   <span className="text-xs text-muted-foreground">
                     Failed (1h)
                   </span>

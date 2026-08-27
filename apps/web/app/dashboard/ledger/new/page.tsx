@@ -100,10 +100,10 @@ export default function TheBookPage() {
           <span>{data?.totalCount ?? 0} entries</span>
           {counts && (
             <>
-              <span className="text-amber-500">
+              <span className="text-attention-amber">
                 {counts.pending ?? 0} pending
               </span>
-              <span className="text-blue-500">{counts.posted ?? 0} posted</span>
+              <span className="text-primary">{counts.posted ?? 0} posted</span>
               {(counts.draft ?? 0) > 0 && (
                 <span className="text-muted-foreground/60">
                   {counts.draft} drafts
@@ -171,13 +171,13 @@ function RegisterRow({ entry }: { entry: Entry }) {
 
   const statusTone =
     entry.statusColor === "emerald"
-      ? "bg-emerald-500"
+      ? "bg-balanced-green"
       : entry.statusColor === "blue"
-        ? "bg-blue-500"
+        ? "bg-primary"
         : entry.statusColor === "amber"
-          ? "bg-amber-500"
+          ? "bg-attention-amber"
           : entry.statusColor === "red"
-            ? "bg-red-500"
+            ? "bg-error-clay"
             : "bg-muted-foreground/30";
 
   return (

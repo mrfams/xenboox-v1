@@ -209,7 +209,7 @@ export default function BlogAdminPage() {
               )}
               <button
                 onClick={handleCreatePost}
-                className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-blue-600/20 transition-all hover:bg-blue-500"
+                className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-primary/20 transition-all hover:bg-primary/90"
               >
                 <Plus className="h-4 w-4" />
                 New Post
@@ -566,7 +566,7 @@ export default function BlogAdminPage() {
                   createPost.isPending ||
                   updatePost.isPending
                 }
-                className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-blue-600 rounded-xl shadow-lg shadow-blue-600/20 transition-all hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-primary rounded-xl shadow-lg shadow-primary/20 transition-all hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {(createPost.isPending || updatePost.isPending) && (
                   <Loader2 className="h-4 w-4 animate-spin" />

@@ -47,11 +47,11 @@ function KpiCard({
   const isPositive = delta >= 0;
   const deltaColor = inverted
     ? isPositive
-      ? "text-red-500"
-      : "text-emerald-500"
+      ? "text-error-clay"
+      : "text-balanced-green"
     : isPositive
-      ? "text-emerald-500"
-      : "text-red-500";
+      ? "text-balanced-green"
+      : "text-error-clay";
 
   return (
     <Card className="transition-all hover:shadow-md">
@@ -382,7 +382,7 @@ function CostByOrgCard({
             </div>
             <div className="h-1.5 bg-muted rounded-full overflow-hidden">
               <div
-                className="h-full rounded-full bg-violet-500"
+                className="h-full rounded-full bg-signal-indigo"
                 style={{ width: `${org.percentage}%` }}
               />
             </div>
@@ -533,8 +533,8 @@ export default function AiCostAnalyticsPage() {
       <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-6">
         <KpiCard
           icon={<DollarSign className="h-4 w-4" />}
-          iconBg="bg-violet-500/10"
-          iconColor="text-violet-500"
+          iconBg="bg-signal-indigo/10"
+          iconColor="text-signal-indigo"
           label="Total AI Cost (7d)"
           value={data?.kpis.totalCost7d.display ?? "$0"}
           delta={data?.kpis.totalCost7d.delta ?? 0}
@@ -543,8 +543,8 @@ export default function AiCostAnalyticsPage() {
         />
         <KpiCard
           icon={<DollarSign className="h-4 w-4" />}
-          iconBg="bg-emerald-500/10"
-          iconColor="text-emerald-500"
+          iconBg="bg-balanced-green/10"
+          iconColor="text-balanced-green"
           label="Total Cost (30d)"
           value={data?.kpis.totalCost30d.display ?? "$0"}
           delta={data?.kpis.totalCost30d.delta ?? 0}
@@ -552,8 +552,8 @@ export default function AiCostAnalyticsPage() {
         />
         <KpiCard
           icon={<DollarSign className="h-4 w-4" />}
-          iconBg="bg-blue-500/10"
-          iconColor="text-blue-500"
+          iconBg="bg-primary/10"
+          iconColor="text-primary"
           label="Total Cost (MTD)"
           value={data?.kpis.totalCostMtd.display ?? "$0"}
           delta={data?.kpis.totalCostMtd.delta ?? 0}
@@ -562,8 +562,8 @@ export default function AiCostAnalyticsPage() {
         />
         <KpiCard
           icon={<DollarSign className="h-4 w-4" />}
-          iconBg="bg-amber-500/10"
-          iconColor="text-amber-500"
+          iconBg="bg-attention-amber/10"
+          iconColor="text-attention-amber"
           label="Cost / 1M Tokens"
           value={data?.kpis.costPerMillionTokens.display ?? "$0"}
           delta={data?.kpis.costPerMillionTokens.delta ?? 0}
@@ -572,8 +572,8 @@ export default function AiCostAnalyticsPage() {
         />
         <KpiCard
           icon={<DollarSign className="h-4 w-4" />}
-          iconBg="bg-blue-500/10"
-          iconColor="text-blue-500"
+          iconBg="bg-primary/10"
+          iconColor="text-primary"
           label="Total Tokens (7d)"
           value={data?.kpis.totalTokens7d.display ?? "0"}
           delta={data?.kpis.totalTokens7d.delta ?? 0}
@@ -581,8 +581,8 @@ export default function AiCostAnalyticsPage() {
         />
         <KpiCard
           icon={<DollarSign className="h-4 w-4" />}
-          iconBg="bg-violet-500/10"
-          iconColor="text-violet-500"
+          iconBg="bg-signal-indigo/10"
+          iconColor="text-signal-indigo"
           label="Avg. Cost / Run"
           value={data?.kpis.avgCostPerRun.display ?? "$0"}
           delta={data?.kpis.avgCostPerRun.delta ?? 0}

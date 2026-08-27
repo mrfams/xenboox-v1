@@ -36,10 +36,13 @@ import { cn } from "@/lib/utils";
 function HealthBadge({ score }: { score: number }) {
   const config =
     score >= 80
-      ? { label: "Healthy", color: "text-emerald-500 bg-emerald-500/10" }
+      ? { label: "Healthy", color: "text-balanced-green bg-balanced-green/10" }
       : score >= 50
-        ? { label: "At Risk", color: "text-amber-500 bg-amber-500/10" }
-        : { label: "Critical", color: "text-red-500 bg-red-500/10" };
+        ? {
+            label: "At Risk",
+            color: "text-attention-amber bg-attention-amber/10",
+          }
+        : { label: "Critical", color: "text-error-clay bg-error-clay/10" };
 
   return (
     <span
@@ -59,10 +62,13 @@ function HealthBadge({ score }: { score: number }) {
 function RiskBadge({ level }: { level: string }) {
   const config =
     level === "rescue"
-      ? { label: "Rescue", color: "text-red-500 bg-red-500/10" }
+      ? { label: "Rescue", color: "text-error-clay bg-error-clay/10" }
       : level === "outreach"
-        ? { label: "Outreach", color: "text-amber-500 bg-amber-500/10" }
-        : { label: "Nudge", color: "text-blue-500 bg-blue-500/10" };
+        ? {
+            label: "Outreach",
+            color: "text-attention-amber bg-attention-amber/10",
+          }
+        : { label: "Nudge", color: "text-primary bg-primary/10" };
 
   return (
     <span
@@ -89,10 +95,10 @@ function ScoreBar({
 }) {
   const color =
     score >= 70
-      ? "bg-emerald-500"
+      ? "bg-balanced-green"
       : score >= 40
-        ? "bg-amber-500"
-        : "bg-red-500";
+        ? "bg-attention-amber"
+        : "bg-error-clay";
 
   return (
     <div className="space-y-1">
@@ -181,14 +187,14 @@ export default function CustomerHealthPage() {
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-2 mb-3">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/10">
-                <HeartHandshake className="h-4 w-4 text-emerald-500" />
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-balanced-green/10">
+                <HeartHandshake className="h-4 w-4 text-balanced-green" />
               </div>
               <span className="text-xs font-medium text-muted-foreground">
                 Healthy
               </span>
             </div>
-            <p className="text-2xl font-bold text-emerald-500">
+            <p className="text-2xl font-bold text-balanced-green">
               {overview?.summary.healthy ?? 0}
             </p>
             <p className="text-xs text-muted-foreground">Score ≥ 80</p>
@@ -198,14 +204,14 @@ export default function CustomerHealthPage() {
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-2 mb-3">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-500/10">
-                <AlertTriangle className="h-4 w-4 text-amber-500" />
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-attention-amber/10">
+                <AlertTriangle className="h-4 w-4 text-attention-amber" />
               </div>
               <span className="text-xs font-medium text-muted-foreground">
                 At Risk
               </span>
             </div>
-            <p className="text-2xl font-bold text-amber-500">
+            <p className="text-2xl font-bold text-attention-amber">
               {overview?.summary.atRisk ?? 0}
             </p>
             <p className="text-xs text-muted-foreground">Score 50-79</p>
@@ -215,14 +221,14 @@ export default function CustomerHealthPage() {
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-2 mb-3">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-500/10">
-                <AlertTriangle className="h-4 w-4 text-red-500" />
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-error-clay/10">
+                <AlertTriangle className="h-4 w-4 text-error-clay" />
               </div>
               <span className="text-xs font-medium text-muted-foreground">
                 Critical
               </span>
             </div>
-            <p className="text-2xl font-bold text-red-500">
+            <p className="text-2xl font-bold text-error-clay">
               {overview?.summary.critical ?? 0}
             </p>
             <p className="text-xs text-muted-foreground">Score &lt; 50</p>
@@ -286,7 +292,7 @@ export default function CustomerHealthPage() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-amber-500" />
+              <AlertTriangle className="h-5 w-5 text-attention-amber" />
               Churn Risk Users
             </CardTitle>
           </CardHeader>
@@ -410,13 +416,15 @@ export default function CustomerHealthPage() {
                     Risk Factors
                   </p>
                   {userHealth.riskFactors.length === 0 ? (
-                    <p className="text-xs text-emerald-500">No risk factors</p>
+                    <p className="text-xs text-balanced-green">
+                      No risk factors
+                    </p>
                   ) : (
                     <ul className="space-y-1">
                       {userHealth.riskFactors.map((factor) => (
                         <li
                           key={factor}
-                          className="flex items-center gap-2 text-xs text-red-500"
+                          className="flex items-center gap-2 text-xs text-error-clay"
                         >
                           <AlertTriangle className="h-3 w-3" />
                           {factor}
@@ -437,7 +445,7 @@ export default function CustomerHealthPage() {
                       {userHealth.positiveFactors.map((factor) => (
                         <li
                           key={factor}
-                          className="flex items-center gap-2 text-xs text-emerald-500"
+                          className="flex items-center gap-2 text-xs text-balanced-green"
                         >
                           <Heart className="h-3 w-3" />
                           {factor}
@@ -515,19 +523,19 @@ export default function CustomerHealthPage() {
               <p className="text-sm text-muted-foreground">Total At Risk</p>
             </div>
             <div className="text-center">
-              <p className="text-3xl font-bold text-blue-500">
+              <p className="text-3xl font-bold text-primary">
                 {churnRisk?.nudges ?? 0}
               </p>
               <p className="text-sm text-muted-foreground">Nudges</p>
             </div>
             <div className="text-center">
-              <p className="text-3xl font-bold text-amber-500">
+              <p className="text-3xl font-bold text-attention-amber">
                 {churnRisk?.outreach ?? 0}
               </p>
               <p className="text-sm text-muted-foreground">Outreach</p>
             </div>
             <div className="text-center">
-              <p className="text-3xl font-bold text-red-500">
+              <p className="text-3xl font-bold text-error-clay">
                 {churnRisk?.rescue ?? 0}
               </p>
               <p className="text-sm text-muted-foreground">Rescue</p>

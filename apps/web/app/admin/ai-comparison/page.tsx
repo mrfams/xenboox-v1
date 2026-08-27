@@ -208,11 +208,11 @@ export default function AIComparisonPage() {
                           </div>
                         </div>
                         <div
-                          className="absolute -top-4 left-1/2 transform -translate-x-1/2 w-8 h-4 bg-blue-500 rounded-sm"
+                          className="absolute -top-4 left-1/2 transform -translate-x-1/2 w-8 h-4 bg-primary rounded-sm"
                           title={`API: $${provider.monthlySpend}`}
                         ></div>
                         <div
-                          className="absolute -bottom-6 left-1/2 transform -translate-x-1/2 w-8 h-4 bg-green-500 rounded-sm"
+                          className="absolute -bottom-6 left-1/2 transform -translate-x-1/2 w-8 h-4 bg-balanced-green rounded-sm"
                           title={`Self-host: $${provider.selfHostCostPerMonth}`}
                         ></div>
                       </div>
@@ -225,11 +225,11 @@ export default function AIComparisonPage() {
               </div>
               <div className="flex justify-center gap-8 text-sm">
                 <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 bg-blue-500 rounded"></div>
+                  <div className="w-4 h-4 bg-primary rounded"></div>
                   <span>API Cost</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 bg-green-500 rounded"></div>
+                  <div className="w-4 h-4 bg-balanced-green rounded"></div>
                   <span>Self-Host Cost</span>
                 </div>
               </div>
