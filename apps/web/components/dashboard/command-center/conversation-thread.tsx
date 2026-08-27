@@ -106,7 +106,7 @@ function InlineInputForm({
               >
                 {field.label}
                 {field.required && (
-                  <span className="text-red-500 ml-0.5">*</span>
+                  <span className="text-error-clay ml-0.5">*</span>
                 )}
               </label>
               {field.type === "select" && field.options ? (
@@ -611,9 +611,9 @@ export function ConversationThread({
         {/* Inline approval cards from streaming */}
         {approvals.map((approval, i) => (
           <div key={`approval-${i}`} className="flex gap-3">
-            <div className="max-w-[85%] rounded-2xl border border-amber-500/20 bg-amber-500/[0.03] px-4 py-3">
+            <div className="max-w-[85%] rounded-2xl border border-attention-amber/20 bg-attention-amber/[0.03] px-4 py-3">
               <div className="flex items-start gap-2 mb-2">
-                <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
+                <AlertTriangle className="h-4 w-4 text-attention-amber shrink-0 mt-0.5" />
                 <div>
                   <p className="text-sm font-medium text-foreground">
                     {approval.title}
@@ -645,8 +645,8 @@ export function ConversationThread({
                   className={cn(
                     "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
                     processingApprovalIdx === i
-                      ? "bg-emerald-500/20 text-emerald-700 cursor-wait"
-                      : "bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20",
+                      ? "bg-balanced-green/20 text-balanced-green cursor-wait"
+                      : "bg-balanced-green/10 text-balanced-green hover:bg-balanced-green/20",
                   )}
                 >
                   {processingApprovalIdx === i ? (
@@ -695,8 +695,8 @@ export function ConversationThread({
                   className={cn(
                     "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
                     processingApprovalIdx === i
-                      ? "bg-red-500/20 text-red-700 cursor-wait"
-                      : "bg-red-500/10 text-red-600 hover:bg-red-500/20",
+                      ? "bg-error-clay/20 text-error-clay cursor-wait"
+                      : "bg-error-clay/10 text-error-clay hover:bg-error-clay/20",
                   )}
                 >
                   {processingApprovalIdx === i ? (

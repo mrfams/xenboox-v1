@@ -56,7 +56,7 @@ export function VendorsView() {
       sortable: true,
       render: (row) => (
         <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-500/10 text-amber-500 text-xs font-bold">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-attention-amber/10 text-attention-amber text-xs font-bold">
             {(row.name ?? "?").charAt(0).toUpperCase()}
           </div>
           <div>
@@ -110,7 +110,7 @@ export function VendorsView() {
           <span
             className={cn(
               "text-sm font-medium tabular-nums",
-              balance > 0 ? "text-amber-500" : "text-muted-foreground",
+              balance > 0 ? "text-attention-amber" : "text-muted-foreground",
             )}
           >
             {formatCurrency(balance)}

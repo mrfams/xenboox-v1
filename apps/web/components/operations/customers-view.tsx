@@ -29,9 +29,9 @@ type Customer = {
 
 function CustomerStatusBadge({ status }: { status?: string }) {
   const styles: Record<string, string> = {
-    active: "bg-emerald-500/10 text-emerald-500",
+    active: "bg-balanced-green/10 text-balanced-green",
     inactive: "bg-muted text-muted-foreground",
-    overdue: "bg-red-500/10 text-red-500",
+    overdue: "bg-error-clay/10 text-error-clay",
   };
 
   return (
@@ -131,7 +131,7 @@ export function CustomersView() {
           <span
             className={cn(
               "text-sm font-medium tabular-nums",
-              balance > 0 ? "text-amber-500" : "text-muted-foreground",
+              balance > 0 ? "text-attention-amber" : "text-muted-foreground",
             )}
           >
             {formatCurrency(balance)}

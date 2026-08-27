@@ -106,7 +106,7 @@ export function AIPreferencesSummary() {
             {Object.entries(prefs).map(([key, value]) => (
               <div
                 key={key}
-                className={`h-2 w-2 rounded-full ${value ? "bg-emerald-500" : "bg-muted"}`}
+                className={`h-2 w-2 rounded-full ${value ? "bg-balanced-green" : "bg-muted"}`}
                 title={`${key}: ${value ? "on" : "off"}`}
               />
             ))}
@@ -173,11 +173,11 @@ function PrefToggle({
       <div className="flex items-center gap-3">
         <div
           className={`flex h-6 w-6 items-center justify-center rounded-full ${
-            enabled ? "bg-emerald-500/10" : "bg-muted"
+            enabled ? "bg-balanced-green/10" : "bg-muted"
           }`}
         >
           {enabled ? (
-            <Check className="h-3 w-3 text-emerald-500" />
+            <Check className="h-3 w-3 text-balanced-green" />
           ) : (
             <X className="h-3 w-3 text-muted-foreground" />
           )}

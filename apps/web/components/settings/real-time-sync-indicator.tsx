@@ -69,8 +69,8 @@ export function RealTimeSyncIndicator({
         <div className="flex items-center gap-2">
           {!isOnline ? (
             <>
-              <WifiOff className="h-4 w-4 text-amber-500" />
-              <span className="text-xs text-amber-600">
+              <WifiOff className="h-4 w-4 text-attention-amber" />
+              <span className="text-xs text-attention-amber">
                 Offline — changes will sync when reconnected
               </span>
             </>
@@ -95,7 +95,7 @@ export function RealTimeSyncIndicator({
             </>
           ) : (
             <>
-              <Cloud className="h-4 w-4 text-emerald-500" />
+              <Cloud className="h-4 w-4 text-balanced-green" />
               <span className="text-xs text-muted-foreground">
                 {lastSyncedAt
                   ? `Synced ${formatTime(lastSyncedAt)}`
@@ -108,7 +108,7 @@ export function RealTimeSyncIndicator({
         {/* Sync status dots */}
         {isCloudEnabled && isOnline && (
           <div className="flex items-center gap-1">
-            <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            <div className="h-1.5 w-1.5 rounded-full bg-balanced-green animate-pulse" />
             <span className="text-[10px] text-muted-foreground">Live</span>
           </div>
         )}
@@ -130,21 +130,21 @@ export function RealTimeSyncIndicator({
         <div className="rounded-lg border border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950 p-3 space-y-2">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <ArrowDown className="h-4 w-4 text-blue-500" />
+              <ArrowDown className="h-4 w-4 text-primary" />
               <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
                 Settings updated on another device
               </span>
             </div>
             <button
               onClick={onDismissRemote}
-              className="text-blue-400 hover:text-blue-600 transition-colors"
+              className="text-blue-400 hover:text-primary transition-colors"
               aria-label="Dismiss notification"
             >
               <X className="h-4 w-4" />
             </button>
           </div>
           {remoteUpdatedAt && (
-            <p className="text-xs text-blue-600 dark:text-blue-400">
+            <p className="text-xs text-primary dark:text-blue-400">
               Last updated {formatTime(remoteUpdatedAt)}
             </p>
           )}

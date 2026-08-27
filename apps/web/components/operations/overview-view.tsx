@@ -123,10 +123,10 @@ function MoneyFlowSummary() {
           Money Flow
         </h2>
         <span
-          className="inline-flex items-center gap-1 rounded-full border border-emerald-500/20 bg-emerald-500/5 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-emerald-500/70"
+          className="inline-flex items-center gap-1 rounded-full border border-emerald-500/20 bg-balanced-green/5 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-balanced-green/70"
           aria-hidden="true"
         >
-          <span className="h-1 w-1 rounded-full bg-emerald-500 animate-pulse" />
+          <span className="h-1 w-1 rounded-full bg-balanced-green animate-pulse" />
           Live
         </span>
       </div>
@@ -187,7 +187,7 @@ function MoneyFlowSummary() {
           <p className="text-[10px] font-medium text-muted-foreground/70">
             Coming In
           </p>
-          <p className="mt-1 text-lg font-bold text-emerald-500">
+          <p className="mt-1 text-lg font-bold text-balanced-green">
             {formatCurrency(incoming)}
           </p>
         </div>
@@ -195,7 +195,7 @@ function MoneyFlowSummary() {
           <p className="text-[10px] font-medium text-muted-foreground/70">
             Going Out
           </p>
-          <p className="mt-1 text-lg font-bold text-red-500">
+          <p className="mt-1 text-lg font-bold text-error-clay">
             {formatCurrency(outgoing)}
           </p>
         </div>
@@ -236,7 +236,7 @@ function BankingCards({ onViewBanking }: { onViewBanking: () => void }) {
           </h3>
           {bankData?.summary?.unreconciledAccounts != null &&
             bankData.summary.unreconciledAccounts > 0 && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-1.5 py-0.5 text-[9px] font-bold text-amber-500">
+              <span className="inline-flex items-center gap-1 rounded-full bg-attention-amber/10 px-1.5 py-0.5 text-[9px] font-bold text-attention-amber">
                 {bankData.summary.unreconciledAccounts} unreconciled
               </span>
             )}
@@ -300,12 +300,12 @@ function BankingCards({ onViewBanking }: { onViewBanking: () => void }) {
               <div className="mt-1 flex items-center gap-1">
                 {account.isActive ? (
                   <CheckCircle2
-                    className="h-3 w-3 text-emerald-500"
+                    className="h-3 w-3 text-balanced-green"
                     aria-hidden="true"
                   />
                 ) : (
                   <AlertTriangle
-                    className="h-3 w-3 text-amber-500"
+                    className="h-3 w-3 text-attention-amber"
                     aria-hidden="true"
                   />
                 )}
@@ -412,13 +412,13 @@ function RecentTransactions({
                   <div
                     className={cn(
                       "flex h-7 w-7 shrink-0 items-center justify-center rounded-lg",
-                      isPositive ? "bg-emerald-500/10" : "bg-red-500/10",
+                      isPositive ? "bg-balanced-green/10" : "bg-error-clay/10",
                     )}
                   >
                     {isPositive ? (
-                      <ArrowDownRight className="h-3.5 w-3.5 text-emerald-500" />
+                      <ArrowDownRight className="h-3.5 w-3.5 text-balanced-green" />
                     ) : (
-                      <ArrowUpRight className="h-3.5 w-3.5 text-red-500" />
+                      <ArrowUpRight className="h-3.5 w-3.5 text-error-clay" />
                     )}
                   </div>
                   <div className="min-w-0">
@@ -433,7 +433,7 @@ function RecentTransactions({
                           })
                         : ""}
                       {!tx.isReconciled && (
-                        <span className="ml-1.5 text-amber-500 font-medium">
+                        <span className="ml-1.5 text-attention-amber font-medium">
                           Unreconciled
                         </span>
                       )}
@@ -443,7 +443,7 @@ function RecentTransactions({
                 <span
                   className={cn(
                     "text-xs font-semibold tabular-nums shrink-0",
-                    isPositive ? "text-emerald-500" : "text-foreground",
+                    isPositive ? "text-balanced-green" : "text-foreground",
                   )}
                 >
                   {isPositive ? "+" : ""}
@@ -586,21 +586,21 @@ function PeopleGrid({
       label: "Customers",
       count: customers?.totalCount ?? 0,
       icon: Users,
-      color: "text-blue-500",
+      color: "text-primary",
       tab: "customers",
     },
     {
       label: "Vendors",
       count: vendorsOverview?.totalVendors ?? 0,
       icon: Building2,
-      color: "text-violet-500",
+      color: "text-signal-indigo",
       tab: "vendors",
     },
     {
       label: "Bills",
       count: billsOverview?.statusCounts.all ?? 0,
       icon: CreditCard,
-      color: "text-amber-500",
+      color: "text-attention-amber",
       tab: "bills",
     },
   ];
@@ -695,14 +695,14 @@ export function OverviewView({
           <div className="rounded-xl border border-border/50 bg-card p-4">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-500/10">
-                  <TrendingDown className="h-4 w-4 text-red-500" />
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-error-clay/10">
+                  <TrendingDown className="h-4 w-4 text-error-clay" />
                 </div>
                 <h3 className="text-sm font-semibold text-foreground">
                   Money Out
                 </h3>
                 {overdueBills > 0 && (
-                  <span className="inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500/10 px-1.5 text-[10px] font-bold text-red-500">
+                  <span className="inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-error-clay/10 px-1.5 text-[10px] font-bold text-error-clay">
                     {overdueBills}
                   </span>
                 )}
@@ -716,9 +716,9 @@ export function OverviewView({
               >
                 <span className="flex items-center gap-2">
                   {pendingBills > 0 ? (
-                    <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
+                    <AlertTriangle className="h-3.5 w-3.5 text-attention-amber" />
                   ) : (
-                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                    <CheckCircle2 className="h-3.5 w-3.5 text-balanced-green" />
                   )}
                   <span className="text-xs text-foreground group-hover:text-primary transition-colors">
                     Bills to Pay
@@ -734,7 +734,7 @@ export function OverviewView({
                 className="w-full flex items-center justify-between rounded-lg bg-background/50 px-3 py-2 text-left transition-colors hover:bg-accent group"
               >
                 <span className="flex items-center gap-2">
-                  <Landmark className="h-3.5 w-3.5 text-blue-500" />
+                  <Landmark className="h-3.5 w-3.5 text-primary" />
                   <span className="text-xs text-foreground group-hover:text-primary transition-colors">
                     Banking & Feeds
                   </span>
@@ -755,7 +755,7 @@ export function OverviewView({
                 className="w-full flex items-center justify-between rounded-lg bg-background/50 px-3 py-2 text-left transition-colors hover:bg-accent group"
               >
                 <span className="flex items-center gap-2">
-                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                  <CheckCircle2 className="h-3.5 w-3.5 text-balanced-green" />
                   <span className="text-xs text-foreground group-hover:text-primary transition-colors">
                     Expenses
                   </span>
@@ -772,8 +772,8 @@ export function OverviewView({
           <div className="rounded-xl border border-border/50 bg-card p-4">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/10">
-                  <TrendingUp className="h-4 w-4 text-emerald-500" />
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-balanced-green/10">
+                  <TrendingUp className="h-4 w-4 text-balanced-green" />
                 </div>
                 <h3 className="text-sm font-semibold text-foreground">
                   Money In
@@ -787,7 +787,7 @@ export function OverviewView({
                 className="w-full flex items-center justify-between rounded-lg bg-background/50 px-3 py-2 text-left transition-colors hover:bg-accent group"
               >
                 <span className="flex items-center gap-2">
-                  <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
+                  <AlertTriangle className="h-3.5 w-3.5 text-attention-amber" />
                   <span className="text-xs text-foreground group-hover:text-primary transition-colors">
                     Invoices Outstanding
                   </span>

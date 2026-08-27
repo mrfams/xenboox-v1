@@ -55,28 +55,28 @@ const FEATURES: UsageFeature[] = [
     label: "Auto-Reconciliation",
     description: "Bank transactions matched to journal entries",
     icon: Zap,
-    color: "text-emerald-500",
+    color: "text-balanced-green",
   },
   {
     key: "autoCategorize",
     label: "Smart Categorization",
     description: "Transactions categorized by AI",
     icon: Brain,
-    color: "text-blue-500",
+    color: "text-primary",
   },
   {
     key: "aiAlerts",
     label: "Anomaly Alerts",
     description: "Unusual patterns detected",
     icon: AlertCircle,
-    color: "text-amber-500",
+    color: "text-attention-amber",
   },
   {
     key: "dailyDigest",
     label: "Daily Digest",
     description: "Morning summaries generated",
     icon: Mail,
-    color: "text-purple-500",
+    color: "text-signal-indigo",
   },
 ];
 
@@ -149,12 +149,12 @@ export function AIUsageStats() {
           <StatBox
             label="Features Active"
             value={`${FEATURES.filter((f) => stats[f.key] > 0).length}/${FEATURES.length}`}
-            icon={<Brain className="h-4 w-4 text-blue-500" />}
+            icon={<Brain className="h-4 w-4 text-primary" />}
           />
           <StatBox
             label="Last Used"
             value={timeAgo(stats.lastUsed)}
-            icon={<TrendingUp className="h-4 w-4 text-emerald-500" />}
+            icon={<TrendingUp className="h-4 w-4 text-balanced-green" />}
           />
         </div>
 

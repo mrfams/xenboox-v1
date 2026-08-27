@@ -92,8 +92,8 @@ export default function IngestionPage() {
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-100 dark:bg-blue-500/20 rounded-lg">
-                <FileText className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+              <div className="p-2 bg-primary/10 dark:bg-primary/20 rounded-lg">
+                <FileText className="h-5 w-5 text-primary dark:text-primary" />
               </div>
               <div>
                 <div className="text-2xl font-bold">
@@ -109,8 +109,8 @@ export default function IngestionPage() {
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-green-100 dark:bg-green-500/20 rounded-lg">
-                <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" />
+              <div className="p-2 bg-balanced-green/10 dark:bg-balanced-green/20 rounded-lg">
+                <CheckCircle className="h-5 w-5 text-balanced-green dark:text-balanced-green" />
               </div>
               <div>
                 <div className="text-2xl font-bold">
@@ -128,8 +128,8 @@ export default function IngestionPage() {
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-red-100 dark:bg-red-500/20 rounded-lg">
-                <XCircle className="h-5 w-5 text-red-600 dark:text-red-400" />
+              <div className="p-2 bg-error-clay/10 dark:bg-error-clay/20 rounded-lg">
+                <XCircle className="h-5 w-5 text-error-clay dark:text-error-clay" />
               </div>
               <div>
                 <div className="text-2xl font-bold">
@@ -146,8 +146,8 @@ export default function IngestionPage() {
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-amber-100 dark:bg-amber-500/20 rounded-lg">
-                <Clock className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+              <div className="p-2 bg-attention-amber/10 dark:bg-attention-amber/20 rounded-lg">
+                <Clock className="h-5 w-5 text-attention-amber dark:text-attention-amber" />
               </div>
               <div>
                 <div className="text-2xl font-bold">
@@ -309,17 +309,17 @@ function BatchHistoryCard({
                 className={`
                   ${
                     batch.progress.status === "completed"
-                      ? "bg-green-100 dark:bg-green-500/20 text-green-800 dark:text-green-400"
+                      ? "bg-balanced-green/10 dark:bg-balanced-green/20 text-balanced-green dark:text-balanced-green"
                       : ""
                   }
                   ${
                     batch.progress.status === "failed"
-                      ? "bg-red-100 dark:bg-red-500/20 text-red-800 dark:text-red-400"
+                      ? "bg-error-clay/10 dark:bg-error-clay/20 text-error-clay dark:text-error-clay"
                       : ""
                   }
                   ${
                     batch.progress.status === "processing"
-                      ? "bg-blue-100 dark:bg-blue-500/20 text-blue-800 dark:text-blue-400"
+                      ? "bg-primary/10 dark:bg-primary/20 text-primary dark:text-primary"
                       : ""
                   }
                 `}

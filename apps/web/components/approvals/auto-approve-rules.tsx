@@ -70,7 +70,7 @@ export function AutoApproveRules() {
   return (
     <div className="space-y-4">
       {(rulesError || statsError || logError) && (
-        <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 p-3 text-xs text-amber-800 dark:text-amber-200">
+        <div className="rounded-lg border border-attention-amber/20 bg-attention-amber/5 p-3 text-xs text-attention-amber dark:text-attention-amber">
           <p className="font-medium">
             Some data failed to load — policies still enforced server-side.
           </p>
@@ -91,19 +91,19 @@ export function AutoApproveRules() {
           label="Auto-Approved"
           value={stats?.totalAutoApproved ?? 0}
           icon={CheckCircle2}
-          color="text-emerald-500"
+          color="text-balanced-green"
         />
         <StatCard
           label="Escalated"
           value={stats?.totalEscalated ?? 0}
           icon={AlertTriangle}
-          color="text-amber-500"
+          color="text-attention-amber"
         />
         <StatCard
           label="Pending"
           value={stats?.pendingApprovals ?? 0}
           icon={Clock}
-          color="text-blue-500"
+          color="text-primary"
         />
       </div>
 
@@ -326,10 +326,10 @@ function RulesList({
                       className={cn(
                         "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold",
                         rule.action === "auto_approve"
-                          ? "bg-emerald-500/10 text-emerald-500"
+                          ? "bg-balanced-green/10 text-balanced-green"
                           : rule.action === "auto_approve_with_limit"
-                            ? "bg-amber-500/10 text-amber-500"
-                            : "bg-red-500/10 text-red-500",
+                            ? "bg-attention-amber/10 text-attention-amber"
+                            : "bg-error-clay/10 text-error-clay",
                       )}
                     >
                       {rule.action === "auto_approve"
@@ -369,7 +369,7 @@ function RulesList({
                 <button
                   type="button"
                   onClick={() => setDeleteConfirmId(rule.id)}
-                  className="rounded-lg p-1.5 text-muted-foreground hover:bg-red-500/10 hover:text-red-500"
+                  className="rounded-lg p-1.5 text-muted-foreground hover:bg-error-clay/10 hover:text-error-clay"
                 >
                   <Trash2 className="h-4 w-4" />
                 </button>
@@ -420,7 +420,7 @@ function RulesList({
                     deleteMutation.mutate({ ruleId: deleteConfirmId })
                   }
                   disabled={deleteMutation.isPending}
-                  className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-50"
+                  className="rounded-lg bg-error-clay px-3 py-1.5 text-xs font-medium text-white hover:bg-error-clay/90 disabled:opacity-50"
                 >
                   {deleteMutation.isPending ? "Deleting..." : "Delete"}
                 </button>
@@ -489,14 +489,14 @@ function AuditLog({
               className={cn(
                 "flex h-8 w-8 items-center justify-center rounded-lg",
                 log.action === "auto_approved"
-                  ? "bg-emerald-500/10"
-                  : "bg-amber-500/10",
+                  ? "bg-balanced-green/10"
+                  : "bg-attention-amber/10",
               )}
             >
               {log.action === "auto_approved" ? (
-                <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                <CheckCircle2 className="h-4 w-4 text-balanced-green" />
               ) : (
-                <AlertTriangle className="h-4 w-4 text-amber-500" />
+                <AlertTriangle className="h-4 w-4 text-attention-amber" />
               )}
             </div>
             <div>
@@ -568,13 +568,13 @@ function StatsView({
             <p className="text-xs text-muted-foreground">Time saved</p>
           </div>
           <div>
-            <p className="text-2xl font-bold text-amber-500 tabular-nums">
+            <p className="text-2xl font-bold text-attention-amber tabular-nums">
               {stats?.totalEscalated ?? 0}
             </p>
             <p className="text-xs text-muted-foreground">Escalated to human</p>
           </div>
           <div>
-            <p className="text-2xl font-bold text-blue-500 tabular-nums">
+            <p className="text-2xl font-bold text-primary tabular-nums">
               {stats?.activeRules ?? 0}
             </p>
             <p className="text-xs text-muted-foreground">Active rules</p>

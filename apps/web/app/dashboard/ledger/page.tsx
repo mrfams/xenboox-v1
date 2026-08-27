@@ -186,11 +186,11 @@ function JournalEntryDrawer({
                     className={cn(
                       "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold",
                       entry.status === "posted"
-                        ? "bg-blue-500/10 text-blue-500"
+                        ? "bg-primary/10 text-primary"
                         : entry.status === "pending_review"
-                          ? "bg-amber-500/10 text-amber-500"
+                          ? "bg-attention-amber/10 text-attention-amber"
                           : entry.status === "reversed"
-                            ? "bg-red-500/10 text-red-500"
+                            ? "bg-error-clay/10 text-error-clay"
                             : "bg-muted text-muted-foreground",
                     )}
                   >
@@ -351,19 +351,21 @@ function JournalEntryDrawer({
                         <div className="flex items-center gap-2">
                           {isBalanced ? (
                             <CheckCircle2
-                              className="h-4 w-4 text-emerald-500"
+                              className="h-4 w-4 text-balanced-green"
                               aria-hidden="true"
                             />
                           ) : (
                             <AlertTriangle
-                              className="h-4 w-4 text-red-500"
+                              className="h-4 w-4 text-error-clay"
                               aria-hidden="true"
                             />
                           )}
                           <span
                             className={cn(
                               "text-xs font-medium",
-                              isBalanced ? "text-emerald-600" : "text-red-600",
+                              isBalanced
+                                ? "text-balanced-green"
+                                : "text-error-clay",
                             )}
                           >
                             {isBalanced
@@ -468,8 +470,8 @@ function JournalEntryDrawer({
         >
           <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl">
             <div className="flex items-center gap-3 mb-4">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-500/10">
-                <RotateCcw className="h-5 w-5 text-red-500" />
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-error-clay/10">
+                <RotateCcw className="h-5 w-5 text-error-clay" />
               </div>
               <div>
                 <h3 className="text-sm font-semibold text-foreground">
@@ -494,7 +496,7 @@ function JournalEntryDrawer({
 
             <label className="block">
               <span className="text-xs font-medium text-foreground">
-                Reason for reversal <span className="text-red-500">*</span>
+                Reason for reversal <span className="text-error-clay">*</span>
               </span>
               <input
                 type="text"
@@ -528,7 +530,7 @@ function JournalEntryDrawer({
                   }
                 }}
                 disabled={!reverseReason.trim() || reverseMutation.isPending}
-                className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-700 transition-colors disabled:opacity-50"
+                className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg bg-error-clay px-3 py-2 text-sm font-medium text-white hover:bg-error-clay/90 transition-colors disabled:opacity-50"
               >
                 {reverseMutation.isPending ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -741,13 +743,13 @@ function JournalView() {
                     className={cn(
                       "h-1.5 w-1.5 shrink-0 rounded-full",
                       entry.statusColor === "emerald"
-                        ? "bg-emerald-500"
+                        ? "bg-balanced-green"
                         : entry.statusColor === "blue"
-                          ? "bg-blue-500"
+                          ? "bg-primary"
                           : entry.statusColor === "amber"
-                            ? "bg-amber-500"
+                            ? "bg-attention-amber"
                             : entry.statusColor === "red"
-                              ? "bg-red-500"
+                              ? "bg-error-clay"
                               : "bg-muted-foreground/30",
                     )}
                   />
@@ -777,13 +779,13 @@ function JournalView() {
                       className={cn(
                         "inline-flex items-center rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide",
                         entry.statusColor === "emerald"
-                          ? "bg-emerald-500/10 text-emerald-500"
+                          ? "bg-balanced-green/10 text-balanced-green"
                           : entry.statusColor === "blue"
-                            ? "bg-blue-500/10 text-blue-500"
+                            ? "bg-primary/10 text-primary"
                             : entry.statusColor === "amber"
-                              ? "bg-amber-500/10 text-amber-500"
+                              ? "bg-attention-amber/10 text-attention-amber"
                               : entry.statusColor === "red"
-                                ? "bg-red-500/10 text-red-500"
+                                ? "bg-error-clay/10 text-error-clay"
                                 : "bg-muted text-muted-foreground",
                       )}
                     >
@@ -1047,20 +1049,20 @@ function TrialBalanceView() {
         className={cn(
           "rounded-xl border p-4",
           isBalanced
-            ? "border-emerald-500/20 bg-emerald-500/[0.03]"
-            : "border-red-500/20 bg-red-500/[0.03]",
+            ? "border-balanced-green/20 bg-balanced-green/[0.03]"
+            : "border-error-clay/20 bg-error-clay/[0.03]",
         )}
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             {isBalanced ? (
               <CheckCircle2
-                className="h-5 w-5 text-emerald-500"
+                className="h-5 w-5 text-balanced-green"
                 aria-hidden="true"
               />
             ) : (
               <AlertTriangle
-                className="h-5 w-5 text-red-500"
+                className="h-5 w-5 text-error-clay"
                 aria-hidden="true"
               />
             )}

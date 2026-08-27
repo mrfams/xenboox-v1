@@ -186,7 +186,7 @@ export function BillingSection() {
                       key={f}
                       className="inline-flex items-center gap-1.5 rounded-full bg-muted px-3 py-1 text-xs"
                     >
-                      <span className="h-1 w-1 rounded-full bg-emerald-500" />
+                      <span className="h-1 w-1 rounded-full bg-balanced-green" />
                       {f}
                     </span>
                   ))}
@@ -319,7 +319,7 @@ export function BillingSection() {
               </div>
               <div className="h-2 rounded-full bg-emerald-100 dark:bg-emerald-950 overflow-hidden">
                 <div
-                  className="h-full bg-emerald-500 rounded-full"
+                  className="h-full bg-balanced-green rounded-full"
                   style={{ width: "100%" }}
                 />
               </div>
@@ -336,7 +336,7 @@ export function BillingSection() {
               </div>
               <div className="h-2 rounded-full bg-blue-100 dark:bg-blue-950 overflow-hidden">
                 <div
-                  className="h-full bg-blue-500 rounded-full"
+                  className="h-full bg-primary rounded-full"
                   style={{ width: "100%" }}
                 />
               </div>

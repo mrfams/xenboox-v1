@@ -85,7 +85,7 @@ function getMonthLabel(index: number, totalBars: number): string {
 
 function MiniSparkline({
   data,
-  color = "text-emerald-500",
+  color = "text-balanced-green",
 }: {
   data: number[];
   color?: string;
@@ -183,9 +183,9 @@ function KPICard({
             data={sparkline}
             color={
               isNegative
-                ? "text-red-500"
+                ? "text-error-clay"
                 : isPositive
-                  ? "text-emerald-500"
+                  ? "text-balanced-green"
                   : color
             }
           />
@@ -200,9 +200,9 @@ function KPICard({
             className={cn(
               "inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-bold",
               isPositive
-                ? "bg-emerald-500/10 text-emerald-500"
+                ? "bg-balanced-green/10 text-balanced-green"
                 : isNegative
-                  ? "bg-red-500/10 text-red-500"
+                  ? "bg-error-clay/10 text-error-clay"
                   : "bg-muted text-muted-foreground",
             )}
           >
@@ -333,7 +333,7 @@ function AiFinancialNarrative({
           {aiNarrative.highlights.map((h, i) => (
             <span
               key={`h-${i}`}
-              className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-600"
+              className="inline-flex items-center gap-1 rounded-full bg-balanced-green/10 px-2 py-0.5 text-[10px] font-medium text-balanced-green"
             >
               ✅ {h}
             </span>
@@ -341,7 +341,7 @@ function AiFinancialNarrative({
           {aiNarrative.concerns.map((c, i) => (
             <span
               key={`c-${i}`}
-              className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-600"
+              className="inline-flex items-center gap-1 rounded-full bg-attention-amber/10 px-2 py-0.5 text-[10px] font-medium text-attention-amber"
             >
               ⚠️ {c}
             </span>
@@ -653,9 +653,9 @@ function BudgetVsActualSection({
                       className={cn(
                         "px-3 py-2 text-right tabular-nums font-medium",
                         isOver
-                          ? "text-red-600"
+                          ? "text-error-clay"
                           : isUnder
-                            ? "text-emerald-600"
+                            ? "text-balanced-green"
                             : "text-muted-foreground",
                       )}
                     >
@@ -667,9 +667,9 @@ function BudgetVsActualSection({
                         className={cn(
                           "inline-flex items-center rounded-full px-1.5 py-0.5 text-[9px] font-bold",
                           isOver
-                            ? "bg-red-500/10 text-red-500"
+                            ? "bg-error-clay/10 text-error-clay"
                             : isUnder
-                              ? "bg-emerald-500/10 text-emerald-500"
+                              ? "bg-balanced-green/10 text-balanced-green"
                               : "bg-muted text-muted-foreground",
                         )}
                       >
@@ -703,7 +703,7 @@ const REPORTS = [
     description: "Revenue, expenses, and net income",
     aiPrompt: "Show me my profit and loss statement",
     icon: TrendingUp,
-    color: "bg-blue-500/10 text-blue-500",
+    color: "bg-primary/10 text-primary",
   },
   {
     id: "cash-flow",
@@ -711,7 +711,7 @@ const REPORTS = [
     description: "Cash in, cash out, net movement",
     aiPrompt: "Show me my cash flow statement",
     icon: Wallet,
-    color: "bg-purple-500/10 text-purple-500",
+    color: "bg-signal-indigo/10 text-signal-indigo",
   },
   // Balance Sheet and Trial Balance hidden until real report builders exist
   // (were generating empty documents — users downloading blank PDFs)
@@ -962,7 +962,7 @@ export default function FinancialPulsePage() {
                 : undefined
             }
             icon={TrendingUp}
-            color="text-emerald-500"
+            color="text-balanced-green"
             sparkline={revenueSparkline}
             onDrillDown={() => {
               const expenses = pnlData?.current.expensesByAccount ?? [];
@@ -981,7 +981,7 @@ export default function FinancialPulsePage() {
                     percentage: pnl?.revenue
                       ? `${((a.amount / pnl.revenue) * 100).toFixed(1)}%`
                       : undefined,
-                    color: "bg-emerald-500",
+                    color: "bg-balanced-green",
                   })),
                 insight: pnl?.revenueChange
                   ? `Revenue ${pnl.revenueChange > 0 ? "grew" : "declined"} ${Math.abs(pnl.revenueChange).toFixed(1)}% vs prior period.`
@@ -1011,7 +1011,7 @@ export default function FinancialPulsePage() {
                 : undefined
             }
             icon={TrendingDown}
-            color="text-red-500"
+            color="text-error-clay"
             sparkline={expenseSparkline}
             onDrillDown={() => {
               const expenses = pnlData?.current.expensesByAccount ?? [];
@@ -1029,7 +1029,7 @@ export default function FinancialPulsePage() {
                     totalExpenses > 0
                       ? `${((Math.abs(a.amount) / totalExpenses) * 100).toFixed(1)}%`
                       : undefined,
-                  color: "bg-red-500",
+                  color: "bg-error-clay",
                 })),
                 insight: pnl?.expensesChange
                   ? `Expenses ${pnl.expensesChange > 0 ? "increased" : "decreased"} ${Math.abs(pnl.expensesChange).toFixed(1)}% vs prior period.`
@@ -1056,24 +1056,24 @@ export default function FinancialPulsePage() {
                   {
                     label: "Revenue",
                     value: formatCurrency(pnl?.revenue ?? 0),
-                    color: "bg-emerald-500",
+                    color: "bg-balanced-green",
                   },
                   {
                     label: "Cost of Goods Sold",
                     value: formatCurrency(pnlData?.current.cogs ?? 0),
-                    color: "bg-amber-500",
+                    color: "bg-attention-amber",
                   },
                   {
                     label: "Gross Profit",
                     value: formatCurrency(
                       (pnl?.revenue ?? 0) - (pnlData?.current.cogs ?? 0),
                     ),
-                    color: "bg-blue-500",
+                    color: "bg-primary",
                   },
                   {
                     label: "Operating Expenses",
                     value: formatCurrency(pnl?.expenses ?? 0),
-                    color: "bg-red-500",
+                    color: "bg-error-clay",
                   },
                   {
                     label: "Net Profit",
@@ -1100,7 +1100,7 @@ export default function FinancialPulsePage() {
             label="Cash Balance"
             value={formatCurrency(overview?.cashBalance ?? 0)}
             icon={Wallet}
-            color="text-blue-500"
+            color="text-primary"
             sparkline={cashSparkline}
             onDrillDown={() => {
               setDrillDown({
@@ -1110,12 +1110,12 @@ export default function FinancialPulsePage() {
                   {
                     label: "Accounts Receivable",
                     value: formatCurrency(overview?.accountsReceivable ?? 0),
-                    color: "bg-emerald-500",
+                    color: "bg-balanced-green",
                   },
                   {
                     label: "Accounts Payable",
                     value: formatCurrency(overview?.accountsPayable ?? 0),
-                    color: "bg-red-500",
+                    color: "bg-error-clay",
                   },
                   {
                     label: "Net Position",
@@ -1124,7 +1124,7 @@ export default function FinancialPulsePage() {
                         (overview?.accountsReceivable ?? 0) -
                         (overview?.accountsPayable ?? 0),
                     ),
-                    color: "bg-blue-500",
+                    color: "bg-primary",
                   },
                 ],
                 insight:

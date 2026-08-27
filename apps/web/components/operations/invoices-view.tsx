@@ -56,19 +56,19 @@ function InvoiceStatusBadge({ status }: { status?: string }) {
     },
     sent: {
       icon: Send,
-      className: "bg-blue-500/10 text-blue-500",
+      className: "bg-primary/10 text-primary",
     },
     paid: {
       icon: CheckCircle2,
-      className: "bg-emerald-500/10 text-emerald-500",
+      className: "bg-balanced-green/10 text-balanced-green",
     },
     overdue: {
       icon: AlertCircle,
-      className: "bg-red-500/10 text-red-500",
+      className: "bg-error-clay/10 text-error-clay",
     },
     partial: {
       icon: Clock,
-      className: "bg-amber-500/10 text-amber-500",
+      className: "bg-attention-amber/10 text-attention-amber",
     },
     voided: {
       icon: AlertCircle,
@@ -149,8 +149,8 @@ export function InvoicesView() {
       sortable: true,
       render: (row) => (
         <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-500/10">
-            <FileText className="h-4 w-4 text-blue-500" />
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
+            <FileText className="h-4 w-4 text-primary" />
           </div>
           <div>
             <p className="text-sm font-medium text-foreground">
@@ -192,7 +192,9 @@ export function InvoicesView() {
           <span
             className={cn(
               "text-xs",
-              isOverdue ? "text-red-500 font-medium" : "text-muted-foreground",
+              isOverdue
+                ? "text-error-clay font-medium"
+                : "text-muted-foreground",
             )}
           >
             {row.dueDate
@@ -227,7 +229,7 @@ export function InvoicesView() {
           <span
             className={cn(
               "text-sm font-medium tabular-nums",
-              balance > 0 ? "text-amber-500" : "text-emerald-500",
+              balance > 0 ? "text-attention-amber" : "text-balanced-green",
             )}
           >
             {formatCurrency(balance)}

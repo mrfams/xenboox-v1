@@ -44,80 +44,80 @@ const ACTION_CATEGORIES: Record<string, ActionCategory> = {
   "settings.": {
     label: "Settings",
     icon: Settings,
-    color: "text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950",
+    color: "text-primary dark:text-primary bg-primary/10 dark:bg-primary/10",
     surface: "Settings",
   },
   "auth.": {
     label: "Authentication",
     icon: Shield,
-    color: "text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950",
+    color:
+      "text-attention-amber dark:text-attention-amber bg-attention-amber/10 dark:bg-attention-amber/10",
     surface: "Auth",
   },
   "billing.": {
     label: "Billing",
     icon: CreditCard,
     color:
-      "text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950",
+      "text-balanced-green dark:text-balanced-green bg-balanced-green/10 dark:bg-balanced-green/10",
     surface: "Billing",
   },
   "document.": {
     label: "Documents",
     icon: FileText,
     color:
-      "text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950",
+      "text-signal-indigo dark:text-signal-indigo bg-signal-indigo/10 dark:bg-signal-indigo/10",
     surface: "Documents",
   },
   "agent.": {
     label: "AI Agents",
     icon: Bot,
-    color: "text-cyan-600 dark:text-cyan-400 bg-cyan-50 dark:bg-cyan-950",
+    color: "text-primary dark:text-primary bg-primary/10 dark:bg-primary/10",
     surface: "Agents",
   },
   "journal.": {
     label: "Journal",
     icon: BookOpen,
-    color:
-      "text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950",
+    color: "text-primary dark:text-primary bg-primary/10 dark:bg-primary/10",
     surface: "Ledger",
   },
   "invoice.": {
     label: "Invoices",
     icon: FileText,
-    color: "text-pink-600 dark:text-pink-400 bg-pink-50 dark:bg-pink-950",
+    color:
+      "text-signal-indigo dark:text-signal-indigo bg-signal-indigo/10 dark:bg-signal-indigo/10",
     surface: "AR",
   },
   "payroll.": {
     label: "Payroll",
     icon: Users,
     color:
-      "text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-950",
+      "text-attention-amber dark:text-attention-amber bg-attention-amber/10 dark:bg-attention-amber/10",
     surface: "Payroll",
   },
   "approvals.": {
     label: "Approvals",
     icon: CheckCircle2,
     color:
-      "text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950",
+      "text-balanced-green dark:text-balanced-green bg-balanced-green/10 dark:bg-balanced-green/10",
     surface: "Activity Hub",
   },
   "invitations.": {
     label: "Invitations",
     icon: User,
     color:
-      "text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-950",
+      "text-signal-indigo dark:text-signal-indigo bg-signal-indigo/10 dark:bg-signal-indigo/10",
     surface: "Team",
   },
   "coa.": {
     label: "Chart of Accounts",
     icon: BookOpen,
-    color:
-      "text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950",
+    color: "text-primary dark:text-primary bg-primary/10 dark:bg-primary/10",
     surface: "Ledger",
   },
   "reconciliation.": {
     label: "Reconciliation",
     icon: RefreshCw,
-    color: "text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-950",
+    color: "text-primary dark:text-primary bg-primary/10 dark:bg-primary/10",
     surface: "Operations",
   },
 };
@@ -145,38 +145,38 @@ function getActionVerb(action: string): { verb: string; color: string } {
     action.includes("insert") ||
     action.includes("issue")
   ) {
-    return { verb: "Created", color: "text-emerald-600" };
+    return { verb: "Created", color: "text-balanced-green" };
   }
   if (
     action.includes("update") ||
     action.includes("edit") ||
     action.includes("patch")
   ) {
-    return { verb: "Updated", color: "text-blue-600" };
+    return { verb: "Updated", color: "text-primary" };
   }
   if (
     action.includes("delete") ||
     action.includes("remove") ||
     action.includes("revoke")
   ) {
-    return { verb: "Deleted", color: "text-red-600" };
+    return { verb: "Deleted", color: "text-error-clay" };
   }
   if (
     action.includes("approve") ||
     action.includes("accept") ||
     action.includes("resolve")
   ) {
-    return { verb: "Approved", color: "text-emerald-600" };
+    return { verb: "Approved", color: "text-balanced-green" };
   }
   if (
     action.includes("reject") ||
     action.includes("deny") ||
     action.includes("decline")
   ) {
-    return { verb: "Rejected", color: "text-red-600" };
+    return { verb: "Rejected", color: "text-error-clay" };
   }
   if (action.includes("login") || action.includes("auth")) {
-    return { verb: "Authenticated", color: "text-amber-600" };
+    return { verb: "Authenticated", color: "text-attention-amber" };
   }
   return { verb: "Performed", color: "text-muted-foreground" };
 }
@@ -326,10 +326,10 @@ export default function AuditTrailPage() {
           <div className="rounded-xl border border-border/50 bg-card p-4">
             <div className="flex items-center gap-3">
               <div
-                className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/10"
+                className="flex h-10 w-10 items-center justify-center rounded-xl bg-balanced-green/10"
                 aria-hidden="true"
               >
-                <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+                <CheckCircle2 className="h-5 w-5 text-balanced-green" />
               </div>
               <div>
                 <p className="text-2xl font-bold text-foreground">
@@ -342,10 +342,10 @@ export default function AuditTrailPage() {
           <div className="rounded-xl border border-border/50 bg-card p-4">
             <div className="flex items-center gap-3">
               <div
-                className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/10"
+                className="flex h-10 w-10 items-center justify-center rounded-xl bg-attention-amber/10"
                 aria-hidden="true"
               >
-                <Calendar className="h-5 w-5 text-amber-500" />
+                <Calendar className="h-5 w-5 text-attention-amber" />
               </div>
               <div>
                 <p className="text-2xl font-bold text-foreground">

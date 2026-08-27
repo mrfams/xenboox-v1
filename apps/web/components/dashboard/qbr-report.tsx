@@ -77,12 +77,12 @@ function KPICard({
         {change !== undefined && (
           <div className="flex items-center gap-1 mt-1">
             {isPositive ? (
-              <ArrowUpRight className="h-3 w-3 text-green-500" />
+              <ArrowUpRight className="h-3 w-3 text-balanced-green" />
             ) : (
-              <ArrowDownRight className="h-3 w-3 text-red-500" />
+              <ArrowDownRight className="h-3 w-3 text-error-clay" />
             )}
             <span
-              className={`text-xs ${isPositive ? "text-green-500" : "text-red-500"}`}
+              className={`text-xs ${isPositive ? "text-balanced-green" : "text-error-clay"}`}
             >
               {Math.abs(change).toFixed(1)}% vs last quarter
             </span>

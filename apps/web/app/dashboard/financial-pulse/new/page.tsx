@@ -204,7 +204,7 @@ export default function FinancialPulseV2Page() {
                   {aiNarrative.highlights.map((h: string, i: number) => (
                     <span
                       key={`h-${i}`}
-                      className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium text-emerald-600"
+                      className="inline-flex items-center gap-1 rounded-full bg-balanced-green/10 px-2 py-0.5 text-[11px] font-medium text-balanced-green"
                     >
                       <span aria-hidden="true">✓</span> {h}
                     </span>
@@ -212,7 +212,7 @@ export default function FinancialPulseV2Page() {
                   {aiNarrative.concerns.map((c: string, i: number) => (
                     <span
                       key={`c-${i}`}
-                      className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-0.5 text-[11px] font-medium text-amber-600"
+                      className="inline-flex items-center gap-1 rounded-full bg-attention-amber/10 px-2 py-0.5 text-[11px] font-medium text-attention-amber"
                     >
                       <AlertTriangle className="h-3 w-3" aria-hidden="true" />
                       {c}
@@ -321,8 +321,8 @@ export default function FinancialPulseV2Page() {
               className={cn(
                 "mt-2 inline-flex rounded-full px-1.5 py-0.5 text-[10px] font-bold tabular-nums",
                 (pnl.netProfit ?? 0) >= 0
-                  ? "bg-emerald-500/10 text-emerald-600"
-                  : "bg-red-500/10 text-red-600",
+                  ? "bg-balanced-green/10 text-balanced-green"
+                  : "bg-error-clay/10 text-error-clay",
               )}
             >
               {(pnl.netProfit ?? 0) >= 0 ? "Profitable" : "Loss"}

@@ -38,21 +38,21 @@ const statusConfig: Record<
 > = {
   positive: {
     icon: TrendingUp,
-    iconColor: "text-emerald-500",
-    iconBg: "bg-emerald-500/10",
-    accent: "bg-emerald-500",
+    iconColor: "text-balanced-green",
+    iconBg: "bg-balanced-green/10",
+    accent: "bg-balanced-green",
   },
   negative: {
     icon: AlertTriangle,
-    iconColor: "text-red-500",
-    iconBg: "bg-red-500/10",
-    accent: "bg-red-500",
+    iconColor: "text-error-clay",
+    iconBg: "bg-error-clay/10",
+    accent: "bg-error-clay",
   },
   warning: {
     icon: Clock,
-    iconColor: "text-amber-500",
-    iconBg: "bg-amber-500/10",
-    accent: "bg-amber-500",
+    iconColor: "text-attention-amber",
+    iconBg: "bg-attention-amber/10",
+    accent: "bg-attention-amber",
   },
   neutral: {
     icon: FileText,
@@ -87,9 +87,9 @@ function BriefingCard({ item }: { item: BriefingItem }) {
               "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider",
               isAttention
                 ? item.type === "negative"
-                  ? "bg-red-500/10 text-red-500"
-                  : "bg-amber-500/10 text-amber-500"
-                : "bg-emerald-500/10 text-emerald-500",
+                  ? "bg-error-clay/10 text-error-clay"
+                  : "bg-attention-amber/10 text-attention-amber"
+                : "bg-balanced-green/10 text-balanced-green",
             )}
           >
             {item.value}
@@ -106,7 +106,7 @@ function BriefingCard({ item }: { item: BriefingItem }) {
   const cardClass = cn(
     "flex rounded-xl border p-3 transition-all duration-200 group",
     isAttention
-      ? "border-amber-500/20 bg-amber-500/[0.03] hover:border-amber-500/40 hover:shadow-md"
+      ? "border-attention-amber/20 bg-attention-amber/[0.03] hover:border-attention-amber/40 hover:shadow-md"
       : "border-border/50 bg-card/60 hover:border-border/80 hover:shadow-md",
   );
 
@@ -312,10 +312,10 @@ export function ProactiveBriefing() {
     }
 
     return (
-      <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/[0.03] p-4 sm:p-5">
+      <div className="rounded-2xl border border-balanced-green/20 bg-balanced-green/[0.03] p-4 sm:p-5">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/10">
-            <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-balanced-green/10">
+            <CheckCircle2 className="h-5 w-5 text-balanced-green" />
           </div>
           <div>
             <p className="text-sm font-medium text-foreground">

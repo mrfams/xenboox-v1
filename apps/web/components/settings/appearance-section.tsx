@@ -126,7 +126,7 @@ export function AppearanceSection() {
                 }`}
               >
                 <div className="flex h-16 w-16 items-center justify-center rounded-lg bg-white shadow-sm">
-                  <Sun className="h-6 w-6 text-amber-500" />
+                  <Sun className="h-6 w-6 text-attention-amber" />
                 </div>
                 <span className="text-sm font-medium">Light</span>
               </button>

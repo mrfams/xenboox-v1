@@ -92,6 +92,7 @@ function KpiCard({
   iconColor,
   iconBg,
   label,
+  tooltip,
   value,
   delta,
   deltaLabel,
@@ -103,6 +104,7 @@ function KpiCard({
   iconColor: string;
   iconBg: string;
   label: string;
+  tooltip?: string;
   value: string | number;
   delta: number;
   deltaLabel?: string;
@@ -113,14 +115,14 @@ function KpiCard({
   const isPositive = delta >= 0;
   const deltaColor = label.includes("Cost")
     ? isPositive
-      ? "text-red-500"
-      : "text-emerald-500"
+      ? "text-error-clay"
+      : "text-balanced-green"
     : isPositive
-      ? "text-emerald-500"
-      : "text-red-500";
+      ? "text-balanced-green"
+      : "text-error-clay";
 
   return (
-    <Card className="relative overflow-hidden transition-all hover:shadow-md">
+    <Card className="relative overflow-hidden transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] hover:shadow-lg hover:-translate-y-0.5">
       <CardContent className="p-4">
         <div className="flex items-center gap-2 mb-3">
           <div
@@ -131,8 +133,16 @@ function KpiCard({
           >
             <div className={iconColor}>{icon}</div>
           </div>
-          <span className="text-xs font-medium text-muted-foreground">
+          <span
+            className="text-xs font-medium text-muted-foreground"
+            title={tooltip}
+          >
             {label}
+            {tooltip && (
+              <span className="ml-1 inline-block h-3 w-3 rounded-full bg-muted/50 text-[8px] leading-3 text-muted-foreground/60 cursor-help">
+                ?
+              </span>
+            )}
           </span>
         </div>
         <div className="flex items-end justify-between">
@@ -173,7 +183,7 @@ function SystemHealthCard({
   services: { name: string; status: string }[];
 }) {
   return (
-    <Card className="h-full">
+    <Card className="h-full transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] hover:shadow-lg hover:-translate-y-0.5">
       <CardHeader className="pb-3">
         <CardTitle className="text-sm font-semibold">System Health</CardTitle>
       </CardHeader>
@@ -183,10 +193,10 @@ function SystemHealthCard({
             <div
               className={cn(
                 "h-3 w-3 rounded-full",
-                allOperational ? "bg-emerald-500" : "bg-amber-500",
+                allOperational ? "bg-balanced-green" : "bg-attention-amber",
               )}
             />
-            <span className="text-sm font-medium text-emerald-600">
+            <span className="text-sm font-medium text-balanced-green">
               All Systems Operational
             </span>
           </div>
@@ -206,10 +216,10 @@ function SystemHealthCard({
                   className={cn(
                     "h-2 w-2 rounded-full",
                     service.status === "operational"
-                      ? "bg-emerald-500"
+                      ? "bg-balanced-green"
                       : service.status === "degraded"
-                        ? "bg-amber-500"
-                        : "bg-red-500",
+                        ? "bg-attention-amber"
+                        : "bg-error-clay",
                   )}
                 />
                 <span className="text-sm text-muted-foreground">
@@ -220,10 +230,10 @@ function SystemHealthCard({
                 className={cn(
                   "text-xs font-medium capitalize",
                   service.status === "operational"
-                    ? "text-emerald-600"
+                    ? "text-balanced-green"
                     : service.status === "degraded"
-                      ? "text-amber-600"
-                      : "text-red-600",
+                      ? "text-attention-amber"
+                      : "text-error-clay",
                 )}
               >
                 {service.status === "operational"
@@ -234,9 +244,9 @@ function SystemHealthCard({
           ))}
         </div>
 
-        <button className="flex items-center gap-1 text-xs font-medium text-primary hover:text-primary/80 transition-colors">
+        <button className="flex items-center gap-1 text-xs font-medium text-primary hover:text-primary/80 transition-all duration-300 group">
           View incident history
-          <ArrowRight className="h-3 w-3" />
+          <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-1" />
         </button>
       </CardContent>
     </Card>
@@ -265,7 +275,7 @@ function AiMetricCard({
   children?: React.ReactNode;
 }) {
   return (
-    <Card className="h-full">
+    <Card className="h-full transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] hover:shadow-lg hover:-translate-y-0.5">
       <CardHeader className="pb-3">
         <CardTitle className="text-sm font-semibold">{title}</CardTitle>
       </CardHeader>
@@ -283,14 +293,14 @@ function AiMetricCard({
             {delta !== undefined && (
               <div className="flex items-center gap-1 mt-1">
                 {delta >= 0 ? (
-                  <TrendingUp className="h-3 w-3 text-emerald-500" />
+                  <TrendingUp className="h-3 w-3 text-balanced-green" />
                 ) : (
-                  <TrendingDown className="h-3 w-3 text-emerald-500" />
+                  <TrendingDown className="h-3 w-3 text-error-clay" />
                 )}
                 <span
                   className={cn(
                     "text-xs font-medium",
-                    delta >= 0 ? "text-emerald-500" : "text-red-500",
+                    delta >= 0 ? "text-balanced-green" : "text-error-clay",
                   )}
                 >
                   {delta >= 0 ? "↑" : "↓"} {Math.abs(delta).toFixed(1)}%
@@ -328,7 +338,7 @@ function SupportTicketsCard({
   );
 
   return (
-    <Card className="h-full">
+    <Card className="h-full transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] hover:shadow-lg hover:-translate-y-0.5">
       <CardHeader className="pb-3">
         <CardTitle className="text-sm font-semibold">
           Open Support Tickets
@@ -339,16 +349,20 @@ function SupportTicketsCard({
 
         <div className="space-y-3">
           {[
-            { label: "High", value: bySeverity.high ?? 0, color: "bg-red-500" },
+            {
+              label: "High",
+              value: bySeverity.high ?? 0,
+              color: "bg-error-clay",
+            },
             {
               label: "Medium",
               value: bySeverity.medium ?? 0,
-              color: "bg-amber-500",
+              color: "bg-attention-amber",
             },
             {
               label: "Low",
               value: bySeverity.low ?? 0,
-              color: "bg-emerald-500",
+              color: "bg-balanced-green",
             },
           ].map((item) => (
             <div key={item.label} className="space-y-1">
@@ -373,9 +387,9 @@ function SupportTicketsCard({
           ))}
         </div>
 
-        <button className="flex items-center gap-1 text-xs font-medium text-primary hover:text-primary/80 transition-colors mt-4">
+        <button className="flex items-center gap-1 text-xs font-medium text-primary hover:text-primary/80 transition-all duration-300 mt-4 group">
           View all tickets
-          <ArrowRight className="h-3 w-3" />
+          <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-1" />
         </button>
       </CardContent>
     </Card>
@@ -392,7 +406,7 @@ function TopModelsCard({
   const maxRuns = Math.max(...models.map((m) => m.runs), 1);
 
   return (
-    <Card className="h-full">
+    <Card className="h-full transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] hover:shadow-lg hover:-translate-y-0.5">
       <CardHeader className="flex flex-row items-center justify-between pb-3">
         <CardTitle className="text-sm font-semibold">
           Top AI Models by Usage
@@ -420,7 +434,7 @@ function TopModelsCard({
               </div>
               <div className="h-1.5 bg-muted rounded-full overflow-hidden">
                 <div
-                  className="h-full rounded-full bg-violet-500 transition-all"
+                  className="h-full rounded-full bg-signal-indigo transition-all"
                   style={{
                     width: `${maxRuns > 0 ? (model.runs / maxRuns) * 100 : 0}%`,
                   }}
@@ -430,9 +444,9 @@ function TopModelsCard({
           ))}
         </div>
 
-        <button className="flex items-center gap-1 text-xs font-medium text-primary hover:text-primary/80 transition-colors mt-4">
+        <button className="flex items-center gap-1 text-xs font-medium text-primary hover:text-primary/80 transition-all duration-300 mt-4 group">
           View model analytics
-          <ArrowRight className="h-3 w-3" />
+          <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-1" />
         </button>
       </CardContent>
     </Card>
@@ -458,28 +472,28 @@ function ActivityFeedCard({
   > = {
     bank_reconciliation: {
       icon: <CheckCircle2 className="h-4 w-4" />,
-      color: "text-emerald-500",
-      bg: "bg-emerald-500/10",
+      color: "text-balanced-green",
+      bg: "bg-balanced-green/10",
     },
     ai_model_updated: {
       icon: <Bot className="h-4 w-4" />,
-      color: "text-violet-500",
-      bg: "bg-violet-500/10",
+      color: "text-signal-indigo",
+      bg: "bg-signal-indigo/10",
     },
     organization_created: {
       icon: <Users className="h-4 w-4" />,
-      color: "text-blue-500",
-      bg: "bg-blue-500/10",
+      color: "text-primary",
+      bg: "bg-primary/10",
     },
     error_detected: {
       icon: <AlertCircle className="h-4 w-4" />,
-      color: "text-amber-500",
-      bg: "bg-amber-500/10",
+      color: "text-attention-amber",
+      bg: "bg-attention-amber/10",
     },
     invoice_processed: {
       icon: <CheckCircle2 className="h-4 w-4" />,
-      color: "text-emerald-500",
-      bg: "bg-emerald-500/10",
+      color: "text-balanced-green",
+      bg: "bg-balanced-green/10",
     },
   };
 
@@ -495,12 +509,12 @@ function ActivityFeedCard({
   }
 
   return (
-    <Card>
+    <Card className="transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] hover:shadow-lg">
       <CardHeader className="flex flex-row items-center justify-between pb-3">
         <CardTitle className="text-sm font-semibold">Recent Activity</CardTitle>
-        <button className="flex items-center gap-1 text-xs font-medium text-primary hover:text-primary/80 transition-colors">
+        <button className="flex items-center gap-1 text-xs font-medium text-primary hover:text-primary/80 transition-all duration-300 group">
           View all activity
-          <ArrowRight className="h-3 w-3" />
+          <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-1" />
         </button>
       </CardHeader>
       <CardContent>
@@ -554,24 +568,31 @@ export default function OpsDashboardPage() {
   const [timeRange, _setTimeRange] = useState(7);
 
   // Fetch all dashboard data
-  const { data: overview, isLoading: overviewLoading } =
-    trpc.opsConsole.getDashboardOverview.useQuery({ days: timeRange });
+  const {
+    data: overview,
+    isLoading: overviewLoading,
+    error: overviewError,
+  } = trpc.opsConsole.getDashboardOverview.useQuery({ days: timeRange });
 
-  const { data: aiRunsData } = trpc.opsConsole.getAiRunsOverTime.useQuery({
-    days: timeRange,
-  });
+  const { data: aiRunsData, error: aiRunsError } =
+    trpc.opsConsole.getAiRunsOverTime.useQuery({
+      days: timeRange,
+    });
 
-  const { data: costData } = trpc.opsConsole.getCostOverTime.useQuery({
-    days: timeRange,
-  });
+  const { data: costData, error: costError } =
+    trpc.opsConsole.getCostOverTime.useQuery({
+      days: timeRange,
+    });
 
-  const { data: topModels } = trpc.opsConsole.getTopModels.useQuery({
-    days: timeRange,
-  });
+  const { data: topModels, error: topModelsError } =
+    trpc.opsConsole.getTopModels.useQuery({
+      days: timeRange,
+    });
 
-  const { data: activityFeed } = trpc.opsConsole.getActivityFeed.useQuery({
-    limit: 10,
-  });
+  const { data: activityFeed, error: activityFeedError } =
+    trpc.opsConsole.getActivityFeed.useQuery({
+      limit: 10,
+    });
 
   // Chart data for KPI sparklines
   const sparklineData = useMemo(() => {
@@ -626,6 +647,25 @@ export default function OpsDashboardPage() {
     );
   }
 
+  if (overviewError) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] text-center">
+        <AlertCircle className="h-12 w-12 text-error-clay mb-4" />
+        <h2 className="text-lg font-semibold mb-2">Failed to load dashboard</h2>
+        <p className="text-sm text-muted-foreground mb-4 max-w-md">
+          We couldn't load the dashboard data. Check your connection and try
+          again.
+        </p>
+        <Button
+          onClick={() => window.location.reload()}
+          className="transition-all duration-300 hover:shadow-md active:scale-[0.98]"
+        >
+          Try again
+        </Button>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Page Header */}
@@ -654,7 +694,11 @@ export default function OpsDashboardPage() {
               })()}
             </span>
           </div>
-          <Button variant="outline" size="sm">
+          <Button
+            variant="outline"
+            size="sm"
+            className="transition-all duration-300 hover:shadow-md active:scale-[0.98]"
+          >
             <Settings className="h-4 w-4 mr-1" />
             Customize
           </Button>
@@ -665,8 +709,8 @@ export default function OpsDashboardPage() {
       <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-5">
         <KpiCard
           icon={<Users className="h-4 w-4" />}
-          iconColor="text-violet-500"
-          iconBg="bg-violet-500/10"
+          iconColor="text-signal-indigo"
+          iconBg="bg-signal-indigo/10"
           label="Active Organizations"
           value={
             overview?.kpis.activeOrganizations.value?.toLocaleString() ?? "0"
@@ -677,9 +721,10 @@ export default function OpsDashboardPage() {
         />
         <KpiCard
           icon={<DollarSign className="h-4 w-4" />}
-          iconColor="text-emerald-500"
-          iconBg="bg-emerald-500/10"
+          iconColor="text-balanced-green"
+          iconBg="bg-balanced-green/10"
           label="MRR"
+          tooltip="Monthly Recurring Revenue — predictable revenue from subscriptions"
           value={overview?.kpis.mrr.displayValue ?? "GMD 0"}
           delta={overview?.kpis.mrr.delta ?? 0}
           chartData={sparklineData.mrr}
@@ -687,8 +732,8 @@ export default function OpsDashboardPage() {
         />
         <KpiCard
           icon={<Bot className="h-4 w-4" />}
-          iconColor="text-violet-500"
-          iconBg="bg-violet-500/10"
+          iconColor="text-signal-indigo"
+          iconBg="bg-signal-indigo/10"
           label="AI Runs"
           value={overview?.kpis.aiRuns.value?.toLocaleString() ?? "0"}
           delta={overview?.kpis.aiRuns.delta ?? 0}
@@ -697,8 +742,8 @@ export default function OpsDashboardPage() {
         />
         <KpiCard
           icon={<CreditCard className="h-4 w-4" />}
-          iconColor="text-blue-500"
-          iconBg="bg-blue-500/10"
+          iconColor="text-primary"
+          iconBg="bg-primary/10"
           label="Total Cost"
           value={overview?.kpis.totalCost.displayValue ?? "GMD 0"}
           delta={overview?.kpis.totalCost.delta ?? 0}
@@ -707,9 +752,10 @@ export default function OpsDashboardPage() {
         />
         <KpiCard
           icon={<TrendingUp className="h-4 w-4" />}
-          iconColor="text-violet-500"
-          iconBg="bg-violet-500/10"
+          iconColor="text-signal-indigo"
+          iconBg="bg-signal-indigo/10"
           label="Gross Margin"
+          tooltip="Revenue minus operating costs, shown as a percentage"
           value={overview?.kpis.grossMargin.displayValue ?? "0%"}
           delta={overview?.kpis.grossMargin.delta ?? 0}
           chartData={sparklineData.margin}
@@ -770,7 +816,7 @@ export default function OpsDashboardPage() {
       {/* Third Row: Charts */}
       <div className="grid gap-4 grid-cols-1 lg:grid-cols-3">
         {/* AI Runs Over Time */}
-        <Card>
+        <Card className="transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] hover:shadow-lg">
           <CardHeader className="flex flex-row items-center justify-between pb-3">
             <CardTitle className="text-sm font-semibold">
               AI Runs Over Time
@@ -780,34 +826,44 @@ export default function OpsDashboardPage() {
             </Badge>
           </CardHeader>
           <CardContent>
-            <div className="h-48 flex items-end gap-1">
-              {(aiRunsData ?? []).map((d, _i) => {
-                const maxRuns = Math.max(
-                  ...(aiRunsData ?? []).map((r) => r.runs),
-                  1,
-                );
-                return (
-                  <div
-                    key={d.date}
-                    className="flex-1 flex flex-col items-center gap-1"
-                  >
+            {(aiRunsData ?? []).length > 0 ? (
+              <div className="h-48 flex items-end gap-1">
+                {(aiRunsData ?? []).map((d, _i) => {
+                  const maxRuns = Math.max(
+                    ...(aiRunsData ?? []).map((r) => r.runs),
+                    1,
+                  );
+                  return (
                     <div
-                      className="w-full bg-violet-500/20 rounded-t transition-all hover:bg-violet-500/30"
-                      style={{
-                        height: `${(d.runs / maxRuns) * 160}px`,
-                        minHeight: "4px",
-                      }}
-                    />
-                    <span className="text-[9px] text-muted-foreground">
-                      {new Date(d.date).toLocaleDateString("en", {
-                        month: "short",
-                        day: "numeric",
-                      })}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
+                      key={d.date}
+                      className="flex-1 flex flex-col items-center gap-1"
+                    >
+                      <div
+                        className="w-full bg-signal-indigo/20 rounded-t transition-all hover:bg-signal-indigo/30"
+                        style={{
+                          height: `${(d.runs / maxRuns) * 160}px`,
+                          minHeight: "4px",
+                        }}
+                      />
+                      <span className="text-[9px] text-muted-foreground">
+                        {new Date(d.date).toLocaleDateString("en", {
+                          month: "short",
+                          day: "numeric",
+                        })}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="h-48 flex flex-col items-center justify-center text-muted-foreground">
+                <Bot className="h-8 w-8 mb-2 opacity-50" />
+                <p className="text-sm font-medium">No AI runs yet</p>
+                <p className="text-xs">
+                  Data will appear here once agents start processing.
+                </p>
+              </div>
+            )}
             <div className="flex items-center justify-between mt-2">
               <span className="text-xs text-muted-foreground">0</span>
               <span className="text-xs text-muted-foreground">
@@ -821,7 +877,7 @@ export default function OpsDashboardPage() {
         </Card>
 
         {/* Cost Over Time */}
-        <Card>
+        <Card className="transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] hover:shadow-lg">
           <CardHeader className="flex flex-row items-center justify-between pb-3">
             <CardTitle className="text-sm font-semibold">
               Cost Over Time (GMD)
@@ -831,34 +887,44 @@ export default function OpsDashboardPage() {
             </Badge>
           </CardHeader>
           <CardContent>
-            <div className="h-48 flex items-end gap-1">
-              {(costData ?? []).map((d) => {
-                const maxCost = Math.max(
-                  ...(costData ?? []).map((c) => c.cost),
-                  1,
-                );
-                return (
-                  <div
-                    key={d.date}
-                    className="flex-1 flex flex-col items-center gap-1"
-                  >
+            {(costData ?? []).length > 0 ? (
+              <div className="h-48 flex items-end gap-1">
+                {(costData ?? []).map((d) => {
+                  const maxCost = Math.max(
+                    ...(costData ?? []).map((c) => c.cost),
+                    1,
+                  );
+                  return (
                     <div
-                      className="w-full bg-gradient-to-t from-emerald-500/30 to-emerald-500/10 rounded-t transition-all hover:from-emerald-500/40 hover:to-emerald-500/20"
-                      style={{
-                        height: `${(d.cost / maxCost) * 160}px`,
-                        minHeight: "4px",
-                      }}
-                    />
-                    <span className="text-[9px] text-muted-foreground">
-                      {new Date(d.date).toLocaleDateString("en", {
-                        month: "short",
-                        day: "numeric",
-                      })}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
+                      key={d.date}
+                      className="flex-1 flex flex-col items-center gap-1"
+                    >
+                      <div
+                        className="w-full bg-gradient-to-t from-balanced-green/30 to-balanced-green/10 rounded-t transition-all hover:from-balanced-green/40 hover:to-balanced-green/20"
+                        style={{
+                          height: `${(d.cost / maxCost) * 160}px`,
+                          minHeight: "4px",
+                        }}
+                      />
+                      <span className="text-[9px] text-muted-foreground">
+                        {new Date(d.date).toLocaleDateString("en", {
+                          month: "short",
+                          day: "numeric",
+                        })}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="h-48 flex flex-col items-center justify-center text-muted-foreground">
+                <DollarSign className="h-8 w-8 mb-2 opacity-50" />
+                <p className="text-sm font-medium">No cost data yet</p>
+                <p className="text-xs">
+                  Cost tracking will appear here once AI processes transactions.
+                </p>
+              </div>
+            )}
             <div className="flex items-center justify-between mt-2">
               <span className="text-xs text-muted-foreground">0</span>
               <span className="text-xs text-muted-foreground">

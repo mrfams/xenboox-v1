@@ -46,7 +46,7 @@ export function SyncStatus({
           </>
         ) : (
           <>
-            <Cloud className="h-4 w-4 text-emerald-500" />
+            <Cloud className="h-4 w-4 text-balanced-green" />
             <span className="text-xs text-muted-foreground">
               {lastSyncedAt
                 ? `Last synced: ${formatTime(lastSyncedAt)}`

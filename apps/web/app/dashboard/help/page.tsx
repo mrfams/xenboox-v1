@@ -179,13 +179,13 @@ function TopicCard({ topic }: { topic: HelpTopic }) {
       className="group flex flex-col rounded-xl border border-border bg-card p-5 transition-all duration-200 hover:-translate-y-0.5 hover:border-indigo-300 hover:shadow-lg hover:shadow-indigo-500/5 dark:border-border/60 dark:hover:border-indigo-800"
     >
       <div className="flex items-start justify-between">
-        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600 transition-colors group-hover:bg-indigo-600 group-hover:text-white dark:bg-indigo-500/10 dark:text-indigo-400 dark:group-hover:bg-indigo-500 dark:group-hover:text-white">
+        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-white dark:bg-indigo-500/10 dark:text-indigo-400 dark:group-hover:bg-indigo-500 dark:group-hover:text-white">
           <Icon className="h-5 w-5" />
         </div>
         {topic.external ? (
-          <ExternalLink className="h-4 w-4 text-muted-foreground/50 transition-colors group-hover:text-indigo-500 dark:text-muted-foreground/40" />
+          <ExternalLink className="h-4 w-4 text-muted-foreground/50 transition-colors group-hover:text-primary dark:text-muted-foreground/40" />
         ) : (
-          <ArrowRight className="h-4 w-4 text-muted-foreground/50 transition-all group-hover:translate-x-0.5 group-hover:text-indigo-500 dark:text-muted-foreground/40" />
+          <ArrowRight className="h-4 w-4 text-muted-foreground/50 transition-all group-hover:translate-x-0.5 group-hover:text-primary dark:text-muted-foreground/40" />
         )}
       </div>
       <h3 className="mt-4 text-sm font-semibold text-foreground">
@@ -239,17 +239,17 @@ export default function HelpPage() {
             className={cn(
               "hidden items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium sm:inline-flex",
               isHealthy === false
-                ? "border border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-400"
-                : "border border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-400",
+                ? "border border-attention-amber/30 bg-attention-amber/10 text-attention-amber dark:border-amber-500/30 dark:bg-attention-amber/10 dark:text-amber-400"
+                : "border border-balanced-green/30 bg-balanced-green/10 text-balanced-green dark:border-emerald-500/30 dark:bg-balanced-green/10 dark:text-emerald-400",
             )}
           >
             <span className="relative flex h-2 w-2">
               {isHealthy === false ? (
-                <span className="relative inline-flex h-2 w-2 rounded-full bg-amber-500" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-attention-amber" />
               ) : (
                 <>
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
-                  <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-balanced-green/60 opacity-60" />
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-balanced-green" />
                 </>
               )}
             </span>
@@ -351,7 +351,7 @@ export default function HelpPage() {
                   {docTopics.length > 0 && (
                     <section>
                       <div className="mb-4 flex items-center gap-2">
-                        <BookOpen className="h-4 w-4 text-indigo-500" />
+                        <BookOpen className="h-4 w-4 text-primary" />
                         <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
                           Documentation
                         </h3>
@@ -370,7 +370,7 @@ export default function HelpPage() {
                   {guideTopics.length > 0 && (
                     <section>
                       <div className="mb-4 flex items-center gap-2">
-                        <Sparkles className="h-4 w-4 text-indigo-500" />
+                        <Sparkles className="h-4 w-4 text-primary" />
                         <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
                           In-app guides
                         </h3>
@@ -413,7 +413,7 @@ export default function HelpPage() {
                   href="/dashboard"
                   className="group flex flex-col rounded-xl border border-border bg-card p-5 transition-all duration-200 hover:-translate-y-0.5 hover:border-indigo-300 hover:shadow-lg hover:shadow-indigo-500/5 dark:border-border/60 dark:hover:border-indigo-800"
                 >
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-purple-500 text-white">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-signal-indigo text-white">
                     <Sparkles className="h-5 w-5" />
                   </div>
                   <h3 className="mt-4 text-sm font-semibold text-foreground">
@@ -423,7 +423,7 @@ export default function HelpPage() {
                     Chat with the CFO agent — it knows your books and can walk
                     you through anything.
                   </p>
-                  <span className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-indigo-600 dark:text-indigo-400">
+                  <span className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-primary">
                     Open AI Command Center
                     <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5" />
                   </span>
@@ -443,7 +443,7 @@ export default function HelpPage() {
                     The complete Xenboox documentation — concepts, modules,
                     agents, and API references.
                   </p>
-                  <span className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-indigo-600 dark:text-indigo-400">
+                  <span className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-primary">
                     Browse the docs
                     <ExternalLink className="h-3 w-3" />
                   </span>
@@ -453,7 +453,7 @@ export default function HelpPage() {
                   href="mailto:support@xenboox.com?subject=Xenboox%20Support%20Request"
                   className="group flex flex-col rounded-xl border border-border bg-card p-5 transition-all duration-200 hover:-translate-y-0.5 hover:border-indigo-300 hover:shadow-lg hover:shadow-indigo-500/5 dark:border-border/60 dark:hover:border-indigo-800"
                 >
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600 dark:bg-balanced-green/10 dark:text-emerald-400">
                     <Mail className="h-5 w-5" />
                   </div>
                   <h3 className="mt-4 text-sm font-semibold text-foreground">
@@ -463,7 +463,7 @@ export default function HelpPage() {
                     Email our team for help with anything the docs can&apos;t
                     solve.
                   </p>
-                  <span className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-indigo-600 dark:text-indigo-400">
+                  <span className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-primary">
                     support@xenboox.com
                     <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5" />
                   </span>

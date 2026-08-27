@@ -311,7 +311,7 @@ export function ExportImportSettings({
                   <div className="space-y-1">
                     {importPreview.aiPreferences && (
                       <div className="flex items-center gap-2 text-sm">
-                        <Check className="h-3 w-3 text-emerald-500" />
+                        <Check className="h-3 w-3 text-balanced-green" />
                         <span>AI Preferences</span>
                         <span className="text-xs text-muted-foreground ml-auto">
                           {
@@ -324,7 +324,7 @@ export function ExportImportSettings({
                       </div>
                     )}
                     <div className="flex items-center gap-2 text-sm">
-                      <Check className="h-3 w-3 text-emerald-500" />
+                      <Check className="h-3 w-3 text-balanced-green" />
                       <span>Onboarding Status</span>
                       <span className="text-xs text-muted-foreground ml-auto">
                         {importPreview.onboarding.completed
@@ -391,7 +391,7 @@ function ExportItem({
   return (
     <div className="flex items-center gap-2 text-xs">
       {available ? (
-        <Check className="h-3 w-3 text-emerald-500" />
+        <Check className="h-3 w-3 text-balanced-green" />
       ) : (
         <AlertCircle className="h-3 w-3 text-muted-foreground" />
       )}

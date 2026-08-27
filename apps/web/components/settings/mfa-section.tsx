@@ -328,8 +328,8 @@ export function MfaSection() {
         ) : isEnabled ? (
           <>
             <div className="flex items-center gap-2 text-sm">
-              <Shield className="h-4 w-4 text-emerald-500" />
-              <span className="font-medium text-emerald-600 dark:text-emerald-400">
+              <Shield className="h-4 w-4 text-balanced-green" />
+              <span className="font-medium text-balanced-green dark:text-emerald-400">
                 MFA is enabled
               </span>
             </div>
@@ -347,7 +347,7 @@ export function MfaSection() {
 
             {needsAttention && (
               <div className="flex items-start gap-2 rounded-md border border-amber-500/50 bg-amber-50 p-3 dark:bg-amber-950/20">
-                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-attention-amber dark:text-amber-400" />
                 <div className="text-xs text-amber-700 dark:text-amber-300">
                   You have {mfaStatus.backupCodesCount} backup code
                   {mfaStatus.backupCodesCount !== 1 ? "s" : ""} remaining.

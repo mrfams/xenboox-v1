@@ -189,7 +189,7 @@ export function TeamSection() {
                           </Badge>
                         )}
                         {isOwner && (
-                          <Crown className="h-3.5 w-3.5 text-amber-500" />
+                          <Crown className="h-3.5 w-3.5 text-attention-amber" />
                         )}
                       </div>
                       <div className="flex items-center gap-1 text-xs text-muted-foreground">

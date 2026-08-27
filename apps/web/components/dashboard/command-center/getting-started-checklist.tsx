@@ -62,8 +62,8 @@ const STEPS: Step[] = [
     description:
       "Sync transactions automatically so the AI can categorize them.",
     icon: Landmark,
-    color: "text-emerald-500",
-    bgColor: "bg-emerald-500/10",
+    color: "text-balanced-green",
+    bgColor: "bg-balanced-green/10",
     action: { type: "link", href: "/dashboard/operations/banking" },
   },
   {
@@ -71,8 +71,8 @@ const STEPS: Step[] = [
     title: "Review your accounts",
     description: "Make sure your chart of accounts matches your business.",
     icon: BookOpen,
-    color: "text-blue-500",
-    bgColor: "bg-blue-500/10",
+    color: "text-primary",
+    bgColor: "bg-primary/10",
     action: {
       type: "message",
       prompt:
@@ -84,8 +84,8 @@ const STEPS: Step[] = [
     title: "Create your first invoice",
     description: "Send an invoice to see the full accounts receivable flow.",
     icon: FileText,
-    color: "text-amber-500",
-    bgColor: "bg-amber-500/10",
+    color: "text-attention-amber",
+    bgColor: "bg-attention-amber/10",
     action: {
       type: "message",
       prompt: "Help me create my first invoice. Walk me through the fields.",
@@ -96,8 +96,8 @@ const STEPS: Step[] = [
     title: "Close your first month",
     description: "Run the month-end close to see your P&L and balance sheet.",
     icon: CalendarCheck,
-    color: "text-purple-500",
-    bgColor: "bg-purple-500/10",
+    color: "text-signal-indigo",
+    bgColor: "bg-signal-indigo/10",
     action: {
       type: "message",
       prompt:
@@ -214,18 +214,18 @@ export function GettingStartedChecklist({
               className={cn(
                 "group flex w-full items-center gap-3 rounded-xl border p-3 text-left transition-all duration-200",
                 isCompleted
-                  ? "border-emerald-500/20 bg-emerald-500/[0.03] cursor-default"
+                  ? "border-balanced-green/20 bg-balanced-green/[0.03] cursor-default"
                   : "border-border/50 bg-card/60 hover:border-border/80 hover:shadow-md hover:-translate-y-px",
               )}
             >
               <div
                 className={cn(
                   "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-colors",
-                  isCompleted ? "bg-emerald-500/10" : step.bgColor,
+                  isCompleted ? "bg-balanced-green/10" : step.bgColor,
                 )}
               >
                 {isCompleted ? (
-                  <Check className="h-4 w-4 text-emerald-500" />
+                  <Check className="h-4 w-4 text-balanced-green" />
                 ) : (
                   <Icon className={cn("h-4 w-4", step.color)} />
                 )}
@@ -235,7 +235,7 @@ export function GettingStartedChecklist({
                   className={cn(
                     "text-sm font-medium",
                     isCompleted
-                      ? "text-emerald-600 line-through decoration-emerald-300"
+                      ? "text-balanced-green line-through decoration-balanced-green/30"
                       : "text-foreground",
                   )}
                 >

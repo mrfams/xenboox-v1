@@ -103,8 +103,8 @@ export default function KnowledgeBasePage() {
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-500/10 dark:bg-blue-500/20 rounded-lg">
-                <FileText className="h-5 w-5 text-blue-500 dark:text-blue-400" />
+              <div className="p-2 bg-primary/10 dark:bg-primary/20 rounded-lg">
+                <FileText className="h-5 w-5 text-primary dark:text-primary" />
               </div>
               <div>
                 <div className="text-2xl font-bold">
@@ -118,8 +118,8 @@ export default function KnowledgeBasePage() {
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-emerald-500/10 dark:bg-emerald-500/20 rounded-lg">
-                <Database className="h-5 w-5 text-emerald-500 dark:text-emerald-400" />
+              <div className="p-2 bg-balanced-green/10 dark:bg-balanced-green/20 rounded-lg">
+                <Database className="h-5 w-5 text-balanced-green dark:text-balanced-green" />
               </div>
               <div>
                 <div className="text-2xl font-bold">
@@ -133,8 +133,8 @@ export default function KnowledgeBasePage() {
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-purple-500/10 dark:bg-purple-500/20 rounded-lg">
-                <BarChart3 className="h-5 w-5 text-purple-500 dark:text-purple-400" />
+              <div className="p-2 bg-signal-indigo/10 dark:bg-signal-indigo/20 rounded-lg">
+                <BarChart3 className="h-5 w-5 text-signal-indigo dark:text-signal-indigo" />
               </div>
               <div>
                 <div className="text-2xl font-bold">
@@ -150,8 +150,8 @@ export default function KnowledgeBasePage() {
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-amber-500/10 dark:bg-amber-500/20 rounded-lg">
-                <Clock className="h-5 w-5 text-amber-500 dark:text-amber-400" />
+              <div className="p-2 bg-attention-amber/10 dark:bg-attention-amber/20 rounded-lg">
+                <Clock className="h-5 w-5 text-attention-amber dark:text-attention-amber" />
               </div>
               <div>
                 <div className="text-2xl font-bold">

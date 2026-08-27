@@ -33,7 +33,7 @@ export function AIGreeting({ firstName }: { firstName?: string }) {
         className="hidden shrink-0 items-center gap-1.5 rounded-full border border-border/40 bg-card/60 px-2.5 py-1 sm:flex"
         aria-hidden="true"
       >
-        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+        <span className="h-1.5 w-1.5 rounded-full bg-balanced-green animate-pulse" />
         <span className="text-[10px] font-medium text-muted-foreground/60">
           AI active
         </span>

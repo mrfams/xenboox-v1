@@ -284,7 +284,7 @@ export function CurrencySection() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="text-red-500"
+                            className="text-error-clay"
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
@@ -385,8 +385,8 @@ export function CurrencySection() {
                         <TableCell
                           className={`tabular-nums ${
                             total >= 0
-                              ? "text-emerald-600 dark:text-emerald-400"
-                              : "text-red-600 dark:text-red-400"
+                              ? "text-balanced-green dark:text-emerald-400"
+                              : "text-error-clay dark:text-red-400"
                           }`}
                         >
                           {total >= 0 ? "+" : ""}

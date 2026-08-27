@@ -185,7 +185,7 @@ function CommandCenterInner() {
                     <button
                       type="button"
                       onClick={handleExport}
-                      className="inline-flex items-center gap-1 rounded-lg border border-border/50 bg-background/50 p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+                      className="inline-flex items-center gap-1 rounded-lg border border-border/50 bg-background/50 p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2"
                       aria-label="Export chat"
                       title="Export chat"
                     >
@@ -194,7 +194,7 @@ function CommandCenterInner() {
                     <button
                       type="button"
                       onClick={() => newChat()}
-                      className="inline-flex items-center gap-1 rounded-lg border border-border/50 bg-background/50 p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+                      className="inline-flex items-center gap-1 rounded-lg border border-border/50 bg-background/50 p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2"
                       aria-label="Close chat and return to briefing"
                       title="Close chat"
                     >
@@ -206,7 +206,7 @@ function CommandCenterInner() {
                   <button
                     type="button"
                     onClick={handleExport}
-                    className="hidden sm:inline-flex items-center gap-1 rounded-lg border border-transparent px-2 py-1 text-[10px] font-medium text-muted-foreground hover:text-foreground transition-colors"
+                    className="hidden sm:inline-flex items-center gap-1 rounded-lg border border-transparent px-2 py-1 text-[10px] font-medium text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2"
                     aria-label="Export chat"
                     title="Export chat"
                   >
@@ -217,7 +217,7 @@ function CommandCenterInner() {
                 <button
                   type="button"
                   onClick={() => setSidebarOpen(!sidebarOpen)}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-border/50 bg-background/50 px-2.5 py-1.5 text-[10px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-border/50 bg-background/50 px-2.5 py-1.5 text-[10px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2"
                   aria-label={
                     sidebarOpen
                       ? "Close conversation list"

@@ -99,7 +99,7 @@ export function BackupProgressIndicator({
         {isPending ? (
           <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
         ) : justCompleted ? (
-          <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-500 animate-[scaleIn_0.3s_ease-out]" />
+          <CheckCircle2 className="h-4 w-4 shrink-0 text-balanced-green animate-[scaleIn_0.3s_ease-out]" />
         ) : (
           <ShieldCheck className="h-4 w-4 shrink-0" />
         )}
@@ -120,8 +120,8 @@ export function BackupProgressIndicator({
             className={cn(
               "h-full rounded-full transition-all duration-300 ease-out",
               justCompleted
-                ? "bg-emerald-500"
-                : "bg-emerald-400 dark:bg-emerald-500",
+                ? "bg-balanced-green"
+                : "bg-emerald-400 dark:bg-balanced-green",
             )}
             style={{ width: `${progress}%` }}
           />

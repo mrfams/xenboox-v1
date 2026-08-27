@@ -107,15 +107,15 @@ export function PrivacySection() {
                 </p>
                 <ul className="text-sm text-muted-foreground space-y-1">
                   <li className="flex items-center gap-2">
-                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                    <CheckCircle2 className="h-3.5 w-3.5 text-balanced-green" />
                     Profile information
                   </li>
                   <li className="flex items-center gap-2">
-                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                    <CheckCircle2 className="h-3.5 w-3.5 text-balanced-green" />
                     Appearance and notification preferences
                   </li>
                   <li className="flex items-center gap-2">
-                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                    <CheckCircle2 className="h-3.5 w-3.5 text-balanced-green" />
                     Activity and audit logs
                   </li>
                 </ul>
@@ -191,7 +191,7 @@ export function PrivacySection() {
       {/* Account Deletion */}
       <Card className="border-red-200 dark:border-red-900">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-red-600 dark:text-red-400">
+          <CardTitle className="flex items-center gap-2 text-error-clay dark:text-red-400">
             <Trash2 className="h-4 w-4" />
             Delete Account
           </CardTitle>
@@ -203,7 +203,7 @@ export function PrivacySection() {
         <CardContent className="space-y-4">
           <div className="rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-900 dark:bg-red-950/30">
             <div className="flex items-start gap-3">
-              <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400 mt-0.5" />
+              <AlertTriangle className="h-5 w-5 text-error-clay dark:text-red-400 mt-0.5" />
               <div className="space-y-1">
                 <p className="text-sm font-medium text-red-800 dark:text-red-200">
                   Warning: This is irreversible
@@ -234,7 +234,7 @@ export function PrivacySection() {
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle className="text-red-600 dark:text-red-400">
+            <DialogTitle className="text-error-clay dark:text-red-400">
               Delete Account
             </DialogTitle>
             <DialogDescription>

@@ -40,7 +40,7 @@ const INTEGRATIONS = [
     name: "Mono",
     description: "Connect bank accounts for automatic transaction syncing",
     icon: Landmark,
-    color: "bg-blue-100 text-blue-600 dark:bg-blue-950/30 dark:text-blue-400",
+    color: "bg-blue-100 text-primary dark:bg-blue-950/30 dark:text-blue-400",
     features: [
       "Real-time transaction sync",
       "Account balance monitoring",
@@ -53,7 +53,7 @@ const INTEGRATIONS = [
     description: "Process payments and manage transactions",
     icon: CreditCard,
     color:
-      "bg-amber-100 text-amber-600 dark:bg-amber-950/30 dark:text-amber-400",
+      "bg-amber-100 text-attention-amber dark:bg-amber-950/30 dark:text-amber-400",
     features: ["Payment processing", "Multi-currency support", "Payment links"],
   },
   {
@@ -62,7 +62,7 @@ const INTEGRATIONS = [
     description: "Accept payments online",
     icon: CreditCard,
     color:
-      "bg-emerald-100 text-emerald-600 dark:bg-emerald-950/30 dark:text-emerald-400",
+      "bg-emerald-100 text-balanced-green dark:bg-emerald-950/30 dark:text-emerald-400",
     features: ["Payment processing", "Recurring payments", "Invoicing"],
   },
   {
@@ -186,7 +186,7 @@ export function IntegrationsSection() {
                   className="flex items-center justify-between rounded-lg border p-4"
                 >
                   <div className="flex items-center gap-4">
-                    <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-100 text-blue-600 dark:bg-blue-950/30 dark:text-blue-400">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-100 text-primary dark:bg-blue-950/30 dark:text-blue-400">
                       <Landmark className="h-5 w-5" />
                     </div>
                     <div>
@@ -208,7 +208,7 @@ export function IntegrationsSection() {
                           : ""}
                       </p>
                       {conn.syncError && (
-                        <p className="mt-1 text-xs text-red-500">
+                        <p className="mt-1 text-xs text-error-clay">
                           Sync error: {conn.syncError}
                         </p>
                       )}

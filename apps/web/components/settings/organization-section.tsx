@@ -573,7 +573,7 @@ export function OrganizationSection() {
                           }
                         </span>
                         {!entity.isActive && (
-                          <span className="flex items-center gap-1 text-red-500">
+                          <span className="flex items-center gap-1 text-error-clay">
                             <Shield className="h-3 w-3" />
                             Inactive
                           </span>

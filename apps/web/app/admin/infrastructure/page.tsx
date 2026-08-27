@@ -25,6 +25,7 @@ import {
   Download,
   CheckCircle2,
   Info,
+  RefreshCw,
   ChevronRight,
   Search,
 } from "lucide-react";
@@ -37,20 +38,20 @@ import { cn } from "@/lib/utils";
 function OverallStatusCard({ status }: { status: string }) {
   const isHealthy = status === "healthy";
   return (
-    <Card className="relative overflow-hidden">
+    <Card className="relative overflow-hidden transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] hover:shadow-lg hover:-translate-y-0.5">
       <CardContent className="p-5">
         <div className="flex items-center gap-2 mb-2">
           <div
-            className={`p-2 rounded-lg ${isHealthy ? "bg-emerald-100" : "bg-amber-100"}`}
+            className={`p-2 rounded-lg ${isHealthy ? "bg-balanced-green/10" : "bg-attention-amber/10"}`}
           >
             <CheckCircle2
-              className={`h-5 w-5 ${isHealthy ? "text-emerald-600" : "text-amber-600"}`}
+              className={`h-5 w-5 ${isHealthy ? "text-balanced-green" : "text-attention-amber"}`}
             />
           </div>
           <span className="text-sm text-muted-foreground">Overall Status</span>
         </div>
         <p
-          className={`text-2xl font-bold ${isHealthy ? "text-emerald-600" : "text-amber-600"}`}
+          className={`text-2xl font-bold ${isHealthy ? "text-balanced-green" : "text-attention-amber"}`}
         >
           {status.charAt(0).toUpperCase() + status.slice(1)}
         </p>
@@ -86,10 +87,10 @@ function MetricCard({
   sparklineColor?: string;
 }) {
   const isPositive = delta !== undefined && delta >= 0;
-  const deltaColor = isPositive ? "text-emerald-500" : "text-red-500";
+  const deltaColor = isPositive ? "text-balanced-green" : "text-error-clay";
 
   return (
-    <Card className="relative overflow-hidden">
+    <Card className="relative overflow-hidden transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] hover:shadow-lg hover:-translate-y-0.5">
       <CardContent className="p-5">
         <div className="flex items-center justify-between mb-3">
           <span className="text-xs text-muted-foreground">{label}</span>
@@ -148,11 +149,11 @@ function ResourceCard({
   sparklineColor?: string;
 }) {
   const isPositive = delta !== undefined && delta >= 0;
-  const deltaColor = isPositive ? "text-red-500" : "text-emerald-500";
+  const deltaColor = isPositive ? "text-error-clay" : "text-balanced-green";
 
   return (
-    <Card className="relative overflow-hidden">
-      <CardContent className="p-4">
+    <Card className="relative overflow-hidden transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] hover:shadow-lg hover:-translate-y-0.5">
+      <CardContent className="p-5">
         <p className="text-xs text-muted-foreground mb-1">{label}</p>
         <p className="text-2xl font-bold">
           {value}
@@ -177,47 +178,6 @@ function ResourceCard({
         )}
       </CardContent>
     </Card>
-  );
-}
-
-// ─── Sparkline Component ────────────────────────────────────────────────────
-
-function _Sparkline({
-  data,
-  color = "rgb(139, 92, 246)",
-  height = 40,
-  width = 120,
-}: {
-  data: number[];
-  color?: string;
-  height?: number;
-  width?: number;
-}) {
-  if (data.length < 2) return null;
-
-  const min = Math.min(...data);
-  const max = Math.max(...data);
-  const range = max - min || 1;
-
-  const points = data
-    .map((value, i) => {
-      const x = (i / (data.length - 1)) * width;
-      const y = height - ((value - min) / range) * (height - 4) - 2;
-      return `${x},${y}`;
-    })
-    .join(" ");
-
-  return (
-    <svg width={width} height={height} className="overflow-visible">
-      <polyline
-        fill="none"
-        stroke={color}
-        strokeWidth={2}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        points={points}
-      />
-    </svg>
   );
 }
 
@@ -388,7 +348,7 @@ function DualAxisLineChart({
         {/* Lines */}
         <polyline
           fill="none"
-          stroke="#22c55e"
+          stroke="hsl(var(--balanced-green))"
           strokeWidth={2}
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -396,22 +356,21 @@ function DualAxisLineChart({
         />
         <polyline
           fill="none"
-          stroke="#8b5cf6"
+          stroke="hsl(var(--signal-indigo))"
           strokeWidth={2}
           strokeLinecap="round"
           strokeLinejoin="round"
           points={rightPoints}
         />
       </svg>
-
-      {/* Legend */}
+      {/* Legend */}{" "}
       <div className="flex items-center justify-center gap-6 mt-4">
         <div className="flex items-center gap-1.5">
-          <div className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
+          <div className="h-2.5 w-2.5 rounded-full bg-balanced-green" />
           <span className="text-xs text-muted-foreground">{leftLabel}</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <div className="h-2.5 w-2.5 rounded-full bg-violet-500" />
+          <div className="h-2.5 w-2.5 rounded-full bg-signal-indigo" />
           <span className="text-xs text-muted-foreground">{rightLabel}</span>
         </div>
       </div>
@@ -423,11 +382,11 @@ function DualAxisLineChart({
 
 function StatusBadge({ status }: { status: string }) {
   const colors: Record<string, string> = {
-    healthy: "bg-emerald-100 text-emerald-700",
-    degraded: "bg-amber-100 text-amber-700",
-    unhealthy: "bg-red-100 text-red-700",
-    maintenance: "bg-blue-100 text-blue-700",
-    unknown: "bg-gray-100 text-gray-700",
+    healthy: "bg-balanced-green/10 text-balanced-green",
+    degraded: "bg-attention-amber/10 text-attention-amber",
+    unhealthy: "bg-error-clay/10 text-error-clay",
+    maintenance: "bg-primary/10 text-primary",
+    unknown: "bg-muted text-muted-foreground",
   };
 
   return (
@@ -439,9 +398,9 @@ function StatusBadge({ status }: { status: string }) {
 
 function AlertSeverityBadge({ severity }: { severity: string }) {
   const colors: Record<string, string> = {
-    critical: "bg-red-100 text-red-700",
-    warning: "bg-amber-100 text-amber-700",
-    info: "bg-blue-100 text-blue-700",
+    critical: "bg-error-clay/10 text-error-clay",
+    warning: "bg-attention-amber/10 text-attention-amber",
+    info: "bg-primary/10 text-primary",
   };
 
   return (
@@ -461,10 +420,15 @@ export default function InfrastructureHealthPage() {
   const [typeFilter, setTypeFilter] = useState("all");
 
   // Fetch all data
-  const { data: overview, isLoading } =
-    trpc.infrastructure.getOverview.useQuery({
-      days: timeRange,
-    });
+  const {
+    data: overview,
+    isLoading,
+    isError,
+    error,
+    refetch,
+  } = trpc.infrastructure.getOverview.useQuery({
+    days: timeRange,
+  });
 
   // Seed demo data mutation
   const seedMutation = trpc.infrastructure.seedDemoData.useMutation({
@@ -476,7 +440,7 @@ export default function InfrastructureHealthPage() {
   // Filter services
   const filteredServices = useMemo(() => {
     if (!overview?.services) return [];
-    return overview.services.filter((s: any) => {
+    return overview.services.filter((s) => {
       if (
         searchQuery &&
         !s.displayName.toLowerCase().includes(searchQuery.toLowerCase())
@@ -499,43 +463,79 @@ export default function InfrastructureHealthPage() {
         name: "Healthy",
         count: healthy,
         percentage: total > 0 ? Math.round((healthy / total) * 100) : 0,
-        color: "#22c55e",
+        color: "hsl(var(--balanced-green))",
       },
       {
         name: "Degraded",
         count: degraded,
         percentage: total > 0 ? Math.round((degraded / total) * 100) : 0,
-        color: "#f59e0b",
+        color: "hsl(var(--attention-amber))",
       },
       {
         name: "Unhealthy",
         count: unhealthy,
         percentage: total > 0 ? Math.round((unhealthy / total) * 100) : 0,
-        color: "#ef4444",
+        color: "hsl(var(--error-clay))",
       },
       {
         name: "Maintenance",
         count: maintenance,
         percentage: total > 0 ? Math.round((maintenance / total) * 100) : 0,
-        color: "#3b82f6",
+        color: "hsl(var(--signal-indigo))",
       },
       {
         name: "Unknown",
         count: unknown,
         percentage: total > 0 ? Math.round((unknown / total) * 100) : 0,
-        color: "#9ca3af",
+        color: "hsl(var(--muted-foreground))",
       },
     ];
   }, [overview?.infrastructureOverview]);
 
   const chartData = useMemo(() => {
     if (!overview?.healthOverTime) return [];
-    return overview.healthOverTime.map((d: any) => ({
+    return overview.healthOverTime.map((d) => ({
       date: d.date,
       left: d.uptime,
       right: d.errorRate,
     }));
   }, [overview?.healthOverTime]);
+
+  if (isError) {
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">
+              Infrastructure Health
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              Real-time status of your infrastructure, services, and
+              deployments.
+            </p>
+          </div>
+        </div>
+        <Card>
+          <CardContent className="p-8 text-center">
+            <AlertCircle className="h-12 w-12 text-error-clay mx-auto mb-4" />
+            <p className="text-sm text-muted-foreground mb-4">
+              {error?.message ||
+                "We couldn't load the infrastructure data. Check your connection and try again."}
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => void refetch()}
+              className="transition-all duration-300 hover:shadow-md active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2"
+            >
+              <RefreshCw className="h-4 w-4 mr-1" />
+              Try again
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (
@@ -573,15 +573,15 @@ export default function InfrastructureHealthPage() {
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2">
-            <span className="text-2xl font-bold">9</span>
+          <div>
             <h1 className="text-2xl font-bold tracking-tight">
               Infrastructure Health
             </h1>
+            <p className="text-sm text-muted-foreground">
+              Real-time status of your infrastructure, services, and
+              deployments.
+            </p>
           </div>
-          <p className="text-sm text-muted-foreground">
-            Real-time status of your infrastructure, services, and deployments.
-          </p>
         </div>
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-1 rounded-lg border border-border/50 bg-muted/30 px-3 py-2">
@@ -599,11 +599,19 @@ export default function InfrastructureHealthPage() {
               })()}
             </span>
           </div>
-          <Button variant="outline" size="sm">
+          <Button
+            variant="outline"
+            size="sm"
+            className="transition-all duration-300 hover:shadow-md active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2"
+          >
             <Filter className="h-4 w-4 mr-1" />
             Filters
           </Button>
-          <Button variant="outline" size="sm">
+          <Button
+            variant="outline"
+            size="sm"
+            className="transition-all duration-300 hover:shadow-md active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2"
+          >
             <Download className="h-4 w-4 mr-1" />
             Export
           </Button>
@@ -611,6 +619,7 @@ export default function InfrastructureHealthPage() {
             onClick={() => seedMutation.mutate()}
             variant="outline"
             size="sm"
+            className="transition-all duration-300 hover:shadow-md active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2"
           >
             Seed Data
           </Button>
@@ -628,8 +637,8 @@ export default function InfrastructureHealthPage() {
           delta={overview?.kpis?.uptimeDelta}
           deltaLabel="vs prior 30d"
           icon={<Activity className="h-4 w-4" />}
-          iconColor="text-emerald-600"
-          iconBg="bg-emerald-100"
+          iconColor="text-balanced-green"
+          iconBg="bg-balanced-green/10"
         />
         <MetricCard
           label="Incidents (30d)"
@@ -637,22 +646,22 @@ export default function InfrastructureHealthPage() {
           delta={overview?.kpis?.incidentsDelta}
           deltaLabel="vs prior 30d"
           icon={<AlertTriangle className="h-4 w-4" />}
-          iconColor="text-amber-600"
-          iconBg="bg-amber-100"
+          iconColor="text-attention-amber"
+          iconBg="bg-attention-amber/10"
         />
         <MetricCard
           label="Services"
           value={overview?.kpis?.totalServices ?? 0}
           icon={<Server className="h-4 w-4" />}
-          iconColor="text-violet-600"
-          iconBg="bg-violet-100"
+          iconColor="text-signal-indigo"
+          iconBg="bg-signal-indigo/10"
         />
         <MetricCard
           label="Active Alerts"
           value={overview?.kpis?.activeAlerts ?? 0}
           icon={<AlertCircle className="h-4 w-4" />}
-          iconColor="text-red-600"
-          iconBg="bg-red-100"
+          iconColor="text-error-clay"
+          iconBg="bg-error-clay/10"
         />
         <MetricCard
           label="Avg. Response Time (API)"
@@ -661,8 +670,8 @@ export default function InfrastructureHealthPage() {
           delta={overview?.kpis?.responseTimeDelta}
           deltaLabel="vs prior 7d"
           icon={<Clock className="h-4 w-4" />}
-          iconColor="text-blue-600"
-          iconBg="bg-blue-100"
+          iconColor="text-primary"
+          iconBg="bg-primary/10"
         />
         <MetricCard
           label="Error Rate (API)"
@@ -670,8 +679,8 @@ export default function InfrastructureHealthPage() {
           delta={overview?.kpis?.errorRateDelta}
           deltaLabel="vs prior 7d"
           icon={<AlertCircle className="h-4 w-4" />}
-          iconColor="text-red-600"
-          iconBg="bg-red-100"
+          iconColor="text-error-clay"
+          iconBg="bg-error-clay/10"
         />
       </div>
 
@@ -708,8 +717,8 @@ export default function InfrastructureHealthPage() {
               segments={infraOverviewSegments}
               centerValue={String(overview?.infrastructureOverview?.total ?? 0)}
               centerLabel="Services"
-            />
-            <button className="flex items-center gap-1 text-xs font-medium text-purple-600 hover:text-purple-700 mt-4">
+            />{" "}
+            <button className="flex items-center gap-1 text-xs font-medium text-primary hover:text-primary/80 transition-all duration-300 mt-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 rounded-md">
               View all services
               <ArrowRight className="h-3 w-3" />
             </button>
@@ -722,20 +731,20 @@ export default function InfrastructureHealthPage() {
             <CardTitle className="text-sm font-semibold">
               Current Alerts
             </CardTitle>
-            <button className="text-xs font-medium text-purple-600 hover:text-purple-700">
+            <button className="text-xs font-medium text-primary hover:text-primary/80 transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 rounded-md">
               View all alerts →
             </button>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {overview?.alerts?.slice(0, 5).map((alert: any) => (
+              {overview?.alerts?.slice(0, 5).map((alert) => (
                 <div key={alert.id} className="flex items-start gap-3">
                   {alert.severity === "critical" ? (
-                    <AlertCircle className="h-5 w-5 text-red-500 mt-0.5 shrink-0" />
+                    <AlertCircle className="h-5 w-5 text-error-clay mt-0.5 shrink-0" />
                   ) : alert.severity === "warning" ? (
-                    <AlertTriangle className="h-5 w-5 text-amber-500 mt-0.5 shrink-0" />
+                    <AlertTriangle className="h-5 w-5 text-attention-amber mt-0.5 shrink-0" />
                   ) : (
-                    <Info className="h-5 w-5 text-blue-500 mt-0.5 shrink-0" />
+                    <Info className="h-5 w-5 text-primary mt-0.5 shrink-0" />
                   )}
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium truncate">
@@ -854,7 +863,6 @@ export default function InfrastructureHealthPage() {
                 <option value="queue">Queue</option>
               </select>
             </div>
-
             {/* Table */}
             <table className="w-full">
               <thead>
@@ -884,11 +892,11 @@ export default function InfrastructureHealthPage() {
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {filteredServices.map((service: any) => (
+                {filteredServices.map((service) => (
                   <tr key={service.id} className="hover:bg-muted/50">
                     <td className="py-3">
                       <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-full bg-violet-100 flex items-center justify-center text-xs font-medium text-violet-700">
+                        <div className="w-8 h-8 rounded-full bg-signal-indigo/10 flex items-center justify-center text-xs font-medium text-signal-indigo">
                           {service.name.slice(0, 3).toUpperCase()}
                         </div>
                         <div>
@@ -918,8 +926,8 @@ export default function InfrastructureHealthPage() {
                             className={cn(
                               "text-xs",
                               service.responseTimeDelta > 0
-                                ? "text-red-500"
-                                : "text-emerald-500",
+                                ? "text-error-clay"
+                                : "text-balanced-green",
                             )}
                           >
                             {service.responseTimeDelta > 0 ? "↑" : "↓"}{" "}
@@ -939,8 +947,8 @@ export default function InfrastructureHealthPage() {
                               className={cn(
                                 "text-xs",
                                 service.errorRateDelta > 0
-                                  ? "text-red-500"
-                                  : "text-emerald-500",
+                                  ? "text-error-clay"
+                                  : "text-balanced-green",
                               )}
                             >
                               {service.errorRateDelta > 0 ? "↑" : "↓"}{" "}
@@ -964,8 +972,8 @@ export default function InfrastructureHealthPage() {
                   </tr>
                 ))}
               </tbody>
-            </table>
-            <button className="flex items-center gap-1 text-xs font-medium text-purple-600 hover:text-purple-700 mt-4">
+            </table>{" "}
+            <button className="flex items-center gap-1 text-xs font-medium text-primary hover:text-primary/80 transition-all duration-300 mt-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 rounded-md">
               View all services
               <ArrowRight className="h-3 w-3" />
             </button>
@@ -980,20 +988,20 @@ export default function InfrastructureHealthPage() {
               <CardTitle className="text-sm font-semibold">
                 Recent Incidents
               </CardTitle>
-              <button className="text-xs font-medium text-purple-600 hover:text-purple-700">
+              <button className="text-xs font-medium text-primary hover:text-primary/80 transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 rounded-md">
                 View all incidents →
               </button>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {overview?.incidents?.map((incident: any) => (
+                {overview?.incidents?.map((incident) => (
                   <div key={incident.id} className="flex items-start gap-3">
                     {incident.severity === "major" ? (
-                      <AlertCircle className="h-5 w-5 text-red-500 mt-0.5 shrink-0" />
+                      <AlertCircle className="h-5 w-5 text-error-clay mt-0.5 shrink-0" />
                     ) : incident.severity === "minor" ? (
-                      <AlertTriangle className="h-5 w-5 text-amber-500 mt-0.5 shrink-0" />
+                      <AlertTriangle className="h-5 w-5 text-attention-amber mt-0.5 shrink-0" />
                     ) : (
-                      <Info className="h-5 w-5 text-blue-500 mt-0.5 shrink-0" />
+                      <Info className="h-5 w-5 text-primary mt-0.5 shrink-0" />
                     )}
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium">{incident.title}</p>
@@ -1008,10 +1016,10 @@ export default function InfrastructureHealthPage() {
                       variant="secondary"
                       className={
                         incident.severity === "major"
-                          ? "bg-red-100 text-red-700"
+                          ? "bg-error-clay/10 text-error-clay"
                           : incident.severity === "minor"
-                            ? "bg-amber-100 text-amber-700"
-                            : "bg-blue-100 text-blue-700"
+                            ? "bg-attention-amber/10 text-attention-amber"
+                            : "bg-primary/10 text-primary"
                       }
                     >
                       {incident.severity.charAt(0).toUpperCase() +
@@ -1052,7 +1060,8 @@ export default function InfrastructureHealthPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y">
-                  {overview?.resourceUsageByEnvironment?.map((env: any) => (
+                  {" "}
+                  {overview?.resourceUsageByEnvironment?.map((env) => (
                     <tr key={env.environment}>
                       <td className="py-2 text-sm font-medium">
                         {env.environment}
@@ -1062,7 +1071,7 @@ export default function InfrastructureHealthPage() {
                           <span className="text-sm">{env.cpuAvg}%</span>
                           <div className="w-16 h-1.5 bg-muted rounded-full overflow-hidden">
                             <div
-                              className="h-full bg-emerald-500 rounded-full"
+                              className="h-full bg-balanced-green rounded-full"
                               style={{ width: `${env.cpuAvg}%` }}
                             />
                           </div>
@@ -1073,7 +1082,7 @@ export default function InfrastructureHealthPage() {
                           <span className="text-sm">{env.memoryAvg}%</span>
                           <div className="w-16 h-1.5 bg-muted rounded-full overflow-hidden">
                             <div
-                              className="h-full bg-violet-500 rounded-full"
+                              className="h-full bg-signal-indigo rounded-full"
                               style={{ width: `${env.memoryAvg}%` }}
                             />
                           </div>
@@ -1084,7 +1093,7 @@ export default function InfrastructureHealthPage() {
                           <span className="text-sm">{env.diskAvg}%</span>
                           <div className="w-16 h-1.5 bg-muted rounded-full overflow-hidden">
                             <div
-                              className="h-full bg-blue-500 rounded-full"
+                              className="h-full bg-primary rounded-full"
                               style={{ width: `${env.diskAvg}%` }}
                             />
                           </div>
@@ -1094,7 +1103,7 @@ export default function InfrastructureHealthPage() {
                   ))}
                 </tbody>
               </table>
-              <button className="flex items-center gap-1 text-xs font-medium text-purple-600 hover:text-purple-700 mt-4">
+              <button className="flex items-center gap-1 text-xs font-medium text-primary hover:text-primary/80 transition-all duration-300 mt-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 rounded-md">
                 View full infrastructure metrics
                 <ArrowRight className="h-3 w-3" />
               </button>

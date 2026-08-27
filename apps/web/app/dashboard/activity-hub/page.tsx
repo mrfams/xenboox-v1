@@ -118,22 +118,22 @@ function getRiskLevel(confidence: number | undefined): {
   if (confidence >= 0.8)
     return {
       label: "Low Risk",
-      color: "text-emerald-600",
-      bgColor: "bg-emerald-500/10",
-      barColor: "bg-emerald-500",
+      color: "text-balanced-green",
+      bgColor: "bg-balanced-green/10",
+      barColor: "bg-balanced-green",
     };
   if (confidence >= 0.6)
     return {
       label: "Medium Risk",
-      color: "text-amber-600",
-      bgColor: "bg-amber-500/10",
-      barColor: "bg-amber-500",
+      color: "text-attention-amber",
+      bgColor: "bg-attention-amber/10",
+      barColor: "bg-attention-amber",
     };
   return {
     label: "High Risk",
-    color: "text-red-600",
-    bgColor: "bg-red-500/10",
-    barColor: "bg-red-500",
+    color: "text-error-clay",
+    bgColor: "bg-error-clay/10",
+    barColor: "bg-error-clay",
   };
 }
 
@@ -212,22 +212,22 @@ function ActivityItemCard({
 
   const typeConfig = {
     urgent: {
-      border: "border-red-500/20",
-      bg: "bg-red-500/[0.03]",
+      border: "border-error-clay/20",
+      bg: "bg-error-clay/[0.03]",
       icon: AlertTriangle,
-      iconColor: "text-red-500",
-      iconBg: "bg-red-500/10",
+      iconColor: "text-error-clay",
+      iconBg: "bg-error-clay/10",
       priority: "Urgent",
-      priorityColor: "bg-red-500/10 text-red-500",
+      priorityColor: "bg-error-clay/10 text-error-clay",
     },
     approval: {
-      border: "border-amber-500/20",
-      bg: "bg-amber-500/[0.03]",
+      border: "border-attention-amber/20",
+      bg: "bg-attention-amber/[0.03]",
       icon: FileCheck,
-      iconColor: "text-amber-500",
-      iconBg: "bg-amber-500/10",
+      iconColor: "text-attention-amber",
+      iconBg: "bg-attention-amber/10",
       priority: "Approval",
-      priorityColor: "bg-amber-500/10 text-amber-500",
+      priorityColor: "bg-attention-amber/10 text-attention-amber",
     },
     review: {
       border: "border-border/50",
@@ -261,7 +261,7 @@ function ActivityItemCard({
           ? "border-primary/40 bg-primary/[0.03]"
           : cn(config.border, config.bg),
         itemState === "success" && "opacity-60",
-        itemState === "error" && "ring-2 ring-red-500/50",
+        itemState === "error" && "ring-2 ring-error-clay/50",
       )}
     >
       <div className="flex items-start gap-3">
@@ -368,7 +368,7 @@ function ActivityItemCard({
               </div>
             )}
             {item.amount && (
-              <div className="inline-flex items-center gap-1 rounded-md bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
+              <div className="inline-flex items-center gap-1 rounded-md bg-attention-amber/10 px-2 py-0.5 text-[10px] font-semibold text-attention-amber">
                 {item.amount}
               </div>
             )}
@@ -464,7 +464,7 @@ function ActivityItemCard({
         <div
           className={cn(
             "mt-3 ml-13 flex items-center gap-2",
-            lastAction === "reject" ? "text-red-600" : "text-emerald-600",
+            lastAction === "reject" ? "text-error-clay" : "text-balanced-green",
           )}
         >
           <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
@@ -499,12 +499,12 @@ function CompletedSection({ count }: { count: number }) {
       >
         <div className="flex items-center gap-2">
           <CheckCircle2
-            className="h-4 w-4 text-emerald-500"
+            className="h-4 w-4 text-balanced-green"
             aria-hidden="true"
           />
           <span>Completed today</span>
           <span
-            className="inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-emerald-500/10 px-1.5 text-[10px] font-bold text-emerald-500"
+            className="inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-balanced-green/10 px-1.5 text-[10px] font-bold text-balanced-green"
             aria-label={`${count} completed`}
           >
             {count}
@@ -557,11 +557,15 @@ function ItemDetailDrawer({
   const [note, setNote] = useState("");
 
   const typeConfig = {
-    urgent: { label: "Urgent", color: "text-red-500", bg: "bg-red-500/10" },
+    urgent: {
+      label: "Urgent",
+      color: "text-error-clay",
+      bg: "bg-error-clay/10",
+    },
     approval: {
       label: "Approval",
-      color: "text-amber-500",
-      bg: "bg-amber-500/10",
+      color: "text-attention-amber",
+      bg: "bg-attention-amber/10",
     },
     review: { label: "Review", color: "text-primary", bg: "bg-primary/10" },
     info: { label: "Info", color: "text-muted-foreground", bg: "bg-muted/40" },
@@ -785,8 +789,8 @@ function ItemDetailDrawer({
                     className={cn(
                       "flex-1 inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition-colors",
                       a.variant === "approve"
-                        ? "bg-emerald-600 text-white hover:bg-emerald-700"
-                        : "bg-red-600 text-white hover:bg-red-700",
+                        ? "bg-balanced-green text-white hover:bg-balanced-green/90"
+                        : "bg-error-clay text-white hover:bg-error-clay/90",
                       itemState === "processing" &&
                         "opacity-50 cursor-not-allowed",
                     )}
@@ -1474,10 +1478,10 @@ export default function ActivityHubPage() {
           <div className="rounded-xl border border-border/50 bg-card p-4">
             <div className="flex items-center gap-3">
               <div
-                className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-500/10"
+                className="flex h-10 w-10 items-center justify-center rounded-xl bg-error-clay/10"
                 aria-hidden="true"
               >
-                <AlertTriangle className="h-5 w-5 text-red-500" />
+                <AlertTriangle className="h-5 w-5 text-error-clay" />
               </div>
               <div>
                 <p className="text-2xl font-bold text-foreground">
@@ -1490,10 +1494,10 @@ export default function ActivityHubPage() {
           <div className="rounded-xl border border-border/50 bg-card p-4">
             <div className="flex items-center gap-3">
               <div
-                className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/10"
+                className="flex h-10 w-10 items-center justify-center rounded-xl bg-attention-amber/10"
                 aria-hidden="true"
               >
-                <FileCheck className="h-5 w-5 text-amber-500" />
+                <FileCheck className="h-5 w-5 text-attention-amber" />
               </div>
               <div>
                 <p className="text-2xl font-bold text-foreground">
@@ -1506,10 +1510,10 @@ export default function ActivityHubPage() {
           <div className="rounded-xl border border-border/50 bg-card p-4">
             <div className="flex items-center gap-3">
               <div
-                className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-500/10"
+                className="flex h-10 w-10 items-center justify-center rounded-xl bg-signal-indigo/10"
                 aria-hidden="true"
               >
-                <Bot className="h-5 w-5 text-violet-500" />
+                <Bot className="h-5 w-5 text-signal-indigo" />
               </div>
               <div>
                 <p className="text-2xl font-bold text-foreground">
@@ -1522,10 +1526,10 @@ export default function ActivityHubPage() {
           <div className="rounded-xl border border-border/50 bg-card p-4">
             <div className="flex items-center gap-3">
               <div
-                className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/10"
+                className="flex h-10 w-10 items-center justify-center rounded-xl bg-balanced-green/10"
                 aria-hidden="true"
               >
-                <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+                <CheckCircle2 className="h-5 w-5 text-balanced-green" />
               </div>
               <div>
                 <p className="text-2xl font-bold text-foreground">
@@ -1645,7 +1649,7 @@ export default function ActivityHubPage() {
               <button
                 type="button"
                 onClick={() => handleBatchAction("approve")}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700 transition-colors"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-balanced-green px-3 py-1.5 text-xs font-medium text-white hover:bg-balanced-green/90 transition-colors"
               >
                 <ThumbsUp className="h-3.5 w-3.5" aria-hidden="true" />
                 Approve all
@@ -1653,7 +1657,7 @@ export default function ActivityHubPage() {
               <button
                 type="button"
                 onClick={() => setConfirmRejectOpen(true)}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700 transition-colors"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-error-clay px-3 py-1.5 text-xs font-medium text-white hover:bg-error-clay/90 transition-colors"
               >
                 <ThumbsDown className="h-3.5 w-3.5" aria-hidden="true" />
                 Reject all
@@ -1686,9 +1690,9 @@ export default function ActivityHubPage() {
           >
             <div className="mx-4 w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl">
               <div className="flex items-start gap-4">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-red-500/10">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-error-clay/10">
                   <AlertTriangle
-                    className="h-6 w-6 text-red-500"
+                    className="h-6 w-6 text-error-clay"
                     aria-hidden="true"
                   />
                 </div>
@@ -1718,7 +1722,7 @@ export default function ActivityHubPage() {
                     setConfirmRejectOpen(false);
                     handleBatchAction("reject");
                   }}
-                  className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 transition-colors"
+                  className="rounded-lg bg-error-clay px-4 py-2 text-sm font-medium text-white hover:bg-error-clay/90 transition-colors"
                 >
                   Reject {selectedIds.size} item
                   {selectedIds.size === 1 ? "" : "s"}
@@ -1743,9 +1747,9 @@ export default function ActivityHubPage() {
           >
             <div className="mx-4 w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl">
               <div className="flex items-start gap-4">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-emerald-500/10">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-balanced-green/10">
                   <CheckCircle2
-                    className="h-6 w-6 text-emerald-500"
+                    className="h-6 w-6 text-balanced-green"
                     aria-hidden="true"
                   />
                 </div>
@@ -1775,7 +1779,7 @@ export default function ActivityHubPage() {
                     setConfirmApproveOpen(false);
                     handleBatchAction("approve");
                   }}
-                  className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 transition-colors"
+                  className="rounded-lg bg-balanced-green px-4 py-2 text-sm font-medium text-white hover:bg-balanced-green/90 transition-colors"
                 >
                   Approve {selectedIds.size} item
                   {selectedIds.size === 1 ? "" : "s"}
@@ -1794,10 +1798,10 @@ export default function ActivityHubPage() {
           {filteredItems.length === 0 ? (
             <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border/50 py-12 text-center">
               <div
-                className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/10 mb-3"
+                className="flex h-12 w-12 items-center justify-center rounded-full bg-balanced-green/10 mb-3"
                 aria-hidden="true"
               >
-                <CheckCircle2 className="h-6 w-6 text-emerald-500" />
+                <CheckCircle2 className="h-6 w-6 text-balanced-green" />
               </div>
               <p className="text-sm font-medium text-foreground">
                 All caught up

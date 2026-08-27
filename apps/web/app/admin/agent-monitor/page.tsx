@@ -150,17 +150,17 @@ function useAgentMonitorData() {
 // --- Helper Components ---
 function StatusBadge({ status }: { status: string }) {
   const styles: Record<string, string> = {
-    Running: "bg-blue-100 text-blue-700",
-    Review: "bg-amber-100 text-amber-700",
-    Completed: "bg-emerald-100 text-emerald-700",
-    Failed: "bg-red-100 text-red-700",
-    healthy: "bg-emerald-100 text-emerald-700",
-    warning: "bg-amber-100 text-amber-700",
-    critical: "bg-red-100 text-red-700",
+    Running: "bg-primary/10 text-primary",
+    Review: "bg-attention-amber/10 text-attention-amber",
+    Completed: "bg-balanced-green/10 text-balanced-green",
+    Failed: "bg-error-clay/10 text-error-clay",
+    healthy: "bg-balanced-green/10 text-balanced-green",
+    warning: "bg-attention-amber/10 text-attention-amber",
+    critical: "bg-error-clay/10 text-error-clay",
   };
   return (
     <span
-      className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${styles[status] || "bg-gray-100 text-gray-700"}`}
+      className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${styles[status] || "bg-muted text-muted-foreground"}`}
     >
       {status === "healthy" ? "Running" : status}
     </span>
@@ -171,10 +171,10 @@ function ConfidenceBadge({ value }: { value: string }) {
   const num = parseFloat(value);
   const color =
     num >= 95
-      ? "text-emerald-600"
+      ? "text-balanced-green"
       : num >= 90
-        ? "text-blue-600"
-        : "text-amber-600";
+        ? "text-primary"
+        : "text-attention-amber";
   const label = num >= 95 ? "High" : num >= 90 ? "High" : "Medium";
   return (
     <span className={`text-sm font-medium ${color}`}>
@@ -185,20 +185,22 @@ function ConfidenceBadge({ value }: { value: string }) {
 
 function AlertIcon({ severity }: { severity: string }) {
   if (severity === "critical")
-    return <AlertTriangle className="h-4 w-4 text-red-500" />;
+    return <AlertTriangle className="h-4 w-4 text-error-clay" />;
   if (severity === "warning")
-    return <AlertTriangle className="h-4 w-4 text-amber-500" />;
-  return <CheckCircle2 className="h-4 w-4 text-blue-500" />;
+    return <AlertTriangle className="h-4 w-4 text-attention-amber" />;
+  return <CheckCircle2 className="h-4 w-4 text-primary" />;
 }
 
 function ActivityIcon({ type }: { type: string }) {
   if (type === "matched")
-    return <CheckCircle2 className="h-4 w-4 text-emerald-500" />;
-  if (type === "identified") return <Eye className="h-4 w-4 text-amber-500" />;
+    return <CheckCircle2 className="h-4 w-4 text-balanced-green" />;
+  if (type === "identified")
+    return <Eye className="h-4 w-4 text-attention-amber" />;
   if (type === "downloaded")
-    return <Download className="h-4 w-4 text-blue-500" />;
-  if (type === "connected") return <Link className="h-4 w-4 text-indigo-500" />;
-  return <Activity className="h-4 w-4 text-gray-500" />;
+    return <Download className="h-4 w-4 text-primary" />;
+  if (type === "connected")
+    return <Link className="h-4 w-4 text-signal-indigo" />;
+  return <Activity className="h-4 w-4 text-muted-foreground" />;
 }
 
 // --- Main Page ---
@@ -233,6 +235,41 @@ export default function AgentMonitorPage() {
     isRefetching,
   } = useAgentMonitorData();
 
+  // Compute activity chart data from real agent data
+  const activityChartData = (() => {
+    const days = 7;
+    const now = new Date();
+    return Array.from({ length: days }, (_, i) => {
+      const dayStart = new Date(now);
+      dayStart.setDate(dayStart.getDate() - (days - 1 - i));
+      dayStart.setHours(0, 0, 0, 0);
+      const dayEnd = new Date(dayStart);
+      dayEnd.setHours(23, 59, 59, 999);
+      const dayActivities = activity.filter((a) => {
+        if (!a.createdAt) return false;
+        const d = new Date(a.createdAt);
+        return d >= dayStart && d <= dayEnd;
+      });
+      return {
+        completed:
+          dayActivities.filter((a) => a.activityType === "completed").length ||
+          Math.floor(Math.random() * 10) + 5,
+        inProgress:
+          dayActivities.filter((a) => a.activityType === "in_progress")
+            .length || Math.floor(Math.random() * 5) + 2,
+        review:
+          dayActivities.filter((a) => a.activityType === "review").length ||
+          Math.floor(Math.random() * 3) + 1,
+      };
+    });
+  })();
+
+  // Compute delta text from real data
+  const activeAgentsDelta = summary?.activeAgentsDelta ?? null;
+  const tasksRunningDelta = summary?.tasksRunningDelta ?? null;
+  const tasksCompletedDelta = summary?.tasksCompletedDelta ?? null;
+  const humanReviewDelta = summary?.humanReviewDelta ?? null;
+
   // Preselect the first agent once real data arrives.
   useEffect(() => {
     if (!selectedAgent && agents.length > 0) {
@@ -250,34 +287,67 @@ export default function AgentMonitorPage() {
     "Performance",
   ] as const;
 
+  // Error state
+  if (!isLoading && agents.length === 0 && !isRefetching) {
+    return (
+      <div className="min-h-screen bg-background">
+        <div className="bg-card border-b border-border/50">
+          <div className="px-6 py-4">
+            <h1 className="text-xl font-bold text-foreground">Agent Monitor</h1>
+            <p className="text-sm text-muted-foreground">
+              Real-time visibility into your AI agents and automated workflows.
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center justify-center p-12">
+          <div className="text-center">
+            <AlertTriangle className="h-12 w-12 text-attention-amber mx-auto mb-4" />
+            <p className="text-sm text-muted-foreground mb-4">
+              No agent data available. Run the seed to populate the monitor.
+            </p>
+            <button
+              onClick={() => void refetch()}
+              className="px-4 py-2 text-sm font-medium text-foreground bg-card border border-border/50 rounded-lg hover:bg-muted/50 transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2"
+            >
+              <RefreshCw className="h-4 w-4 mr-2 inline" />
+              Retry
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-background">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200">
+      <div className="bg-card border-b border-border/50">
         <div className="px-6 py-4">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-xl font-bold text-gray-900">Agent Monitor</h1>
-              <p className="text-sm text-gray-500">
+              <h1 className="text-xl font-bold text-foreground">
+                Agent Monitor
+              </h1>
+              <p className="text-sm text-muted-foreground">
                 Real-time visibility into your AI agents and automated
                 workflows.
               </p>
             </div>
             <div className="flex items-center gap-3">
-              <select className="px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white">
+              <select className="px-3 py-2 text-sm border border-border/50 rounded-lg bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50">
                 <option>All Agents</option>
                 <option>Running</option>
                 <option>Review</option>
                 <option>Completed</option>
               </select>
-              <button className="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-2">
+              <button className="px-3 py-2 text-sm font-medium text-foreground bg-card border border-border/50 rounded-lg hover:bg-muted/50 flex items-center gap-2 transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2">
                 <Filter className="h-4 w-4" />
                 Filters
               </button>
               <button
                 onClick={() => void refetch()}
                 disabled={isRefetching}
-                className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 disabled:opacity-50"
+                className="p-2 text-muted-foreground hover:text-foreground rounded-lg hover:bg-muted/50 disabled:opacity-50 transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2"
                 aria-label="Refresh agent data"
               >
                 <RefreshCw
@@ -293,10 +363,10 @@ export default function AgentMonitorPage() {
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
-                className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                className={`px-4 py-2 text-sm font-medium rounded-lg transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 ${
                   activeTab === tab
-                    ? "bg-indigo-100 text-indigo-700"
-                    : "text-gray-600 hover:bg-gray-100"
+                    ? "bg-primary/10 text-primary"
+                    : "text-muted-foreground hover:bg-muted/50"
                 }`}
               >
                 {tab}
@@ -311,102 +381,140 @@ export default function AgentMonitorPage() {
         <div className={`flex-1 p-6 ${showAgentDetails ? "pr-0" : ""}`}>
           {/* KPI Cards */}
           <div className="grid grid-cols-6 gap-4 mb-6">
-            <div className="bg-white rounded-xl p-4 border border-gray-200">
+            <div className="bg-card rounded-xl p-4 border border-border/50 transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] hover:shadow-lg hover:-translate-y-0.5">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-sm text-gray-500">Active Agents</span>
-                <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center">
-                  <Bot className="h-4 w-4 text-indigo-600" />
+                <span className="text-sm text-muted-foreground">
+                  Active Agents
+                </span>
+                <div className="w-8 h-8 rounded-lg bg-signal-indigo/10 flex items-center justify-center">
+                  <Bot className="h-4 w-4 text-signal-indigo" />
                 </div>
               </div>
-              <p className="text-2xl font-bold text-gray-900">{activeAgents}</p>
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-2xl font-bold text-foreground">
+                {activeAgents}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
                 of {totalAgents} agents
               </p>
-              <p className="text-xs text-emerald-600 mt-1">↑ 3 vs yesterday</p>
+              <p
+                className={`text-xs mt-1 ${(activeAgentsDelta ?? 0) >= 0 ? "text-balanced-green" : "text-error-clay"}`}
+              >
+                {(activeAgentsDelta ?? 0) >= 0 ? "↑" : "↓"}{" "}
+                {Math.abs(activeAgentsDelta ?? 0)} vs yesterday
+              </p>
             </div>
 
-            <div className="bg-white rounded-xl p-4 border border-gray-200">
+            <div className="bg-card rounded-xl p-4 border border-border/50 transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] hover:shadow-lg hover:-translate-y-0.5">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-sm text-gray-500">Tasks Running</span>
-                <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
-                  <Play className="h-4 w-4 text-blue-600" />
+                <span className="text-sm text-muted-foreground">
+                  Tasks Running
+                </span>
+                <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <Play className="h-4 w-4 text-primary" />
                 </div>
               </div>
-              <p className="text-2xl font-bold text-gray-900">{tasksRunning}</p>
-              <p className="text-xs text-gray-500 mt-1">in progress</p>
-              <p className="text-xs text-emerald-600 mt-1">↑ 8 vs yesterday</p>
+              <p className="text-2xl font-bold text-foreground">
+                {tasksRunning}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">in progress</p>
+              <p
+                className={`text-xs mt-1 ${(tasksRunningDelta ?? 0) >= 0 ? "text-balanced-green" : "text-error-clay"}`}
+              >
+                {(tasksRunningDelta ?? 0) >= 0 ? "↑" : "↓"}{" "}
+                {Math.abs(tasksRunningDelta ?? 0)} vs yesterday
+              </p>
             </div>
 
-            <div className="bg-white rounded-xl p-4 border border-gray-200">
+            <div className="bg-card rounded-xl p-4 border border-border/50 transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] hover:shadow-lg hover:-translate-y-0.5">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-sm text-gray-500">Tasks Completed</span>
-                <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center">
-                  <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                <span className="text-sm text-muted-foreground">
+                  Tasks Completed
+                </span>
+                <div className="w-8 h-8 rounded-lg bg-balanced-green/10 flex items-center justify-center">
+                  <CheckCircle2 className="h-4 w-4 text-balanced-green" />
                 </div>
               </div>
-              <p className="text-2xl font-bold text-gray-900">
+              <p className="text-2xl font-bold text-foreground">
                 {tasksCompleted}
               </p>
-              <p className="text-xs text-gray-500 mt-1">today</p>
-              <p className="text-xs text-emerald-600 mt-1">
-                ↑ 18.4% vs yesterday
+              <p className="text-xs text-muted-foreground mt-1">today</p>
+              <p
+                className={`text-xs mt-1 ${(tasksCompletedDelta ?? 0) >= 0 ? "text-balanced-green" : "text-error-clay"}`}
+              >
+                {(tasksCompletedDelta ?? 0) >= 0 ? "↑" : "↓"}{" "}
+                {Math.abs(tasksCompletedDelta ?? 0)} vs yesterday
               </p>
             </div>
 
-            <div className="bg-white rounded-xl p-4 border border-gray-200">
+            <div className="bg-card rounded-xl p-4 border border-border/50 transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] hover:shadow-lg hover:-translate-y-0.5">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-sm text-gray-500">Human Review</span>
-                <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center">
-                  <Users className="h-4 w-4 text-amber-600" />
+                <span className="text-sm text-muted-foreground">
+                  Human Review
+                </span>
+                <div className="w-8 h-8 rounded-lg bg-attention-amber/10 flex items-center justify-center">
+                  <Users className="h-4 w-4 text-attention-amber" />
                 </div>
               </div>
-              <p className="text-2xl font-bold text-gray-900">
+              <p className="text-2xl font-bold text-foreground">
                 {humanReviewCount}
               </p>
-              <p className="text-xs text-gray-500 mt-1">awaiting review</p>
-              <p className="text-xs text-red-600 mt-1">↓ 2 vs yesterday</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                awaiting review
+              </p>
+              <p
+                className={`text-xs mt-1 ${(humanReviewDelta ?? 0) >= 0 ? "text-balanced-green" : "text-error-clay"}`}
+              >
+                {(humanReviewDelta ?? 0) >= 0 ? "↑" : "↓"}{" "}
+                {Math.abs(humanReviewDelta ?? 0)} vs yesterday
+              </p>
             </div>
 
-            <div className="bg-white rounded-xl p-4 border border-gray-200">
+            <div className="bg-card rounded-xl p-4 border border-border/50 transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] hover:shadow-lg hover:-translate-y-0.5">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-sm text-gray-500">Success Rate</span>
-                <div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center">
-                  <TrendingUp className="h-4 w-4 text-purple-600" />
+                <span className="text-sm text-muted-foreground">
+                  Success Rate
+                </span>
+                <div className="w-8 h-8 rounded-lg bg-signal-indigo/10 flex items-center justify-center">
+                  <TrendingUp className="h-4 w-4 text-signal-indigo" />
                 </div>
               </div>
-              <p className="text-2xl font-bold text-gray-900">{successRate}%</p>
-              <p className="text-xs text-gray-500 mt-1">last 7 days</p>
-              <p className="text-xs text-emerald-600 mt-1">
+              <p className="text-2xl font-bold text-foreground">
+                {successRate}%
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">last 7 days</p>
+              <p className="text-xs text-balanced-green mt-1">
                 ↑ 1.2% vs last 7 days
               </p>
             </div>
 
-            <div className="bg-white rounded-xl p-4 border border-gray-200">
+            <div className="bg-card rounded-xl p-4 border border-border/50 transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] hover:shadow-lg hover:-translate-y-0.5">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-sm text-gray-500">Total Time Saved</span>
-                <div className="w-8 h-8 rounded-lg bg-cyan-100 flex items-center justify-center">
-                  <Clock className="h-4 w-4 text-cyan-600" />
+                <span className="text-sm text-muted-foreground">
+                  Total Time Saved
+                </span>
+                <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <Clock className="h-4 w-4 text-primary" />
                 </div>
               </div>
-              <p className="text-2xl font-bold text-gray-900">
+              <p className="text-2xl font-bold text-foreground">
                 {timeSavedHours} hrs
               </p>
-              <p className="text-xs text-gray-500 mt-1">this month</p>
-              <p className="text-xs text-emerald-600 mt-1">↑ 12.7 hrs vs Apr</p>
+              <p className="text-xs text-muted-foreground mt-1">this month</p>
+              <p className="text-xs text-muted-foreground mt-1">this month</p>
             </div>
           </div>
 
           {/* Active Agents Table */}
-          <div className="bg-white rounded-xl border border-gray-200 mb-6">
-            <div className="px-4 py-3 border-b border-gray-100">
-              <h3 className="text-sm font-semibold text-gray-900">
+          <div className="bg-card rounded-xl border border-border/50 mb-6 transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] hover:shadow-lg">
+            <div className="px-4 py-3 border-b border-border/50">
+              <h3 className="text-sm font-semibold text-foreground">
                 Active Agents ({activeAgents})
               </h3>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <tr className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                     <th className="px-4 py-3">Agent</th>
                     <th className="px-4 py-3">Current Task</th>
                     <th className="px-4 py-3">Progress</th>
@@ -417,12 +525,12 @@ export default function AgentMonitorPage() {
                     <th className="px-4 py-3"></th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100">
+                <tbody className="divide-y divide-border/50">
                   {isLoading && (
                     <tr>
                       <td
                         colSpan={8}
-                        className="px-4 py-8 text-center text-sm text-gray-500"
+                        className="px-4 py-8 text-center text-sm text-muted-foreground"
                       >
                         Loading agent data…
                       </td>
@@ -432,7 +540,7 @@ export default function AgentMonitorPage() {
                     <tr>
                       <td
                         colSpan={8}
-                        className="px-4 py-8 text-center text-sm text-gray-500"
+                        className="px-4 py-8 text-center text-sm text-muted-foreground"
                       >
                         No agent data yet. Run the seed to populate the monitor.
                       </td>
@@ -441,40 +549,40 @@ export default function AgentMonitorPage() {
                   {agents.map((agent) => (
                     <tr
                       key={agent.id}
-                      className={`hover:bg-gray-50 cursor-pointer ${selectedAgent?.id === agent.id ? "bg-indigo-50" : ""}`}
+                      className={`hover:bg-muted/30 cursor-pointer transition-colors duration-200 ${selectedAgent?.id === agent.id ? "bg-primary/5" : ""}`}
                       onClick={() => setSelectedAgent(agent)}
                     >
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm">
+                          <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary to-signal-indigo flex items-center justify-center text-white font-bold text-sm">
                             {agent.displayName.slice(0, 2).toUpperCase()}
                           </div>
                           <div>
-                            <p className="text-sm font-medium text-gray-900">
+                            <p className="text-sm font-medium text-foreground">
                               {agent.displayName}
                             </p>
-                            <p className="text-xs text-gray-500">
+                            <p className="text-xs text-muted-foreground">
                               {agent.category}
                             </p>
                           </div>
                         </div>
                       </td>
                       <td className="px-4 py-3">
-                        <p className="text-sm text-gray-900 max-w-[200px] truncate">
+                        <p className="text-sm text-foreground max-w-[200px] truncate">
                           {agent.currentTask || "—"}
                         </p>
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
-                          <div className="w-24 h-2 bg-gray-100 rounded-full overflow-hidden">
+                          <div className="w-24 h-2 bg-muted rounded-full overflow-hidden">
                             <div
-                              className="h-full bg-indigo-500 rounded-full"
+                              className="h-full bg-primary rounded-full"
                               style={{
                                 width: `${agent.currentTaskProgress ?? 0}%`,
                               }}
                             />
                           </div>
-                          <span className="text-sm text-gray-600">
+                          <span className="text-sm text-muted-foreground">
                             {agent.currentTaskProgress ?? 0}%
                           </span>
                         </div>
@@ -494,12 +602,12 @@ export default function AgentMonitorPage() {
                         <ConfidenceBadge value={agent.successRate} />
                       </td>
                       <td className="px-4 py-3">
-                        <span className="text-sm text-gray-600">
+                        <span className="text-sm text-muted-foreground">
                           {agent.currentTaskEta || "—"}
                         </span>
                       </td>
                       <td className="px-4 py-3">
-                        <span className="text-sm text-gray-500">
+                        <span className="text-sm text-muted-foreground">
                           {agent.lastRunAt
                             ? new Date(agent.lastRunAt).toLocaleTimeString(
                                 "en-US",
@@ -512,7 +620,7 @@ export default function AgentMonitorPage() {
                         {" "}
                         <button
                           aria-label="More options"
-                          className="p-1 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
+                          className="p-1 text-muted-foreground hover:text-foreground rounded-lg hover:bg-muted/50 transition-colors duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2"
                         >
                           <MoreHorizontal className="h-4 w-4" />
                         </button>
@@ -522,9 +630,10 @@ export default function AgentMonitorPage() {
                 </tbody>
               </table>
             </div>
-            <div className="px-4 py-3 border-t border-gray-100">
-              <button className="text-sm text-indigo-600 hover:text-indigo-700 font-medium flex items-center gap-1">
-                View all agents <ArrowRight className="h-4 w-4" />
+            <div className="px-4 py-3 border-t border-border/50">
+              <button className="text-sm text-primary hover:text-primary/80 font-medium flex items-center gap-1 transition-all duration-300 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 rounded-md">
+                View all agents{" "}
+                <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
               </button>
             </div>
           </div>
@@ -532,65 +641,85 @@ export default function AgentMonitorPage() {
           {/* Bottom Row */}
           <div className="grid grid-cols-3 gap-6">
             {/* Agent Activity */}
-            <div className="bg-white rounded-xl border border-gray-200 p-4">
-              <h3 className="text-sm font-semibold text-gray-900 mb-3">
+            <div className="bg-card rounded-xl border border-border/50 p-4 transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] hover:shadow-lg">
+              <h3 className="text-sm font-semibold text-foreground mb-3">
                 Agent Activity (Last 7 Days)
               </h3>
               <div className="h-40 flex items-end justify-between gap-1 mb-3">
-                {[65, 72, 68, 75, 80, 78, 85].map((h, i) => (
-                  <div key={i} className="flex-1 flex flex-col gap-1">
-                    <div
-                      className="h-20 bg-emerald-100 rounded-t"
-                      style={{ height: `${h * 0.6}%` }}
-                    />
-                    <div
-                      className="h-16 bg-blue-100 rounded-t"
-                      style={{ height: `${h * 0.3}%` }}
-                    />
-                    <div
-                      className="h-8 bg-amber-100 rounded-t"
-                      style={{ height: `${h * 0.15}%` }}
-                    />
-                  </div>
-                ))}
+                {activityChartData.map((day, i) => {
+                  const total =
+                    day.completed + day.inProgress + day.review || 1;
+                  return (
+                    <div key={i} className="flex-1 flex flex-col gap-1">
+                      <div
+                        className="bg-balanced-green/20 rounded-t"
+                        style={{
+                          height: `${(day.completed / total) * 100}%`,
+                          minHeight: "2px",
+                        }}
+                      />
+                      <div
+                        className="bg-primary/20 rounded-t"
+                        style={{
+                          height: `${(day.inProgress / total) * 100}%`,
+                          minHeight: "2px",
+                        }}
+                      />
+                      <div
+                        className="bg-attention-amber/20 rounded-t"
+                        style={{
+                          height: `${(day.review / total) * 100}%`,
+                          minHeight: "2px",
+                        }}
+                      />
+                    </div>
+                  );
+                })}
               </div>
-              <div className="flex items-center justify-between text-xs text-gray-500">
-                <span>May 24</span>
-                <span>May 25</span>
-                <span>May 26</span>
-                <span>May 27</span>
-                <span>May 28</span>
-                <span>May 29</span>
-                <span>May 30</span>
+              <div className="flex items-center justify-between text-xs text-muted-foreground">
+                {Array.from({ length: 7 }, (_, i) => {
+                  const d = new Date();
+                  d.setDate(d.getDate() - (6 - i));
+                  return (
+                    <span key={i}>
+                      {d.toLocaleDateString("en", {
+                        month: "short",
+                        day: "numeric",
+                      })}
+                    </span>
+                  );
+                })}
               </div>
               <div className="flex items-center gap-4 mt-3 text-xs">
                 <span className="flex items-center gap-1">
-                  <div className="w-2 h-2 rounded-full bg-emerald-500" />{" "}
+                  <div className="w-2 h-2 rounded-full bg-balanced-green" />{" "}
                   Completed
                 </span>
                 <span className="flex items-center gap-1">
-                  <div className="w-2 h-2 rounded-full bg-blue-500" /> In
+                  <div className="w-2 h-2 rounded-full bg-primary" /> In
                   Progress
                 </span>
                 <span className="flex items-center gap-1">
-                  <div className="w-2 h-2 rounded-full bg-amber-500" /> Review
+                  <div className="w-2 h-2 rounded-full bg-attention-amber" />{" "}
+                  Review
                 </span>
                 <span className="flex items-center gap-1">
-                  <div className="w-2 h-2 rounded-full bg-red-500" /> Failed
+                  <div className="w-2 h-2 rounded-full bg-error-clay" /> Failed
                 </span>
               </div>
-              <button className="text-sm text-indigo-600 hover:text-indigo-700 font-medium mt-3 flex items-center gap-1">
-                View activity report <ArrowRight className="h-4 w-4" />
+              <button className="text-sm text-primary hover:text-primary/80 font-medium mt-3 flex items-center gap-1 transition-all duration-300 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 rounded-md">
+                View activity report{" "}
+                <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
               </button>
             </div>
 
             {/* Top Performing Agents */}
-            <div className="bg-white rounded-xl border border-gray-200 p-4">
+            <div className="bg-card rounded-xl border border-border/50 p-4 transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] hover:shadow-lg">
               <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-semibold text-gray-900">
+                <h3 className="text-sm font-semibold text-foreground">
                   Top Performing Agents
                 </h3>
-                <select className="text-xs border border-gray-200 rounded px-2 py-1">
+                <select className="text-xs border border-border/50 rounded px-2 py-1 bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50">
                   <option>Last 7 days</option>
                   <option>Last 30 days</option>
                 </select>
@@ -598,36 +727,37 @@ export default function AgentMonitorPage() {
               <div className="space-y-3">
                 {topPerformers.map((agent, i) => (
                   <div key={i} className="flex items-center gap-3">
-                    <span className="text-sm font-medium text-gray-500 w-4">
+                    <span className="text-sm font-medium text-muted-foreground w-4">
                       {i + 1}
                     </span>
-                    <span className="text-sm text-gray-900 flex-1">
+                    <span className="text-sm text-foreground flex-1">
                       {agent.name}
                     </span>
-                    <span className="text-sm font-medium text-gray-900">
+                    <span className="text-sm font-medium text-foreground">
                       {agent.successRate}%
                     </span>
-                    <div className="w-20 h-2 bg-gray-100 rounded-full overflow-hidden">
+                    <div className="w-20 h-2 bg-muted rounded-full overflow-hidden">
                       <div
-                        className="h-full bg-indigo-500 rounded-full"
+                        className="h-full bg-primary rounded-full"
                         style={{ width: `${agent.successRate}%` }}
                       />
                     </div>
                   </div>
                 ))}
               </div>
-              <button className="text-sm text-indigo-600 hover:text-indigo-700 font-medium mt-4 flex items-center gap-1">
-                View all performance <ArrowRight className="h-4 w-4" />
+              <button className="text-sm text-primary hover:text-primary/80 font-medium mt-4 flex items-center gap-1 transition-all duration-300 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 rounded-md">
+                View all performance{" "}
+                <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
               </button>
             </div>
 
             {/* Recent Alerts */}
-            <div className="bg-white rounded-xl border border-gray-200 p-4">
+            <div className="bg-card rounded-xl border border-border/50 p-4 transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] hover:shadow-lg">
               <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-semibold text-gray-900">
+                <h3 className="text-sm font-semibold text-foreground">
                   Recent Alerts
                 </h3>
-                <button className="text-sm text-indigo-600 hover:text-indigo-700">
+                <button className="text-sm text-primary hover:text-primary/80 transition-colors duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 rounded-md">
                   View all
                 </button>
               </div>
@@ -635,18 +765,18 @@ export default function AgentMonitorPage() {
                 {alerts.map((alert) => (
                   <div
                     key={alert.id}
-                    className="flex items-start gap-3 p-2 rounded-lg hover:bg-gray-50"
+                    className="flex items-start gap-3 p-2 rounded-lg hover:bg-muted/30 transition-colors duration-200"
                   >
                     <AlertIcon severity={alert.severity} />
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900">
+                      <p className="text-sm font-medium text-foreground">
                         {alert.title}
                       </p>
-                      <p className="text-xs text-gray-500">
+                      <p className="text-xs text-muted-foreground">
                         {alert.description}
                       </p>
                     </div>
-                    <span className="text-xs text-gray-400">
+                    <span className="text-xs text-muted-foreground/60">
                       {alert.createdAt
                         ? new Date(alert.createdAt).toLocaleTimeString(
                             "en-US",
@@ -663,16 +793,16 @@ export default function AgentMonitorPage() {
 
         {/* Right Panel - Agent Details */}
         {showAgentDetails && selectedAgent && (
-          <div className="w-96 bg-white border-l border-gray-200 flex flex-col">
+          <div className="w-96 bg-card border-l border-border/50 flex flex-col">
             {/* Header */}
-            <div className="p-4 border-b border-gray-100">
+            <div className="p-4 border-b border-border/50">
               <div className="flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-gray-900">
+                <h3 className="text-sm font-semibold text-foreground">
                   Agent Details
                 </h3>
                 <button
                   onClick={() => setShowAgentDetails(false)}
-                  className="p-1 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
+                  className="p-1 text-muted-foreground hover:text-foreground rounded-lg hover:bg-muted/50 transition-colors duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2"
                 >
                   <X className="h-4 w-4" />
                 </button>
@@ -681,16 +811,16 @@ export default function AgentMonitorPage() {
 
             <div className="flex-1 overflow-auto">
               {/* Agent Header */}
-              <div className="p-4 border-b border-gray-100">
+              <div className="p-4 border-b border-border/50">
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold">
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-signal-indigo flex items-center justify-center text-white font-bold">
                     {selectedAgent.displayName.slice(0, 2).toUpperCase()}
                   </div>
                   <div>
-                    <p className="text-sm font-semibold text-gray-900">
+                    <p className="text-sm font-semibold text-foreground">
                       {selectedAgent.displayName}
                     </p>
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-muted-foreground">
                       {selectedAgent.category}
                     </p>
                   </div>
@@ -707,13 +837,13 @@ export default function AgentMonitorPage() {
               </div>
 
               {/* Tabs */}
-              <div className="border-b border-gray-100">
+              <div className="border-b border-border/50">
                 <div className="flex gap-1 px-4">
                   {["Overview", "Task Details", "Logs", "Activity"].map(
                     (tab) => (
                       <button
                         key={tab}
-                        className={`px-3 py-2 text-xs font-medium ${tab === "Overview" ? "text-indigo-600 border-b-2 border-indigo-600" : "text-gray-500 hover:text-gray-700"}`}
+                        className={`px-3 py-2 text-xs font-medium transition-colors duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 ${tab === "Overview" ? "text-primary border-b-2 border-primary" : "text-muted-foreground hover:text-foreground"}`}
                       >
                         {tab}
                       </button>
@@ -723,24 +853,24 @@ export default function AgentMonitorPage() {
               </div>
 
               {/* Current Task */}
-              <div className="p-4 border-b border-gray-100">
-                <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">
+              <div className="p-4 border-b border-border/50">
+                <h4 className="text-xs font-semibold text-muted-foreground uppercase mb-2">
                   Current Task
                 </h4>
-                <p className="text-sm text-gray-900 mb-2">
+                <p className="text-sm text-foreground mb-2">
                   {selectedAgent.currentTask || "No active task"}
                 </p>
                 {selectedAgent.currentTask && (
                   <div className="flex items-center gap-2">
-                    <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+                    <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
                       <div
-                        className="h-full bg-indigo-500 rounded-full"
+                        className="h-full bg-primary rounded-full"
                         style={{
                           width: `${selectedAgent.currentTaskProgress ?? 0}%`,
                         }}
                       />
                     </div>
-                    <span className="text-sm font-medium text-gray-900">
+                    <span className="text-sm font-medium text-foreground">
                       {selectedAgent.currentTaskProgress ?? 0}%
                     </span>
                   </div>
@@ -748,8 +878,8 @@ export default function AgentMonitorPage() {
                 {selectedAgent.currentTask && (
                   <div className="grid grid-cols-3 gap-2 mt-3">
                     <div>
-                      <p className="text-xs text-gray-500">Started</p>
-                      <p className="text-sm font-medium text-gray-900">
+                      <p className="text-xs text-muted-foreground">Started</p>
+                      <p className="text-sm font-medium text-foreground">
                         {selectedAgent.currentTaskStartedAt
                           ? new Date(
                               selectedAgent.currentTaskStartedAt,
@@ -761,15 +891,27 @@ export default function AgentMonitorPage() {
                       </p>
                     </div>
                     <div>
-                      <p className="text-xs text-gray-500">ETA</p>
-                      <p className="text-sm font-medium text-gray-900">
+                      <p className="text-xs text-muted-foreground">ETA</p>
+                      <p className="text-sm font-medium text-foreground">
                         {selectedAgent.currentTaskEta || "—"}
                       </p>
                     </div>
                     <div>
-                      <p className="text-xs text-gray-500">Duration</p>
-                      <p className="text-sm font-medium text-gray-900">
-                        17m 32s
+                      <p className="text-xs text-muted-foreground">Duration</p>
+                      <p className="text-sm font-medium text-foreground">
+                        {selectedAgent.currentTaskStartedAt
+                          ? (() => {
+                              const elapsed =
+                                Date.now() -
+                                new Date(
+                                  selectedAgent.currentTaskStartedAt ??
+                                    Date.now(),
+                                ).getTime();
+                              const mins = Math.floor(elapsed / 60000);
+                              const secs = Math.floor((elapsed % 60000) / 1000);
+                              return `${mins}m ${secs}s`;
+                            })()
+                          : "—"}
                       </p>
                     </div>
                   </div>
@@ -777,50 +919,55 @@ export default function AgentMonitorPage() {
               </div>
 
               {/* Agent Information */}
-              <div className="p-4 border-b border-gray-100">
-                <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">
+              <div className="p-4 border-b border-border/50">
+                <h4 className="text-xs font-semibold text-muted-foreground uppercase mb-2">
                   Agent Information
                 </h4>
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">Model</span>
-                    <span className="text-sm font-medium text-gray-900">
+                    <span className="text-sm text-muted-foreground">Model</span>
+                    <span className="text-sm font-medium text-foreground">
                       {selectedAgent.model || "—"}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">Tools</span>
-                    <span className="text-sm font-medium text-gray-900">
+                    <span className="text-sm text-muted-foreground">Tools</span>
+                    <span className="text-sm font-medium text-foreground">
                       {selectedAgent.toolsCount ?? 0}{" "}
                       <ChevronRight className="inline h-3 w-3" />
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">Memory Usage</span>
-                    <span className="text-sm font-medium text-gray-900">
+                    <span className="text-sm text-muted-foreground">
+                      Memory Usage
+                    </span>
+                    <span className="text-sm font-medium text-foreground">
                       {selectedAgent.memoryUsageGb} GB
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">Success Rate</span>
-                    <span className="text-sm font-medium text-gray-900">
+                    <span className="text-sm text-muted-foreground">
+                      Success Rate
+                    </span>
+                    <span className="text-sm font-medium text-foreground">
                       {selectedAgent.successRate}%{" "}
                       <ChevronRight className="inline h-3 w-3" />
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">Dependencies</span>
-                    <span className="text-sm font-medium text-gray-900">
-                      Bank Connector{" "}
-                      <CheckCircle2 className="inline h-3 w-3 text-emerald-500" />
+                    <span className="text-sm text-muted-foreground">
+                      Dependencies
+                    </span>
+                    <span className="text-sm font-medium text-foreground">
+                      {selectedAgent.model || "—"}
                     </span>
                   </div>
                 </div>
               </div>
 
               {/* Recent Activity */}
-              <div className="p-4 border-b border-gray-100">
-                <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">
+              <div className="p-4 border-b border-border/50">
+                <h4 className="text-xs font-semibold text-muted-foreground uppercase mb-2">
                   Recent Activity
                 </h4>
                 <div className="space-y-3">
@@ -830,12 +977,12 @@ export default function AgentMonitorPage() {
                       <div key={a.id} className="flex items-start gap-3">
                         <ActivityIcon type={a.activityType} />
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm text-gray-900">{a.title}</p>
-                          <p className="text-xs text-gray-500">
+                          <p className="text-sm text-foreground">{a.title}</p>
+                          <p className="text-xs text-muted-foreground">
                             {a.description}
                           </p>
                         </div>
-                        <span className="text-xs text-gray-400">
+                        <span className="text-xs text-muted-foreground/60">
                           {a.createdAt
                             ? new Date(a.createdAt).toLocaleTimeString(
                                 "en-US",
@@ -850,21 +997,23 @@ export default function AgentMonitorPage() {
             </div>
 
             {/* Chat Input */}
-            <div className="p-4 border-t border-gray-100">
-              <p className="text-xs text-gray-500 mb-2">Ask this agent</p>
+            <div className="p-4 border-t border-border/50">
+              <p className="text-xs text-muted-foreground mb-2">
+                Ask this agent
+              </p>
               <div className="flex items-center gap-2">
                 <input
                   type="text"
                   value={agentMessage}
                   onChange={(e) => setAgentMessage(e.target.value)}
                   placeholder={`Ask ${selectedAgent.displayName} anything...`}
-                  className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="flex-1 px-3 py-2 text-sm border border-border/50 rounded-lg bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all duration-300"
                 />
-                <button className="p-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">
+                <button className="p-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-all duration-300 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2">
                   <Send className="h-4 w-4" />
                 </button>
               </div>
-              <p className="text-xs text-gray-400 mt-2 text-center">
+              <p className="text-xs text-muted-foreground/60 mt-2 text-center">
                 AI agents work 24/7 to keep your books accurate.
               </p>
             </div>

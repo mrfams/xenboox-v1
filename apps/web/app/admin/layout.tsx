@@ -192,7 +192,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
             sidebarCollapsed ? "justify-center" : "gap-3",
           )}
         >
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-violet-500 to-indigo-500 text-white font-bold text-sm shadow-lg shadow-violet-500/20">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-signal-indigo text-white font-bold text-sm shadow-lg shadow-primary/20">
             X
           </div>
           {!sidebarCollapsed && (
@@ -226,7 +226,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                       <Link
                         href={item.href}
                         className={cn(
-                          "flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-150",
+                          "flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2",
                           sidebarCollapsed && "justify-center px-2",
                           isActive
                             ? "bg-primary/10 text-primary"
@@ -253,7 +253,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
             type="button"
             onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
             className={cn(
-              "flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-colors",
+              "flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2",
               sidebarCollapsed && "justify-center px-2",
             )}
           >
@@ -277,7 +277,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
             <button
               type="button"
               onClick={() => setMobileOpen(true)}
-              className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted lg:hidden transition-colors"
+              className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted lg:hidden transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2"
               aria-label="Open navigation"
             >
               <Menu className="h-5 w-5" />
@@ -301,14 +301,14 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           <div className="flex items-center gap-2">
             <button
               type="button"
-              className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted transition-colors"
+              className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2"
               title="Toggle theme"
             >
               <Sun className="h-4 w-4" />
             </button>
             <button
               type="button"
-              className="relative flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted transition-colors"
+              className="relative flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2"
               title="Notifications"
             >
               <Bell className="h-4 w-4" />
@@ -316,7 +316,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
             </button>
             <button
               type="button"
-              className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted transition-colors"
+              className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2"
               title="Help"
             >
               <HelpCircle className="h-4 w-4" />
@@ -325,7 +325,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
             {/* User avatar */}
             <div className="flex items-center gap-2 ml-2 pl-2 border-l border-border/50">
               <Avatar className="h-8 w-8">
-                <AvatarFallback className="bg-gradient-to-br from-violet-500 to-indigo-500 text-white text-xs font-bold">
+                <AvatarFallback className="bg-gradient-to-br from-primary to-signal-indigo text-white text-xs font-bold">
                   {initials}
                 </AvatarFallback>
               </Avatar>

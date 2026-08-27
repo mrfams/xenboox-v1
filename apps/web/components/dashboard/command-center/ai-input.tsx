@@ -78,11 +78,15 @@ export function AiInput({
   };
 
   const suggestions = [
-    { label: "Cash position", icon: Wallet, color: "text-emerald-500" },
-    { label: "Show P&L", icon: TrendingUp, color: "text-blue-500" },
-    { label: "What's overdue?", icon: AlertTriangle, color: "text-amber-500" },
-    { label: "Run payroll", icon: Calendar, color: "text-purple-500" },
-    { label: "Close books", icon: FileText, color: "text-indigo-500" },
+    { label: "Cash position", icon: Wallet, color: "text-balanced-green" },
+    { label: "Show P&L", icon: TrendingUp, color: "text-primary" },
+    {
+      label: "What's overdue?",
+      icon: AlertTriangle,
+      color: "text-attention-amber",
+    },
+    { label: "Run payroll", icon: Calendar, color: "text-signal-indigo" },
+    { label: "Close books", icon: FileText, color: "text-signal-indigo" },
   ];
 
   const handleRemoveFile = (index: number) => {
@@ -202,7 +206,7 @@ export function AiInput({
             className={cn(
               "h-9 w-9 rounded-xl p-0 transition-all shrink-0 shadow-sm",
               isResponding
-                ? "bg-red-500 hover:bg-red-600 text-white"
+                ? "bg-error-clay hover:bg-error-clay/90 text-white"
                 : inputValue.trim() || uploadedFiles.length > 0
                   ? "bg-primary hover:bg-primary/90 text-white shadow"
                   : "bg-muted text-muted-foreground",

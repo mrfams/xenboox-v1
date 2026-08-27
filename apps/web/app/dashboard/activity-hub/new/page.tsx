@@ -62,8 +62,12 @@ function timeAgo(d: string | Date | undefined): string {
 }
 
 const SEVERITY_META = {
-  urgent: { icon: AlertTriangle, tone: "text-red-500", label: "Urgent" },
-  approval: { icon: FileCheck, tone: "text-amber-500", label: "Approval" },
+  urgent: { icon: AlertTriangle, tone: "text-error-clay", label: "Urgent" },
+  approval: {
+    icon: FileCheck,
+    tone: "text-attention-amber",
+    label: "Approval",
+  },
   review: { icon: Clock, tone: "text-primary", label: "Review" },
   info: { icon: Bell, tone: "text-muted-foreground", label: "FYI" },
 } as const;
@@ -295,7 +299,7 @@ export default function DecisionsPage() {
             {visible.length} waiting
           </span>
           {urgentCount > 0 && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-red-500/10 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-red-500">
+            <span className="inline-flex items-center gap-1 rounded-full bg-error-clay/10 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-error-clay">
               {urgentCount} urgent
             </span>
           )}
@@ -308,7 +312,7 @@ export default function DecisionsPage() {
       {visible.length === 0 ? (
         <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-2 p-8 text-center">
           <CheckCircle2
-            className="mb-1 h-8 w-8 text-emerald-500"
+            className="mb-1 h-8 w-8 text-balanced-green"
             aria-hidden="true"
           />
           <p className="text-sm font-medium text-foreground">Queue clear</p>
@@ -360,10 +364,10 @@ export default function DecisionsPage() {
                           className={cn(
                             "font-mono font-semibold tabular-nums",
                             item.confidence >= 0.8
-                              ? "text-emerald-500"
+                              ? "text-balanced-green"
                               : item.confidence >= 0.6
-                                ? "text-amber-500"
-                                : "text-red-500",
+                                ? "text-attention-amber"
+                                : "text-error-clay",
                           )}
                         >
                           {Math.round(item.confidence * 100)}%
@@ -465,7 +469,7 @@ function DecisionBriefPane({
             source={item.sourceDoc}
           />
           {item.amount && (
-            <span className="rounded-full bg-amber-500/10 px-2 py-0.5 font-mono text-[11px] font-semibold tabular-nums text-amber-600">
+            <span className="rounded-full bg-attention-amber/10 px-2 py-0.5 font-mono text-[11px] font-semibold tabular-nums text-attention-amber">
               {item.amount}
             </span>
           )}
@@ -536,7 +540,7 @@ function DecisionBriefPane({
           type="button"
           disabled={busy}
           onClick={() => onDecide("approve")}
-          className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-emerald-700 disabled:opacity-50"
+          className="inline-flex items-center gap-1.5 rounded-lg bg-balanced-green px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-balanced-green/90 disabled:opacity-50"
         >
           <ThumbsUp className="h-3.5 w-3.5" aria-hidden="true" />
           Approve

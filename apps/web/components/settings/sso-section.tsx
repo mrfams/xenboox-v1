@@ -147,9 +147,9 @@ export function SsoSection() {
           <div className="flex items-center justify-between rounded-lg border p-4">
             <div className="flex items-center gap-3">
               {settings?.isConfigured ? (
-                <ShieldCheck className="h-6 w-6 text-emerald-600" />
+                <ShieldCheck className="h-6 w-6 text-balanced-green" />
               ) : (
-                <AlertTriangle className="h-6 w-6 text-amber-500" />
+                <AlertTriangle className="h-6 w-6 text-attention-amber" />
               )}
               <div>
                 <p className="text-sm font-medium">

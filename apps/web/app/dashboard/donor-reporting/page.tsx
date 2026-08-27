@@ -83,29 +83,29 @@ function DonorStats() {
       label: "Active Projects",
       value: String(stats?.active ?? 0),
       icon: Building2,
-      color: "text-blue-500 dark:text-blue-400",
-      bg: "bg-blue-500/10 dark:bg-blue-500/20",
+      color: "text-primary dark:text-primary",
+      bg: "bg-primary/10 dark:bg-primary/20",
     },
     {
       label: "Total Grants",
       value: formatCurrency(stats?.totalGrantAmount ?? 0),
       icon: HandCoins,
-      color: "text-emerald-500 dark:text-emerald-400",
-      bg: "bg-emerald-500/10 dark:bg-emerald-500/20",
+      color: "text-balanced-green dark:text-balanced-green",
+      bg: "bg-balanced-green/10 dark:bg-balanced-green/20",
     },
     {
       label: "Disbursed",
       value: formatCurrency(stats?.totalDisbursed ?? 0),
       icon: ArrowUpRight,
-      color: "text-amber-500 dark:text-amber-400",
-      bg: "bg-amber-500/10 dark:bg-amber-500/20",
+      color: "text-attention-amber dark:text-attention-amber",
+      bg: "bg-attention-amber/10 dark:bg-attention-amber/20",
     },
     {
       label: "Remaining",
       value: formatCurrency(stats?.totalRemaining ?? 0),
       icon: ArrowDownRight,
-      color: "text-purple-500 dark:text-purple-400",
-      bg: "bg-purple-500/10 dark:bg-purple-500/20",
+      color: "text-signal-indigo dark:text-signal-indigo",
+      bg: "bg-signal-indigo/10 dark:bg-signal-indigo/20",
     },
   ];
 
@@ -199,7 +199,7 @@ function ProjectCards() {
             Donor Projects
           </h3>
           {projects && projects.length > 0 && (
-            <span className="inline-flex items-center rounded-full bg-blue-500/10 px-1.5 py-0.5 text-[9px] font-bold text-blue-500">
+            <span className="inline-flex items-center rounded-full bg-primary/10 px-1.5 py-0.5 text-[9px] font-bold text-primary">
               {projects.length} active
             </span>
           )}
@@ -316,9 +316,9 @@ function ProjectCards() {
                   </div>
                   <div className="flex items-center gap-1">
                     {project.status === "active" ? (
-                      <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                      <CheckCircle2 className="h-3.5 w-3.5 text-balanced-green" />
                     ) : (
-                      <Clock className="h-3.5 w-3.5 text-amber-500" />
+                      <Clock className="h-3.5 w-3.5 text-attention-amber" />
                     )}
                     <span className="text-[10px] text-muted-foreground capitalize">
                       {project.status}
@@ -340,7 +340,7 @@ function ProjectCards() {
                     <div
                       className={cn(
                         "h-full rounded-full transition-all",
-                        isLow ? "bg-amber-500" : "bg-emerald-500",
+                        isLow ? "bg-attention-amber" : "bg-balanced-green",
                       )}
                       style={{ width: `${Math.min(percentUsed, 100)}%` }}
                     />
@@ -352,7 +352,9 @@ function ProjectCards() {
                     <span
                       className={cn(
                         "font-medium",
-                        isLow ? "text-amber-500" : "text-muted-foreground",
+                        isLow
+                          ? "text-attention-amber"
+                          : "text-muted-foreground",
                       )}
                     >
                       {percentUsed.toFixed(0)}% used
@@ -435,18 +437,18 @@ function RecentReports() {
                     className={cn(
                       "flex h-7 w-7 shrink-0 items-center justify-center rounded-lg",
                       snapshot.status === "submitted"
-                        ? "bg-emerald-500/10"
+                        ? "bg-balanced-green/10"
                         : snapshot.status === "final"
-                          ? "bg-blue-500/10"
-                          : "bg-amber-500/10",
+                          ? "bg-primary/10"
+                          : "bg-attention-amber/10",
                     )}
                   >
                     {snapshot.status === "submitted" ? (
-                      <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                      <CheckCircle2 className="h-3.5 w-3.5 text-balanced-green" />
                     ) : snapshot.status === "final" ? (
-                      <FileText className="h-3.5 w-3.5 text-blue-500" />
+                      <FileText className="h-3.5 w-3.5 text-primary" />
                     ) : (
-                      <Clock className="h-3.5 w-3.5 text-amber-500" />
+                      <Clock className="h-3.5 w-3.5 text-attention-amber" />
                     )}
                   </div>
                   <div className="min-w-0">
@@ -462,10 +464,10 @@ function RecentReports() {
                   className={cn(
                     "text-[10px] font-medium capitalize",
                     snapshot.status === "submitted"
-                      ? "text-emerald-500"
+                      ? "text-balanced-green"
                       : snapshot.status === "final"
-                        ? "text-blue-500"
-                        : "text-amber-500",
+                        ? "text-primary"
+                        : "text-attention-amber",
                   )}
                 >
                   {snapshot.status}

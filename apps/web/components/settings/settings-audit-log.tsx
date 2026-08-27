@@ -37,9 +37,9 @@ const ACTION_CONFIG: Record<
   string,
   { label: string; icon: React.ElementType; color: string }
 > = {
-  create: { label: "Created", icon: Check, color: "text-emerald-500" },
-  update: { label: "Updated", icon: RefreshCw, color: "text-blue-500" },
-  replace: { label: "Replaced", icon: Replace, color: "text-amber-500" },
+  create: { label: "Created", icon: Check, color: "text-balanced-green" },
+  update: { label: "Updated", icon: RefreshCw, color: "text-primary" },
+  replace: { label: "Replaced", icon: Replace, color: "text-attention-amber" },
   reset_all: { label: "Reset All", icon: Trash2, color: "text-destructive" },
 };
 
