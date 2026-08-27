@@ -31,9 +31,9 @@ export function MarketingHero({
       <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4wMyI+PGNpcmNsZSBjeD0iMzAiIGN5PSIzMCIgcj0iMSIvPjwvZz48L2c+PC9zdmc+')] opacity-50" />
       <div className="absolute inset-0 bg-gradient-to-b from-transparent via-indigo-950/20 to-slate-950" />
 
-      <div className="absolute -top-32 -left-32 h-96 w-96 rounded-full bg-gradient-to-br from-blue-500/20 to-transparent blur-3xl" />
+      <div className="absolute -top-32 -left-32 h-96 w-96 rounded-full bg-gradient-to-br from-primary/20 to-transparent blur-3xl" />
       <div className="absolute top-1/3 -right-20 h-80 w-80 rounded-full bg-gradient-to-br from-violet-500/20 to-transparent blur-3xl" />
-      <div className="absolute bottom-20 left-1/3 h-48 w-48 rounded-full bg-gradient-to-br from-emerald-500/10 to-transparent blur-3xl" />
+      <div className="absolute bottom-20 left-1/3 h-48 w-48 rounded-full bg-gradient-to-br from-balanced-green/10 to-transparent blur-3xl" />
 
       <div
         className={cn(
@@ -77,9 +77,9 @@ export function MarketingHero({
               {cta && (
                 <Link
                   href={cta.href}
-                  className="group relative inline-flex h-11 items-center rounded-xl bg-gradient-to-r from-blue-600 to-violet-600 px-6 text-sm font-medium text-white shadow-lg shadow-blue-600/25 transition-all duration-300 hover:shadow-blue-600/40 hover:scale-105"
+                  className="group relative inline-flex h-11 items-center rounded-full bg-gradient-to-r from-primary to-primary/80 px-6 text-sm font-medium text-white shadow-lg shadow-primary/25 transition-all duration-300 hover:shadow-primary/40 hover:scale-[1.02] active:scale-[0.98]"
                 >
-                  <span className="absolute inset-0 rounded-xl bg-gradient-to-r from-blue-400 to-violet-400 opacity-0 blur-xl transition-opacity duration-300 group-hover:opacity-40" />
+                  <span className="absolute inset-0 rounded-full bg-gradient-to-r from-blue-400 to-violet-400 opacity-0 blur-xl transition-opacity duration-300 group-hover:opacity-40" />
                   <span className="relative flex items-center gap-2">
                     {cta.label}
                     <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />

@@ -38,7 +38,7 @@ export function HowItWorks() {
         <FadeInUp>
           <SectionHeading
             eyebrow="From zero to close in one kickoff"
-            title="Set up in minutes. Owned in days."
+            title="Set up in minutes. First close in days."
             lead="Xenboox replaces the daily grind of accounting work, not your judgment. Every step is logged, reversible, and entity-scoped."
           />
         </FadeInUp>
@@ -53,7 +53,7 @@ export function HowItWorks() {
             {steps.map((step, index) => (
               <li key={step.title} className="relative">
                 <FadeInUp delay={index * 0.12}>
-                  <div className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-border bg-card p-6 sm:p-8 transition-all duration-300 hover:-translate-y-0.5 hover:border-border/80 hover:shadow-[0_12px_32px_-16px_rgba(20,33,61,0.12)]">
+                  <div className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-border/60 bg-card p-6 sm:p-8 transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] hover:-translate-y-1 hover:border-border/40 hover:shadow-[0_20px_50px_-20px_rgba(20,33,61,0.15)]">
                     <div
                       className="absolute inset-0 bg-gradient-to-br from-primary/[0.02] to-transparent opacity-0 transition-opacity group-hover:opacity-100"
                       aria-hidden
@@ -77,12 +77,12 @@ export function HowItWorks() {
                       {step.description}
                     </p>
                     {index === 1 && (
-                      <span className="relative mt-4 inline-flex items-center gap-1 text-xs font-medium text-primary">
+                      <span className="relative mt-4 inline-flex items-center gap-1.5 text-xs font-medium text-primary">
                         <span
-                          className="h-1 w-1 rounded-full bg-primary animate-pulse"
+                          className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse"
                           aria-hidden
                         />{" "}
-                        19 agents • live
+                        19 agents working now
                       </span>
                     )}
                   </div>

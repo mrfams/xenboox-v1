@@ -44,7 +44,7 @@ export function BlogShareBar({ title, url }: { title: string; url: string }) {
         type="button"
         aria-label="Share on Twitter"
         onClick={shareOnTwitter}
-        className="p-2 rounded-lg text-slate-400 hover:text-[#1DA1F2] hover:bg-slate-100 transition-colors"
+        className="p-2 rounded-lg text-muted-foreground/60 hover:text-primary hover:bg-muted transition-colors"
       >
         <Twitter className="h-5 w-5" />
       </button>
@@ -52,7 +52,7 @@ export function BlogShareBar({ title, url }: { title: string; url: string }) {
         type="button"
         aria-label="Share on LinkedIn"
         onClick={shareOnLinkedIn}
-        className="p-2 rounded-lg text-slate-400 hover:text-[#0A66C2] hover:bg-slate-100 transition-colors"
+        className="p-2 rounded-lg text-muted-foreground/60 hover:text-primary hover:bg-muted transition-colors"
       >
         <Linkedin className="h-5 w-5" />
       </button>
@@ -60,7 +60,7 @@ export function BlogShareBar({ title, url }: { title: string; url: string }) {
         type="button"
         aria-label="Copy link"
         onClick={copyLink}
-        className="p-2 rounded-lg text-slate-400 hover:text-slate-900 hover:bg-slate-100 transition-colors"
+        className="p-2 rounded-lg text-muted-foreground/60 hover:text-foreground hover:bg-muted transition-colors"
       >
         {copied ? (
           <Check className="h-5 w-5 text-green-500" />

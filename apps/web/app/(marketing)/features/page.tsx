@@ -207,12 +207,12 @@ const featureSections = [
               </p>
             </div>
           ))}
-        </div>
+        </div>{" "}
         <div className="flex h-32 items-end gap-1">
           {[40, 55, 45, 60, 50, 65, 55, 70, 60, 75, 65, 80].map((h, i) => (
             <div
               key={i}
-              className="flex-1 rounded-t bg-gradient-to-t from-primary to-indigo-500"
+              className="flex-1 rounded-t bg-gradient-to-t from-primary/80 to-primary"
               style={{ height: `${h}%` }}
             />
           ))}
@@ -391,13 +391,22 @@ export default function FeaturesPage() {
             </FadeInUp>
             <FadeInUp delay={0.15}>
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                <Button asChild size="lg" className="gap-2">
+                <Button
+                  asChild
+                  size="lg"
+                  className="gap-2 rounded-full shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/25 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+                >
                   <Link href="/register">
                     Start free
                     <ArrowRight className="h-4 w-4" aria-hidden="true" />
                   </Link>
                 </Button>
-                <Button asChild variant="outline" size="lg">
+                <Button
+                  asChild
+                  variant="outline"
+                  size="lg"
+                  className="rounded-full transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+                >
                   <Link href="/pricing">See pricing</Link>
                 </Button>
               </div>
@@ -463,7 +472,7 @@ export default function FeaturesPage() {
               >
                 <div className="relative">
                   <div
-                    className="absolute -inset-4 rounded-3xl bg-gradient-to-br from-primary/15 via-transparent to-emerald-500/10 blur-xl"
+                    className="absolute -inset-4 rounded-3xl bg-gradient-to-br from-primary/15 via-transparent to-balanced-green/10 blur-xl"
                     aria-hidden="true"
                   />
                   <div className="relative">{section.visual}</div>
@@ -522,7 +531,7 @@ export default function FeaturesPage() {
               },
             ].map((item) => (
               <FadeInUp key={item.title}>
-                <div className="group h-full rounded-2xl border border-border bg-card p-6 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-foreground/5">
+                <div className="group h-full rounded-2xl border border-border/60 bg-card p-6 transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] hover:-translate-y-1 hover:border-border/40 hover:shadow-[0_20px_50px_-20px_rgba(20,33,61,0.15)]">
                   <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-white">
                     <item.icon className="h-6 w-6" />
                   </div>
@@ -550,7 +559,7 @@ export default function FeaturesPage() {
           <div className="mt-10 sm:mt-16 grid gap-6 sm:gap-8 md:grid-cols-3">
             {testimonials.map((testimonial, index) => (
               <FadeInUp key={index} delay={index * 0.1}>
-                <div className="h-full rounded-2xl border border-border bg-card p-8 shadow-sm">
+                <div className="h-full rounded-2xl border border-border/60 bg-card p-8 shadow-sm transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] hover:-translate-y-1 hover:shadow-[0_20px_50px_-20px_rgba(20,33,61,0.15)]">
                   <div className="mb-4 flex gap-1">
                     {[...Array(5)].map((_, i) => (
                       <Star

@@ -98,7 +98,7 @@ const features = [
   {
     title: "Multi-Platform",
     description:
-      "Access your accounting data from web, mobile, and desktop apps. Your data syncs seamlessly across all platforms.",
+      "Access your accounting data from web, mobile, and desktop apps. Your data syncs work together across all platforms.",
     icon: Globe,
   },
   {

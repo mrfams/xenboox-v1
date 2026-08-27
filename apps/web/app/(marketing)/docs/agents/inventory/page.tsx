@@ -156,7 +156,7 @@ export default function InventoryAgentDocPage() {
                         Generate purchase requisition
                       </td>
                       <td className="px-4 py-3">
-                        <span className="text-green-600">Auto</span>
+                        <span className="text-balanced-green">Auto</span>
                       </td>
                     </tr>
                     <tr className="border-b">
@@ -165,7 +165,7 @@ export default function InventoryAgentDocPage() {
                         Urgent reorder + escalation
                       </td>
                       <td className="px-4 py-3">
-                        <span className="text-green-600">Auto</span>
+                        <span className="text-balanced-green">Auto</span>
                       </td>
                     </tr>
                     <tr className="border-b">
@@ -174,7 +174,7 @@ export default function InventoryAgentDocPage() {
                         Vendor follow-up
                       </td>
                       <td className="px-4 py-3">
-                        <span className="text-amber-600">Flag</span>
+                        <span className="text-attention-amber">Flag</span>
                       </td>
                     </tr>
                     <tr>
@@ -185,7 +185,7 @@ export default function InventoryAgentDocPage() {
                         Review / markdown recommendation
                       </td>
                       <td className="px-4 py-3">
-                        <span className="text-amber-600">Recommend</span>
+                        <span className="text-attention-amber">Recommend</span>
                       </td>
                     </tr>
                   </tbody>

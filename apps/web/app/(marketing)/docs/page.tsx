@@ -30,7 +30,7 @@ const categories = [
     description:
       "Get up and running in under 5 minutes. Create your first organization and record your first transaction.",
     href: "/docs/quickstart",
-    color: "from-blue-500 to-indigo-500",
+    color: "from-primary/50 to-indigo-500",
   },
   {
     icon: BookOpen,
@@ -46,7 +46,7 @@ const categories = [
     description:
       "Deep dives into each accounting module — AP, AR, Payroll, Treasury, Reports, and more.",
     href: "/docs/modules",
-    color: "from-violet-500 to-purple-500",
+    color: "from-violet-500 to-signal-indigo",
   },
   {
     icon: FileCode,
@@ -54,7 +54,7 @@ const categories = [
     description:
       "Complete API documentation with examples, SDKs, and integration guides.",
     href: "/docs/api",
-    color: "from-amber-500 to-orange-500",
+    color: "from-attention-amber/50 to-orange-500",
   },
   {
     icon: Shield,
@@ -70,7 +70,7 @@ const categories = [
     description:
       "Answers to commonly asked questions about billing, features, and support.",
     href: "/docs/faq",
-    color: "from-cyan-500 to-blue-500",
+    color: "from-cyan-500 to-primary/50",
   },
 ];
 
@@ -281,7 +281,7 @@ export default function DocsPage() {
             <div className="mt-4 flex flex-wrap justify-center gap-3">
               <Link
                 href="/contact"
-                className="inline-flex h-10 items-center rounded-xl bg-primary px-5 text-sm font-medium text-primary-foreground transition-all hover:shadow-md"
+                className="inline-flex h-10 items-center rounded-full bg-primary px-5 text-sm font-medium text-primary-foreground transition-all hover:shadow-md"
               >
                 Contact Support
               </Link>

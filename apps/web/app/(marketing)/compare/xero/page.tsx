@@ -96,8 +96,8 @@ export default function CompareXeroPage() {
             ].map((item) => (
               <FadeInUp key={item.title}>
                 <div className="rounded-2xl border border-border bg-card p-6">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-100 dark:bg-blue-900/40 mb-4">
-                    <item.icon className="h-5 w-5 text-blue-600" />
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-100  mb-4">
+                    <item.icon className="h-5 w-5 text-primary" />
                   </div>
                   <h3 className="font-semibold text-foreground">
                     {item.title}
@@ -113,7 +113,7 @@ export default function CompareXeroPage() {
       </section>
 
       {/* Feature Comparison Table */}
-      <section className="py-16 bg-slate-50 dark:bg-slate-900/50">
+      <section className="py-16 bg-paper-2/60 ">
         <div className="mx-auto max-w-4xl px-4">
           <FadeInUp>
             <h2 className="text-2xl font-bold text-foreground mb-8">
@@ -128,7 +128,7 @@ export default function CompareXeroPage() {
                     <th className="text-left px-4 py-3 font-semibold text-foreground">
                       Feature
                     </th>
-                    <th className="text-center px-4 py-3 font-semibold text-blue-600">
+                    <th className="text-center px-4 py-3 font-semibold text-primary">
                       Xenboox
                     </th>
                     <th className="text-center px-4 py-3 font-semibold text-muted-foreground">
@@ -147,7 +147,7 @@ export default function CompareXeroPage() {
                       </td>
                       <td className="px-4 py-2.5 text-center">
                         {row.xenboox === true ? (
-                          <Check className="h-4 w-4 text-emerald-500 mx-auto" />
+                          <Check className="h-4 w-4 text-balanced-green mx-auto" />
                         ) : (
                           <span className="text-muted-foreground">
                             {row.xenboox}
@@ -156,9 +156,9 @@ export default function CompareXeroPage() {
                       </td>
                       <td className="px-4 py-2.5 text-center">
                         {row.xero === true ? (
-                          <Check className="h-4 w-4 text-emerald-500 mx-auto" />
+                          <Check className="h-4 w-4 text-balanced-green mx-auto" />
                         ) : row.xero === false ? (
-                          <X className="h-4 w-4 text-red-400 mx-auto" />
+                          <X className="h-4 w-4 text-error-clay/60 mx-auto" />
                         ) : (
                           <span className="text-xs text-muted-foreground">
                             {row.xero}
@@ -190,7 +190,7 @@ export default function CompareXeroPage() {
                     <th className="text-left px-4 py-3 font-semibold text-foreground">
                       Plan
                     </th>
-                    <th className="text-center px-4 py-3 font-semibold text-blue-600">
+                    <th className="text-center px-4 py-3 font-semibold text-primary">
                       Xenboox
                     </th>
                     <th className="text-center px-4 py-3 font-semibold text-muted-foreground">
@@ -207,7 +207,7 @@ export default function CompareXeroPage() {
                       <td className="px-4 py-2.5 font-medium text-foreground">
                         {row.tier}
                       </td>
-                      <td className="px-4 py-2.5 text-center font-semibold text-blue-600">
+                      <td className="px-4 py-2.5 text-center font-semibold text-primary">
                         {row.xenboox}
                       </td>
                       <td className="px-4 py-2.5 text-center text-muted-foreground">
@@ -227,10 +227,10 @@ export default function CompareXeroPage() {
       </section>
 
       {/* Migration CTA */}
-      <section className="py-16 bg-gradient-to-b from-blue-50 to-white dark:from-blue-950/20 dark:to-background">
+      <section className="py-16 bg-gradient-to-b from-primary/5 to-background  ">
         <div className="mx-auto max-w-2xl px-4 text-center">
           <FadeInUp>
-            <Zap className="h-10 w-10 text-blue-600 mx-auto mb-4" />
+            <Zap className="h-10 w-10 text-primary mx-auto mb-4" />
             <h2 className="text-2xl font-bold text-foreground">
               Switching from Xero?
             </h2>
@@ -241,7 +241,7 @@ export default function CompareXeroPage() {
             <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
               <Link
                 href="/register"
-                className="inline-flex h-11 items-center rounded-xl bg-blue-600 px-6 text-sm font-medium text-white hover:bg-blue-700 transition-colors"
+                className="inline-flex h-11 items-center rounded-full bg-primary px-6 text-sm font-medium text-primary-foreground hover:bg-primary-hover transition-colors"
               >
                 Start Free Migration
                 <ArrowRight className="ml-2 h-4 w-4" />

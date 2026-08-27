@@ -191,8 +191,8 @@ const response = await fetch("https://xenboox.vercel.app/api/v1/transactions", {
                       <span
                         className={`inline-flex items-center rounded px-1.5 py-0.5 text-xs font-bold ${
                           method === "GET"
-                            ? "bg-green-500/10 text-green-600 dark:text-green-400"
-                            : "bg-blue-500/10 text-blue-600 dark:text-blue-400"
+                            ? "bg-balanced-green/10 text-balanced-green dark:text-balanced-green"
+                            : "bg-primary/50/10 text-primary "
                         }`}
                       >
                         {method}

@@ -110,7 +110,7 @@ function FooterNewsletterForm() {
 
   if (submitted) {
     return (
-      <p className="mt-6 text-sm text-emerald-400 font-medium">
+      <p className="mt-6 text-sm text-balanced-green font-medium">
         You're subscribed! Check your inbox for a welcome email.
       </p>
     );
@@ -128,12 +128,12 @@ function FooterNewsletterForm() {
         placeholder="Enter your email"
         required
         aria-label="Email address"
-        className="flex-1 h-10 rounded-lg border border-slate-700 bg-slate-800/50 px-4 text-sm text-white placeholder-slate-500 outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all"
+        className="flex-1 h-10 rounded-lg border border-border bg-background/50 px-4 text-sm text-foreground placeholder-muted-foreground outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all"
       />
       <button
         type="submit"
         disabled={submitting}
-        className="inline-flex h-10 items-center rounded-lg bg-blue-600 px-5 text-sm font-medium text-white hover:bg-blue-700 transition-colors whitespace-nowrap disabled:opacity-50"
+        className="inline-flex h-10 items-center rounded-lg bg-primary px-5 text-sm font-medium text-primary-foreground hover:bg-primary-hover transition-colors whitespace-nowrap disabled:opacity-50"
       >
         {submitting ? "Subscribing..." : "Subscribe"}
       </button>
@@ -165,6 +165,15 @@ export default function MarketingLayout({
       .then((data) => setIsLoggedIn(!!data?.user))
       .catch(() => setIsLoggedIn(false));
   }, []);
+
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMobileMenuOpen(false);
+    };
+    document.addEventListener("keydown", handleEscape);
+    return () => document.removeEventListener("keydown", handleEscape);
+  }, [mobileMenuOpen]);
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -203,7 +212,7 @@ export default function MarketingLayout({
             {isLoggedIn ? (
               <Link
                 href="/dashboard"
-                className="inline-flex h-9 items-center rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 px-5 text-sm font-medium text-white shadow-sm transition-all duration-200 hover:shadow-md hover:scale-[1.02] hover:from-blue-700 hover:to-indigo-700"
+                className="inline-flex h-9 items-center rounded-lg bg-primary px-5 text-sm font-medium text-primary-foreground shadow-sm transition-all duration-200 hover:bg-primary-hover hover:shadow-md"
               >
                 Dashboard
               </Link>
@@ -217,7 +226,7 @@ export default function MarketingLayout({
                 </Link>
                 <Link
                   href="/register"
-                  className="inline-flex h-9 items-center rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 px-5 text-sm font-medium text-white shadow-sm transition-all duration-200 hover:shadow-md hover:scale-[1.02] hover:from-blue-700 hover:to-indigo-700"
+                  className="inline-flex h-9 items-center rounded-lg bg-primary px-5 text-sm font-medium text-primary-foreground shadow-sm transition-all duration-200 hover:bg-primary-hover hover:shadow-md"
                 >
                   Sign Up Free
                 </Link>
@@ -259,7 +268,7 @@ export default function MarketingLayout({
                   <Link
                     href="/dashboard"
                     onClick={() => setMobileMenuOpen(false)}
-                    className="flex items-center justify-center h-10 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 px-4 text-sm font-medium text-white"
+                    className="flex items-center justify-center h-10 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground"
                   >
                     Dashboard
                   </Link>
@@ -268,7 +277,7 @@ export default function MarketingLayout({
                     <Link
                       href="/register"
                       onClick={() => setMobileMenuOpen(false)}
-                      className="flex items-center justify-center h-10 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 px-4 text-sm font-medium text-white"
+                      className="flex items-center justify-center h-10 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground"
                     >
                       Sign Up Free
                     </Link>
@@ -290,7 +299,7 @@ export default function MarketingLayout({
       {/* Skip link — first tab stop jumps past the marketing nav to content */}
       <a
         href="#main-content"
-        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[100] focus:rounded-lg focus:bg-white focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:shadow-lg"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[100] focus:rounded-lg focus:bg-background focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:shadow-lg"
       >
         Skip to content
       </a>
@@ -304,12 +313,12 @@ export default function MarketingLayout({
       </main>
 
       {/* ── Footer ── */}
-      <footer className="border-t border-border/50 bg-gradient-to-b from-white to-slate-50">
+      <footer className="border-t border-border/50 bg-gradient-to-b from-background to-paper-2/50">
         <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
           {/* Newsletter */}
-          <div className="rounded-2xl bg-gradient-to-br from-slate-900 to-slate-800 p-6 sm:p-8 mb-10 text-center">
-            <h3 className="text-xl font-bold text-white">Stay in the loop</h3>
-            <p className="mt-2 text-sm text-slate-400 max-w-md mx-auto">
+          <div className="rounded-2xl bg-gradient-to-br from-ledger-ink to-ledger-ink-2 p-6 sm:p-8 mb-10 text-center">
+            <h3 className="text-xl font-bold text-paper">Stay in the loop</h3>
+            <p className="mt-2 text-sm text-paper/60 max-w-md mx-auto">
               Product updates, accounting best practices, and industry insights.
               No spam, unsubscribe anytime.
             </p>

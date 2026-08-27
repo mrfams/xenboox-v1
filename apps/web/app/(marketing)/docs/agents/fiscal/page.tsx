@@ -138,7 +138,7 @@ export default function FiscalAgentDocPage() {
             </Card>
             <Card>
               <CardContent className="p-4 flex items-start gap-4">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-700 text-sm font-bold">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-error-clay/10 text-error-clay text-sm font-bold">
                   X
                 </div>
                 <div>
@@ -161,31 +161,31 @@ export default function FiscalAgentDocPage() {
             <CardContent className="pt-6">
               <ul className="space-y-2 text-sm text-muted-foreground">
                 <li className="flex items-start gap-2">
-                  <CheckCircle className="mt-0.5 h-4 w-4 text-green-600 shrink-0" />
+                  <CheckCircle className="mt-0.5 h-4 w-4 text-balanced-green shrink-0" />
                   <span>All journal entries posted and approved</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <CheckCircle className="mt-0.5 h-4 w-4 text-green-600 shrink-0" />
+                  <CheckCircle className="mt-0.5 h-4 w-4 text-balanced-green shrink-0" />
                   <span>All bank accounts reconciled</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <CheckCircle className="mt-0.5 h-4 w-4 text-green-600 shrink-0" />
+                  <CheckCircle className="mt-0.5 h-4 w-4 text-balanced-green shrink-0" />
                   <span>All sub-ledgers balanced with GL</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <CheckCircle className="mt-0.5 h-4 w-4 text-green-600 shrink-0" />
+                  <CheckCircle className="mt-0.5 h-4 w-4 text-balanced-green shrink-0" />
                   <span>Depreciation posted for the period</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <CheckCircle className="mt-0.5 h-4 w-4 text-green-600 shrink-0" />
+                  <CheckCircle className="mt-0.5 h-4 w-4 text-balanced-green shrink-0" />
                   <span>Payroll posted for the period</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <CheckCircle className="mt-0.5 h-4 w-4 text-green-600 shrink-0" />
+                  <CheckCircle className="mt-0.5 h-4 w-4 text-balanced-green shrink-0" />
                   <span>Accruals and prepayments recorded</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <CheckCircle className="mt-0.5 h-4 w-4 text-green-600 shrink-0" />
+                  <CheckCircle className="mt-0.5 h-4 w-4 text-balanced-green shrink-0" />
                   <span>Trial balance reviewed and approved</span>
                 </li>
               </ul>

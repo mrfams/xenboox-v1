@@ -157,22 +157,22 @@ export default function PricingPage() {
                 <span className="text-primary">pricing</span>
               </h1>
               <p className="mt-6 max-w-2xl mx-auto text-lg leading-relaxed text-muted-foreground">
-                Start free with 1 agent. Upgrade when you need the full team.
+                Start free with 1 AI agent. Upgrade when you need the full team.
                 Cancel anytime — your data stays yours.
               </p>
 
               {/* Trust Signals */}
               <div className="mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-muted-foreground">
                 <span className="inline-flex items-center gap-1.5">
-                  <CreditCard className="h-4 w-4 text-emerald-500" />
+                  <CreditCard className="h-4 w-4 text-balanced-green" />
                   No credit card required
                 </span>
                 <span className="inline-flex items-center gap-1.5">
-                  <RotateCcw className="h-4 w-4 text-emerald-500" />
+                  <RotateCcw className="h-4 w-4 text-balanced-green" />
                   Cancel anytime
                 </span>
                 <span className="inline-flex items-center gap-1.5">
-                  <Shield className="h-4 w-4 text-emerald-500" />
+                  <Shield className="h-4 w-4 text-balanced-green" />
                   30-day money-back guarantee
                 </span>
               </div>
@@ -203,7 +203,7 @@ export default function PricingPage() {
                     Annual
                   </button>
                 </div>
-                <span className="inline-flex items-center rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-xs font-medium text-emerald-600 border border-emerald-500/20">
+                <span className="inline-flex items-center rounded-full bg-balanced-green/10 px-2.5 py-0.5 text-xs font-medium text-balanced-green border border-balanced-green/20">
                   Save 17%
                 </span>
               </div>
@@ -219,10 +219,10 @@ export default function PricingPage() {
             {tiers.map((tier, index) => (
               <FadeInUp key={tier.name} delay={index * 0.1}>
                 <div
-                  className={`relative flex flex-col rounded-2xl border p-6 md:p-8 transition-all duration-300 ${
+                  className={`relative flex flex-col rounded-2xl border p-6 md:p-8 transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] ${
                     tier.highlighted
-                      ? "border-primary shadow-xl shadow-primary/10 lg:scale-[1.03] bg-gradient-to-b from-card to-primary/5"
-                      : "bg-card hover:shadow-lg hover:-translate-y-1"
+                      ? "border-primary/40 shadow-xl shadow-primary/10 lg:scale-[1.03] bg-gradient-to-b from-card to-primary/5"
+                      : "border-border/60 bg-card hover:shadow-lg hover:-translate-y-1 hover:border-border/40"
                   }`}
                 >
                   {tier.highlighted && (
@@ -265,7 +265,7 @@ export default function PricingPage() {
                           className={`mt-0.5 h-4 w-4 shrink-0 ${
                             tier.highlighted
                               ? "text-primary"
-                              : "text-emerald-500"
+                              : "text-balanced-green"
                           }`}
                         />
                         <span className="text-muted-foreground">{feature}</span>
@@ -274,10 +274,10 @@ export default function PricingPage() {
                   </ul>
                   <Link
                     href={tier.ctaHref}
-                    className={`mt-6 inline-flex h-11 items-center justify-center rounded-xl text-sm font-medium transition-all duration-200 ${
+                    className={`mt-6 inline-flex h-11 items-center justify-center rounded-full text-sm font-medium transition-all duration-300 ${
                       tier.highlighted
-                        ? "bg-primary text-primary-foreground shadow-md hover:shadow-lg hover:scale-[1.02]"
-                        : "border border-border bg-card text-foreground hover:bg-accent/50"
+                        ? "bg-primary text-primary-foreground shadow-md hover:shadow-lg hover:scale-[1.02] active:scale-[0.98]"
+                        : "border border-border bg-card text-foreground hover:bg-accent/50 hover:scale-[1.02] active:scale-[0.98]"
                     }`}
                   >
                     {tier.cta}
@@ -295,7 +295,7 @@ export default function PricingPage() {
         <div className="mx-auto max-w-5xl px-4 sm:px-6">
           <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-4 text-sm text-muted-foreground">
             <span className="inline-flex items-center gap-2">
-              <CreditCard className="h-5 w-5 text-emerald-500" />
+              <CreditCard className="h-5 w-5 text-balanced-green" />
               <span>
                 <strong className="text-foreground">
                   No credit card required
@@ -304,14 +304,14 @@ export default function PricingPage() {
               </span>
             </span>
             <span className="inline-flex items-center gap-2">
-              <RotateCcw className="h-5 w-5 text-emerald-500" />
+              <RotateCcw className="h-5 w-5 text-balanced-green" />
               <span>
                 <strong className="text-foreground">Cancel anytime</strong> — no
                 lock-in contracts
               </span>
             </span>
             <span className="inline-flex items-center gap-2">
-              <Shield className="h-5 w-5 text-emerald-500" />
+              <Shield className="h-5 w-5 text-balanced-green" />
               <span>
                 <strong className="text-foreground">
                   30-day money-back guarantee
@@ -358,7 +358,7 @@ export default function PricingPage() {
           <div className="space-y-3">
             {faqs.map((faq, index) => (
               <FadeInUp key={faq.q} delay={index * 0.05}>
-                <details className="group rounded-xl border border-border bg-card transition-all duration-200 hover:shadow-sm open:shadow-sm">
+                <details className="group rounded-xl border border-border/60 bg-card transition-all duration-300 hover:shadow-sm hover:border-border/40 open:shadow-sm">
                   <summary className="flex cursor-pointer items-center justify-between px-5 py-4 text-sm font-medium text-foreground list-none">
                     {faq.q}
                     <svg
@@ -382,10 +382,10 @@ export default function PricingPage() {
       </section>
 
       {/* CTA */}
-      <section className="py-12 sm:py-16">
+      <section className="py-16 sm:py-20 lg:py-24">
         <div className="mx-auto max-w-3xl px-4 text-center sm:px-6">
           <FadeInUp>
-            <h2 className="text-3xl font-semibold tracking-tight text-foreground">
+            <h2 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
               Ready to get started?
             </h2>
             <p className="mt-4 text-lg text-muted-foreground">
@@ -393,7 +393,7 @@ export default function PricingPage() {
             </p>
             <Link
               href="/register"
-              className="mt-8 inline-flex h-12 items-center rounded-xl bg-primary px-8 text-sm font-medium text-primary-foreground shadow-lg shadow-primary/25 transition-all duration-300 hover:shadow-primary/40 hover:scale-105"
+              className="mt-8 inline-flex h-12 items-center rounded-full bg-primary px-8 text-sm font-medium text-primary-foreground shadow-lg shadow-primary/25 transition-all duration-300 hover:shadow-primary/40 hover:scale-[1.02] active:scale-[0.98]"
             >
               Start Free Trial
               <ArrowRight className="ml-2 h-4 w-4" />

@@ -89,7 +89,7 @@ export default function ReconciliationAgentDocPage() {
             <Card>
               <CardHeader>
                 <CardTitle className="text-sm flex items-center gap-2">
-                  <CheckCircle className="h-4 w-4 text-green-500" />
+                  <CheckCircle className="h-4 w-4 text-balanced-green" />
                   Confident Match
                 </CardTitle>
               </CardHeader>
@@ -104,7 +104,7 @@ export default function ReconciliationAgentDocPage() {
             <Card>
               <CardHeader>
                 <CardTitle className="text-sm flex items-center gap-2">
-                  <Search className="h-4 w-4 text-blue-500" />
+                  <Search className="h-4 w-4 text-primary" />
                   Suggested Match
                 </CardTitle>
               </CardHeader>
@@ -119,7 +119,7 @@ export default function ReconciliationAgentDocPage() {
             <Card>
               <CardHeader>
                 <CardTitle className="text-sm flex items-center gap-2">
-                  <AlertTriangle className="h-4 w-4 text-amber-500" />
+                  <AlertTriangle className="h-4 w-4 text-attention-amber" />
                   Unmatched
                 </CardTitle>
               </CardHeader>

@@ -1,11 +1,17 @@
 import type { Metadata } from "next";
 
+import { AnnouncementBar } from "@/components/marketing/announcement-bar";
 import { Cta } from "@/components/marketing/cta";
 import { DemoVideo } from "@/components/marketing/demo-video";
 import { Features } from "@/components/marketing/features";
 import { Hero } from "@/components/marketing/hero-home";
 import { HowItWorks } from "@/components/marketing/how-it-works";
+import {
+  OrganizationJsonLd,
+  SoftwareAppJsonLd,
+} from "@/components/marketing/json-ld";
 import { Security } from "@/components/marketing/security";
+import { StatBar } from "@/components/marketing/stat-bar";
 import { Testimonials } from "@/components/marketing/testimonials";
 
 export const metadata: Metadata = {
@@ -22,12 +28,16 @@ export const metadata: Metadata = {
 export default function HomePage() {
   return (
     <>
+      <OrganizationJsonLd />
+      <SoftwareAppJsonLd />
+      <AnnouncementBar />
       <Hero />
+      <StatBar />
       <HowItWorks />
-      <DemoVideo />
       <Features />
-      <Security />
+      <DemoVideo />
       <Testimonials />
+      <Security />
       <Cta />
     </>
   );

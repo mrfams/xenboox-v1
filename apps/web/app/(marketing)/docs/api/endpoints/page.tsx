@@ -111,7 +111,7 @@ export default function ApiEndpointsPage() {
                             <span
                               className={
                                 type === "query"
-                                  ? "text-blue-600"
+                                  ? "text-primary"
                                   : "text-emerald-600"
                               }
                             >

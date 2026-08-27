@@ -132,7 +132,7 @@ export default async function JobDetailPage({
             <div className="mt-8 flex flex-wrap gap-4">
               <a
                 href="#apply"
-                className="inline-flex h-12 items-center rounded-xl bg-primary px-8 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/25 transition-all duration-300 hover:shadow-primary/40 hover:scale-105"
+                className="inline-flex h-12 items-center rounded-full bg-primary px-8 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/25 transition-all duration-300 hover:shadow-primary/40 hover:scale-[1.02] active:scale-[0.98]"
               >
                 <Send className="mr-2 h-4 w-4" />
                 Apply Now
@@ -207,7 +207,7 @@ export default async function JobDetailPage({
                     <ul className="space-y-3">
                       {job.niceToHave.map((item, index) => (
                         <li key={index} className="flex items-start gap-3">
-                          <Sparkles className="h-5 w-5 text-amber-500 mt-0.5 shrink-0" />
+                          <Sparkles className="h-5 w-5 text-attention-amber mt-0.5 shrink-0" />
                           <span className="text-muted-foreground">{item}</span>
                         </li>
                       ))}

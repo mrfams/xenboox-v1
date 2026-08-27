@@ -143,14 +143,14 @@ export default function DownloadPage() {
               <div className="mt-8 flex flex-wrap justify-center gap-4">
                 <Link
                   href="/login"
-                  className="inline-flex h-12 items-center rounded-xl bg-primary px-8 text-sm font-medium text-primary-foreground shadow-lg shadow-primary/25 transition-all duration-300 hover:shadow-primary/40 hover:scale-105"
+                  className="inline-flex h-12 items-center rounded-full bg-primary px-8 text-sm font-medium text-primary-foreground shadow-lg shadow-primary/25 transition-all duration-300 hover:shadow-primary/40 hover:scale-[1.02] active:scale-[0.98]"
                 >
                   Launch Web App
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Link>
                 <a
                   href="#desktop"
-                  className="inline-flex h-12 items-center rounded-xl border border-border bg-card px-8 text-sm font-medium text-foreground transition-all duration-300 hover:bg-accent/50"
+                  className="inline-flex h-12 items-center rounded-full border border-border bg-card px-8 text-sm font-medium text-foreground transition-all duration-300 hover:bg-accent/50"
                 >
                   Download Desktop
                 </a>
@@ -197,7 +197,7 @@ export default function DownloadPage() {
                           className={`mt-0.5 h-4 w-4 shrink-0 ${
                             platform.popular
                               ? "text-primary"
-                              : "text-emerald-500"
+                              : "text-balanced-green"
                           }`}
                         />
                         <span className="text-muted-foreground">{feature}</span>
@@ -255,7 +255,7 @@ export default function DownloadPage() {
                   <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
                     {req.requirements.map((item) => (
                       <li key={item} className="flex items-start gap-2">
-                        <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
+                        <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-balanced-green" />
                         {item}
                       </li>
                     ))}

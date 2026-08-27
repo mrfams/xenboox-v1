@@ -22,38 +22,36 @@ export function LegalHero({
   version,
 }: LegalHeroProps) {
   return (
-    <section className="relative overflow-hidden bg-white border-b border-slate-200">
-      {/* Subtle grid pattern */}
+    <section className="relative overflow-hidden bg-paper border-b border-border">
       <div
         className="pointer-events-none absolute inset-0"
         aria-hidden="true"
         style={{
           backgroundImage:
-            "radial-gradient(rgba(0, 0, 0, 0.03) 1px, transparent 1px)",
+            "radial-gradient(rgba(20, 33, 61, 0.03) 1px, transparent 1px)",
           backgroundSize: "24px 24px",
         }}
       />
 
       <div className="relative mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
-        {/* Back link */}
         <FadeInUp>
           <Link
             href="/"
-            className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-slate-900 transition-colors mb-8"
+            className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors mb-8"
           >
-            <ArrowLeft className="h-4 w-4" />
+            <ArrowLeft className="h-4 w-4" aria-hidden="true" />
             Back to Home
           </Link>
         </FadeInUp>
 
         <FadeInUp delay={0.05}>
           <div className="flex items-center gap-3 mb-4">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">
-              <Shield className="h-3 w-3" />
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground">
+              <Shield className="h-3 w-3" aria-hidden="true" />
               Legal
             </span>
             {version && (
-              <span className="inline-flex items-center rounded-full bg-blue-50 px-2.5 py-0.5 text-[10px] font-bold text-blue-700 uppercase">
+              <span className="inline-flex items-center rounded-full bg-primary/10 px-2.5 py-0.5 text-[10px] font-bold text-primary uppercase">
                 v{version}
               </span>
             )}
@@ -61,24 +59,26 @@ export function LegalHero({
         </FadeInUp>
 
         <FadeInUp delay={0.1}>
-          <h1 className="text-4xl sm:text-5xl font-bold tracking-tight text-slate-900">
+          <h1 className="text-4xl sm:text-5xl font-bold tracking-tight text-foreground">
             {title}
           </h1>
         </FadeInUp>
 
         <FadeInUp delay={0.15}>
-          <p className="mt-4 text-lg text-slate-600 max-w-2xl">{description}</p>
+          <p className="mt-4 text-lg text-muted-foreground max-w-2xl">
+            {description}
+          </p>
         </FadeInUp>
 
         <FadeInUp delay={0.2}>
-          <div className="mt-6 flex flex-wrap items-center gap-4 text-sm text-slate-500">
+          <div className="mt-6 flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
             <span className="flex items-center gap-1.5">
-              <Clock className="h-4 w-4" />
+              <Clock className="h-4 w-4" aria-hidden="true" />
               Last updated: {lastUpdated}
             </span>
             {effectiveDate && (
               <span className="flex items-center gap-1.5">
-                <FileText className="h-4 w-4" />
+                <FileText className="h-4 w-4" aria-hidden="true" />
                 Effective: {effectiveDate}
               </span>
             )}
@@ -147,11 +147,10 @@ export function LegalContent({ children, tableOfContents }: LegalContentProps) {
     <section className="py-12 sm:py-16">
       <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
         <div className="grid gap-12 lg:grid-cols-[240px_1fr]">
-          {/* Table of Contents - Sidebar */}
           {tableOfContents && tableOfContents.length > 0 && (
             <FadeInUp delay={0.1}>
               <nav className="lg:sticky lg:top-24 lg:self-start">
-                <p className="text-xs font-semibold text-slate-900 uppercase tracking-wider mb-4">
+                <p className="text-xs font-semibold text-foreground uppercase tracking-wider mb-4">
                   On this page
                 </p>
                 <ul className="space-y-1">
@@ -166,8 +165,8 @@ export function LegalContent({ children, tableOfContents }: LegalContentProps) {
                             block text-sm py-1.5 pl-3 -ml-3 rounded-r-lg transition-all duration-200
                             ${
                               isActive
-                                ? "text-blue-600 font-medium bg-blue-50/80 border-l-2 border-blue-600"
-                                : "text-slate-500 hover:text-slate-900 border-l-2 border-transparent"
+                                ? "text-primary font-medium bg-primary/5 border-l-2 border-primary"
+                                : "text-muted-foreground hover:text-foreground border-l-2 border-transparent"
                             }
                           `}
                         >
@@ -181,28 +180,26 @@ export function LegalContent({ children, tableOfContents }: LegalContentProps) {
             </FadeInUp>
           )}
 
-          {/* Main Content */}
           <FadeInUp delay={0.15}>
             <div className="legal-content max-w-none">{children}</div>
           </FadeInUp>
         </div>
       </div>
 
-      {/* Contact Banner */}
       <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 mt-12">
-        <div className="rounded-2xl bg-slate-50 border border-slate-200 p-6 sm:p-8">
+        <div className="rounded-2xl bg-muted border border-border p-6 sm:p-8">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-              <h3 className="font-semibold text-slate-900">
+              <h3 className="font-semibold text-foreground">
                 Questions about this policy?
               </h3>
-              <p className="text-sm text-slate-600 mt-1">
+              <p className="text-sm text-muted-foreground mt-1">
                 Our legal team is here to help. Reach out anytime.
               </p>
             </div>
             <a
               href="mailto:legal@xenboox.com"
-              className="inline-flex items-center justify-center rounded-xl bg-slate-900 px-6 py-3 text-sm font-semibold text-white transition-all hover:bg-slate-800 shrink-0"
+              className="inline-flex items-center justify-center rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground transition-all hover:bg-primary-hover shrink-0"
             >
               Contact Legal Team
             </a>

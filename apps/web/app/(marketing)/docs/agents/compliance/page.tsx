@@ -99,20 +99,20 @@ export default function ComplianceAgentDocPage() {
               <CardContent>
                 <ul className="space-y-1 text-xs text-muted-foreground">
                   <li className="flex items-center gap-1">
-                    <CheckCircle className="h-3 w-3 text-green-600" /> Corporate
-                    Income Tax
+                    <CheckCircle className="h-3 w-3 text-balanced-green" />{" "}
+                    Corporate Income Tax
                   </li>
                   <li className="flex items-center gap-1">
-                    <CheckCircle className="h-3 w-3 text-green-600" /> VAT / GST
-                    / Sales Tax
+                    <CheckCircle className="h-3 w-3 text-balanced-green" /> VAT
+                    / GST / Sales Tax
                   </li>
                   <li className="flex items-center gap-1">
-                    <CheckCircle className="h-3 w-3 text-green-600" />{" "}
+                    <CheckCircle className="h-3 w-3 text-balanced-green" />{" "}
                     Withholding Tax
                   </li>
                   <li className="flex items-center gap-1">
-                    <CheckCircle className="h-3 w-3 text-green-600" /> Payroll
-                    Taxes (PAYE, SSNIT)
+                    <CheckCircle className="h-3 w-3 text-balanced-green" />{" "}
+                    Payroll Taxes (PAYE, SSNIT)
                   </li>
                 </ul>
               </CardContent>
@@ -124,20 +124,20 @@ export default function ComplianceAgentDocPage() {
               <CardContent>
                 <ul className="space-y-1 text-xs text-muted-foreground">
                   <li className="flex items-center gap-1">
-                    <CheckCircle className="h-3 w-3 text-green-600" /> IFRS
+                    <CheckCircle className="h-3 w-3 text-balanced-green" /> IFRS
                     compliance checks
                   </li>
                   <li className="flex items-center gap-1">
-                    <CheckCircle className="h-3 w-3 text-green-600" /> Revenue
-                    recognition (IFRS 15)
+                    <CheckCircle className="h-3 w-3 text-balanced-green" />{" "}
+                    Revenue recognition (IFRS 15)
                   </li>
                   <li className="flex items-center gap-1">
-                    <CheckCircle className="h-3 w-3 text-green-600" /> Lease
-                    accounting (IFRS 16)
+                    <CheckCircle className="h-3 w-3 text-balanced-green" />{" "}
+                    Lease accounting (IFRS 16)
                   </li>
                   <li className="flex items-center gap-1">
-                    <CheckCircle className="h-3 w-3 text-green-600" /> Financial
-                    instruments (IFRS 9)
+                    <CheckCircle className="h-3 w-3 text-balanced-green" />{" "}
+                    Financial instruments (IFRS 9)
                   </li>
                 </ul>
               </CardContent>
@@ -149,20 +149,20 @@ export default function ComplianceAgentDocPage() {
               <CardContent>
                 <ul className="space-y-1 text-xs text-muted-foreground">
                   <li className="flex items-center gap-1">
-                    <CheckCircle className="h-3 w-3 text-green-600" />{" "}
+                    <CheckCircle className="h-3 w-3 text-balanced-green" />{" "}
                     Segregation of duties
                   </li>
                   <li className="flex items-center gap-1">
-                    <CheckCircle className="h-3 w-3 text-green-600" /> Approval
-                    thresholds
+                    <CheckCircle className="h-3 w-3 text-balanced-green" />{" "}
+                    Approval thresholds
                   </li>
                   <li className="flex items-center gap-1">
-                    <CheckCircle className="h-3 w-3 text-green-600" /> Audit
-                    trail integrity
+                    <CheckCircle className="h-3 w-3 text-balanced-green" />{" "}
+                    Audit trail integrity
                   </li>
                   <li className="flex items-center gap-1">
-                    <CheckCircle className="h-3 w-3 text-green-600" /> Entity
-                    scoping enforcement
+                    <CheckCircle className="h-3 w-3 text-balanced-green" />{" "}
+                    Entity scoping enforcement
                   </li>
                 </ul>
               </CardContent>

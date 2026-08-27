@@ -61,7 +61,7 @@ const roles = [
   {
     role: "Finance Director",
     scope: "All modules, approval authority, no billing",
-    color: "text-blue-600",
+    color: "text-primary",
   },
   {
     role: "Accountant",
@@ -71,7 +71,7 @@ const roles = [
   {
     role: "Viewer",
     scope: "Read-only access to assigned modules and reports",
-    color: "text-slate-600",
+    color: "text-muted-foreground",
   },
 ];
 

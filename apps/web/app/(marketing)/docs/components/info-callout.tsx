@@ -12,26 +12,26 @@ interface InfoCalloutProps {
 const calloutStyles = {
   info: {
     container:
-      "border-blue-200 bg-blue-50 dark:border-blue-900 dark:bg-blue-950/50",
-    icon: "text-blue-600 dark:text-blue-400",
+      "border-primary/20 bg-primary/5 dark:border-primary/90 dark:bg-primary/95/50",
+    icon: "text-primary ",
     Icon: Info,
   },
   warning: {
     container:
-      "border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/50",
-    icon: "text-amber-600 dark:text-amber-400",
+      "border-attention-amber/20 bg-attention-amber/5 dark:border-attention-amber/90 dark:bg-attention-amber/95/50",
+    icon: "text-attention-amber dark:text-attention-amber",
     Icon: AlertTriangle,
   },
   tip: {
     container:
-      "border-emerald-200 bg-emerald-50 dark:border-emerald-900 dark:bg-emerald-950/50",
+      "border-emerald-200 bg-balanced-green/5 dark:border-emerald-900 dark:bg-emerald-950/50",
     icon: "text-emerald-600 dark:text-emerald-400",
     Icon: Lightbulb,
   },
   note: {
     container:
-      "border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900/50",
-    icon: "text-slate-600 dark:text-slate-400",
+      "border-border bg-paper-2/60 dark:border-ledger-ink/80 dark:bg-ledger-ink/90/50",
+    icon: "text-muted-foreground dark:text-muted-foreground/60",
     Icon: AlertCircle,
   },
 };

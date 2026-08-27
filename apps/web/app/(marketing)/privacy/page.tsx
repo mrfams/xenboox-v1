@@ -36,22 +36,22 @@ export default function PrivacyPage() {
       <LegalContent tableOfContents={tableOfContents}>
         {/* Introduction */}
         <section id="introduction" className="mb-12">
-          <h2 className="text-2xl font-bold text-slate-900 mb-4">
+          <h2 className="text-2xl font-bold text-foreground mb-4">
             1. Introduction
           </h2>
-          <p className="text-slate-600 leading-relaxed mb-4">
+          <p className="text-muted-foreground leading-relaxed mb-4">
             Xenboox Limited (&quot;Xenboox,&quot; &quot;we,&quot;
             &quot;us,&quot; &quot;our&quot;) is committed to protecting your
             privacy. This Privacy Policy explains how we collect, use, disclose,
             and safeguard your information when you use our AI-native accounting
             platform.
           </p>
-          <p className="text-slate-600 leading-relaxed mb-4">
+          <p className="text-muted-foreground leading-relaxed mb-4">
             We believe in radical transparency. This policy is written in plain
             language so you can understand exactly what we do with your data. If
             you have questions, our legal team is always available to help.
           </p>
-          <div className="rounded-xl bg-blue-50 border border-blue-100 p-4">
+          <div className="rounded-xl bg-primary/5 border border-primary/10 p-4">
             <p className="text-sm text-blue-800">
               <strong>Key Principle:</strong> We never sell your personal or
               financial data. Your data is used solely to provide and improve
@@ -62,76 +62,76 @@ export default function PrivacyPage() {
 
         {/* Information We Collect */}
         <section id="information-we-collect" className="mb-12">
-          <h2 className="text-2xl font-bold text-slate-900 mb-4">
+          <h2 className="text-2xl font-bold text-foreground mb-4">
             2. Information We Collect
           </h2>
 
-          <h3 className="text-lg font-semibold text-slate-900 mt-6 mb-3">
+          <h3 className="text-lg font-semibold text-foreground mt-6 mb-3">
             2.1 Information You Provide
           </h3>
-          <div className="rounded-xl border border-slate-200 divide-y divide-slate-100">
+          <div className="rounded-xl border border-border divide-y divide-slate-100">
             <div className="p-4">
-              <h4 className="font-medium text-slate-900 mb-1">
+              <h4 className="font-medium text-foreground mb-1">
                 Account Information
               </h4>
-              <p className="text-sm text-slate-600">
+              <p className="text-sm text-muted-foreground">
                 Name, email address, phone number, company details, and billing
                 information when you create an account.
               </p>
             </div>
             <div className="p-4">
-              <h4 className="font-medium text-slate-900 mb-1">
+              <h4 className="font-medium text-foreground mb-1">
                 Financial Data
               </h4>
-              <p className="text-sm text-slate-600">
+              <p className="text-sm text-muted-foreground">
                 Transaction records, bank statements, invoices, receipts, and
                 other financial documents you upload or connect via bank feeds.
               </p>
             </div>
             <div className="p-4">
-              <h4 className="font-medium text-slate-900 mb-1">
+              <h4 className="font-medium text-foreground mb-1">
                 Profile Information
               </h4>
-              <p className="text-sm text-slate-600">
+              <p className="text-sm text-muted-foreground">
                 Job title, role, entity associations, and preferences you set in
                 your account.
               </p>
             </div>
             <div className="p-4">
-              <h4 className="font-medium text-slate-900 mb-1">
+              <h4 className="font-medium text-foreground mb-1">
                 Communications
               </h4>
-              <p className="text-sm text-slate-600">
+              <p className="text-sm text-muted-foreground">
                 Messages you send to our support team, feedback you provide, or
                 communications through the platform.
               </p>
             </div>
           </div>
 
-          <h3 className="text-lg font-semibold text-slate-900 mt-6 mb-3">
+          <h3 className="text-lg font-semibold text-foreground mt-6 mb-3">
             2.2 Information Collected Automatically
           </h3>
-          <div className="rounded-xl border border-slate-200 divide-y divide-slate-100">
+          <div className="rounded-xl border border-border divide-y divide-slate-100">
             <div className="p-4">
-              <h4 className="font-medium text-slate-900 mb-1">Usage Data</h4>
-              <p className="text-sm text-slate-600">
+              <h4 className="font-medium text-foreground mb-1">Usage Data</h4>
+              <p className="text-sm text-muted-foreground">
                 Pages visited, features used, session duration, and navigation
                 patterns to help us improve the platform.
               </p>
             </div>
             <div className="p-4">
-              <h4 className="font-medium text-slate-900 mb-1">Device Data</h4>
-              <p className="text-sm text-slate-600">
+              <h4 className="font-medium text-foreground mb-1">Device Data</h4>
+              <p className="text-sm text-muted-foreground">
                 IP address, browser type, operating system, and device
                 identifiers for security and performance monitoring.
               </p>
             </div>
             <div className="p-4">
-              <h4 className="font-medium text-slate-900 mb-1">Cookies</h4>
-              <p className="text-sm text-slate-600">
+              <h4 className="font-medium text-foreground mb-1">Cookies</h4>
+              <p className="text-sm text-muted-foreground">
                 We use essential cookies for authentication and session
                 management. See our{" "}
-                <a href="/cookies" className="text-blue-600 hover:underline">
+                <a href="/cookies" className="text-primary hover:underline">
                   Cookie Policy
                 </a>{" "}
                 for details.
@@ -142,10 +142,10 @@ export default function PrivacyPage() {
 
         {/* How We Use */}
         <section id="how-we-use" className="mb-12">
-          <h2 className="text-2xl font-bold text-slate-900 mb-4">
+          <h2 className="text-2xl font-bold text-foreground mb-4">
             3. How We Use Your Information
           </h2>
-          <p className="text-slate-600 leading-relaxed mb-4">
+          <p className="text-muted-foreground leading-relaxed mb-4">
             We use the information we collect for the following purposes:
           </p>
           <div className="grid gap-3 sm:grid-cols-2">
@@ -177,12 +177,12 @@ export default function PrivacyPage() {
             ].map((item) => (
               <div
                 key={item.title}
-                className="rounded-xl border border-slate-200 p-4"
+                className="rounded-xl border border-border p-4"
               >
-                <h4 className="font-medium text-slate-900 mb-1">
+                <h4 className="font-medium text-foreground mb-1">
                   {item.title}
                 </h4>
-                <p className="text-sm text-slate-600">{item.desc}</p>
+                <p className="text-sm text-muted-foreground">{item.desc}</p>
               </div>
             ))}
           </div>
@@ -190,7 +190,7 @@ export default function PrivacyPage() {
 
         {/* Data Sharing */}
         <section id="data-sharing" className="mb-12">
-          <h2 className="text-2xl font-bold text-slate-900 mb-4">
+          <h2 className="text-2xl font-bold text-foreground mb-4">
             4. Data Sharing &amp; Disclosure
           </h2>
           <div className="rounded-xl bg-amber-50 border border-amber-100 p-4 mb-6">
@@ -199,43 +199,43 @@ export default function PrivacyPage() {
               financial data to third parties.
             </p>
           </div>
-          <p className="text-slate-600 leading-relaxed mb-4">
+          <p className="text-muted-foreground leading-relaxed mb-4">
             We may share your data only in the following limited circumstances:
           </p>
           <div className="space-y-4">
-            <div className="rounded-xl border border-slate-200 p-4">
-              <h4 className="font-medium text-slate-900 mb-2">
+            <div className="rounded-xl border border-border p-4">
+              <h4 className="font-medium text-foreground mb-2">
                 Service Providers
               </h4>
-              <p className="text-sm text-slate-600">
+              <p className="text-sm text-muted-foreground">
                 Cloud infrastructure (Vercel, Neon), email delivery (Resend),
                 and monitoring (LangFuse) — all bound by strict data processing
                 agreements.
               </p>
             </div>
-            <div className="rounded-xl border border-slate-200 p-4">
-              <h4 className="font-medium text-slate-900 mb-2">
+            <div className="rounded-xl border border-border p-4">
+              <h4 className="font-medium text-foreground mb-2">
                 Regulatory Authorities
               </h4>
-              <p className="text-sm text-slate-600">
+              <p className="text-sm text-muted-foreground">
                 When required by applicable law, valid legal process, or to
                 protect the rights and safety of Xenboox and our users.
               </p>
             </div>
-            <div className="rounded-xl border border-slate-200 p-4">
-              <h4 className="font-medium text-slate-900 mb-2">
+            <div className="rounded-xl border border-border p-4">
+              <h4 className="font-medium text-foreground mb-2">
                 With Your Consent
               </h4>
-              <p className="text-sm text-slate-600">
+              <p className="text-sm text-muted-foreground">
                 When you explicitly authorize sharing, such as connecting a bank
                 feed or integrating with a third-party service.
               </p>
             </div>
-            <div className="rounded-xl border border-slate-200 p-4">
-              <h4 className="font-medium text-slate-900 mb-2">
+            <div className="rounded-xl border border-border p-4">
+              <h4 className="font-medium text-foreground mb-2">
                 Business Transfers
               </h4>
-              <p className="text-sm text-slate-600">
+              <p className="text-sm text-muted-foreground">
                 In connection with a merger, acquisition, or sale of assets
                 (you&apos;ll be notified before your data becomes subject to a
                 different privacy policy).
@@ -246,10 +246,10 @@ export default function PrivacyPage() {
 
         {/* Data Security */}
         <section id="data-security" className="mb-12">
-          <h2 className="text-2xl font-bold text-slate-900 mb-4">
+          <h2 className="text-2xl font-bold text-foreground mb-4">
             5. Data Security
           </h2>
-          <p className="text-slate-600 leading-relaxed mb-4">
+          <p className="text-muted-foreground leading-relaxed mb-4">
             We implement industry-standard security measures to protect your
             data:
           </p>
@@ -282,14 +282,14 @@ export default function PrivacyPage() {
             ].map((item) => (
               <div
                 key={item.title}
-                className="flex items-start gap-3 rounded-xl border border-slate-200 p-4"
+                className="flex items-start gap-3 rounded-xl border border-border p-4"
               >
                 <span className="flex h-6 w-6 items-center justify-center rounded-full bg-green-100 text-green-600 text-xs shrink-0 mt-0.5">
                   ✓
                 </span>
                 <div>
-                  <h4 className="font-medium text-slate-900">{item.title}</h4>
-                  <p className="text-sm text-slate-600">{item.desc}</p>
+                  <h4 className="font-medium text-foreground">{item.title}</h4>
+                  <p className="text-sm text-muted-foreground">{item.desc}</p>
                 </div>
               </div>
             ))}
@@ -298,53 +298,55 @@ export default function PrivacyPage() {
 
         {/* Data Retention */}
         <section id="data-retention" className="mb-12">
-          <h2 className="text-2xl font-bold text-slate-900 mb-4">
+          <h2 className="text-2xl font-bold text-foreground mb-4">
             6. Data Retention
           </h2>
-          <p className="text-slate-600 leading-relaxed mb-4">
+          <p className="text-muted-foreground leading-relaxed mb-4">
             We retain your data for as long as your account is active or as
             needed to provide services. Specific retention periods:
           </p>
-          <div className="rounded-xl border border-slate-200 overflow-hidden">
+          <div className="rounded-xl border border-border overflow-hidden">
             <table className="w-full text-sm">
               <thead>
-                <tr className="bg-slate-50 border-b border-slate-200">
-                  <th className="text-left px-4 py-3 font-medium text-slate-900">
+                <tr className="bg-muted border-b border-border">
+                  <th className="text-left px-4 py-3 font-medium text-foreground">
                     Data Type
                   </th>
-                  <th className="text-left px-4 py-3 font-medium text-slate-900">
+                  <th className="text-left px-4 py-3 font-medium text-foreground">
                     Retention Period
                   </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 <tr>
-                  <td className="px-4 py-3 text-slate-600">
+                  <td className="px-4 py-3 text-muted-foreground">
                     Active account data
                   </td>
-                  <td className="px-4 py-3 text-slate-600">
+                  <td className="px-4 py-3 text-muted-foreground">
                     Duration of account + 90 days
                   </td>
                 </tr>
                 <tr>
-                  <td className="px-4 py-3 text-slate-600">
+                  <td className="px-4 py-3 text-muted-foreground">
                     Financial records
                   </td>
-                  <td className="px-4 py-3 text-slate-600">
+                  <td className="px-4 py-3 text-muted-foreground">
                     7 years (regulatory requirement)
                   </td>
                 </tr>
                 <tr>
-                  <td className="px-4 py-3 text-slate-600">Usage analytics</td>
-                  <td className="px-4 py-3 text-slate-600">
+                  <td className="px-4 py-3 text-muted-foreground">
+                    Usage analytics
+                  </td>
+                  <td className="px-4 py-3 text-muted-foreground">
                     24 months (anonymized after 12 months)
                   </td>
                 </tr>
                 <tr>
-                  <td className="px-4 py-3 text-slate-600">
+                  <td className="px-4 py-3 text-muted-foreground">
                     Support communications
                   </td>
-                  <td className="px-4 py-3 text-slate-600">3 years</td>
+                  <td className="px-4 py-3 text-muted-foreground">3 years</td>
                 </tr>
               </tbody>
             </table>
@@ -353,10 +355,10 @@ export default function PrivacyPage() {
 
         {/* Your Rights */}
         <section id="your-rights" className="mb-12">
-          <h2 className="text-2xl font-bold text-slate-900 mb-4">
+          <h2 className="text-2xl font-bold text-foreground mb-4">
             7. Your Rights
           </h2>
-          <p className="text-slate-600 leading-relaxed mb-4">
+          <p className="text-muted-foreground leading-relaxed mb-4">
             Depending on your jurisdiction, you have the following rights
             regarding your personal data:
           </p>
@@ -389,24 +391,24 @@ export default function PrivacyPage() {
             ].map((item) => (
               <div
                 key={item.right}
-                className="flex items-start gap-3 rounded-xl border border-slate-200 p-4"
+                className="flex items-start gap-3 rounded-xl border border-border p-4"
               >
-                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-100 text-blue-600 text-xs font-bold shrink-0 mt-0.5">
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-bold shrink-0 mt-0.5">
                   {item.right.charAt(0)}
                 </span>
                 <div>
-                  <h4 className="font-medium text-slate-900">{item.right}</h4>
-                  <p className="text-sm text-slate-600">{item.desc}</p>
+                  <h4 className="font-medium text-foreground">{item.right}</h4>
+                  <p className="text-sm text-muted-foreground">{item.desc}</p>
                 </div>
               </div>
             ))}
           </div>
-          <p className="text-slate-600 leading-relaxed mt-4">
+          <p className="text-muted-foreground leading-relaxed mt-4">
             To exercise any of these rights, contact our Data Protection Officer
             at{" "}
             <a
               href="mailto:privacy@xenboox.com"
-              className="text-blue-600 hover:underline"
+              className="text-primary hover:underline"
             >
               privacy@xenboox.com
             </a>
@@ -416,10 +418,10 @@ export default function PrivacyPage() {
 
         {/* International Transfers */}
         <section id="international-transfers" className="mb-12">
-          <h2 className="text-2xl font-bold text-slate-900 mb-4">
+          <h2 className="text-2xl font-bold text-foreground mb-4">
             8. International Transfers
           </h2>
-          <p className="text-slate-600 leading-relaxed">
+          <p className="text-muted-foreground leading-relaxed">
             Your data may be processed in countries where our infrastructure
             providers operate (primarily the United States and European Union).
             We ensure appropriate safeguards are in place through standard
@@ -430,10 +432,10 @@ export default function PrivacyPage() {
 
         {/* Children's Privacy */}
         <section id="childrens-privacy" className="mb-12">
-          <h2 className="text-2xl font-bold text-slate-900 mb-4">
+          <h2 className="text-2xl font-bold text-foreground mb-4">
             9. Children&apos;s Privacy
           </h2>
-          <p className="text-slate-600 leading-relaxed">
+          <p className="text-muted-foreground leading-relaxed">
             Xenboox is not intended for use by individuals under the age of 18.
             We do not knowingly collect personal data from children. If we
             become aware that we have collected data from a child, we will
@@ -443,10 +445,10 @@ export default function PrivacyPage() {
 
         {/* Changes */}
         <section id="changes" className="mb-12">
-          <h2 className="text-2xl font-bold text-slate-900 mb-4">
+          <h2 className="text-2xl font-bold text-foreground mb-4">
             10. Changes to This Policy
           </h2>
-          <p className="text-slate-600 leading-relaxed">
+          <p className="text-muted-foreground leading-relaxed">
             We may update this policy from time to time. Material changes will
             be notified via email or platform notice at least 30 days before
             they take effect. Continued use of the platform after changes
@@ -456,25 +458,25 @@ export default function PrivacyPage() {
 
         {/* Contact */}
         <section id="contact" className="mb-12">
-          <h2 className="text-2xl font-bold text-slate-900 mb-4">
+          <h2 className="text-2xl font-bold text-foreground mb-4">
             11. Contact Us
           </h2>
-          <p className="text-slate-600 leading-relaxed mb-4">
+          <p className="text-muted-foreground leading-relaxed mb-4">
             For privacy-related inquiries, contact our Data Protection Officer:
           </p>
-          <div className="rounded-xl bg-slate-50 border border-slate-200 p-6">
-            <div className="space-y-2 text-sm text-slate-600">
+          <div className="rounded-xl bg-muted border border-border p-6">
+            <div className="space-y-2 text-sm text-muted-foreground">
               <p>
-                <strong className="text-slate-900">Email:</strong>{" "}
+                <strong className="text-foreground">Email:</strong>{" "}
                 <a
                   href="mailto:privacy@xenboox.com"
-                  className="text-blue-600 hover:underline"
+                  className="text-primary hover:underline"
                 >
                   privacy@xenboox.com
                 </a>
               </p>
               <p>
-                <strong className="text-slate-900">Mail:</strong>
+                <strong className="text-foreground">Mail:</strong>
               </p>
               <p className="pl-4">
                 Xenboox Limited

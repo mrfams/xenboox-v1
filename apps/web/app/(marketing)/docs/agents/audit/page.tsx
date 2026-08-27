@@ -95,7 +95,7 @@ export default function AuditAgentDocPage() {
             <Card>
               <CardHeader>
                 <CardTitle className="text-sm flex items-center gap-2">
-                  <AlertTriangle className="h-4 w-4 text-amber-500" />
+                  <AlertTriangle className="h-4 w-4 text-attention-amber" />
                   Preventive
                 </CardTitle>
               </CardHeader>
@@ -110,7 +110,7 @@ export default function AuditAgentDocPage() {
             <Card>
               <CardHeader>
                 <CardTitle className="text-sm flex items-center gap-2">
-                  <Search className="h-4 w-4 text-blue-500" />
+                  <Search className="h-4 w-4 text-primary" />
                   Detective
                 </CardTitle>
               </CardHeader>
@@ -125,7 +125,7 @@ export default function AuditAgentDocPage() {
             <Card>
               <CardHeader>
                 <CardTitle className="text-sm flex items-center gap-2">
-                  <CheckCircle className="h-4 w-4 text-green-500" />
+                  <CheckCircle className="h-4 w-4 text-balanced-green" />
                   Corrective
                 </CardTitle>
               </CardHeader>
@@ -168,14 +168,14 @@ export default function AuditAgentDocPage() {
                         Real-time
                       </td>
                       <td className="px-4 py-3">
-                        <span className="text-green-600">Auto</span>
+                        <span className="text-balanced-green">Auto</span>
                       </td>
                     </tr>
                     <tr className="border-b">
                       <td className="px-4 py-3">Account Balance Review</td>
                       <td className="px-4 py-3 text-muted-foreground">Daily</td>
                       <td className="px-4 py-3">
-                        <span className="text-green-600">Auto</span>
+                        <span className="text-balanced-green">Auto</span>
                       </td>
                     </tr>
                     <tr className="border-b">
@@ -184,14 +184,14 @@ export default function AuditAgentDocPage() {
                         Weekly
                       </td>
                       <td className="px-4 py-3">
-                        <span className="text-green-600">Auto</span>
+                        <span className="text-balanced-green">Auto</span>
                       </td>
                     </tr>
                     <tr className="border-b">
                       <td className="px-4 py-3">Policy Compliance</td>
                       <td className="px-4 py-3 text-muted-foreground">Daily</td>
                       <td className="px-4 py-3">
-                        <span className="text-green-600">Auto</span>
+                        <span className="text-balanced-green">Auto</span>
                       </td>
                     </tr>
                     <tr className="border-b">
@@ -200,7 +200,7 @@ export default function AuditAgentDocPage() {
                         Weekly
                       </td>
                       <td className="px-4 py-3">
-                        <span className="text-green-600">Auto</span>
+                        <span className="text-balanced-green">Auto</span>
                       </td>
                     </tr>
                     <tr>
@@ -209,7 +209,9 @@ export default function AuditAgentDocPage() {
                         Monthly
                       </td>
                       <td className="px-4 py-3">
-                        <span className="text-amber-600">Auto + Review</span>
+                        <span className="text-attention-amber">
+                          Auto + Review
+                        </span>
                       </td>
                     </tr>
                   </tbody>

@@ -129,10 +129,10 @@ export default function ControllerAgentDocPage() {
                     </td>
                     <td className="px-4 py-3">
                       <span
-                        className={`inline-flex items-center gap-1 text-xs ${item.status === "Verified" ? "text-green-600" : "text-amber-600"}`}
+                        className={`inline-flex items-center gap-1 text-xs ${item.status === "Verified" ? "text-balanced-green" : "text-attention-amber"}`}
                       >
                         <div
-                          className={`h-1.5 w-1.5 rounded-full ${item.status === "Verified" ? "bg-green-500" : "bg-amber-500"}`}
+                          className={`h-1.5 w-1.5 rounded-full ${item.status === "Verified" ? "bg-balanced-green" : "bg-attention-amber"}`}
                         />
                         {item.status}
                       </span>

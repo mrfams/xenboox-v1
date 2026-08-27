@@ -61,7 +61,7 @@ export default function CompareIndexPage() {
                 <Link
                   href={`/compare/${comp.slug}`}
                   aria-label={`Compare Xenboox vs ${comp.slug}`}
-                  className="group block rounded-2xl border border-border bg-card p-6 transition-all duration-300 hover:shadow-xl hover:-translate-y-1"
+                  className="group block rounded-2xl border border-border/60 bg-card p-6 transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] hover:shadow-[0_20px_50px_-20px_rgba(20,33,61,0.15)] hover:-translate-y-1 hover:border-border/40"
                 >
                   <h2 className="text-xl font-bold text-foreground group-hover:text-primary transition-colors">
                     {comp.name}
@@ -76,7 +76,7 @@ export default function CompareIndexPage() {
                         className="flex items-center gap-2 text-sm text-foreground"
                       >
                         <Check
-                          className="h-4 w-4 text-emerald-500 shrink-0"
+                          className="h-4 w-4 text-balanced-green shrink-0"
                           aria-hidden="true"
                         />
                         {h}
@@ -96,14 +96,14 @@ export default function CompareIndexPage() {
             <div className="mt-10 flex flex-wrap items-center justify-center gap-3 text-sm">
               <Link
                 href="/pricing"
-                className="inline-flex h-10 items-center rounded-xl border border-border bg-card px-5 font-medium text-foreground hover:bg-accent/50 transition-colors"
+                className="inline-flex h-10 items-center rounded-full border border-border bg-card px-5 font-medium text-foreground hover:bg-accent/50 transition-colors"
               >
                 View pricing
                 <ArrowRight className="ml-1.5 h-4 w-4" aria-hidden="true" />
               </Link>
               <Link
                 href="/pricing#compare"
-                className="inline-flex h-10 items-center rounded-xl bg-primary px-5 font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+                className="inline-flex h-10 items-center rounded-full bg-primary px-5 font-medium text-primary-foreground hover:bg-primary-hover transition-colors"
               >
                 Quick comparison table
               </Link>

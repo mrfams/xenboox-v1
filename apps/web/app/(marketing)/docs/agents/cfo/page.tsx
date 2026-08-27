@@ -141,21 +141,21 @@ export default function CFOAgentDocPage() {
               </p>
               <ul className="space-y-2 text-sm text-muted-foreground">
                 <li className="flex items-start gap-2">
-                  <div className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-green-500" />
+                  <div className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-balanced-green" />
                   <span>
                     <strong>0.7 - 1.0</strong> — High confidence: Actions
                     executed automatically
                   </span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <div className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500" />
+                  <div className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-attention-amber" />
                   <span>
                     <strong>0.4 - 0.7</strong> — Medium confidence: Escalated to
                     supervisor agent for review
                   </span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <div className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-red-500" />
+                  <div className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-error-clay/50" />
                   <span>
                     <strong>Below 0.4</strong> — Low confidence: Escalated to
                     human user for decision

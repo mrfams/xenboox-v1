@@ -35,11 +35,11 @@ const rows = [
 function Cell({ value }: { value: boolean | string }) {
   if (value === true) {
     return (
-      <Check className="h-4 w-4 text-emerald-500 mx-auto" aria-label="Yes" />
+      <Check className="h-4 w-4 text-balanced-green mx-auto" aria-label="Yes" />
     );
   }
   if (value === false) {
-    return <X className="h-4 w-4 text-red-400 mx-auto" aria-label="No" />;
+    return <X className="h-4 w-4 text-error-clay/60 mx-auto" aria-label="No" />;
   }
   return (
     <span className="text-xs text-muted-foreground" aria-label={value}>
@@ -52,7 +52,7 @@ export function ComparisonTeaser() {
   return (
     <section
       id="compare"
-      className="border-t border-border bg-slate-50/60 dark:bg-slate-900/20 py-12 sm:py-16"
+      className="border-t border-border bg-paper-2/60 py-12 sm:py-16"
       aria-labelledby="compare-heading"
     >
       <div className="mx-auto max-w-5xl px-4 sm:px-6">
@@ -73,7 +73,7 @@ export function ComparisonTeaser() {
 
         <FadeInUp delay={0.1}>
           <div className="mt-8 overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto scrollbar-thin">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border bg-muted/50">

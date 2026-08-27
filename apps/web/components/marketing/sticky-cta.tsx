@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { useState, useEffect } from "react";
-import { X } from "lucide-react";
+import { X, ArrowRight } from "lucide-react";
+
+import { Button } from "@/components/ui";
 
 export function StickyCta() {
   const [visible, setVisible] = useState(false);
@@ -10,11 +12,9 @@ export function StickyCta() {
 
   useEffect(() => {
     const onScroll = () => {
-      // Show after scrolling 400px (past most heroes)
       setVisible(window.scrollY > 400);
     };
 
-    // Check if user dismissed this session
     const wasDismissed = sessionStorage.getItem("sticky-cta-dismissed");
     if (wasDismissed) {
       setDismissed(true);
@@ -39,15 +39,14 @@ export function StickyCta() {
           : "translate-y-full opacity-0 pointer-events-none"
       }`}
     >
-      {/* Backdrop blur bar */}
-      <div className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-lg border-t border-border/50 shadow-[0_-4px_20px_rgba(0,0,0,0.08)]">
+      <div className="bg-background/95 backdrop-blur-lg border-t border-border/50 shadow-[0_-4px_20px_rgba(20,33,61,0.08)]">
         <div className="mx-auto max-w-7xl flex items-center justify-between px-4 sm:px-6 lg:px-8 h-14 sm:h-16 gap-4">
-          {/* Left: message */}
           <div className="flex items-center gap-3 min-w-0">
-            <div className="hidden sm:flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/40 shrink-0">
-              <span className="text-lg" aria-hidden="true">
-                🚀
-              </span>
+            <div className="hidden sm:flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 shrink-0">
+              <span
+                className="h-2 w-2 rounded-full bg-primary animate-pulse"
+                aria-hidden="true"
+              />
             </div>
             <div className="min-w-0">
               <p className="text-sm font-semibold text-foreground truncate">
@@ -59,21 +58,20 @@ export function StickyCta() {
             </div>
           </div>
 
-          {/* Right: CTA + dismiss */}
           <div className="flex items-center gap-2 shrink-0">
-            <Link
-              href="/register"
-              className="inline-flex h-9 items-center rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 px-5 text-sm font-medium text-white shadow-sm transition-all duration-200 hover:shadow-md hover:scale-[1.02] hover:from-blue-700 hover:to-indigo-700"
-            >
-              Sign Up Free
-            </Link>
+            <Button asChild size="sm" className="gap-1.5">
+              <Link href="/onboarding">
+                Start free
+                <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+              </Link>
+            </Button>
             <button
               type="button"
               onClick={dismiss}
               aria-label="Dismiss"
               className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors"
             >
-              <X className="h-4 w-4" />
+              <X className="h-4 w-4" aria-hidden="true" />
             </button>
           </div>
         </div>

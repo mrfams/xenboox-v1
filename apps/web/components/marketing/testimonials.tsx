@@ -97,9 +97,9 @@ export function Testimonials() {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <FadeInUp>
           <SectionHeading
-            eyebrow="Real teams, real books • entity-scoped by default"
-            title="Trusted by teams who closed faster than ever."
-            lead="Real teams, real books — every workflow is audit-trailed and confidence-scored before it posts."
+            eyebrow="Real teams, real results • entity-scoped by default"
+            title="Teams that closed their books in days, not weeks."
+            lead="Real operators in The Gambia — every workflow audit-trailed, every decision confidence-scored before it posts."
           />
         </FadeInUp>
 
@@ -124,7 +124,7 @@ export function Testimonials() {
           </div>
         </FadeInUp>
 
-        <div className="mx-auto mt-10 sm:mt-12 grid max-w-6xl gap-5 sm:gap-6 lg:grid-cols-12">
+        <div className="mx-auto mt-10 sm:mt-12 grid max-w-6xl gap-4 sm:gap-5 lg:gap-6 lg:grid-cols-12">
           {testimonials.map((item, index) => (
             <FadeInUp
               key={item.name}
@@ -132,10 +132,10 @@ export function Testimonials() {
               className={item.featured ? "lg:col-span-7" : "lg:col-span-5"}
             >
               <figure
-                className={`relative flex h-full flex-col overflow-hidden rounded-2xl border p-6 sm:p-7 lg:p-8 transition-all hover:-translate-y-0.5 hover:shadow-[0_16px_40px_-20px_rgba(20,33,61,0.18)] ${
+                className={`relative flex h-full flex-col overflow-hidden rounded-2xl border p-6 sm:p-7 lg:p-8 transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] hover:-translate-y-1 hover:shadow-[0_24px_60px_-24px_rgba(20,33,61,0.2)] ${
                   item.featured
                     ? "border-primary/15 bg-card shadow-[0_8px_30px_-12px_rgba(59,79,224,0.18)]"
-                    : "border-border bg-card/80 backdrop-blur"
+                    : "border-border/60 bg-card/80 backdrop-blur"
                 }`}
               >
                 <div className="flex items-start justify-between gap-3">
@@ -143,13 +143,14 @@ export function Testimonials() {
                     className={`h-8 w-8 shrink-0 ${item.featured ? "text-primary" : "text-primary/30"}`}
                     aria-hidden="true"
                   />
-                  <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/15 bg-emerald-500/10 px-2.5 py-1 text-[10px] font-semibold tracking-wider text-emerald-700">
+                  <span className="inline-flex items-center gap-1 rounded-full border border-balanced-green/15 bg-balanced-green/10 px-2.5 py-1 text-[10px] font-semibold tracking-wider text-balanced-green">
                     <BadgeCheck className="h-3.5 w-3.5" aria-hidden />
                     Verified operator
                   </span>
                 </div>
                 <div
                   className="mt-3 flex gap-0.5"
+                  role="img"
                   aria-label="5 out of 5 stars"
                 >
                   {Array.from({ length: 5 }).map((_, star) => (

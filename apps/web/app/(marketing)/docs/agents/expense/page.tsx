@@ -108,7 +108,9 @@ export default function ExpenseAgentDocPage() {
                         policy signals.
                       </td>
                       <td className="px-4 py-3">
-                        <span className="text-green-600">Auto-validated</span>
+                        <span className="text-balanced-green">
+                          Auto-validated
+                        </span>
                       </td>
                     </tr>
                     <tr className="border-b">
@@ -118,7 +120,9 @@ export default function ExpenseAgentDocPage() {
                         triggered.
                       </td>
                       <td className="px-4 py-3">
-                        <span className="text-amber-600">Policy check</span>
+                        <span className="text-attention-amber">
+                          Policy check
+                        </span>
                       </td>
                     </tr>
                     <tr className="border-b">
@@ -128,7 +132,7 @@ export default function ExpenseAgentDocPage() {
                         timestamp.
                       </td>
                       <td className="px-4 py-3">
-                        <span className="text-blue-600">Human decision</span>
+                        <span className="text-primary">Human decision</span>
                       </td>
                     </tr>
                     <tr>
@@ -138,7 +142,9 @@ export default function ExpenseAgentDocPage() {
                         claim.
                       </td>
                       <td className="px-4 py-3">
-                        <span className="text-green-600">Audit-logged</span>
+                        <span className="text-balanced-green">
+                          Audit-logged
+                        </span>
                       </td>
                     </tr>
                   </tbody>

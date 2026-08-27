@@ -61,7 +61,7 @@ export default function OnePagerPage() {
             <div className="mt-10 grid grid-cols-2 sm:grid-cols-4 gap-6 max-w-2xl mx-auto">
               {stats.map((stat) => (
                 <div key={stat.label} className="text-center">
-                  <div className="text-3xl font-bold text-blue-600">
+                  <div className="text-3xl font-bold text-primary">
                     {stat.value}
                   </div>
                   <div className="text-sm text-muted-foreground mt-1">
@@ -93,7 +93,7 @@ export default function OnePagerPage() {
               <div className="grid gap-4 sm:grid-cols-2">
                 {features.map((feature) => (
                   <div key={feature} className="flex items-start gap-2 text-sm">
-                    <Check className="h-4 w-4 text-emerald-500 mt-0.5 shrink-0" />
+                    <Check className="h-4 w-4 text-balanced-green mt-0.5 shrink-0" />
                     <span className="text-foreground">{feature}</span>
                   </div>
                 ))}
@@ -104,7 +104,7 @@ export default function OnePagerPage() {
       </section>
 
       {/* Who it's for */}
-      <section className="py-16 bg-slate-50 dark:bg-slate-900/50">
+      <section className="py-16 bg-paper-2/60">
         <div className="mx-auto max-w-4xl px-4">
           <FadeInUp>
             <h2 className="text-2xl font-bold text-foreground mb-8 text-center">
@@ -131,8 +131,8 @@ export default function OnePagerPage() {
             ].map((item, i) => (
               <FadeInUp key={item.title} delay={i * 0.05}>
                 <div className="rounded-2xl border border-border bg-card p-6 text-center">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-100 dark:bg-blue-90/40 mx-auto mb-4">
-                    <item.icon className="h-5 w-5 text-blue-600" />
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 dark:bg-blue-90/40 mx-auto mb-4">
+                    <item.icon className="h-5 w-5 text-primary" />
                   </div>
                   <h3 className="font-semibold text-foreground">
                     {item.title}
@@ -205,7 +205,7 @@ export default function OnePagerPage() {
             <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
               <Link
                 href="/register"
-                className="inline-flex h-12 items-center rounded-xl bg-blue-600 px-8 text-sm font-medium text-white shadow-lg shadow-blue-600/25 transition-all duration-300 hover:shadow-blue-600/40 hover:scale-105"
+                className="inline-flex h-12 items-center rounded-full bg-primary px-8 text-sm font-medium text-primary-foreground shadow-lg shadow-primary/25 transition-all duration-300 hover:shadow-primary/40 hover:scale-[1.02] active:scale-[0.98]"
               >
                 Start Free Trial
                 <ArrowRight className="ml-2 h-4 w-4" />
@@ -220,7 +220,7 @@ export default function OnePagerPage() {
                 type="button"
                 aria-label="Download one-pager"
                 onClick={() => window.print()}
-                className="inline-flex h-12 items-center rounded-xl border border-border bg-card px-8 text-sm font-medium text-foreground hover:bg-accent/50 transition-colors"
+                className="inline-flex h-12 items-center rounded-full border border-border bg-card px-8 text-sm font-medium text-foreground hover:bg-accent/50 transition-colors"
               >
                 <Download className="mr-2 h-4 w-4" aria-hidden="true" />
                 Download one-pager

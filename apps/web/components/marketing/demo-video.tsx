@@ -6,7 +6,8 @@ import { Play, X, Clock, ShieldCheck, Bot } from "lucide-react";
 import { VideoObjectJsonLd } from "@/components/marketing/json-ld";
 import { FadeInUp } from "@/components/marketing/reveal";
 
-const YOUTUBE_EMBED = "https://www.youtube.com/embed/dQw4w9WgXcQ";
+const YOUTUBE_EMBED =
+  "https://www.youtube.com/embed/REPLACE_WITH_YOUR_VIDEO_ID";
 const POSTER_GRADIENT =
   "radial-gradient(ellipse 80% 60% at 50% 0%, rgba(59,79,224,0.18), transparent 60%), linear-gradient(180deg, rgba(20,33,61,0.08), rgba(20,33,61,0.02))";
 
@@ -105,9 +106,9 @@ export function DemoVideo() {
                         aria-hidden="true"
                       />
                       CFO Briefing — live
-                      <span className="ml-auto inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
+                      <span className="ml-auto inline-flex items-center gap-1.5 rounded-full bg-balanced-green/10 px-2 py-0.5 text-[10px] font-semibold text-balanced-green">
                         <span
-                          className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500"
+                          className="h-1.5 w-1.5 animate-pulse rounded-full bg-balanced-green"
                           aria-hidden="true"
                         />
                         19 agents
@@ -118,7 +119,7 @@ export function DemoVideo() {
                         <span className="font-medium text-foreground">
                           Invoice #INV-1042 posted
                         </span>
-                        <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-700">
+                        <span className="rounded-full bg-balanced-green/10 px-2 py-0.5 text-xs font-medium text-balanced-green">
                           Posted
                         </span>
                       </div>
@@ -126,22 +127,22 @@ export function DemoVideo() {
                         <span className="font-medium text-foreground">
                           July payroll — 34 staff
                         </span>
-                        <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-700">
+                        <span className="rounded-full bg-balanced-green/10 px-2 py-0.5 text-xs font-medium text-balanced-green">
                           Completed
                         </span>
                       </div>
-                      <div className="flex items-center justify-between rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm dark:border-amber-800 dark:bg-amber-900/20">
+                      <div className="flex items-center justify-between rounded-lg border border-attention-amber/20 bg-attention-amber/5 px-3 py-2.5 text-sm">
                         <span className="font-medium text-foreground">
                           VAT return — needs review
                         </span>
-                        <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-medium text-amber-700">
+                        <span className="rounded-full bg-attention-amber/15 px-2 py-0.5 text-xs font-medium text-attention-amber">
                           Needs approval
                         </span>
                       </div>
                     </div>
                     <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
                       <ShieldCheck
-                        className="h-3.5 w-3.5 text-emerald-500"
+                        className="h-3.5 w-3.5 text-balanced-green"
                         aria-hidden="true"
                       />
                       Every decision is confidence-scored. You approve what
@@ -151,7 +152,7 @@ export function DemoVideo() {
                 </div>
 
                 {/* Play button */}
-                <span className="pointer-events-none absolute left-1/2 top-1/2 flex h-16 w-16 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-xl shadow-primary/25 ring-1 ring-primary/20 transition-transform duration-300 group-hover:scale-105 sm:h-20 sm:w-20">
+                <span className="pointer-events-none absolute left-1/2 top-1/2 flex h-16 w-16 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-xl shadow-primary/25 ring-1 ring-primary/20 transition-transform duration-300 group-hover:scale-[1.02] active:scale-[0.98] sm:h-20 sm:w-20">
                   <Play
                     className="h-7 w-7 translate-x-0.5 sm:h-8 sm:w-8"
                     aria-hidden="true"
@@ -168,7 +169,7 @@ export function DemoVideo() {
               <div className="mt-4 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-muted-foreground">
                 <span className="inline-flex items-center gap-1.5">
                   <span
-                    className="h-1.5 w-1.5 rounded-full bg-emerald-500"
+                    className="h-1.5 w-1.5 rounded-full bg-balanced-green"
                     aria-hidden="true"
                   />
                   No signup to watch

@@ -45,8 +45,8 @@ export function RoiCalculator() {
   return (
     <div className="rounded-2xl border border-border bg-card p-6 sm:p-8 shadow-lg">
       <div className="flex items-center gap-3 mb-6">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-100 dark:bg-blue-900/40">
-          <Calculator className="h-5 w-5 text-blue-600" />
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
+          <Calculator className="h-5 w-5 text-primary" />
         </div>
         <div>
           <h3 className="text-lg font-semibold text-foreground">
@@ -73,7 +73,7 @@ export function RoiCalculator() {
             onChange={(e) =>
               setInputs({ ...inputs, employees: Number(e.target.value) })
             }
-            className="w-full h-2 bg-slate-200 dark:bg-slate-700 rounded-full appearance-none cursor-pointer accent-blue-600"
+            className="w-full h-2 bg-border rounded-full appearance-none cursor-pointer accent-primary"
           />
           <div className="flex justify-between mt-1 text-xs text-muted-foreground">
             <span>1</span>
@@ -99,7 +99,7 @@ export function RoiCalculator() {
                 }
                 className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${
                   inputs.bookkeeperSalary === preset.salary
-                    ? "border-blue-500 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
+                    ? "border-primary bg-primary/5 text-primary"
                     : "border-border text-muted-foreground hover:border-foreground/30"
                 }`}
               >
@@ -118,7 +118,7 @@ export function RoiCalculator() {
                   bookkeeperSalary: Number(e.target.value),
                 })
               }
-              className="w-full h-9 rounded-lg border border-border bg-background px-3 text-sm text-foreground focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none"
+              className="w-full h-9 rounded-lg border border-border bg-background px-3 text-sm text-foreground focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none"
             />
           </div>
         </div>
@@ -139,7 +139,7 @@ export function RoiCalculator() {
                 hoursPerWeekManual: Number(e.target.value),
               })
             }
-            className="w-full h-2 bg-slate-200 dark:bg-slate-700 rounded-full appearance-none cursor-pointer accent-blue-600"
+            className="w-full h-2 bg-border rounded-full appearance-none cursor-pointer accent-primary"
           />
           <div className="flex justify-between mt-1 text-xs text-muted-foreground">
             <span>5h</span>
@@ -153,25 +153,25 @@ export function RoiCalculator() {
 
       {/* Results */}
       <div className="mt-8 grid grid-cols-3 gap-3">
-        <div className="rounded-xl bg-blue-50 dark:bg-blue-900/20 p-4 text-center">
-          <Clock className="h-5 w-5 text-blue-600 mx-auto mb-2" />
-          <p className="text-2xl font-bold text-blue-600">
+        <div className="rounded-xl bg-primary/5 p-4 text-center">
+          <Clock className="h-5 w-5 text-primary mx-auto mb-2" />
+          <p className="text-2xl font-bold text-primary">
             {Math.round(hoursSavedPerYear / inputs.employees)}
           </p>
           <p className="text-xs text-muted-foreground mt-1">
             hours saved/person/yr
           </p>
         </div>
-        <div className="rounded-xl bg-emerald-50 dark:bg-emerald-900/20 p-4 text-center">
-          <DollarSign className="h-5 w-5 text-emerald-600 mx-auto mb-2" />
-          <p className="text-2xl font-bold text-emerald-600">
+        <div className="rounded-xl bg-balanced-green/5 p-4 text-center">
+          <DollarSign className="h-5 w-5 text-balanced-green mx-auto mb-2" />
+          <p className="text-2xl font-bold text-balanced-green">
             ${Math.round(monthlySavings).toLocaleString()}
           </p>
           <p className="text-xs text-muted-foreground mt-1">saved per month</p>
         </div>
-        <div className="rounded-xl bg-violet-50 dark:bg-violet-900/20 p-4 text-center">
-          <TrendingUp className="h-5 w-5 text-violet-600 mx-auto mb-2" />
-          <p className="text-2xl font-bold text-violet-600">
+        <div className="rounded-xl bg-signal-indigo/5 p-4 text-center">
+          <TrendingUp className="h-5 w-5 text-signal-indigo mx-auto mb-2" />
+          <p className="text-2xl font-bold text-signal-indigo">
             {starterRoi > 0 ? `${Math.round(starterRoi)}%` : "N/A"}
           </p>
           <p className="text-xs text-muted-foreground mt-1">
@@ -182,8 +182,8 @@ export function RoiCalculator() {
 
       {/* Payback */}
       {monthsToRoi > 0 && monthsToRoi <= 12 && (
-        <div className="mt-4 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 px-4 py-3 text-center">
-          <p className="text-sm text-amber-800 dark:text-amber-200">
+        <div className="mt-4 rounded-lg bg-attention-amber/5 border border-attention-amber/20 px-4 py-3 text-center">
+          <p className="text-sm text-attention-amber">
             <span className="font-semibold">{`Payback in ${monthsToRoi} month${monthsToRoi > 1 ? "s" : ""}`}</span>{" "}
             — saves{" "}
             <span className="font-semibold">

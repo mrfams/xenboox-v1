@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Careers",
-  description: "Join the Xenboox team and help build the future of accounting.",
+  title: "Careers at Xenboox — Build AI-Native Accounting | Open Roles",
+  description:
+    "Join the Xenboox team building AI-native accounting. Engineering, product, design, and customer success roles available.",
 };
 
 export default function CareersLayout({

@@ -117,7 +117,7 @@ export default function ForAccountantsPage() {
             <h1 className="mt-6 text-4xl sm:text-5xl font-bold tracking-tight text-foreground">
               Stop doing busywork.
               <br />
-              <span className="text-blue-600">Start advising.</span>
+              <span className="text-primary">Start advising.</span>
             </h1>
             <p className="mt-4 text-lg text-muted-foreground max-w-2xl mx-auto">
               Xenboox gives your firm 19 AI agents that handle bookkeeping,
@@ -129,7 +129,7 @@ export default function ForAccountantsPage() {
             <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
               <Link
                 href="/register"
-                className="inline-flex h-12 items-center rounded-xl bg-blue-600 px-8 text-sm font-medium text-white shadow-lg shadow-blue-600/25 transition-all duration-300 hover:shadow-blue-600/40 hover:scale-105"
+                className="inline-flex h-12 items-center rounded-full bg-primary px-8 text-sm font-medium text-primary-foreground shadow-lg shadow-primary/25 transition-all duration-300 hover:shadow-primary/40 hover:scale-[1.02] active:scale-[0.98]"
               >
                 Start Free Trial
                 <ArrowRight className="ml-2 h-4 w-4" />
@@ -164,8 +164,8 @@ export default function ForAccountantsPage() {
             {benefits.map((item, i) => (
               <FadeInUp key={item.title} delay={i * 0.05}>
                 <div className="rounded-2xl border border-border bg-card p-6 h-full">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-100 dark:bg-blue-900/40 mb-4">
-                    <item.icon className="h-5 w-5 text-blue-600" />
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10  mb-4">
+                    <item.icon className="h-5 w-5 text-primary" />
                   </div>
                   <h3 className="font-semibold text-foreground">
                     {item.title}
@@ -181,7 +181,7 @@ export default function ForAccountantsPage() {
       </section>
 
       {/* Comparison Table */}
-      <section className="py-16 bg-slate-50 dark:bg-slate-900/50">
+      <section className="py-16 bg-muted ">
         <div className="mx-auto max-w-4xl px-4">
           <FadeInUp>
             <h2 className="text-2xl font-bold text-foreground mb-2 text-center">
@@ -199,7 +199,7 @@ export default function ForAccountantsPage() {
                     <th className="text-left px-4 py-3 font-semibold text-foreground">
                       Feature
                     </th>
-                    <th className="text-center px-4 py-3 font-semibold text-blue-600">
+                    <th className="text-center px-4 py-3 font-semibold text-primary">
                       Xenboox
                     </th>
                     <th className="text-center px-4 py-3 font-semibold text-muted-foreground">
@@ -221,7 +221,7 @@ export default function ForAccountantsPage() {
                       </td>
                       <td className="px-4 py-2.5 text-center">
                         {row.xenboox === true ? (
-                          <Check className="h-4 w-4 text-emerald-500 mx-auto" />
+                          <Check className="h-4 w-4 text-balanced-green mx-auto" />
                         ) : (
                           <span className="text-muted-foreground">
                             {row.xenboox}
@@ -230,9 +230,9 @@ export default function ForAccountantsPage() {
                       </td>
                       <td className="px-4 py-2.5 text-center">
                         {row.quickbooks === true ? (
-                          <Check className="h-4 w-4 text-emerald-500 mx-auto" />
+                          <Check className="h-4 w-4 text-balanced-green mx-auto" />
                         ) : row.quickbooks === false ? (
-                          <span className="text-red-400">—</span>
+                          <span className="text-error-clay/60">—</span>
                         ) : (
                           <span className="text-xs text-muted-foreground">
                             {row.quickbooks}
@@ -241,9 +241,9 @@ export default function ForAccountantsPage() {
                       </td>
                       <td className="px-4 py-2.5 text-center">
                         {row.xero === true ? (
-                          <Check className="h-4 w-4 text-emerald-500 mx-auto" />
+                          <Check className="h-4 w-4 text-balanced-green mx-auto" />
                         ) : row.xero === false ? (
-                          <span className="text-red-400">—</span>
+                          <span className="text-error-clay/60">—</span>
                         ) : (
                           <span className="text-xs text-muted-foreground">
                             {row.xero}
@@ -294,7 +294,7 @@ export default function ForAccountantsPage() {
             <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
               <Link
                 href="/register"
-                className="inline-flex h-12 items-center rounded-xl bg-blue-600 px-8 text-sm font-medium text-white shadow-lg shadow-blue-600/25 transition-all duration-300 hover:shadow-blue-600/40 hover:scale-105"
+                className="inline-flex h-12 items-center rounded-full bg-primary px-8 text-sm font-medium text-primary-foreground shadow-lg shadow-primary/25 transition-all duration-300 hover:shadow-primary/40 hover:scale-[1.02] active:scale-[0.98]"
               >
                 Start Free Trial
                 <ArrowRight className="ml-2 h-4 w-4" />

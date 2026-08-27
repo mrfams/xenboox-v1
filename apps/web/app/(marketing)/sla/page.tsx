@@ -85,8 +85,8 @@ export default function SLAPage() {
             {commitments.map((item, i) => (
               <FadeInUp key={item.label} delay={i * 0.05}>
                 <div className="rounded-2xl border border-border bg-card p-6">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-100 dark:bg-blue-900/40 mb-4">
-                    <item.icon className="h-5 w-5 text-blue-600" />
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 dark:bg-blue-900/40 mb-4">
+                    <item.icon className="h-5 w-5 text-primary" />
                   </div>
                   <div className="text-3xl font-bold text-foreground mb-1">
                     {item.metric}
@@ -103,7 +103,7 @@ export default function SLAPage() {
       </section>
 
       {/* Service Credits */}
-      <section className="py-16 bg-slate-50 dark:bg-slate-900/50">
+      <section className="py-16 bg-paper-2/60">
         <div className="mx-auto max-w-3xl px-4">
           <FadeInUp>
             <h2 className="text-2xl font-bold text-foreground mb-2 text-center">
@@ -183,7 +183,7 @@ export default function SLAPage() {
             <div className="mt-8">
               <Link
                 href="/docs/getting-started"
-                className="inline-flex h-12 items-center rounded-xl bg-blue-600 px-8 text-sm font-medium text-white shadow-lg shadow-blue-600/25 transition-all duration-300 hover:shadow-blue-600/40 hover:scale-105"
+                className="inline-flex h-12 items-center rounded-full bg-primary px-8 text-sm font-medium text-primary-foreground shadow-lg shadow-primary/25 transition-all duration-300 hover:shadow-primary/40 hover:scale-[1.02] active:scale-[0.98]"
               >
                 Contact Sales
                 <ArrowRight className="ml-2 h-4 w-4" />

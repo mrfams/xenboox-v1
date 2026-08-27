@@ -94,7 +94,7 @@ export default function CashAgentDocPage() {
             <Card>
               <CardHeader>
                 <CardTitle className="text-sm flex items-center gap-2">
-                  <DollarSign className="h-4 w-4 text-green-500" />
+                  <DollarSign className="h-4 w-4 text-balanced-green" />
                   Establish
                 </CardTitle>
               </CardHeader>
@@ -108,7 +108,7 @@ export default function CashAgentDocPage() {
             <Card>
               <CardHeader>
                 <CardTitle className="text-sm flex items-center gap-2">
-                  <RefreshCw className="h-4 w-4 text-blue-500" />
+                  <RefreshCw className="h-4 w-4 text-primary" />
                   Operate
                 </CardTitle>
               </CardHeader>
@@ -122,7 +122,7 @@ export default function CashAgentDocPage() {
             <Card>
               <CardHeader>
                 <CardTitle className="text-sm flex items-center gap-2">
-                  <Wallet className="h-4 w-4 text-amber-500" />
+                  <Wallet className="h-4 w-4 text-attention-amber" />
                   Replenish
                 </CardTitle>
               </CardHeader>
@@ -136,7 +136,7 @@ export default function CashAgentDocPage() {
             <Card>
               <CardHeader>
                 <CardTitle className="text-sm flex items-center gap-2">
-                  <FileText className="h-4 w-4 text-slate-500" />
+                  <FileText className="h-4 w-4 text-paper-2/600" />
                   Close
                 </CardTitle>
               </CardHeader>

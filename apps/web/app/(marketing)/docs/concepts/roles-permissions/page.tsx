@@ -219,7 +219,7 @@ export default function RolesPermissionsPage() {
                     {perms.map((has, i) => (
                       <td key={i} className="py-2 text-center">
                         {has ? (
-                          <span className="text-green-600 dark:text-green-400">
+                          <span className="text-balanced-green dark:text-balanced-green">
                             ✓
                           </span>
                         ) : (

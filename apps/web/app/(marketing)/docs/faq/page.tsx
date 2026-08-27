@@ -98,7 +98,7 @@ const faqCategories = [
     questions: [
       {
         q: "What accounting modules are available?",
-        a: "Xenboox includes all core accounting modules: Accounts Payable, Accounts Receivable, Payroll, Treasury, Cash Management, Inventory, Fixed Assets, Chart of Accounts, Journal Entries, Financial Reports, and more. All modules work together seamlessly.",
+        a: "Xenboox includes all core accounting modules: Accounts Payable, Accounts Receivable, Payroll, Treasury, Cash Management, Inventory, Fixed Assets, Chart of Accounts, Journal Entries, Financial Reports, and more. All modules work together.",
       },
       {
         q: "Does Xenboox support multi-currency?",

@@ -60,7 +60,7 @@ export default function AiAutomationPage() {
             </div>
             <div className="rounded-lg border border-border p-4">
               <div className="flex items-center gap-3">
-                <span className="inline-flex items-center rounded-full bg-blue-500/10 px-2.5 py-0.5 text-xs font-medium text-blue-600 dark:text-blue-400">
+                <span className="inline-flex items-center rounded-full bg-primary/50/10 px-2.5 py-0.5 text-xs font-medium text-primary ">
                   Tier 2
                 </span>
                 <h4 className="text-sm font-medium text-foreground">
@@ -76,7 +76,7 @@ export default function AiAutomationPage() {
             </div>
             <div className="rounded-lg border border-border p-4">
               <div className="flex items-center gap-3">
-                <span className="inline-flex items-center rounded-full bg-green-500/10 px-2.5 py-0.5 text-xs font-medium text-green-600 dark:text-green-400">
+                <span className="inline-flex items-center rounded-full bg-balanced-green/10 px-2.5 py-0.5 text-xs font-medium text-balanced-green dark:text-balanced-green">
                   Tier 3
                 </span>
                 <h4 className="text-sm font-medium text-foreground">
@@ -93,7 +93,7 @@ export default function AiAutomationPage() {
             </div>
             <div className="rounded-lg border border-border p-4">
               <div className="flex items-center gap-3">
-                <span className="inline-flex items-center rounded-full bg-purple-500/10 px-2.5 py-0.5 text-xs font-medium text-purple-600 dark:text-purple-400">
+                <span className="inline-flex items-center rounded-full bg-signal-indigo/10 px-2.5 py-0.5 text-xs font-medium text-signal-indigo dark:text-signal-indigo">
                   Platform
                 </span>
                 <h4 className="text-sm font-medium text-foreground">

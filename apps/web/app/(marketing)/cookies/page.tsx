@@ -33,15 +33,15 @@ export default function CookiesPage() {
       <LegalContent tableOfContents={tableOfContents}>
         {/* What Are Cookies */}
         <section id="what-are" className="mb-12">
-          <h2 className="text-2xl font-bold text-slate-900 mb-4">
+          <h2 className="text-2xl font-bold text-foreground mb-4">
             1. What Are Cookies
           </h2>
-          <p className="text-slate-600 leading-relaxed mb-4">
+          <p className="text-muted-foreground leading-relaxed mb-4">
             Cookies are small text files stored on your device by your web
             browser. They help websites function properly, remember preferences,
             and understand how users interact with the platform.
           </p>
-          <p className="text-slate-600 leading-relaxed">
+          <p className="text-muted-foreground leading-relaxed">
             We also use similar technologies like local storage and session
             storage to maintain your authentication state and user preferences.
           </p>
@@ -49,10 +49,10 @@ export default function CookiesPage() {
 
         {/* How We Use */}
         <section id="how-we-use" className="mb-12">
-          <h2 className="text-2xl font-bold text-slate-900 mb-4">
+          <h2 className="text-2xl font-bold text-foreground mb-4">
             2. How We Use Cookies
           </h2>
-          <p className="text-slate-600 leading-relaxed mb-4">
+          <p className="text-muted-foreground leading-relaxed mb-4">
             Xenboox uses cookies strictly for essential platform operations. We
             do not use cookies for advertising or cross-site tracking.
           </p>
@@ -76,15 +76,17 @@ export default function CookiesPage() {
             ].map((item) => (
               <div
                 key={item.title}
-                className="rounded-xl border border-slate-200 p-4"
+                className="rounded-xl border border-border p-4"
               >
                 <div
                   className={`inline-flex h-8 w-8 items-center justify-center rounded-lg bg-${item.color}-100 text-${item.color}-600 mb-2`}
                 >
                   {item.title.charAt(0)}
                 </div>
-                <h4 className="font-medium text-slate-900">{item.title}</h4>
-                <p className="text-sm text-slate-600 mt-1">{item.desc}</p>
+                <h4 className="font-medium text-foreground">{item.title}</h4>
+                <p className="text-sm text-muted-foreground mt-1">
+                  {item.desc}
+                </p>
               </div>
             ))}
           </div>
@@ -92,75 +94,75 @@ export default function CookiesPage() {
 
         {/* Essential Cookies */}
         <section id="essential" className="mb-12">
-          <h2 className="text-2xl font-bold text-slate-900 mb-4">
+          <h2 className="text-2xl font-bold text-foreground mb-4">
             3. Essential Cookies
           </h2>
-          <p className="text-slate-600 leading-relaxed mb-4">
+          <p className="text-muted-foreground leading-relaxed mb-4">
             These cookies are necessary for the platform to function. They
             cannot be disabled.
           </p>
-          <div className="rounded-xl border border-slate-200 overflow-hidden">
+          <div className="rounded-xl border border-border overflow-hidden">
             <table className="w-full text-sm">
               <thead>
-                <tr className="bg-slate-50 border-b border-slate-200">
-                  <th className="text-left px-4 py-3 font-medium text-slate-900">
+                <tr className="bg-muted border-b border-border">
+                  <th className="text-left px-4 py-3 font-medium text-foreground">
                     Cookie
                   </th>
-                  <th className="text-left px-4 py-3 font-medium text-slate-900">
+                  <th className="text-left px-4 py-3 font-medium text-foreground">
                     Purpose
                   </th>
-                  <th className="text-left px-4 py-3 font-medium text-slate-900">
+                  <th className="text-left px-4 py-3 font-medium text-foreground">
                     Duration
                   </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 <tr>
-                  <td className="px-4 py-3 font-mono text-xs text-slate-600">
+                  <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
                     next-auth.session-token
                   </td>
-                  <td className="px-4 py-3 text-slate-600">
+                  <td className="px-4 py-3 text-muted-foreground">
                     Authentication session management
                   </td>
-                  <td className="px-4 py-3 text-slate-600">
+                  <td className="px-4 py-3 text-muted-foreground">
                     Session / 30 days
                   </td>
                 </tr>
                 <tr>
-                  <td className="px-4 py-3 font-mono text-xs text-slate-600">
+                  <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
                     __Secure-next-auth.callback-url
                   </td>
-                  <td className="px-4 py-3 text-slate-600">
+                  <td className="px-4 py-3 text-muted-foreground">
                     OAuth callback routing
                   </td>
-                  <td className="px-4 py-3 text-slate-600">Session</td>
+                  <td className="px-4 py-3 text-muted-foreground">Session</td>
                 </tr>
                 <tr>
-                  <td className="px-4 py-3 font-mono text-xs text-slate-600">
+                  <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
                     csrf-token
                   </td>
-                  <td className="px-4 py-3 text-slate-600">
+                  <td className="px-4 py-3 text-muted-foreground">
                     Cross-site request forgery protection
                   </td>
-                  <td className="px-4 py-3 text-slate-600">Session</td>
+                  <td className="px-4 py-3 text-muted-foreground">Session</td>
                 </tr>
                 <tr>
-                  <td className="px-4 py-3 font-mono text-xs text-slate-600">
+                  <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
                     next-auth.csrf-token
                   </td>
-                  <td className="px-4 py-3 text-slate-600">
+                  <td className="px-4 py-3 text-muted-foreground">
                     CSRF token for form submissions
                   </td>
-                  <td className="px-4 py-3 text-slate-600">Session</td>
+                  <td className="px-4 py-3 text-muted-foreground">Session</td>
                 </tr>
                 <tr>
-                  <td className="px-4 py-3 font-mono text-xs text-slate-600">
+                  <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
                     theme-preference
                   </td>
-                  <td className="px-4 py-3 text-slate-600">
+                  <td className="px-4 py-3 text-muted-foreground">
                     Remember dark/light mode preference
                   </td>
-                  <td className="px-4 py-3 text-slate-600">1 year</td>
+                  <td className="px-4 py-3 text-muted-foreground">1 year</td>
                 </tr>
               </tbody>
             </table>
@@ -169,17 +171,17 @@ export default function CookiesPage() {
 
         {/* Analytics Cookies */}
         <section id="analytics" className="mb-12">
-          <h2 className="text-2xl font-bold text-slate-900 mb-4">
+          <h2 className="text-2xl font-bold text-foreground mb-4">
             4. Analytics Cookies
           </h2>
-          <div className="rounded-xl bg-blue-50 border border-blue-100 p-4 mb-4">
+          <div className="rounded-xl bg-primary/5 border border-primary/10 p-4 mb-4">
             <p className="text-sm text-blue-800">
               <strong>Note:</strong> We currently do not use analytics cookies.
               If we add analytics in the future, we will update this policy and
               request your consent before enabling them.
             </p>
           </div>
-          <p className="text-slate-600 leading-relaxed">
+          <p className="text-muted-foreground leading-relaxed">
             Analytics cookies help us understand how users interact with the
             platform, which features are most used, and where we can improve.
             These cookies are optional and only set with your explicit consent.
@@ -188,25 +190,25 @@ export default function CookiesPage() {
 
         {/* Third-Party */}
         <section id="third-party" className="mb-12">
-          <h2 className="text-2xl font-bold text-slate-900 mb-4">
+          <h2 className="text-2xl font-bold text-foreground mb-4">
             5. Third-Party Cookies
           </h2>
-          <p className="text-slate-600 leading-relaxed mb-4">
+          <p className="text-muted-foreground leading-relaxed mb-4">
             We do not use third-party advertising or tracking cookies. Our
             infrastructure providers may set essential cookies for
             functionality:
           </p>
-          <div className="rounded-xl border border-slate-200 divide-y divide-slate-100">
+          <div className="rounded-xl border border-border divide-y divide-slate-100">
             <div className="p-4">
-              <h4 className="font-medium text-slate-900">Vercel</h4>
-              <p className="text-sm text-slate-600">
+              <h4 className="font-medium text-foreground">Vercel</h4>
+              <p className="text-sm text-muted-foreground">
                 CDN and hosting — sets cookies for load balancing and edge
                 caching
               </p>
             </div>
             <div className="p-4">
-              <h4 className="font-medium text-slate-900">Stripe</h4>
-              <p className="text-sm text-slate-600">
+              <h4 className="font-medium text-foreground">Stripe</h4>
+              <p className="text-sm text-muted-foreground">
                 Payment processing — sets cookies during checkout for fraud
                 prevention
               </p>
@@ -216,33 +218,33 @@ export default function CookiesPage() {
 
         {/* Managing */}
         <section id="managing" className="mb-12">
-          <h2 className="text-2xl font-bold text-slate-900 mb-4">
+          <h2 className="text-2xl font-bold text-foreground mb-4">
             6. Managing Cookies
           </h2>
-          <p className="text-slate-600 leading-relaxed mb-4">
+          <p className="text-muted-foreground leading-relaxed mb-4">
             Most browsers allow you to control cookies through settings. You
             can:
           </p>
-          <div className="space-y-2 text-slate-600">
+          <div className="space-y-2 text-muted-foreground">
             <div className="flex items-start gap-2">
-              <span className="text-slate-400 mt-1">•</span>
+              <span className="text-muted-foreground/60 mt-1">•</span>
               View what cookies are set
             </div>
             <div className="flex items-start gap-2">
-              <span className="text-slate-400 mt-1">•</span>
+              <span className="text-muted-foreground/60 mt-1">•</span>
               Block cookies from specific sites
             </div>
             <div className="flex items-start gap-2">
-              <span className="text-slate-400 mt-1">•</span>
+              <span className="text-muted-foreground/60 mt-1">•</span>
               Delete cookies individually or in bulk
             </div>
             <div className="flex items-start gap-2">
-              <span className="text-slate-400 mt-1">•</span>
+              <span className="text-muted-foreground/60 mt-1">•</span>
               Set your browser to block all cookies
             </div>
           </div>
-          <div className="rounded-xl bg-amber-50 border border-amber-100 p-4 mt-4">
-            <p className="text-sm text-amber-800">
+          <div className="rounded-xl bg-attention-amber/5 border border-attention-amber/10 p-4 mt-4">
+            <p className="text-sm text-attention-amber">
               <strong>Warning:</strong> Disabling essential cookies will prevent
               Xenboox from functioning properly — authentication, session
               management, and security features all require cookies.
@@ -252,10 +254,10 @@ export default function CookiesPage() {
 
         {/* Changes */}
         <section id="changes" className="mb-12">
-          <h2 className="text-2xl font-bold text-slate-900 mb-4">
+          <h2 className="text-2xl font-bold text-foreground mb-4">
             7. Changes to This Policy
           </h2>
-          <p className="text-slate-600 leading-relaxed">
+          <p className="text-muted-foreground leading-relaxed">
             We may update this policy as our platform evolves. Material changes
             will be communicated via email or platform notification. We will
             request your consent before enabling any new non-essential cookies.
@@ -264,14 +266,14 @@ export default function CookiesPage() {
 
         {/* Contact */}
         <section id="contact" className="mb-12">
-          <h2 className="text-2xl font-bold text-slate-900 mb-4">
+          <h2 className="text-2xl font-bold text-foreground mb-4">
             8. Contact Us
           </h2>
-          <p className="text-slate-600 leading-relaxed">
+          <p className="text-muted-foreground leading-relaxed">
             For questions about our cookie usage, please contact{" "}
             <a
               href="mailto:privacy@xenboox.com"
-              className="text-blue-600 hover:underline"
+              className="text-primary hover:underline"
             >
               privacy@xenboox.com
             </a>

@@ -96,8 +96,8 @@ export default function CaseStudiesPage() {
               Real teams. Real results.
             </h1>
             <p className="mt-4 text-lg text-muted-foreground max-w-2xl mx-auto">
-              See how businesses in The Gambia are using Xenboox to close
-              faster, recover overdue invoices, and automate payroll.
+              How businesses in The Gambia close their books in days, recover
+              overdue invoices, and automate payroll — with AI agents.
             </p>
           </FadeInUp>
         </div>
@@ -108,10 +108,10 @@ export default function CaseStudiesPage() {
         <div className="mx-auto max-w-5xl px-4 space-y-12">
           {caseStudies.map((study, i) => (
             <FadeInUp key={study.company} delay={i * 0.1}>
-              <div className="rounded-2xl border border-border bg-card overflow-hidden">
+              <div className="rounded-2xl border border-border/60 bg-card overflow-hidden transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] hover:shadow-[0_20px_50px_-20px_rgba(20,33,61,0.15)] hover:border-border/40">
                 {/* Header */}
                 <div className="flex items-center gap-4 border-b border-border/50 bg-muted/20 px-6 py-4">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-100 dark:bg-blue-900/40 text-sm font-bold text-blue-600">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-sm font-bold text-primary">
                     {study.logo}
                   </div>
                   <div>
@@ -123,7 +123,7 @@ export default function CaseStudiesPage() {
                     </p>
                   </div>
                   <div className="ml-auto text-right">
-                    <div className="text-2xl font-bold text-blue-600">
+                    <div className="text-2xl font-bold text-primary">
                       {study.metric}
                     </div>
                     <div className="text-xs text-muted-foreground">
@@ -150,7 +150,7 @@ export default function CaseStudiesPage() {
                         key={h}
                         className="flex items-start gap-2 text-sm text-muted-foreground"
                       >
-                        <TrendingUp className="h-4 w-4 text-emerald-500 mt-0.5 shrink-0" />
+                        <TrendingUp className="h-4 w-4 text-balanced-green mt-0.5 shrink-0" />
                         {h}
                       </li>
                     ))}
@@ -163,7 +163,7 @@ export default function CaseStudiesPage() {
       </section>
 
       {/* CTA */}
-      <section className="py-16 bg-gradient-to-b from-blue-50 to-white dark:from-blue-950/20 dark:to-background">
+      <section className="py-16 bg-gradient-to-b from-primary/5 to-background">
         <div className="mx-auto max-w-2xl px-4 text-center">
           <FadeInUp>
             <h2 className="text-3xl font-bold text-foreground">
@@ -175,7 +175,7 @@ export default function CaseStudiesPage() {
             <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
               <Link
                 href="/register"
-                className="inline-flex h-12 items-center rounded-xl bg-blue-600 px-8 text-sm font-medium text-white shadow-lg shadow-blue-600/25 transition-all duration-300 hover:shadow-blue-600/40 hover:scale-105"
+                className="inline-flex h-12 items-center rounded-full bg-primary px-8 text-sm font-medium text-primary-foreground shadow-lg shadow-primary/25 transition-all duration-300 hover:shadow-primary/40 hover:scale-[1.02] active:scale-[0.98]"
               >
                 Start Free Trial
                 <ArrowRight className="ml-2 h-4 w-4" />

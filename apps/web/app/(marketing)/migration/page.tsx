@@ -114,8 +114,8 @@ export default function MigrationPage() {
             {steps.map((step, i) => (
               <FadeInUp key={step.title} delay={i * 0.1}>
                 <div className="rounded-2xl border border-border bg-card p-6">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-100 dark:bg-blue-900/40 mb-4">
-                    <step.icon className="h-5 w-5 text-blue-600" />
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 dark:bg-blue-900/40 mb-4">
+                    <step.icon className="h-5 w-5 text-primary" />
                   </div>
                   <h3 className="font-semibold text-foreground">
                     {step.title}
@@ -131,7 +131,7 @@ export default function MigrationPage() {
       </section>
 
       {/* Supported Platforms */}
-      <section className="py-16 bg-slate-50 dark:bg-slate-900/50">
+      <section className="py-16 bg-paper-2/60">
         <div className="mx-auto max-w-5xl px-4">
           <FadeInUp>
             <h2 className="text-2xl font-bold text-foreground mb-8 text-center">
@@ -151,7 +151,7 @@ export default function MigrationPage() {
                         key={item}
                         className="flex items-center gap-2 text-sm text-muted-foreground"
                       >
-                        <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+                        <CheckCircle2 className="h-4 w-4 text-balanced-green shrink-0" />
                         {item}
                       </li>
                     ))}
@@ -190,7 +190,7 @@ export default function MigrationPage() {
                 },
               ].map((item) => (
                 <div key={item.title}>
-                  <item.icon className="h-8 w-8 text-blue-600 mx-auto mb-3" />
+                  <item.icon className="h-8 w-8 text-primary mx-auto mb-3" />
                   <h3 className="font-semibold text-foreground text-sm">
                     {item.title}
                   </h3>
@@ -217,7 +217,7 @@ export default function MigrationPage() {
             <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
               <Link
                 href="/register"
-                className="inline-flex h-12 items-center rounded-xl bg-blue-600 px-8 text-sm font-medium text-white shadow-lg shadow-blue-600/25 transition-all duration-300 hover:shadow-blue-600/40 hover:scale-105"
+                className="inline-flex h-12 items-center rounded-full bg-primary px-8 text-sm font-medium text-primary-foreground shadow-lg shadow-primary/25 transition-all duration-300 hover:shadow-primary/40 hover:scale-[1.02] active:scale-[0.98]"
               >
                 Start Free Migration
                 <ArrowRight className="ml-2 h-4 w-4" />

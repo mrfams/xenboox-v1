@@ -138,21 +138,21 @@ export default function APAgentDocPage() {
             <CardContent className="pt-6">
               <ul className="space-y-2 text-sm text-muted-foreground">
                 <li className="flex items-start gap-2">
-                  <div className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-green-500" />
+                  <div className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-balanced-green" />
                   <span>
                     <strong>&ge; 0.9</strong> — Auto-match and approve: Invoice
                     processed without human intervention
                   </span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <div className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500" />
+                  <div className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-attention-amber" />
                   <span>
                     <strong>0.7 - 0.9</strong> — Flag for review: Minor
                     discrepancies flagged, auto-routed to approver
                   </span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <div className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-red-500" />
+                  <div className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-error-clay/50" />
                   <span>
                     <strong>&lt; 0.7</strong> — Escalate to AP team: Significant
                     discrepancies requiring manual intervention

@@ -208,7 +208,7 @@ export default function AboutPage() {
                   Our Mission
                 </span>
                 <h2 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl lg:text-5xl">
-                  Give every business a world-class finance team
+                  Give every business a finance team that works
                 </h2>
                 <p className="mt-2 text-lg leading-relaxed text-muted-foreground">
                   Not everyone can afford a CFO, an accountant, and a payroll
@@ -228,7 +228,7 @@ export default function AboutPage() {
                 {stats.map((stat) => (
                   <div
                     key={stat.label}
-                    className="group rounded-2xl border border-border bg-card p-6 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-foreground/5"
+                    className="group rounded-2xl border border-border/60 bg-card p-6 transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] hover:-translate-y-1 hover:border-border/40 hover:shadow-[0_20px_50px_-20px_rgba(20,33,61,0.15)]"
                   >
                     <stat.icon className="mb-3 h-8 w-8 text-primary" />
                     <div className="text-3xl font-bold text-foreground">
@@ -378,8 +378,8 @@ export default function AboutPage() {
           <div className="mt-16 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {values.map((value, index) => (
               <FadeInUp key={value.title} delay={index * 0.1}>
-                <div className="group h-full rounded-2xl border border-border bg-card p-8 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-foreground/5">
-                  <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-indigo-500 text-white shadow-lg">
+                <div className="group h-full rounded-2xl border border-border/60 bg-card p-8 transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] hover:-translate-y-1 hover:border-border/40 hover:shadow-[0_20px_50px_-20px_rgba(20,33,61,0.15)]">
+                  <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-white shadow-lg shadow-primary/25">
                     <value.icon className="h-6 w-6" />
                   </div>
                   <h3 className="text-xl font-semibold text-foreground">
@@ -421,7 +421,7 @@ export default function AboutPage() {
                 {principles.map((principle, index) => (
                   <div
                     key={principle.title}
-                    className="rounded-2xl border border-border bg-card p-6 transition-all duration-300 hover:shadow-lg hover:shadow-foreground/5"
+                    className="rounded-2xl border border-border/60 bg-card p-6 transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] hover:shadow-[0_20px_50px_-20px_rgba(20,33,61,0.15)]"
                   >
                     <div className="flex items-start gap-4">
                       <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-ledger-ink text-sm font-bold text-paper">
@@ -456,7 +456,7 @@ export default function AboutPage() {
           <div className="mt-16 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {team.map((department, index) => (
               <FadeInUp key={department.name} delay={index * 0.1}>
-                <div className="group h-full rounded-2xl border border-border bg-card p-6 text-center transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-foreground/5">
+                <div className="group h-full rounded-2xl border border-border/60 bg-card p-6 text-center transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] hover:-translate-y-1 hover:border-border/40 hover:shadow-[0_20px_50px_-20px_rgba(20,33,61,0.15)]">
                   <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary mx-auto">
                     <department.icon className="h-6 w-6" />
                   </div>
@@ -504,7 +504,7 @@ export default function AboutPage() {
             </FadeInUp>
 
             <FadeInUp delay={0.1}>
-              <div className="h-full rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/5 to-emerald-500/5 p-8">
+              <div className="h-full rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/5 to-balanced-green/5 p-8">
                 <h3 className="mb-6 text-2xl font-bold text-foreground">
                   The Xenboox way
                 </h3>
@@ -566,7 +566,11 @@ export default function AboutPage() {
                   much time your accounting team can save.
                 </p>
                 <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-                  <Button asChild size="lg" className="gap-2">
+                  <Button
+                    asChild
+                    size="lg"
+                    className="gap-2 rounded-full shadow-lg shadow-primary/25 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+                  >
                     <Link href="/register">
                       Get Started Free
                       <ArrowRight className="h-4 w-4" aria-hidden="true" />
@@ -576,7 +580,7 @@ export default function AboutPage() {
                     asChild
                     size="lg"
                     variant="outline"
-                    className="border-white/20 bg-white/5 text-paper hover:bg-white/10 hover:text-paper"
+                    className="rounded-full border-white/20 bg-white/5 text-paper hover:bg-white/10 hover:text-paper transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
                   >
                     <Link href="/careers">View Careers</Link>
                   </Button>
@@ -584,7 +588,7 @@ export default function AboutPage() {
                     asChild
                     size="lg"
                     variant="outline"
-                    className="border-white/20 bg-white/5 text-paper hover:bg-white/10 hover:text-paper"
+                    className="rounded-full border-white/20 bg-white/5 text-paper hover:bg-white/10 hover:text-paper transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
                   >
                     <Link href="/contact">Contact Us</Link>
                   </Button>

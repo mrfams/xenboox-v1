@@ -25,7 +25,7 @@ export function ShareButton({
           navigator.clipboard.writeText(window.location.href);
         }
       }}
-      className="inline-flex h-12 items-center rounded-xl border border-slate-200 bg-white px-6 text-sm font-medium text-slate-700 transition-all hover:bg-slate-50"
+      className="inline-flex h-12 items-center rounded-xl border border-border bg-card px-6 text-sm font-medium text-foreground transition-all hover:bg-muted"
     >
       {label}
     </button>

@@ -43,8 +43,11 @@ export function FadeInUp({
       className={cn(className)}
       style={{
         opacity: isInView ? 1 : 0,
-        transform: isInView ? "translateY(0)" : "translateY(30px)",
-        transition: "opacity 0.6s ease-out, transform 0.6s ease-out",
+        transform: isInView
+          ? "translateY(0) blur(0)"
+          : "translateY(24px) blur(4px)",
+        transition:
+          "opacity 0.7s cubic-bezier(0.32, 0.72, 0, 1), transform 0.7s cubic-bezier(0.32, 0.72, 0, 1)",
         transitionDelay: `${delay}s`,
       }}
     >

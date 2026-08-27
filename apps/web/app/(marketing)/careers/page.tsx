@@ -187,14 +187,14 @@ export default function CareersPage() {
               <div className="mt-8 flex flex-wrap justify-center gap-4">
                 <a
                   href="#openings"
-                  className="inline-flex h-12 items-center rounded-xl bg-primary px-8 text-sm font-medium text-primary-foreground shadow-lg shadow-primary/25 transition-all duration-300 hover:shadow-primary/40 hover:scale-105"
+                  className="inline-flex h-12 items-center rounded-full bg-primary px-8 text-sm font-medium text-primary-foreground shadow-lg shadow-primary/25 transition-all duration-300 hover:shadow-primary/40 hover:scale-[1.02] active:scale-[0.98]"
                 >
                   View Open Positions
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </a>
                 <a
                   href="#culture"
-                  className="inline-flex h-12 items-center rounded-xl border border-border bg-card px-8 text-sm font-medium text-foreground transition-all duration-300 hover:bg-accent/50"
+                  className="inline-flex h-12 items-center rounded-full border border-border bg-card px-8 text-sm font-medium text-foreground transition-all duration-300 hover:bg-accent/50 hover:scale-[1.02] active:scale-[0.98]"
                 >
                   Our Culture
                 </a>
@@ -251,7 +251,7 @@ export default function CareersPage() {
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {valueProps.map((value, index) => (
               <FadeInUp key={value.title} delay={(index % 3) * 0.1}>
-                <div className="group rounded-2xl border border-border bg-card p-6 transition-all duration-300 hover:shadow-elevated hover:-translate-y-1">
+                <div className="group rounded-2xl border border-border/60 bg-card p-6 transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] hover:shadow-[0_20px_50px_-20px_rgba(20,33,61,0.15)] hover:-translate-y-1 hover:border-border/40">
                   <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-white">
                     <value.icon className="h-5 w-5" />
                   </span>
@@ -284,7 +284,7 @@ export default function CareersPage() {
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {benefits.map((benefit, index) => (
               <FadeInUp key={benefit} delay={index * 0.05}>
-                <div className="flex items-center gap-3 rounded-xl border border-border bg-card p-4 transition-all duration-200 hover:shadow-md">
+                <div className="flex items-center gap-3 rounded-xl border border-border/60 bg-card p-4 transition-all duration-300 hover:shadow-md hover:border-border/40">
                   <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
                     <Check className="h-4 w-4" />
                   </span>
@@ -471,7 +471,7 @@ export default function CareersPage() {
                 <FadeInUp key={job.id} delay={index * 0.05}>
                   <Link
                     href={`/careers/${job.slug}`}
-                    className="group flex flex-col gap-4 rounded-2xl border border-border bg-card p-6 transition-all duration-300 hover:shadow-elevated hover:-translate-y-0.5 sm:flex-row sm:items-center sm:justify-between"
+                    className="group flex flex-col gap-4 rounded-2xl border border-border/60 bg-card p-6 transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] hover:shadow-[0_20px_50px_-20px_rgba(20,33,61,0.15)] hover:-translate-y-0.5 hover:border-border/40 sm:flex-row sm:items-center sm:justify-between"
                   >
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-3 mb-1">
@@ -479,7 +479,7 @@ export default function CareersPage() {
                           {job.title}
                         </h3>
                         {job.type === "Internship" && (
-                          <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700 uppercase">
+                          <span className="inline-flex items-center rounded-full bg-attention-amber/10 px-2 py-0.5 text-[10px] font-bold text-attention-amber uppercase">
                             Intern
                           </span>
                         )}
@@ -531,7 +531,7 @@ export default function CareersPage() {
             </p>
             <Link
               href="mailto:careers@xenboox.com"
-              className="mt-8 inline-flex h-12 items-center rounded-xl bg-primary px-8 text-sm font-medium text-primary-foreground shadow-lg shadow-primary/25 transition-all duration-300 hover:shadow-primary/40 hover:scale-105"
+              className="mt-8 inline-flex h-12 items-center rounded-full bg-primary px-8 text-sm font-medium text-primary-foreground shadow-lg shadow-primary/25 transition-all duration-300 hover:shadow-primary/40 hover:scale-[1.02] active:scale-[0.98]"
             >
               careers@xenboox.com
               <ArrowRight className="ml-2 h-4 w-4" />

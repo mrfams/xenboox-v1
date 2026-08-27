@@ -75,13 +75,13 @@ export default function ContactPage() {
                 <span className="text-primary">hear from you</span>
               </h1>
               <p className="mt-6 max-w-2xl mx-auto text-lg leading-relaxed text-muted-foreground">
-                Have a question about Xenboox? Want a demo? Need help with your
-                account? We&apos;re here for you.
+                Questions about Xenboox? Want a demo? Need help with your
+                account? Our team responds within 24 hours.
               </p>
               <div className="mt-8">
                 <Link
                   href="#form"
-                  className="inline-flex h-12 items-center rounded-xl bg-primary px-8 text-sm font-medium text-primary-foreground shadow-lg shadow-primary/25 transition-all duration-300 hover:shadow-primary/40 hover:scale-105"
+                  className="inline-flex h-12 items-center rounded-full bg-primary px-8 text-sm font-medium text-primary-foreground shadow-lg shadow-primary/25 transition-all duration-300 hover:shadow-primary/40 hover:scale-[1.02] active:scale-[0.98]"
                 >
                   Send us a message
                   <ArrowRight className="ml-2 h-4 w-4" />
@@ -100,7 +100,7 @@ export default function ContactPage() {
               <FadeInUp key={method.title} delay={index * 0.1}>
                 <Link
                   href={method.href}
-                  className="group flex flex-col rounded-2xl border border-border bg-card p-6 transition-all duration-300 hover:shadow-elevated hover:-translate-y-1"
+                  className="group flex flex-col rounded-2xl border border-border/60 bg-card p-6 transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] hover:shadow-[0_20px_50px_-20px_rgba(20,33,61,0.15)] hover:-translate-y-1 hover:border-border/40"
                 >
                   <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-white">
                     <method.icon className="h-5 w-5" />

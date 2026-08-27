@@ -64,7 +64,7 @@ function BlogNewsletterForm() {
       <button
         type="submit"
         disabled={submitting}
-        className="shrink-0 rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground shadow-lg transition-all duration-200 hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+        className="shrink-0 rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground shadow-lg transition-all duration-300 hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {submitting ? "Subscribing..." : "Subscribe"}
       </button>
@@ -191,9 +191,9 @@ export default function BlogPage() {
                 <FadeInUp key={post.slug} delay={index * 0.1}>
                   <Link
                     href={`/blog/${post.slug}`}
-                    className="group relative block h-full overflow-hidden rounded-2xl border border-border bg-card p-8 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-foreground/5"
+                    className="group relative block h-full overflow-hidden rounded-2xl border border-border/60 bg-card p-8 transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] hover:-translate-y-1 hover:border-border/40 hover:shadow-[0_20px_50px_-20px_rgba(20,33,61,0.15)]"
                   >
-                    <div className="absolute right-0 top-0 h-40 w-40 translate-x-10 -translate-y-10 rounded-full bg-gradient-to-br from-primary/10 to-emerald-500/10 blur-3xl" />
+                    <div className="absolute right-0 top-0 h-40 w-40 translate-x-10 -translate-y-10 rounded-full bg-gradient-to-br from-primary/10 to-balanced-green/10 blur-3xl" />
                     <div className="relative">
                       <div className="mb-4 flex items-center gap-3">
                         <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
@@ -256,7 +256,7 @@ export default function BlogPage() {
                 <FadeInUp key={post.slug} delay={index * 0.05}>
                   <Link
                     href={`/blog/${post.slug}`}
-                    className="group flex h-full flex-col rounded-2xl border border-border bg-card p-6 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-foreground/5"
+                    className="group flex h-full flex-col rounded-2xl border border-border/60 bg-card p-6 transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] hover:-translate-y-1 hover:border-border/40 hover:shadow-[0_20px_50px_-20px_rgba(20,33,61,0.15)]"
                   >
                     <div className="mb-4 flex items-center gap-3">
                       <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">

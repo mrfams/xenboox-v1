@@ -19,21 +19,30 @@ const feed = [
     agent: "Invoice Agent",
     time: "2m ago",
     message: "Posted invoice #INV-1042 — Atlantic Foods Ltd (GMD 486,000)",
-    status: { label: "Posted", tone: "text-emerald-700 bg-emerald-500/10" },
+    status: {
+      label: "Posted",
+      tone: "text-balanced-green bg-balanced-green/10",
+    },
   },
   {
     icon: Users,
     agent: "Payroll Agent",
     time: "14m ago",
     message: "Ran July payroll — 34 staff, GMD 1.92M net",
-    status: { label: "Completed", tone: "text-emerald-700 bg-emerald-500/10" },
+    status: {
+      label: "Completed",
+      tone: "text-balanced-green bg-balanced-green/10",
+    },
   },
   {
     icon: ShieldCheck,
     agent: "Compliance Agent",
     time: "1h ago",
     message: "Drafted June VAT return — due Monday",
-    status: { label: "Needs review", tone: "text-amber-700 bg-amber-500/10" },
+    status: {
+      label: "Needs review",
+      tone: "text-attention-amber bg-attention-amber/10",
+    },
   },
 ];
 
@@ -47,12 +56,13 @@ const journal = [
 export function Hero() {
   return (
     <section className="relative overflow-hidden bg-paper">
+      {/* Premium ambient gradients */}
       <div
         className="pointer-events-none absolute inset-0"
         aria-hidden="true"
         style={{
           backgroundImage:
-            "radial-gradient(rgba(20, 33, 61, 0.06) 1px, transparent 1px)",
+            "radial-gradient(rgba(20, 33, 61, 0.04) 1px, transparent 1px)",
           backgroundSize: "24px 24px",
           maskImage:
             "radial-gradient(ellipse at center, black 30%, transparent 75%)",
@@ -61,52 +71,85 @@ export function Hero() {
         }}
       />
       <div
-        className="pointer-events-none absolute inset-x-0 top-0 h-[480px]"
+        className="pointer-events-none absolute inset-x-0 top-0 h-[560px]"
         aria-hidden="true"
         style={{
           backgroundImage:
-            "radial-gradient(ellipse 70% 100% at 50% -10%, rgba(59, 79, 224, 0.12), transparent 70%)",
+            "radial-gradient(ellipse 80% 100% at 50% -20%, rgba(59, 79, 224, 0.14), transparent 70%)",
         }}
+      />
+      <div
+        className="pointer-events-none absolute -right-40 top-20 h-[400px] w-[400px] rounded-full bg-primary/5 blur-3xl"
+        aria-hidden="true"
+      />
+      <div
+        className="pointer-events-none absolute -left-40 top-40 h-[300px] w-[300px] rounded-full bg-balanced-green/5 blur-3xl"
+        aria-hidden="true"
       />
 
       <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="grid items-center gap-12 lg:gap-16 pb-12 pt-12 sm:pt-16 lg:grid-cols-2 lg:pb-20 lg:pt-20">
+        <div className="grid items-center gap-10 sm:gap-12 lg:gap-16 pb-10 pt-10 sm:pt-14 md:pt-16 lg:grid-cols-2 lg:pb-20 lg:pt-20">
           <FadeInUp>
             <div className="flex flex-col items-start gap-5 sm:gap-6">
+              <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-3.5 py-1.5 text-xs font-semibold text-primary">
+                <span
+                  className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse"
+                  aria-hidden="true"
+                />
+                AI-native accounting — not SaaS
+              </div>
+
               <h1 className="text-4xl font-semibold leading-[1.05] tracking-tight text-foreground sm:text-5xl lg:text-6xl">
                 Your entire accounting department, running{" "}
-                <span className="text-primary">autonomously</span>.
+                <span className="bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
+                  autonomously
+                </span>
+                .
               </h1>
 
               <p className="max-w-xl text-lg leading-relaxed text-muted-foreground">
-                Xenboox is an AI-native accounting platform with 19 specialized
-                agents that handle invoicing, payroll, compliance, and month-end
-                close. Agents do the work. You make the decisions that matter.
+                AI agents handle invoicing, payroll, compliance, and month-end
+                close — every decision confidence-scored, every action
+                audit-trailed. You approve what matters.
               </p>
 
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                <Button asChild size="lg" className="gap-2">
+                <Button
+                  asChild
+                  size="lg"
+                  className="gap-2 rounded-full shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/25 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+                >
                   <Link href="/onboarding">
                     Start free
-                    <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                    <ArrowRight
+                      className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-0.5"
+                      aria-hidden="true"
+                    />
                   </Link>
                 </Button>
-                <Button asChild variant="outline" size="lg">
-                  <Link href="#how-it-works">See how it works</Link>
+                <Button
+                  asChild
+                  variant="outline"
+                  size="lg"
+                  className="rounded-full transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+                >
+                  <Link href="#demo">See it in action</Link>
                 </Button>
               </div>
 
-              <ul className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-muted-foreground">
+              <ul className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-muted-foreground">
                 {[
                   "No credit card required",
                   "Built for The Gambia",
                   "Human approval on every decision",
                 ].map((item) => (
-                  <li key={item} className="flex items-center gap-1.5">
-                    <Check
-                      className="h-4 w-4 text-primary"
-                      aria-hidden="true"
-                    />
+                  <li key={item} className="flex items-center gap-2">
+                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10">
+                      <Check
+                        className="h-3 w-3 text-primary"
+                        aria-hidden="true"
+                      />
+                    </span>
                     {item}
                   </li>
                 ))}
@@ -125,13 +168,17 @@ export function Hero() {
 
 function ProductPreview() {
   return (
-    <div className="relative mx-auto w-full max-w-[560px]">
+    <div className="relative mx-auto w-full max-w-[480px] md:max-w-[520px] lg:max-w-[560px]">
       <div
-        className="absolute -inset-6 rounded-[2rem] bg-gradient-to-br from-primary/15 via-transparent to-emerald-500/10 blur-2xl"
+        className="absolute -inset-8 rounded-[2rem] bg-gradient-to-br from-primary/20 via-primary/5 to-balanced-green/10 blur-3xl"
+        aria-hidden="true"
+      />
+      <div
+        className="absolute -inset-4 rounded-[1.75rem] bg-gradient-to-br from-primary/10 to-transparent blur-xl"
         aria-hidden="true"
       />
 
-      <div className="relative overflow-hidden rounded-2xl border border-border bg-card shadow-2xl shadow-foreground/10">
+      <div className="relative overflow-hidden rounded-2xl border border-border/80 bg-card shadow-2xl shadow-primary/10">
         <div className="flex items-center gap-1.5 border-b border-border bg-muted/40 px-4 py-3">
           <span
             className="h-2.5 w-2.5 rounded-full bg-error-clay/70"
@@ -250,7 +297,7 @@ function ProductPreview() {
         </div>
       </div>
 
-      <div className="absolute -right-4 -top-8 hidden w-52 rounded-xl border border-border bg-card p-4 shadow-xl shadow-foreground/10 md:block lg:-right-8">
+      <div className="absolute -right-4 -top-8 hidden w-52 rounded-xl border border-border/80 bg-card/95 p-4 shadow-xl shadow-foreground/10 backdrop-blur-sm md:block lg:-right-8">
         <div className="flex items-center justify-between">
           <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
             Cash position
@@ -280,7 +327,7 @@ function ProductPreview() {
         </svg>
       </div>
 
-      <div className="absolute -bottom-8 -left-4 hidden w-60 rounded-xl border border-border bg-card p-4 shadow-xl shadow-foreground/10 md:block lg:-left-8">
+      <div className="absolute -bottom-8 -left-4 hidden w-60 rounded-xl border border-border/80 bg-card/95 p-4 shadow-xl shadow-foreground/10 backdrop-blur-sm md:block lg:-left-8">
         <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
           Decision needed
         </p>

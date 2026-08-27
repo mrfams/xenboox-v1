@@ -10,7 +10,7 @@ export function Cta() {
     <Section id="cta">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <FadeInUp>
-          <div className="relative overflow-hidden rounded-3xl bg-ledger-ink px-6 py-12 text-center sm:px-12 sm:py-16 lg:py-20">
+          <div className="relative overflow-hidden rounded-3xl bg-ledger-ink px-6 py-12 text-center sm:px-12 sm:py-16 lg:py-20 ring-1 ring-white/5">
             <div
               className="pointer-events-none absolute inset-0"
               aria-hidden="true"
@@ -21,14 +21,18 @@ export function Cta() {
             />
             <div className="relative mx-auto max-w-2xl">
               <h2 className="text-3xl font-semibold tracking-tight text-paper sm:text-4xl lg:text-5xl">
-                Let the agents do the books.
+                Your accounting department, fully autonomous.
               </h2>
               <p className="mx-auto mt-4 max-w-xl text-lg leading-relaxed text-paper/70">
-                19 AI agents handle invoicing, payroll, compliance, and
-                month-end close. Set up in minutes — no data entry required.
+                AI agents handle invoicing, payroll, compliance, and month-end
+                close. Set up in minutes — no data entry required.
               </p>
               <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-                <Button asChild size="lg" className="gap-2">
+                <Button
+                  asChild
+                  size="lg"
+                  className="gap-2 rounded-full shadow-lg shadow-primary/25 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+                >
                   <Link href="/onboarding">
                     Start free
                     <ArrowRight className="h-4 w-4" aria-hidden="true" />
@@ -38,7 +42,7 @@ export function Cta() {
                   asChild
                   size="lg"
                   variant="outline"
-                  className="border-white/20 bg-white/5 text-paper hover:bg-white/10 hover:text-paper"
+                  className="rounded-full border-white/20 bg-white/5 text-paper hover:bg-white/10 hover:text-paper transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
                 >
                   <Link href="/pricing">See pricing</Link>
                 </Button>

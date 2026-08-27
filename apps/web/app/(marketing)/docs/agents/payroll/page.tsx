@@ -193,7 +193,7 @@ export default function PayrollAgentDocPage() {
                         Progressive tax bands with personal reliefs
                       </td>
                       <td className="px-4 py-3">
-                        <span className="text-green-600">Yes</span>
+                        <span className="text-balanced-green">Yes</span>
                       </td>
                     </tr>
                     <tr className="border-b">
@@ -202,7 +202,7 @@ export default function PayrollAgentDocPage() {
                         5.5% of gross pay
                       </td>
                       <td className="px-4 py-3">
-                        <span className="text-green-600">Yes</span>
+                        <span className="text-balanced-green">Yes</span>
                       </td>
                     </tr>
                     <tr className="border-b">
@@ -211,7 +211,7 @@ export default function PayrollAgentDocPage() {
                         13% of gross pay
                       </td>
                       <td className="px-4 py-3">
-                        <span className="text-green-600">Yes</span>
+                        <span className="text-balanced-green">Yes</span>
                       </td>
                     </tr>
                     <tr>
@@ -220,7 +220,7 @@ export default function PayrollAgentDocPage() {
                         Occupational pension scheme contributions
                       </td>
                       <td className="px-4 py-3">
-                        <span className="text-green-600">Yes</span>
+                        <span className="text-balanced-green">Yes</span>
                       </td>
                     </tr>
                   </tbody>

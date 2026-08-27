@@ -35,7 +35,7 @@ const features = [
     ],
     stat: "34 staff",
     statLabel: "in 2 minutes",
-    accent: "from-emerald-500/10 via-teal-500/5 to-transparent",
+    accent: "from-balanced-green/10 via-balanced-green/80/5 to-transparent",
   },
   {
     icon: ShieldCheck,
@@ -48,7 +48,7 @@ const features = [
     ],
     stat: "0 late",
     statLabel: "filings last 12 mo",
-    accent: "from-amber-500/10 via-orange-500/5 to-transparent",
+    accent: "from-attention-amber/10 via-attention-amber/80/5 to-transparent",
   },
   {
     icon: TrendingUp,
@@ -57,7 +57,7 @@ const features = [
     bullets: ["Rolling 14-day cash forecast", "Scenario planning in minutes"],
     stat: "+18%",
     statLabel: "forecast accuracy",
-    accent: "from-blue-500/10 via-cyan-500/5 to-transparent",
+    accent: "from-primary/10 via-primary/80/5 to-transparent",
   },
   {
     icon: CalendarDays,
@@ -101,14 +101,14 @@ export function Features() {
       <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <FadeInUp>
           <SectionHeading
-            eyebrow="20 modules • 19 agents • one ledger"
+            eyebrow="20 modules, one system"
             title="Everything a finance team does. Done by agents."
             lead="All 20 modules work together as one system — no spreadsheets, no plugins, no patchwork. Built for how SMEs actually operate."
           />
         </FadeInUp>
 
         {/* Asymmetric bento — breaks generic 3-equal-cols */}
-        <div className="mt-10 sm:mt-14 grid gap-5 sm:gap-6 lg:grid-cols-12">
+        <div className="mt-10 sm:mt-14 grid gap-4 sm:gap-5 md:grid-cols-2 lg:grid-cols-12">
           {features.map((feature, index) => {
             const span =
               index === 0
@@ -126,7 +126,7 @@ export function Features() {
                 delay={(index % 3) * 0.08}
                 className={span}
               >
-                <article className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-border bg-card p-6 sm:p-7 transition-all duration-300 hover:-translate-y-0.5 hover:border-border/80 hover:shadow-[0_12px_40px_-16px_rgba(20,33,61,0.12)]">
+                <article className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-border/60 bg-card p-6 sm:p-7 transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] hover:-translate-y-1 hover:border-border/40 hover:shadow-[0_20px_60px_-20px_rgba(20,33,61,0.15)]">
                   <div
                     className={`pointer-events-none absolute inset-0 bg-gradient-to-br ${feature.accent} opacity-60 group-hover:opacity-100 transition-opacity`}
                     aria-hidden

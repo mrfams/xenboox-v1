@@ -35,12 +35,12 @@ export default function RefundPage() {
       <LegalContent tableOfContents={tableOfContents}>
         {/* Overview */}
         <section id="overview" className="mb-12">
-          <h2 className="text-2xl font-bold text-slate-900 mb-4">
+          <h2 className="text-2xl font-bold text-foreground mb-4">
             1. Overview
           </h2>
-          <p className="text-slate-600 leading-relaxed mb-4">
+          <p className="text-muted-foreground leading-relaxed mb-4">
             Xenboox operates on a subscription billing model as described on our{" "}
-            <a href="/pricing" className="text-blue-600 hover:underline">
+            <a href="/pricing" className="text-primary hover:underline">
               Pricing page
             </a>
             . All fees are billed in advance on a monthly or annual basis
@@ -57,19 +57,19 @@ export default function RefundPage() {
 
         {/* Monthly */}
         <section id="monthly" className="mb-12">
-          <h2 className="text-2xl font-bold text-slate-900 mb-4">
+          <h2 className="text-2xl font-bold text-foreground mb-4">
             2. Monthly Plans
           </h2>
-          <div className="rounded-xl border border-slate-200 p-6">
+          <div className="rounded-xl border border-border p-6">
             <div className="flex items-start gap-4">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-100 text-blue-600 shrink-0">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary shrink-0">
                 <span className="text-xl">📅</span>
               </div>
               <div>
-                <h4 className="font-semibold text-slate-900 mb-2">
+                <h4 className="font-semibold text-foreground mb-2">
                   Cancel Anytime
                 </h4>
-                <p className="text-sm text-slate-600 leading-relaxed">
+                <p className="text-sm text-muted-foreground leading-relaxed">
                   Monthly subscriptions may be cancelled at any time. Upon
                   cancellation, you will retain access to the Platform until the
                   end of your current billing period. No partial refunds are
@@ -82,7 +82,7 @@ export default function RefundPage() {
 
         {/* Annual */}
         <section id="annual" className="mb-12">
-          <h2 className="text-2xl font-bold text-slate-900 mb-4">
+          <h2 className="text-2xl font-bold text-foreground mb-4">
             3. Annual Plans
           </h2>
           <div className="grid gap-4 sm:grid-cols-2">
@@ -92,26 +92,26 @@ export default function RefundPage() {
                   <span className="text-xl">✓</span>
                 </div>
                 <div>
-                  <h4 className="font-semibold text-slate-900 mb-2">
+                  <h4 className="font-semibold text-foreground mb-2">
                     Within 14 Days
                   </h4>
-                  <p className="text-sm text-slate-600">
+                  <p className="text-sm text-muted-foreground">
                     Full refund if cancelled within 14 days of initial
                     subscription.
                   </p>
                 </div>
               </div>
             </div>
-            <div className="rounded-xl border border-slate-200 p-6">
+            <div className="rounded-xl border border-border p-6">
               <div className="flex items-start gap-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-100 text-slate-600 shrink-0">
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-muted text-muted-foreground shrink-0">
                   <span className="text-xl">⏰</span>
                 </div>
                 <div>
-                  <h4 className="font-semibold text-slate-900 mb-2">
+                  <h4 className="font-semibold text-foreground mb-2">
                     After 14 Days
                   </h4>
-                  <p className="text-sm text-slate-600">
+                  <p className="text-sm text-muted-foreground">
                     Non-refundable, but you retain access for the remainder of
                     the paid term.
                   </p>
@@ -123,10 +123,10 @@ export default function RefundPage() {
 
         {/* Enterprise */}
         <section id="enterprise" className="mb-12">
-          <h2 className="text-2xl font-bold text-slate-900 mb-4">
+          <h2 className="text-2xl font-bold text-foreground mb-4">
             4. Enterprise &amp; Firm Plans
           </h2>
-          <p className="text-slate-600 leading-relaxed">
+          <p className="text-muted-foreground leading-relaxed">
             Custom enterprise agreements are governed by the terms specified in
             your signed contract. Please refer to your agreement for
             cancellation and refund terms. Our team is always available to
@@ -136,18 +136,18 @@ export default function RefundPage() {
 
         {/* Service Credits */}
         <section id="credits" className="mb-12">
-          <h2 className="text-2xl font-bold text-slate-900 mb-4">
+          <h2 className="text-2xl font-bold text-foreground mb-4">
             5. Service Credits
           </h2>
-          <p className="text-slate-600 leading-relaxed mb-4">
+          <p className="text-muted-foreground leading-relaxed mb-4">
             In the event of prolonged service unavailability exceeding our{" "}
-            <a href="/sla" className="text-blue-600 hover:underline">
+            <a href="/sla" className="text-primary hover:underline">
               Service Level Agreement
             </a>
             , you may be eligible for service credits rather than monetary
             refunds.
           </p>
-          <div className="rounded-xl bg-blue-50 border border-blue-100 p-4">
+          <div className="rounded-xl bg-primary/5 border border-primary/10 p-4">
             <p className="text-sm text-blue-800">
               Service credits are calculated at 5% of monthly fees per full hour
               of downtime exceeding the SLA threshold, up to 100% of your
@@ -158,23 +158,25 @@ export default function RefundPage() {
 
         {/* Disputes */}
         <section id="disputes" className="mb-12">
-          <h2 className="text-2xl font-bold text-slate-900 mb-4">
+          <h2 className="text-2xl font-bold text-foreground mb-4">
             6. Billing Disputes
           </h2>
-          <p className="text-slate-600 leading-relaxed mb-4">
+          <p className="text-muted-foreground leading-relaxed mb-4">
             If you believe you have been billed incorrectly, contact us at{" "}
             <a
               href="mailto:billing@xenboox.com"
-              className="text-blue-600 hover:underline"
+              className="text-primary hover:underline"
             >
               billing@xenboox.com
             </a>{" "}
             within 30 days of the billing date. We will investigate and resolve
             the dispute promptly.
           </p>
-          <div className="rounded-xl border border-slate-200 p-4">
-            <h4 className="font-medium text-slate-900 mb-2">What to Include</h4>
-            <ul className="space-y-1 text-sm text-slate-600">
+          <div className="rounded-xl border border-border p-4">
+            <h4 className="font-medium text-foreground mb-2">
+              What to Include
+            </h4>
+            <ul className="space-y-1 text-sm text-muted-foreground">
               <li>• Your account email</li>
               <li>• Invoice or receipt number</li>
               <li>• Description of the billing issue</li>
@@ -185,10 +187,10 @@ export default function RefundPage() {
 
         {/* Cancellation */}
         <section id="cancellation" className="mb-12">
-          <h2 className="text-2xl font-bold text-slate-900 mb-4">
+          <h2 className="text-2xl font-bold text-foreground mb-4">
             7. Cancellation Process
           </h2>
-          <p className="text-slate-600 leading-relaxed mb-4">
+          <p className="text-muted-foreground leading-relaxed mb-4">
             To cancel your subscription:
           </p>
           <div className="space-y-4">
@@ -216,14 +218,14 @@ export default function RefundPage() {
             ].map((item) => (
               <div
                 key={item.step}
-                className="flex items-start gap-4 rounded-xl border border-slate-200 p-4"
+                className="flex items-start gap-4 rounded-xl border border-border p-4"
               >
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 text-blue-600 font-bold text-sm shrink-0">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary font-bold text-sm shrink-0">
                   {item.step}
                 </div>
                 <div>
-                  <h4 className="font-medium text-slate-900">{item.title}</h4>
-                  <p className="text-sm text-slate-600">{item.desc}</p>
+                  <h4 className="font-medium text-foreground">{item.title}</h4>
+                  <p className="text-sm text-muted-foreground">{item.desc}</p>
                 </div>
               </div>
             ))}
@@ -232,13 +234,13 @@ export default function RefundPage() {
 
         {/* Non-Refundable */}
         <section id="non-refundable" className="mb-12">
-          <h2 className="text-2xl font-bold text-slate-900 mb-4">
+          <h2 className="text-2xl font-bold text-foreground mb-4">
             8. Non-Refundable Items
           </h2>
-          <p className="text-slate-600 leading-relaxed mb-4">
+          <p className="text-muted-foreground leading-relaxed mb-4">
             The following are non-refundable:
           </p>
-          <div className="rounded-xl border border-slate-200 divide-y divide-slate-100">
+          <div className="rounded-xl border border-border divide-y divide-slate-100">
             {[
               "Setup fees (if applicable)",
               "Usage overage charges",
@@ -247,8 +249,8 @@ export default function RefundPage() {
               "Training or consulting services",
             ].map((item, i) => (
               <div key={i} className="flex items-start gap-3 p-4">
-                <span className="text-slate-400 mt-0.5">•</span>
-                <p className="text-sm text-slate-600">{item}</p>
+                <span className="text-muted-foreground/60 mt-0.5">•</span>
+                <p className="text-sm text-muted-foreground">{item}</p>
               </div>
             ))}
           </div>
@@ -256,10 +258,10 @@ export default function RefundPage() {
 
         {/* Changes */}
         <section id="changes" className="mb-12">
-          <h2 className="text-2xl font-bold text-slate-900 mb-4">
+          <h2 className="text-2xl font-bold text-foreground mb-4">
             9. Changes to This Policy
           </h2>
-          <p className="text-slate-600 leading-relaxed">
+          <p className="text-muted-foreground leading-relaxed">
             We may update this policy from time to time. Material changes will
             be communicated via email at least 30 days before they take effect.
           </p>
@@ -267,14 +269,14 @@ export default function RefundPage() {
 
         {/* Contact */}
         <section id="contact" className="mb-12">
-          <h2 className="text-2xl font-bold text-slate-900 mb-4">
+          <h2 className="text-2xl font-bold text-foreground mb-4">
             10. Contact Us
           </h2>
-          <p className="text-slate-600 leading-relaxed mb-4">
+          <p className="text-muted-foreground leading-relaxed mb-4">
             For billing-related inquiries, contact{" "}
             <a
               href="mailto:billing@xenboox.com"
-              className="text-blue-600 hover:underline"
+              className="text-primary hover:underline"
             >
               billing@xenboox.com
             </a>

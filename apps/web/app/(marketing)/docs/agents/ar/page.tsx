@@ -94,7 +94,7 @@ export default function ARAgentDocPage() {
             <Card>
               <CardHeader>
                 <CardTitle className="text-sm flex items-center gap-2">
-                  <Bell className="h-4 w-4 text-amber-500" />
+                  <Bell className="h-4 w-4 text-attention-amber" />
                   0-30 Days
                 </CardTitle>
               </CardHeader>
@@ -122,7 +122,7 @@ export default function ARAgentDocPage() {
             <Card>
               <CardHeader>
                 <CardTitle className="text-sm flex items-center gap-2">
-                  <CreditCard className="h-4 w-4 text-red-500" />
+                  <CreditCard className="h-4 w-4 text-error-clay" />
                   61+ Days
                 </CardTitle>
               </CardHeader>
@@ -166,7 +166,9 @@ export default function ARAgentDocPage() {
                         Reference match
                       </td>
                       <td className="px-4 py-3">
-                        <span className="text-green-600 font-medium">High</span>
+                        <span className="text-balanced-green font-medium">
+                          High
+                        </span>
                       </td>
                     </tr>
                     <tr className="border-b">
@@ -175,7 +177,7 @@ export default function ARAgentDocPage() {
                         Amount + customer
                       </td>
                       <td className="px-4 py-3">
-                        <span className="text-amber-600 font-medium">
+                        <span className="text-attention-amber font-medium">
                           Medium
                         </span>
                       </td>
@@ -186,7 +188,7 @@ export default function ARAgentDocPage() {
                         AI allocation algorithm
                       </td>
                       <td className="px-4 py-3">
-                        <span className="text-amber-600 font-medium">
+                        <span className="text-attention-amber font-medium">
                           Medium
                         </span>
                       </td>
@@ -197,7 +199,9 @@ export default function ARAgentDocPage() {
                         Customer credit memo
                       </td>
                       <td className="px-4 py-3">
-                        <span className="text-green-600 font-medium">High</span>
+                        <span className="text-balanced-green font-medium">
+                          High
+                        </span>
                       </td>
                     </tr>
                   </tbody>
