@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, Calendar, Clock, Tag } from "lucide-react";
+import { ArrowLeft, ArrowRight, Calendar, Clock } from "lucide-react";
 
 import { BlogShareBar } from "@/components/marketing/blog-share-bar";
 
@@ -161,10 +161,6 @@ export default async function BlogPostPage({
         <div className="mx-auto max-w-4xl px-4 py-12 sm:py-16">
           <FadeInUp>
             <div className="flex flex-wrap items-center gap-3 mb-6">
-              <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-3 py-1 text-xs font-medium text-blue-700">
-                <Tag className="h-3 w-3" />
-                {post.category}
-              </span>
               <span className="text-sm text-muted-foreground flex items-center gap-1">
                 <Clock className="h-4 w-4" />
                 {post.readTime} read

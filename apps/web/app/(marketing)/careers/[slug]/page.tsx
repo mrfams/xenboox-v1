@@ -5,7 +5,6 @@ import {
   ArrowRight,
   MapPin,
   Briefcase,
-  Clock,
   DollarSign,
   Users,
   Building2,
@@ -84,22 +83,6 @@ export default async function JobDetailPage({
       <article className="bg-card">
         <div className="mx-auto max-w-4xl px-4 py-12 sm:py-16">
           <FadeInUp>
-            <div className="flex flex-wrap items-center gap-3 mb-6">
-              <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
-                <Briefcase className="h-3 w-3" />
-                {job.department}
-              </span>
-              <span className="inline-flex items-center gap-1 rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground">
-                <Clock className="h-3 w-3" />
-                {job.type}
-              </span>
-              {job.type === "Internship" && (
-                <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-3 py-1 text-xs font-medium text-amber-700">
-                  Internship
-                </span>
-              )}
-            </div>
-
             <h1 className="text-4xl sm:text-5xl font-bold tracking-tight text-foreground leading-[1.1]">
               {job.title}
             </h1>

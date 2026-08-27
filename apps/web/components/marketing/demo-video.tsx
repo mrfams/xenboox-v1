@@ -55,13 +55,9 @@ export function DemoVideo() {
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <FadeInUp>
             <div className="mx-auto max-w-2xl text-center">
-              <span className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-3.5 py-1.5 text-xs font-semibold text-muted-foreground">
-                <Clock className="h-3.5 w-3.5" aria-hidden="true" />
-                2-minute demo
-              </span>
               <h2
                 id="demo-heading"
-                className="mt-4 text-3xl font-semibold tracking-tight text-foreground sm:text-4xl"
+                className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl"
               >
                 See Xenboox in action
               </h2>

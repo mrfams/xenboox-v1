@@ -370,13 +370,7 @@ export default function FeaturesPage() {
         />
 
         <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="mx-auto flex max-w-3xl flex-col items-center gap-5 sm:gap-6 py-12 sm:py-16 lg:py-24 text-center">
-            <FadeInUp>
-              <span className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-3.5 py-1.5 text-xs font-semibold uppercase tracking-wider text-primary">
-                <span className="h-1.5 w-1.5 rounded-full bg-primary" />
-                Platform features
-              </span>
-            </FadeInUp>
+          <div className="mx-auto flex max-w-3xl flex-col items-center gap-5 py-12 sm:py-16 lg:py-24 text-center">
             <FadeInUp delay={0.05}>
               <h1 className="text-4xl font-semibold leading-[1.05] tracking-tight text-foreground sm:text-5xl lg:text-6xl">
                 Accounting that{" "}
@@ -447,10 +441,6 @@ export default function FeaturesPage() {
               {/* Content */}
               <FadeInUp className={index % 2 === 1 ? "lg:col-start-2" : ""}>
                 <div className="flex flex-col items-start gap-4">
-                  <span className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-3.5 py-1.5 text-xs font-semibold uppercase tracking-wider text-primary">
-                    <span className="h-1.5 w-1.5 rounded-full bg-primary" />
-                    {section.eyebrow}
-                  </span>
                   <h2 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl lg:text-5xl">
                     {section.title}
                   </h2>

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { ArrowLeft, Shield, Clock, FileText } from "lucide-react";
+import { ArrowLeft, Clock, FileText } from "lucide-react";
 
 import { FadeInUp } from "@/components/marketing/reveal";
 
@@ -44,19 +44,15 @@ export function LegalHero({
           </Link>
         </FadeInUp>
 
-        <FadeInUp delay={0.05}>
-          <div className="flex items-center gap-3 mb-4">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground">
-              <Shield className="h-3 w-3" aria-hidden="true" />
-              Legal
-            </span>
-            {version && (
+        {version && (
+          <FadeInUp delay={0.05}>
+            <div className="flex items-center gap-3 mb-4">
               <span className="inline-flex items-center rounded-full bg-primary/10 px-2.5 py-0.5 text-[10px] font-bold text-primary uppercase">
                 v{version}
               </span>
-            )}
-          </div>
-        </FadeInUp>
+            </div>
+          </FadeInUp>
+        )}
 
         <FadeInUp delay={0.1}>
           <h1 className="text-4xl sm:text-5xl font-bold tracking-tight text-foreground">

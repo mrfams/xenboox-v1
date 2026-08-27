@@ -44,10 +44,7 @@ export default function OnePagerPage() {
       <section className="bg-paper py-16 sm:py-24">
         <div className="mx-auto max-w-4xl px-4 text-center">
           <FadeInUp>
-            <span className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-3.5 py-1.5 text-xs font-semibold text-muted-foreground">
-              <Download className="h-3.5 w-3.5" />
-              Product Overview
-            </span>
+            {" "}
             <h1 className="mt-6 text-4xl sm:text-5xl font-bold tracking-tight text-foreground">
               Xenboox
             </h1>

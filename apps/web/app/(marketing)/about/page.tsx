@@ -13,8 +13,6 @@ import {
   Building2,
   TrendingUp,
   CheckCircle2,
-  Sparkles,
-  Star,
   Newspaper,
   Download,
   Mail,
@@ -172,13 +170,7 @@ export default function AboutPage() {
         />
 
         <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="mx-auto flex max-w-3xl flex-col items-center gap-5 py-12 sm:py-16 text-center">
-            <FadeInUp>
-              <span className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-3.5 py-1.5 text-xs font-semibold uppercase tracking-wider text-primary">
-                <Sparkles className="h-3.5 w-3.5" />
-                About Xenboox
-              </span>
-            </FadeInUp>
+          <div className="mx-auto flex max-w-3xl flex-col items-center gap-5 py-12 sm:py-16 lg:py-24 text-center">
             <FadeInUp delay={0.05}>
               <h1 className="text-4xl font-semibold leading-[1.05] tracking-tight text-foreground sm:text-5xl lg:text-6xl">
                 Accounting should work{" "}
@@ -203,10 +195,6 @@ export default function AboutPage() {
           <div className="grid items-center gap-16 lg:grid-cols-2">
             <FadeInUp>
               <div className="flex flex-col items-start gap-4">
-                <span className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-3.5 py-1.5 text-xs font-semibold uppercase tracking-wider text-primary">
-                  <Target className="h-3.5 w-3.5" />
-                  Our Mission
-                </span>
                 <h2 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl lg:text-5xl">
                   Give every business a finance team that works
                 </h2>
@@ -289,10 +277,7 @@ export default function AboutPage() {
           <div className="grid items-start gap-16 lg:grid-cols-5">
             <FadeInUp className="lg:col-span-2">
               <div className="sticky top-24">
-                <span className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-3.5 py-1.5 text-xs font-semibold uppercase tracking-wider text-primary">
-                  <Heart className="h-3.5 w-3.5" />
-                  Founder&apos;s Note
-                </span>
+                {" "}
                 <h2 className="mt-4 text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
                   Why we built Xenboox
                 </h2>
@@ -401,10 +386,6 @@ export default function AboutPage() {
           <div className="grid items-center gap-16 lg:grid-cols-2">
             <FadeInUp>
               <div className="flex flex-col items-start gap-4">
-                <span className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-3.5 py-1.5 text-xs font-semibold uppercase tracking-wider text-primary">
-                  <Star className="h-3.5 w-3.5" />
-                  Our Principles
-                </span>
                 <h2 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl lg:text-5xl">
                   How we build
                 </h2>

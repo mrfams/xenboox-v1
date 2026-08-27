@@ -91,14 +91,6 @@ export function Hero() {
         <div className="grid items-center gap-10 sm:gap-12 lg:gap-16 pb-10 pt-10 sm:pt-14 md:pt-16 lg:grid-cols-2 lg:pb-20 lg:pt-20">
           <FadeInUp>
             <div className="flex flex-col items-start gap-5 sm:gap-6">
-              <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-3.5 py-1.5 text-xs font-semibold text-primary">
-                <span
-                  className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse"
-                  aria-hidden="true"
-                />
-                AI-native accounting — not SaaS
-              </div>
-
               <h1 className="text-4xl font-semibold leading-[1.05] tracking-tight text-foreground sm:text-5xl lg:text-6xl">
                 Your entire accounting department, running{" "}
                 <span className="bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
