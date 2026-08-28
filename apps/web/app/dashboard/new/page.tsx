@@ -213,8 +213,8 @@ export default function MissionControlPage() {
             )}
           </div>
 
-          {/* Command — prominent, always-visible input bar */}
-          <div className="sticky bottom-0 border-t border-border/30 bg-background/80 px-4 py-3 backdrop-blur-sm sm:px-6">
+          {/* Command — compact input bar */}
+          <div className="sticky bottom-0 border-t border-border/30 bg-background/80 px-4 py-2 backdrop-blur-sm sm:px-6">
             <CommandBar
               onSubmit={(v, files) => {
                 const filePayload = files?.map((f) => ({
@@ -249,7 +249,7 @@ export default function MissionControlPage() {
               }
               onClearFiles={() => setUploadedFiles([])}
             />
-            <p className="mt-1.5 py-0.5 text-center text-[10px] leading-none text-muted-foreground/60">
+            <p className="mt-1 text-center text-[10px] leading-none text-muted-foreground/60">
               AI can make mistakes. Verify important information.
             </p>
           </div>

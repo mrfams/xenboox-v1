@@ -76,7 +76,7 @@ export function CommandBar({
   return (
     <div className={cn("w-full", className)}>
       {suggestions && suggestions.length > 0 && !value && !busy && (
-        <div className="mb-1.5 flex flex-wrap gap-1">
+        <div className="mb-1 flex flex-wrap gap-1">
           {suggestions.map((s) => (
             <button
               key={s}
@@ -120,7 +120,7 @@ export function CommandBar({
 
       <div
         className={cn(
-          "relative flex items-center gap-2.5 rounded-2xl border border-border/60 bg-muted/30 px-4 py-2.5 shadow-lg shadow-black/[0.06] transition-all duration-200 focus-within:border-primary/50 focus-within:bg-card focus-within:shadow-xl focus-within:shadow-primary/[0.04] focus-within:ring-2 focus-within:ring-primary/15",
+          "relative flex items-center gap-2.5 rounded-2xl border border-border/60 bg-muted/30 px-4 py-2 shadow-lg shadow-black/[0.06] transition-all duration-200 focus-within:border-primary/50 focus-within:bg-card focus-within:shadow-xl focus-within:shadow-primary/[0.04] focus-within:ring-2 focus-within:ring-primary/15",
           busy && "opacity-90",
         )}
       >
@@ -153,7 +153,7 @@ export function CommandBar({
             }
           }}
           placeholder={placeholder}
-          className="max-h-36 min-h-[48px] flex-1 resize-none bg-transparent p-0 text-[15px] leading-5 text-foreground placeholder:text-muted-foreground/50 focus:outline-none"
+          className="max-h-36 min-h-[40px] flex-1 resize-none bg-transparent p-0 text-[15px] leading-5 text-foreground placeholder:text-muted-foreground/50 focus:outline-none"
         />
         {busy && onCancel ? (
           <button
