@@ -147,7 +147,7 @@ export default function MissionControlPage() {
         {/* ── Main column — own scroll plane, isolated */}
         <div className="flex min-w-0 flex-1 flex-col overflow-hidden isolate">
           {/* Top bar — fixed, no blurry backdrop */}
-          <header className="sticky top-0 z-10 flex items-center justify-between gap-2 border-b border-border/30 bg-background px-4 py-2 sm:px-6">
+          <header className="sticky top-0 z-10 flex items-center justify-between gap-2 border-b border-border/30 bg-transparent px-4 py-2 sm:px-6">
             <div className="min-w-0">
               {isChatting && (
                 <span className="text-xs font-medium text-muted-foreground">
@@ -187,7 +187,7 @@ export default function MissionControlPage() {
             className={cn(
               "flex min-h-0 flex-1 flex-col px-4 sm:px-6",
               isChatting
-                ? "overflow-y-auto overscroll-contain pt-4 pb-24"
+                ? "overflow-y-auto overscroll-contain pt-4 pb-8"
                 : "items-center justify-center overflow-hidden py-8",
             )}
           >
@@ -249,7 +249,7 @@ export default function MissionControlPage() {
               }
               onClearFiles={() => setUploadedFiles([])}
             />
-            <p className="mt-1.5 text-center text-[10px] leading-none text-muted-foreground/60">
+            <p className="mt-1.5 py-0.5 text-center text-[10px] leading-none text-muted-foreground/60">
               AI can make mistakes. Verify important information.
             </p>
           </div>
