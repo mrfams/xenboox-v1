@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   BookOpen,
   CheckCircle2,
@@ -236,13 +237,15 @@ export default function TheBookPage() {
         )}
       </section>
 
-      {/* Detail Drawer */}
-      {drawerEntryId && (
-        <EntryDetailDrawer
-          entryId={drawerEntryId}
-          onClose={() => setDrawerEntryId(null)}
-        />
-      )}
+      {/* Detail Drawer — portal to body so it's always in viewport */}
+      {drawerEntryId &&
+        createPortal(
+          <EntryDetailDrawer
+            entryId={drawerEntryId}
+            onClose={() => setDrawerEntryId(null)}
+          />,
+          document.body,
+        )}
     </div>
   );
 }
@@ -413,13 +416,17 @@ function EntryDetailDrawer({
     { enabled: !!entityId && !!entryId },
   );
 
-  // Close on Escape
+  // Close on Escape + lock body scroll
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = "";
+    };
   }, [onClose]);
 
   return (
