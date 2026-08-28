@@ -26,6 +26,7 @@ import { cn } from "@/lib/utils";
 import { useActivationTracking } from "@/lib/hooks/use-activation-tracking";
 import { DataAwareContextMenu } from "@/components/shared/data-aware-context-menu";
 import { KeyboardShortcuts } from "@/components/shared/keyboard-shortcuts";
+import { AttentionBanner } from "@/components/layout/attention-banner";
 import {
   ErrorBoundary,
   SurfaceErrorBoundary,
@@ -237,6 +238,7 @@ export default function DashboardLayout({
                     onChatToggle={() => setChatOpen(!chatOpen)}
                     chatOpen={chatOpen}
                   />
+                  <AttentionBanner />
                   <main
                     id="main-content"
                     tabIndex={-1}
