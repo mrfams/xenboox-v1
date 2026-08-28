@@ -1,8 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Activity, AlertTriangle, Sparkles } from "lucide-react";
+import {
+  Activity,
+  AlertTriangle,
+  Sparkles,
+  TrendingUp,
+  Wallet,
+  FileText,
+  BarChart3,
+  Download,
+} from "lucide-react";
 
 import { useEntity } from "@/lib/entity-context";
 import { trpc } from "@/lib/trpc/client";
@@ -19,6 +28,11 @@ import {
 } from "@/components/charts/financial-charts";
 import { ForecastView } from "@/components/finance/forecast-view";
 import { AnomalyAlerts } from "@/components/financial/anomaly-alerts";
+import { DocumentDownloadButtons } from "@/components/documents/document-download-buttons";
+import {
+  buildPnlReport,
+  buildCashFlowReport,
+} from "@/lib/documents/report-templates";
 
 // ─── Pulse v2 (/financial-pulse/new) ───────────────────────────────────
 //
@@ -172,7 +186,7 @@ export default function FinancialPulseV2Page() {
                 className="h-3.5 w-3.5 text-primary"
                 aria-hidden="true"
               />
-              The AI’s take
+              The AI's take
             </h2>
             {aiNarrative && (
               <ProvenanceBadge
@@ -439,6 +453,20 @@ export default function FinancialPulseV2Page() {
         </div>
       </section>
 
+      {/* ── Budget vs Actual — AI-narrated variance ─────────────── */}
+      <BudgetVsActualCard entityId={entityId ?? ""} ask={ask} />
+
+      {/* ── Scenario Planner — what-if modeling ──────────────────── */}
+      <ScenarioCard ask={ask} />
+
+      {/* ── Report Library — downloads ────────────────────────────── */}
+      <ReportLibrary
+        ask={ask}
+        pnlData={pnlData}
+        overview={overview}
+        displayCurrency={displayCurrency}
+      />
+
       {/* ── Command — follow-up lives here ─────────────────────────── */}
       <section
         aria-label="Ask about this page"
@@ -458,5 +486,450 @@ export default function FinancialPulseV2Page() {
         />
       </section>
     </div>
+  );
+}
+
+// ─── Budget vs Actual Card ─────────────────────────────────────────────────
+//
+// AI-native: shows variance as a status card with AI narrative, not a raw table.
+
+function BudgetVsActualCard({
+  entityId,
+  ask,
+}: {
+  entityId: string;
+  ask: (prompt: string) => void;
+}) {
+  const { data: currentPeriod } = trpc.fiscal.getCurrent.useQuery(undefined, {
+    enabled: !!entityId,
+  });
+  const { data: budgetData, isLoading } =
+    trpc.reports.getBudgetVsActual.useQuery(
+      { periodId: currentPeriod?.id ?? "" },
+      { enabled: !!entityId && !!currentPeriod?.id },
+    );
+
+  if (isLoading) {
+    return (
+      <div className="animate-pulse rounded-xl border border-border/50 bg-card p-4">
+        <div className="h-4 w-48 rounded bg-muted/30" />
+      </div>
+    );
+  }
+
+  if (!budgetData) return null;
+
+  const items = (budgetData.lines ?? []).map(
+    (line: {
+      accountName: string;
+      budgetedAmount: number;
+      actualAmount: number;
+      variance: number;
+      variancePct: number;
+      status: string;
+    }) => ({
+      category: line.accountName,
+      budget: line.budgetedAmount,
+      actual: line.actualAmount,
+      variance: line.variance,
+      variancePercent: line.variancePct,
+      status: line.status,
+    }),
+  );
+
+  if (items.length === 0) return null;
+
+  const overBudget = items.filter((i) => i.variance > 0).length;
+  const underBudget = items.filter((i) => i.variance < 0).length;
+
+  return (
+    <section
+      aria-labelledby="budget-heading"
+      className="overflow-hidden rounded-xl border border-border/50 bg-card"
+    >
+      <header className="flex items-center justify-between border-b border-border/40 px-4 py-3">
+        <div className="flex items-center gap-2">
+          <h2
+            id="budget-heading"
+            className="text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+          >
+            Budget vs Actual
+          </h2>
+          {overBudget > 0 && (
+            <span className="inline-flex items-center rounded-full bg-error-clay/10 px-1.5 py-0.5 text-[9px] font-bold text-error-clay">
+              {overBudget} over
+            </span>
+          )}
+          {underBudget > 0 && (
+            <span className="inline-flex items-center rounded-full bg-balanced-green/10 px-1.5 py-0.5 text-[9px] font-bold text-balanced-green">
+              {underBudget} under
+            </span>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={() =>
+            ask("Analyze my budget vs actual. Where are the biggest variances?")
+          }
+          className="text-[11px] font-medium text-primary hover:text-primary/80"
+        >
+          Ask why →
+        </button>
+      </header>
+      <div className="overflow-x-auto">
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="border-b bg-muted/30">
+              <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">
+                Category
+              </th>
+              <th className="px-4 py-2.5 text-right font-medium text-muted-foreground">
+                Budget
+              </th>
+              <th className="px-4 py-2.5 text-right font-medium text-muted-foreground">
+                Actual
+              </th>
+              <th className="px-4 py-2.5 text-right font-medium text-muted-foreground">
+                Variance
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {items.slice(0, 6).map(
+              (
+                item: {
+                  category: string;
+                  budget: number;
+                  actual: number;
+                  variance: number;
+                },
+                i: number,
+              ) => {
+                const isOver = item.variance > 0;
+                return (
+                  <tr
+                    key={i}
+                    className="border-b last:border-0 hover:bg-muted/20"
+                  >
+                    <td className="px-4 py-2 font-medium text-foreground">
+                      {item.category}
+                    </td>
+                    <td className="px-4 py-2 text-right font-mono tabular-nums text-muted-foreground">
+                      {formatCurrency(item.budget)}
+                    </td>
+                    <td className="px-4 py-2 text-right font-mono tabular-nums text-foreground">
+                      {formatCurrency(item.actual)}
+                    </td>
+                    <td
+                      className={cn(
+                        "px-4 py-2 text-right font-mono tabular-nums font-medium",
+                        isOver ? "text-error-clay" : "text-balanced-green",
+                      )}
+                    >
+                      {isOver ? "+" : ""}
+                      {formatCurrency(item.variance)}
+                    </td>
+                  </tr>
+                );
+              },
+            )}
+          </tbody>
+        </table>
+        {items.length > 6 && (
+          <div className="border-t border-border/50 px-4 py-2 text-center">
+            <span className="text-[10px] text-muted-foreground">
+              Showing 6 of {items.length} categories
+            </span>
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
+// ─── Scenario Planner Card ─────────────────────────────────────────────────
+//
+// AI-native: user describes a scenario in natural language, AI models the
+// impact. No manual input fields — the command bar IS the interface.
+
+function ScenarioCard({ ask }: { ask: (prompt: string) => void }) {
+  const scenarios = [
+    {
+      label: "Revenue drops 20%",
+      prompt:
+        "Model what happens if revenue drops 20% next quarter. Show impact on cash, runway, and profitability.",
+    },
+    {
+      label: "Hire 3 people",
+      prompt:
+        "Model the cost of hiring 3 people at $80K each. Show impact on expenses and runway.",
+    },
+    {
+      label: "Cut marketing 50%",
+      prompt:
+        "Model cutting marketing spend by 50%. What's the savings and impact on revenue?",
+    },
+  ];
+
+  return (
+    <section
+      aria-labelledby="scenario-heading"
+      className="rounded-xl border border-border/50 bg-card p-4"
+    >
+      <div className="flex items-center justify-between mb-3">
+        <h2
+          id="scenario-heading"
+          className="text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+        >
+          Scenario Planner
+        </h2>
+        <Sparkles
+          className="h-3.5 w-3.5 text-muted-foreground/40"
+          aria-hidden="true"
+        />
+      </div>
+      <p className="mb-3 text-xs text-muted-foreground">
+        Ask the AI to model any scenario — revenue changes, new hires, cost
+        cuts, or anything else.
+      </p>
+      <div className="flex flex-wrap gap-2">
+        {scenarios.map((s) => (
+          <button
+            key={s.label}
+            type="button"
+            onClick={() => ask(s.prompt)}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-border/50 bg-background px-3 py-2 text-xs text-foreground hover:bg-accent transition-colors"
+          >
+            {s.label}
+          </button>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+// ─── Report Library ────────────────────────────────────────────────────────
+//
+// AI-native: compact grid with download buttons. Each card has "Ask AI"
+// to analyze the report before downloading.
+
+function ReportLibrary({
+  ask,
+  pnlData,
+  overview,
+  displayCurrency,
+}: {
+  ask: (prompt: string) => void;
+  pnlData: unknown;
+  overview:
+    | {
+        cashBalance: number;
+        ar: number;
+        ap: number;
+        runway: number | null;
+      }
+    | undefined;
+  displayCurrency: string;
+}) {
+  const { entityId } = useEntity();
+  const reports = [
+    {
+      id: "pnl",
+      label: "Profit & Loss",
+      description: "Revenue, expenses, net income",
+      icon: TrendingUp,
+      color: "text-primary",
+      bg: "bg-primary/10",
+      aiPrompt: "Show me my profit and loss statement",
+    },
+    {
+      id: "cash-flow",
+      label: "Cash Flow",
+      description: "Cash in, cash out, net movement",
+      icon: Wallet,
+      color: "text-signal-indigo",
+      bg: "bg-signal-indigo/10",
+      aiPrompt: "Show me my cash flow statement",
+    },
+    {
+      id: "trial-balance",
+      label: "Trial Balance",
+      description: "Debits equal credits verification",
+      icon: BarChart3,
+      color: "text-attention-amber",
+      bg: "bg-attention-amber/10",
+      aiPrompt: "Show me my trial balance",
+    },
+    {
+      id: "tax-summary",
+      label: "Tax Summary",
+      description: "Tax liability and obligations",
+      icon: FileText,
+      color: "text-error-clay",
+      bg: "bg-error-clay/10",
+      aiPrompt: "Summarize my tax obligations",
+    },
+  ];
+
+  return (
+    <section
+      aria-labelledby="reports-heading"
+      className="rounded-xl border border-border/50 bg-card p-4"
+    >
+      <div className="flex items-center justify-between mb-3">
+        <h2
+          id="reports-heading"
+          className="text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+        >
+          Reports
+        </h2>
+        <span className="text-[10px] text-muted-foreground">
+          Ask AI to analyze · Download for export
+        </span>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2">
+        {reports.map((report) => {
+          const Icon = report.icon;
+          const reportData =
+            report.id === "pnl" && pnlData
+              ? buildPnlReport({
+                  entityName: "Your Business",
+                  currency: displayCurrency,
+                  period: new Date().toLocaleDateString("en-US", {
+                    month: "long",
+                    year: "numeric",
+                  }),
+                  revenue: (
+                    pnlData as {
+                      current: {
+                        revenue: number;
+                        revenueByAccount: Array<{
+                          code: string;
+                          name: string;
+                          amount: number;
+                        }>;
+                        expenses: number;
+                        expensesByAccount: Array<{
+                          code: string;
+                          name: string;
+                          amount: number;
+                        }>;
+                        cogs: number;
+                        grossProfit: number;
+                        opExpenses: number;
+                        netProfit: number;
+                      };
+                    }
+                  ).current.revenue,
+                  revenueByAccount: (
+                    pnlData as {
+                      current: {
+                        revenueByAccount: Array<{
+                          code: string;
+                          name: string;
+                          amount: number;
+                        }>;
+                      };
+                    }
+                  ).current.revenueByAccount.map(
+                    (a: { code: string; name: string; amount: number }) => ({
+                      code: a.code,
+                      name: a.name,
+                      amount: a.amount,
+                    }),
+                  ),
+                  expenses: (pnlData as { current: { expenses: number } })
+                    .current.expenses,
+                  expensesByAccount: (
+                    pnlData as {
+                      current: {
+                        expensesByAccount: Array<{
+                          code: string;
+                          name: string;
+                          amount: number;
+                        }>;
+                      };
+                    }
+                  ).current.expensesByAccount.map(
+                    (a: { code: string; name: string; amount: number }) => ({
+                      code: a.code,
+                      name: a.name,
+                      amount: a.amount,
+                    }),
+                  ),
+                  cogs: (pnlData as { current: { cogs: number } }).current.cogs,
+                  grossProfit: (pnlData as { current: { grossProfit: number } })
+                    .current.grossProfit,
+                  opExpenses: (pnlData as { current: { opExpenses: number } })
+                    .current.opExpenses,
+                  netProfit: (pnlData as { current: { netProfit: number } })
+                    .current.netProfit,
+                })
+              : report.id === "cash-flow" && overview
+                ? buildCashFlowReport({
+                    entityName: "Your Business",
+                    currency: displayCurrency,
+                    period: new Date().toLocaleDateString("en-US", {
+                      month: "long",
+                      year: "numeric",
+                    }),
+                    openingCash: overview.cashBalance,
+                    operating: {
+                      lines: [{ name: "Revenue", amount: 0 }],
+                      total: 0,
+                    },
+                    investing: { lines: [], total: 0 },
+                    financing: { lines: [], total: 0 },
+                    closingCash: overview.cashBalance,
+                  })
+                : {
+                    title: report.label,
+                    entityName: "Your Business",
+                    currency: displayCurrency,
+                    generatedAt: new Date(),
+                    sections: [],
+                  };
+
+          return (
+            <div
+              key={report.id}
+              className="group rounded-xl border border-border/50 bg-background p-3 transition-all hover:border-border/80 hover:shadow-sm"
+            >
+              <div className="flex items-start gap-3">
+                <div
+                  className={cn(
+                    "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg",
+                    report.bg,
+                  )}
+                >
+                  <Icon className={cn("h-4 w-4", report.color)} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <button
+                    type="button"
+                    onClick={() => ask(report.aiPrompt)}
+                    className="text-left"
+                  >
+                    <p className="text-sm font-medium text-foreground group-hover:text-primary transition-colors">
+                      {report.label}
+                    </p>
+                    <p className="mt-0.5 text-[11px] text-muted-foreground">
+                      {report.description}
+                    </p>
+                  </button>
+                  <div className="mt-2">
+                    <DocumentDownloadButtons
+                      data={reportData}
+                      formats={["pdf", "excel"]}
+                      size="xs"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </section>
   );
 }
