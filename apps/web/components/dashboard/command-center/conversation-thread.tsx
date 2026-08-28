@@ -422,7 +422,7 @@ export function ConversationThread({
               className={cn(
                 "relative text-[14px] leading-7",
                 msg.role === "assistant"
-                  ? "w-full max-w-none px-1 py-1 text-foreground"
+                  ? "max-w-[85%] px-1 py-1 text-foreground"
                   : "max-w-[75%] rounded-2xl bg-primary px-3.5 py-2.5 text-primary-foreground",
               )}
             >
@@ -539,9 +539,9 @@ export function ConversationThread({
                   isPinned={pinnedMessages.some((p) => p.id === msg.id)}
                   onPin={handlePin}
                   onRegenerate={handleRegenerate}
-                  className="opacity-100"
+                  className="opacity-100 justify-start"
                 />
-                <div className="flex items-center gap-2 mt-1">
+                <div className="flex items-center gap-2 mt-1 justify-start">
                   <MessageReactions
                     reactions={messageReactions[msg.id] ?? []}
                     onReact={(emoji) => handleReact(msg.id, emoji)}
@@ -550,7 +550,7 @@ export function ConversationThread({
               </>
             ) : (
               <>
-                <div className="flex items-center gap-2 mt-1">
+                <div className="flex items-center gap-2 mt-1 justify-end">
                   <MessageReactions
                     reactions={messageReactions[msg.id] ?? []}
                     onReact={(emoji) => handleReact(msg.id, emoji)}
@@ -562,6 +562,7 @@ export function ConversationThread({
                   role="user"
                   isPinned={pinnedMessages.some((p) => p.id === msg.id)}
                   onPin={handlePin}
+                  className="justify-end"
                 />
               </>
             )}
