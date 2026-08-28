@@ -153,7 +153,7 @@ export function CommandBar({
             }
           }}
           placeholder={placeholder}
-          className="max-h-36 min-h-[48px] flex-1 resize-none bg-transparent px-1 pt-[15px] pb-[11px] text-[15px] leading-5 text-foreground placeholder:text-muted-foreground/50 focus:outline-none"
+          className="max-h-36 min-h-[48px] flex-1 resize-none bg-transparent p-0 text-[15px] leading-5 text-foreground placeholder:text-muted-foreground/50 focus:outline-none"
         />
         {busy && onCancel ? (
           <button
