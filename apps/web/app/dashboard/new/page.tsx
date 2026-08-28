@@ -145,9 +145,9 @@ export default function MissionControlPage() {
     <ErrorBoundary surface="mission-control">
       <div className="flex h-[calc(100dvh-56px)] min-h-0 overflow-hidden pb-16 md:pb-0 isolate md:h-[calc(100dvh-56px)]">
         {/* ── Main column — own scroll plane, isolated */}
-        <div className="flex min-w-0 flex-1 flex-col overflow-hidden isolate">
+        <div className="flex min-w-0 flex-1 flex-col isolate">
           {/* Top bar — fixed, no blurry backdrop */}
-          <header className="sticky top-0 z-10 flex items-center justify-between gap-2 border-b border-border/30 bg-transparent px-4 py-2 sm:px-6">
+          <header className="sticky top-0 z-10 flex items-center justify-between gap-2 border-b border-border/30 bg-background px-4 py-2 sm:px-6">
             <div className="min-w-0">
               {isChatting && (
                 <span className="text-xs font-medium text-muted-foreground">
@@ -187,7 +187,7 @@ export default function MissionControlPage() {
             className={cn(
               "flex min-h-0 flex-1 flex-col px-1",
               isChatting
-                ? "overflow-y-auto overscroll-contain pt-0 pb-1"
+                ? "overflow-y-auto overscroll-contain pt-0 pb-1 min-h-0"
                 : "items-center justify-center overflow-hidden py-8",
             )}
           >
