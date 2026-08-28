@@ -407,6 +407,22 @@ function AgentConversationsRail({
 // Empty state as launchpad: goal-shaped cards, not prompt examples.
 // Launching one hands the agent a full brief, not a keyword.
 
+const MISSION_TITLES = [
+  (g: string) => g,
+  () => "What would you like to handle today?",
+  () => "What needs your attention?",
+  () => "Ready to make some decisions?",
+  () => "Your books are waiting.",
+  () => "What's on the agenda?",
+  () => "Let's keep things moving.",
+  () => "Anything need a look?",
+  () => "What's the next move?",
+  () => "Your finance team is standing by.",
+  () => "Time to check in.",
+  () => "What should we tackle first?",
+  () => "Let's make progress.",
+];
+
 function MissionsBoard({
   greeting,
   onLaunch,
@@ -414,9 +430,10 @@ function MissionsBoard({
   greeting: string;
   onLaunch: (brief: string) => void;
 }) {
-  const [title] = useState(() =>
-    Math.random() < 0.5 ? greeting : "What would you like to handle today?",
-  );
+  const [title] = useState(() => {
+    const idx = Math.floor(Math.random() * MISSION_TITLES.length);
+    return MISSION_TITLES[idx](greeting);
+  });
 
   return (
     <section
