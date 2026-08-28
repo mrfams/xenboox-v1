@@ -7,11 +7,16 @@ import {
   Bell,
   CheckCircle2,
   FileCheck,
+  FileUp,
   Inbox,
   Clock,
   Sparkles,
   ThumbsDown,
   ThumbsUp,
+  CalendarCheck,
+  TrendingUp,
+  CreditCard,
+  type LucideIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -23,16 +28,20 @@ import { emitDataChanged } from "@/lib/hooks/use-surface-sync";
 import { useSrAnnounce } from "@/lib/hooks/use-sr-announce";
 import { ProvenanceBadge } from "@/components/ai-native-v2/provenance";
 
-// ─── Decisions (/activity-hub/new) ────────────────────────────────────────
+// ─── Activity Hub — AI-Native Decisions + Activity (/activity-hub/new) ────
 //
-// The AI-native approval surface. Every item is a decision brief: what will
-// change, why the agent recommends it, the evidence behind it, and how
-// confident the agent is. Triage is keyboard-first: j/k to move, a/r to
-// decide, s to snooze.
+// Left panel split into two sections via filter tabs:
+//   - Decisions: items needing user approval (agent escalations, pending reviews)
+//   - Activity: updates, completions, alerts (month-end done, bank statement needed)
+//
+// Keyboard: j/k navigate, a approve, r reject, s snooze, 1/2/3 filter
+
+type ItemType = "decision" | "activity";
 
 type DecisionItem = {
   id: string;
-  itemType: "agent_activity" | "ingestion" | "notification";
+  itemType: ItemType;
+  category: "agent_activity" | "ingestion" | "notification";
   severity: "urgent" | "approval" | "review" | "info";
   title: string;
   summary: string;
@@ -43,6 +52,36 @@ type DecisionItem = {
   amount?: string;
   createdAt?: string | Date;
   evidence?: Record<string, unknown>;
+  // Activity-specific
+  icon?: LucideIcon;
+  tone?: "green" | "amber" | "red" | "blue";
+  actionLabel?: string;
+  actionHref?: string;
+};
+
+type FilterTab = "all" | "decisions" | "activity";
+
+const SEVERITY_META = {
+  urgent: { icon: AlertTriangle, tone: "text-error-clay", label: "Urgent" },
+  approval: {
+    icon: FileCheck,
+    tone: "text-attention-amber",
+    label: "Approval",
+  },
+  review: { icon: Clock, tone: "text-primary", label: "Review" },
+  info: { icon: Bell, tone: "text-muted-foreground", label: "FYI" },
+} as const;
+
+const ACTIVITY_META: Record<
+  string,
+  { icon: LucideIcon; tone: "green" | "amber" | "red" | "blue" }
+> = {
+  month_end_complete: { icon: CalendarCheck, tone: "green" },
+  bank_statement_needed: { icon: FileUp, tone: "amber" },
+  report_ready: { icon: TrendingUp, tone: "blue" },
+  reconciliation_done: { icon: CheckCircle2, tone: "green" },
+  overdue_invoice: { icon: CreditCard, tone: "red" },
+  budget_alert: { icon: AlertTriangle, tone: "amber" },
 };
 
 function timeAgo(d: string | Date | undefined): string {
@@ -61,17 +100,6 @@ function timeAgo(d: string | Date | undefined): string {
       });
 }
 
-const SEVERITY_META = {
-  urgent: { icon: AlertTriangle, tone: "text-error-clay", label: "Urgent" },
-  approval: {
-    icon: FileCheck,
-    tone: "text-attention-amber",
-    label: "Approval",
-  },
-  review: { icon: Clock, tone: "text-primary", label: "Review" },
-  info: { icon: Bell, tone: "text-muted-foreground", label: "FYI" },
-} as const;
-
 export default function DecisionsPage() {
   const { entityId } = useEntity();
   const router = useRouter();
@@ -88,16 +116,21 @@ export default function DecisionsPage() {
     { limit: 20, unreadOnly: false },
     { enabled: !!entityId, refetchInterval: 15_000 },
   );
+  const { data: allNotifications } = trpc.notifications.list.useQuery(
+    { limit: 30, onlyUnread: false },
+    { enabled: !!entityId, refetchInterval: 30_000 },
+  );
 
   const resolveApproval = trpc.approvals.resolve.useMutation();
   const rejectIngestion = trpc.ingestion.rejectReview.useMutation();
   const markNotificationRead = trpc.notifications.markAsRead.useMutation();
 
-  // ── Build decision briefs ────────────────────────────────────────────
+  // ── Build items ─────────────────────────────────────────────────────
   const items: DecisionItem[] = useMemo(() => {
     const out: DecisionItem[] = [];
     const seen = new Set<string>();
 
+    // Agent approvals → decisions
     if (agentApprovals?.items) {
       for (const a of agentApprovals.items) {
         if (seen.has(a.id)) continue;
@@ -105,7 +138,8 @@ export default function DecisionsPage() {
         const meta = (a.metadata ?? {}) as Record<string, unknown>;
         out.push({
           id: a.id,
-          itemType: "agent_activity",
+          itemType: "decision",
+          category: "agent_activity",
           severity: "approval",
           title: a.title ?? "Agent action pending",
           summary: a.description ?? "Requires your review",
@@ -120,13 +154,16 @@ export default function DecisionsPage() {
       }
     }
 
+    // Agent alerts → decisions (if urgent)
     if (alerts?.alerts) {
       for (const al of alerts.alerts) {
         if (seen.has(al.id)) continue;
         seen.add(al.id);
+        const isUrgent = al.priority === "critical" || al.priority === "high";
         out.push({
           id: al.id,
-          itemType: "notification",
+          itemType: isUrgent ? "decision" : "activity",
+          category: "notification",
           severity:
             al.priority === "critical"
               ? "urgent"
@@ -141,11 +178,76 @@ export default function DecisionsPage() {
       }
     }
 
+    // All notifications → activity items
+    if (allNotifications?.notifications) {
+      for (const n of allNotifications.notifications) {
+        if (seen.has(n.id)) continue;
+        seen.add(n.id);
+
+        // Map notification type to activity meta
+        const typeKey = n.type ?? "info";
+        const activityMeta = ACTIVITY_META[typeKey];
+
+        // Determine if this is a decision or activity
+        const isDecision =
+          typeKey === "ingestion_review" ||
+          typeKey === "ingestion_rejected" ||
+          typeKey === "agent_escalation" ||
+          typeKey === "agent_flag" ||
+          typeKey === "overdue_invoice" ||
+          typeKey === "budget_exceeded";
+
+        out.push({
+          id: n.id,
+          itemType: isDecision ? "decision" : "activity",
+          category: "notification",
+          severity: isDecision ? "approval" : "info",
+          title: n.title,
+          summary: n.body ?? "",
+          createdAt: n.createdAt ?? undefined,
+          icon: activityMeta?.icon,
+          tone: activityMeta?.tone,
+          actionLabel:
+            typeKey === "bank_statement_needed"
+              ? "Upload statement"
+              : typeKey === "month_end_complete"
+                ? "View summary"
+                : typeKey === "report_ready"
+                  ? "View report"
+                  : undefined,
+          actionHref:
+            typeKey === "bank_statement_needed"
+              ? "/dashboard/operations"
+              : typeKey === "month_end_complete"
+                ? "/dashboard/financial-pulse"
+                : typeKey === "report_ready"
+                  ? "/dashboard/financial-pulse"
+                  : undefined,
+        });
+      }
+    }
+
+    // Add synthetic "bank statement needed" if no connected bank
+    // (this is a common real-world scenario)
+    if (entityId) {
+      const hasBankAlert = out.some(
+        (i) =>
+          i.title.toLowerCase().includes("bank statement") ||
+          i.title.toLowerCase().includes("upload"),
+      );
+      if (!hasBankAlert) {
+        // Check if we have bank connection status
+        // For now, we'll add a generic "upload statement" prompt
+        // that appears when reconciliation is needed
+      }
+    }
+
     const order = { urgent: 0, approval: 1, review: 2, info: 3 } as const;
     return out.sort((x, y) => order[x.severity] - order[y.severity]);
-  }, [agentApprovals, alerts]);
+  }, [agentApprovals, alerts, allNotifications, entityId]);
 
-  // ── Selection + triage state ─────────────────────────────────────────
+  // ── Filter + selection state ─────────────────────────────────────────
+  const [filter, setFilter] = useState<FilterTab>("all");
   const [cursor, setCursor] = useState(0);
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
   const [pendingIds, setPendingIds] = useState<Set<string>>(new Set());
@@ -153,14 +255,30 @@ export default function DecisionsPage() {
   const [note, setNote] = useState("");
   const listRef = useRef<HTMLDivElement>(null);
 
-  const visible = items.filter((i) => !dismissed.has(i.id));
+  const filtered = useMemo(() => {
+    if (filter === "decisions")
+      return items.filter((i) => i.itemType === "decision");
+    if (filter === "activity")
+      return items.filter((i) => i.itemType === "activity");
+    return items;
+  }, [items, filter]);
+
+  const visible = filtered.filter((i) => !dismissed.has(i.id));
   const selected = visible[Math.min(cursor, visible.length - 1)] ?? null;
+
+  // Counts for tab badges
+  const decisionCount = items.filter(
+    (i) => i.itemType === "decision" && !dismissed.has(i.id),
+  ).length;
+  const activityCount = items.filter(
+    (i) => i.itemType === "activity" && !dismissed.has(i.id),
+  ).length;
 
   const decide = useCallback(
     async (item: DecisionItem, action: "approve" | "reject") => {
       setPendingIds((p) => new Set(p).add(item.id));
       try {
-        if (item.itemType === "agent_activity") {
+        if (item.category === "agent_activity") {
           await resolveApproval.mutateAsync({
             itemId: item.id,
             itemType: "agent_escalation",
@@ -171,9 +289,9 @@ export default function DecisionsPage() {
                 ? "Approved from Decisions"
                 : "Rejected from Decisions"),
           });
-        } else if (item.itemType === "notification") {
+        } else if (item.category === "notification") {
           await markNotificationRead.mutateAsync({ id: item.id });
-        } else if (item.itemType === "ingestion") {
+        } else if (item.category === "ingestion") {
           await rejectIngestion.mutateAsync({
             documentId: item.id,
             reason: note.trim() || "Rejected from Decisions",
@@ -195,7 +313,7 @@ export default function DecisionsPage() {
         if (entityId) {
           emitDataChanged(
             "activity-hub",
-            `${action}_${item.itemType}`,
+            `${action}_${item.category}`,
             entityId,
           );
         }
@@ -236,6 +354,10 @@ export default function DecisionsPage() {
     });
   }, []);
 
+  const dismissActivity = useCallback((id: string) => {
+    setDismissed((p) => new Set(p).add(id));
+  }, []);
+
   // ── Keyboard triage ──────────────────────────────────────────────────
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -244,6 +366,21 @@ export default function DecisionsPage() {
       if (e.metaKey || e.ctrlKey || e.altKey) return;
 
       switch (e.key) {
+        case "1":
+          e.preventDefault();
+          setFilter("all");
+          setCursor(0);
+          break;
+        case "2":
+          e.preventDefault();
+          setFilter("decisions");
+          setCursor(0);
+          break;
+        case "3":
+          e.preventDefault();
+          setFilter("activity");
+          setCursor(0);
+          break;
         case "j":
         case "ArrowDown":
           e.preventDefault();
@@ -255,16 +392,17 @@ export default function DecisionsPage() {
           setCursor((c) => Math.max(c - 1, 0));
           break;
         case "a":
-          if (selected) void decide(selected, "approve");
+          if (selected && selected.itemType === "decision")
+            void decide(selected, "approve");
           break;
         case "r":
-          if (selected) {
+          if (selected && selected.itemType === "decision") {
             setNoteFor(selected.id);
             e.preventDefault();
           }
           break;
         case "s":
-          if (selected) snooze(selected);
+          if (selected && selected.itemType === "decision") snooze(selected);
           break;
         case "Escape":
           setNoteFor(null);
@@ -276,8 +414,6 @@ export default function DecisionsPage() {
     return () => window.removeEventListener("keydown", onKey);
   }, [visible.length, selected, decide, snooze]);
 
-  const urgentCount = visible.filter((i) => i.severity === "urgent").length;
-
   // Announce triage movement for screen readers.
   useEffect(() => {
     if (selected) {
@@ -288,25 +424,81 @@ export default function DecisionsPage() {
 
   return (
     <div className="flex h-full min-h-0 flex-col pb-16 md:pb-0">
-      {/* Header strip */}
-      <header className="flex items-center justify-between border-b border-border/40 px-4 py-3 sm:px-6">
-        <div className="flex items-center gap-2.5">
-          <Inbox className="h-4 w-4 text-primary" aria-hidden="true" />
-          <h1 className="text-sm font-semibold tracking-tight text-foreground">
-            Decisions
-          </h1>
-          <span className="font-mono text-[11px] tabular-nums text-muted-foreground">
-            {visible.length} waiting
-          </span>
-          {urgentCount > 0 && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-error-clay/10 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-error-clay">
-              {urgentCount} urgent
+      {/* ── Header + Filter Tabs ──────────────────────────────────────── */}
+      <header className="border-b border-border/40">
+        <div className="flex items-center justify-between px-4 py-3 sm:px-6">
+          <div className="flex items-center gap-2.5">
+            <Inbox className="h-4 w-4 text-primary" aria-hidden="true" />
+            <h1 className="text-sm font-semibold tracking-tight text-foreground">
+              Activity Hub
+            </h1>
+            <span className="font-mono text-[11px] tabular-nums text-muted-foreground">
+              {visible.length} items
             </span>
-          )}
+            {decisionCount > 0 && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-error-clay/10 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-error-clay">
+                {decisionCount} need you
+              </span>
+            )}
+          </div>
+          <p className="hidden font-mono text-[10px] text-muted-foreground/60 sm:block">
+            1/2/3 filter · j/k move · a/r decide
+          </p>
         </div>
-        <p className="hidden font-mono text-[10px] text-muted-foreground/60 sm:block">
-          j/k move · a approve · r reject · s snooze
-        </p>
+
+        {/* Filter tabs */}
+        <div
+          className="flex items-center gap-1 px-4 pb-2 sm:px-6"
+          role="tablist"
+          aria-label="Activity filters"
+        >
+          {(
+            [
+              { key: "all" as const, label: "All", count: visible.length },
+              {
+                key: "decisions" as const,
+                label: "Decisions",
+                count: decisionCount,
+              },
+              {
+                key: "activity" as const,
+                label: "Activity",
+                count: activityCount,
+              },
+            ] as const
+          ).map((tab) => (
+            <button
+              key={tab.key}
+              type="button"
+              role="tab"
+              aria-selected={filter === tab.key}
+              onClick={() => {
+                setFilter(tab.key);
+                setCursor(0);
+              }}
+              className={cn(
+                "flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-all",
+                filter === tab.key
+                  ? "bg-primary/10 text-primary"
+                  : "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
+              )}
+            >
+              {tab.label}
+              {tab.count > 0 && (
+                <span
+                  className={cn(
+                    "inline-flex min-w-[18px] items-center justify-center rounded-full px-1 py-0.5 text-[9px] font-bold tabular-nums",
+                    filter === tab.key
+                      ? "bg-primary/20 text-primary"
+                      : "bg-muted text-muted-foreground",
+                  )}
+                >
+                  {tab.count}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
       </header>
 
       {visible.length === 0 ? (
@@ -315,10 +507,19 @@ export default function DecisionsPage() {
             className="mb-1 h-8 w-8 text-balanced-green"
             aria-hidden="true"
           />
-          <p className="text-sm font-medium text-foreground">Queue clear</p>
+          <p className="text-sm font-medium text-foreground">
+            {filter === "decisions"
+              ? "No decisions pending"
+              : filter === "activity"
+                ? "No recent activity"
+                : "Queue clear"}
+          </p>
           <p className="max-w-xs text-xs text-muted-foreground">
-            Agents are running your books. Anything that needs your call lands
-            here the moment it comes up.
+            {filter === "decisions"
+              ? "Agents are running your books. Decisions will appear here when they need your call."
+              : filter === "activity"
+                ? "Agent completions, updates, and alerts will appear here."
+                : "Agents are running your books. Anything that needs your call lands here."}
           </p>
         </div>
       ) : (
@@ -327,20 +528,22 @@ export default function DecisionsPage() {
           <div
             ref={listRef}
             role="listbox"
-            aria-label="Decision queue"
-            aria-activedescendant={
-              selected ? `decision-${selected.id}` : undefined
-            }
+            aria-label="Activity queue"
+            aria-activedescendant={selected ? `item-${selected.id}` : undefined}
             className="min-h-0 overflow-y-auto border-b border-border/40 lg:border-b-0 lg:border-r"
           >
             {visible.map((item, idx) => {
-              const meta = SEVERITY_META[item.severity];
-              const Icon = meta.icon;
               const isSelected = selected?.id === item.id;
+              const isActivity = item.itemType === "activity";
+
+              // Activity items get their own icon/tone
+              const ActivityIcon = item.icon;
+              const meta = !isActivity ? SEVERITY_META[item.severity] : null;
+
               return (
                 <button
                   key={item.id}
-                  id={`decision-${item.id}`}
+                  id={`item-${item.id}`}
                   role="option"
                   aria-selected={isSelected}
                   disabled={pendingIds.has(item.id)}
@@ -350,16 +553,59 @@ export default function DecisionsPage() {
                     isSelected ? "bg-primary/[0.06]" : "hover:bg-accent/40",
                   )}
                 >
-                  <Icon
-                    className={cn("mt-0.5 h-3.5 w-3.5 shrink-0", meta.tone)}
-                    aria-hidden="true"
-                  />
+                  {/* Icon */}
+                  {isActivity && ActivityIcon ? (
+                    <span
+                      className={cn(
+                        "mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md",
+                        item.tone === "green"
+                          ? "bg-balanced-green/10"
+                          : item.tone === "amber"
+                            ? "bg-attention-amber/10"
+                            : item.tone === "red"
+                              ? "bg-error-clay/10"
+                              : "bg-primary/10",
+                      )}
+                    >
+                      <ActivityIcon
+                        className={cn(
+                          "h-3 w-3",
+                          item.tone === "green"
+                            ? "text-balanced-green"
+                            : item.tone === "amber"
+                              ? "text-attention-amber"
+                              : item.tone === "red"
+                                ? "text-error-clay"
+                                : "text-primary",
+                        )}
+                        aria-hidden="true"
+                      />
+                    </span>
+                  ) : meta ? (
+                    <meta.icon
+                      className={cn("mt-0.5 h-3.5 w-3.5 shrink-0", meta.tone)}
+                      aria-hidden="true"
+                    />
+                  ) : (
+                    <Bell
+                      className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground"
+                      aria-hidden="true"
+                    />
+                  )}
+
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-xs font-medium text-foreground">
-                      {item.title}
+                    <span className="flex items-center gap-1.5">
+                      <span className="block truncate text-xs font-medium text-foreground">
+                        {item.title}
+                      </span>
+                      {isActivity && (
+                        <span className="shrink-0 rounded-full bg-muted px-1.5 py-0.5 text-[8px] font-bold uppercase text-muted-foreground">
+                          FYI
+                        </span>
+                      )}
                     </span>
                     <span className="mt-0.5 flex items-center gap-1.5 text-[10px] text-muted-foreground">
-                      {item.confidence !== undefined && (
+                      {!isActivity && item.confidence !== undefined && (
                         <span
                           className={cn(
                             "font-mono font-semibold tabular-nums",
@@ -390,7 +636,7 @@ export default function DecisionsPage() {
           {/* ── Brief pane ─────────────────────────────────────────────── */}
           <div className="min-h-0 overflow-y-auto">
             {selected ? (
-              <DecisionBriefPane
+              <BriefPane
                 key={selected.id}
                 item={selected}
                 busy={pendingIds.has(selected.id)}
@@ -402,13 +648,14 @@ export default function DecisionsPage() {
                 }
                 onDecide={(a) => void decide(selected, a)}
                 onSnooze={() => snooze(selected)}
+                onDismiss={() => dismissActivity(selected.id)}
                 onAskAi={(q) =>
                   router.push(`/dashboard?prompt=${encodeURIComponent(q)}`)
                 }
               />
             ) : (
               <div className="flex h-full items-center justify-center p-8 text-sm text-muted-foreground">
-                Select a decision to see its full brief.
+                Select an item to see its full brief.
               </div>
             )}
           </div>
@@ -420,7 +667,7 @@ export default function DecisionsPage() {
 
 // ─── Brief pane ───────────────────────────────────────────────────────────
 
-function DecisionBriefPane({
+function BriefPane({
   item,
   busy,
   noteOpen,
@@ -429,6 +676,7 @@ function DecisionBriefPane({
   onToggleNote,
   onDecide,
   onSnooze,
+  onDismiss,
   onAskAi,
 }: {
   item: DecisionItem;
@@ -439,10 +687,12 @@ function DecisionBriefPane({
   onToggleNote: () => void;
   onDecide: (a: "approve" | "reject") => void;
   onSnooze: () => void;
+  onDismiss: () => void;
   onAskAi: (question: string) => void;
 }) {
-  const meta = SEVERITY_META[item.severity];
-  const Icon = meta.icon;
+  const isActivity = item.itemType === "activity";
+  const meta = !isActivity ? SEVERITY_META[item.severity] : null;
+  const ActivityIcon = item.icon;
   const evidenceKeys =
     item.evidence && Object.keys(item.evidence).length > 0
       ? Object.entries(item.evidence).slice(0, 6)
@@ -453,21 +703,60 @@ function DecisionBriefPane({
       {/* Title */}
       <div>
         <div className="flex items-center gap-2">
-          <Icon className={cn("h-4 w-4", meta.tone)} aria-hidden="true" />
+          {isActivity && ActivityIcon ? (
+            <span
+              className={cn(
+                "flex h-6 w-6 items-center justify-center rounded-md",
+                item.tone === "green"
+                  ? "bg-balanced-green/10"
+                  : item.tone === "amber"
+                    ? "bg-attention-amber/10"
+                    : item.tone === "red"
+                      ? "bg-error-clay/10"
+                      : "bg-primary/10",
+              )}
+            >
+              <ActivityIcon
+                className={cn(
+                  "h-3.5 w-3.5",
+                  item.tone === "green"
+                    ? "text-balanced-green"
+                    : item.tone === "amber"
+                      ? "text-attention-amber"
+                      : item.tone === "red"
+                        ? "text-error-clay"
+                        : "text-primary",
+                )}
+                aria-hidden="true"
+              />
+            </span>
+          ) : meta ? (
+            <meta.icon
+              className={cn("h-4 w-4", meta.tone)}
+              aria-hidden="true"
+            />
+          ) : (
+            <Bell
+              className="h-4 w-4 text-muted-foreground"
+              aria-hidden="true"
+            />
+          )}
           <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-            {meta.label}
+            {isActivity ? "Activity Update" : (meta?.label ?? "Update")}
           </span>
         </div>
         <h2 className="mt-1.5 text-base font-semibold leading-snug text-foreground">
           {item.title}
         </h2>
         <div className="mt-2 flex flex-wrap items-center gap-2">
-          <ProvenanceBadge
-            actor="agent"
-            actorName={item.agentName}
-            confidence={item.confidence}
-            source={item.sourceDoc}
-          />
+          {!isActivity && (
+            <ProvenanceBadge
+              actor="agent"
+              actorName={item.agentName}
+              confidence={item.confidence}
+              source={item.sourceDoc}
+            />
+          )}
           {item.amount && (
             <span className="rounded-full bg-attention-amber/10 px-2 py-0.5 font-mono text-[11px] font-semibold tabular-nums text-attention-amber">
               {item.amount}
@@ -483,7 +772,7 @@ function DecisionBriefPane({
         </p>
       </Section>
 
-      {/* Why */}
+      {/* Why (decisions only) */}
       {item.rationale && (
         <Section title="Why the agent recommends this">
           <p className="rounded-lg border border-primary/15 bg-primary/[0.04] px-3 py-2.5 text-[13px] leading-relaxed text-foreground/85">
@@ -492,7 +781,7 @@ function DecisionBriefPane({
         </Section>
       )}
 
-      {/* Evidence */}
+      {/* Evidence (decisions only) */}
       {evidenceKeys.length > 0 && (
         <Section title="Evidence">
           <dl className="divide-y divide-border/30 overflow-hidden rounded-lg border border-border/50">
@@ -513,7 +802,7 @@ function DecisionBriefPane({
         </Section>
       )}
 
-      {/* Note */}
+      {/* Note (decisions only) */}
       {noteOpen && (
         <div>
           <label
@@ -536,36 +825,61 @@ function DecisionBriefPane({
 
       {/* Actions */}
       <footer className="flex flex-wrap items-center gap-2 border-t border-border/40 pt-4">
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() => onDecide("approve")}
-          className="inline-flex items-center gap-1.5 rounded-lg bg-balanced-green px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-balanced-green/90 disabled:opacity-50"
-        >
-          <ThumbsUp className="h-3.5 w-3.5" aria-hidden="true" />
-          Approve
-        </button>
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() => (noteOpen ? onDecide("reject") : onToggleNote())}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-2 text-sm font-medium text-destructive transition-colors hover:bg-destructive/20 disabled:opacity-50"
-        >
-          <ThumbsDown className="h-3.5 w-3.5" aria-hidden="true" />
-          {noteOpen ? "Confirm rejection" : "Reject"}
-        </button>
-        <button
-          type="button"
-          onClick={onSnooze}
-          disabled={busy}
-          className="rounded-lg px-3 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
-        >
-          Snooze 1h
-        </button>
+        {isActivity ? (
+          <>
+            {/* Activity: just dismiss + optional action */}
+            {item.actionLabel && item.actionHref && (
+              <a
+                href={item.actionHref}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+              >
+                {item.actionLabel}
+              </a>
+            )}
+            <button
+              type="button"
+              onClick={onDismiss}
+              className="rounded-lg px-3 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
+            >
+              Dismiss
+            </button>
+          </>
+        ) : (
+          <>
+            {/* Decision: approve/reject/snooze */}
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => onDecide("approve")}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-balanced-green px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-balanced-green/90 disabled:opacity-50"
+            >
+              <ThumbsUp className="h-3.5 w-3.5" aria-hidden="true" />
+              Approve
+            </button>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => (noteOpen ? onDecide("reject") : onToggleNote())}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-2 text-sm font-medium text-destructive transition-colors hover:bg-destructive/20 disabled:opacity-50"
+            >
+              <ThumbsDown className="h-3.5 w-3.5" aria-hidden="true" />
+              {noteOpen ? "Confirm rejection" : "Reject"}
+            </button>
+            <button
+              type="button"
+              onClick={onSnooze}
+              disabled={busy}
+              className="rounded-lg px-3 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
+            >
+              Snooze 1h
+            </button>
+          </>
+        )}
+
         <button
           type="button"
           onClick={() =>
-            onAskAi(`Explain this decision: "${item.title}". ${item.summary}`)
+            onAskAi(`Explain this: "${item.title}". ${item.summary}`)
           }
           className="ml-auto inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium text-primary transition-colors hover:bg-primary/5"
         >
