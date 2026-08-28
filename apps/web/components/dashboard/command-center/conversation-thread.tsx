@@ -13,7 +13,6 @@ import {
 import { cn } from "@/lib/utils";
 import { trpc } from "@/lib/trpc/client";
 import { ConfidenceBadge } from "@/components/shared/ai-native";
-import { ActorBadge } from "@/components/shared/ai-native";
 import {
   ConversationThinkingSteps,
   ToolCallTraceCard,
@@ -451,13 +450,6 @@ export function ConversationThread({
                 </div>
               )}
               */}
-
-              {/* Actor badge */}
-              {msg.role === "assistant" && (
-                <div className="mt-1">
-                  <ActorBadge actor="ai" />
-                </div>
-              )}
 
               {/* Knowledge citations */}
               {msg.role === "assistant" &&
