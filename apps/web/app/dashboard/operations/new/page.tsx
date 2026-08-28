@@ -7,6 +7,8 @@ import {
   ArrowUpRight,
   CheckCircle2,
   CircleDashed,
+  FileText,
+  CreditCard,
   Sparkles,
   TrendingDown,
   TrendingUp,
@@ -43,6 +45,9 @@ export default function MoneyFlowsPage() {
   const { data: billsOverview } = trpc.bills.getOverview.useQuery(undefined, {
     enabled: !!entityId,
   });
+  const { data: invoiceStats } = trpc.invoices.getStats.useQuery(undefined, {
+    enabled: !!entityId,
+  });
 
   const health = dash?.businessHealth;
   const { inflows, outflows } = useMemo(() => {
@@ -56,8 +61,33 @@ export default function MoneyFlowsPage() {
   const overdueBills = billsOverview?.statusCounts.overdue ?? 0;
   const netChange = cashPos?.netChange ?? 0;
 
+  const pendingInvoices = invoiceStats?.pendingCount ?? 0;
+  const pendingBills = billsOverview?.statusCounts.pending ?? 0;
+
   return (
     <div className="mx-auto max-w-5xl space-y-6 p-4 pb-20 sm:p-6 md:pb-6">
+      {/* ── Status strip — at-a-glance counts ────────────────────────── */}
+      {(pendingInvoices > 0 || pendingBills > 0) && (
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 px-1 font-mono text-[11px] tabular-nums text-muted-foreground">
+          {pendingInvoices > 0 && (
+            <span className="inline-flex items-center gap-1">
+              <FileText className="h-3 w-3 text-primary" aria-hidden="true" />
+              {pendingInvoices} invoice{pendingInvoices !== 1 ? "s" : ""}{" "}
+              pending
+            </span>
+          )}
+          {pendingBills > 0 && (
+            <span className="inline-flex items-center gap-1">
+              <CreditCard
+                className="h-3 w-3 text-attention-amber"
+                aria-hidden="true"
+              />
+              {pendingBills} bill{pendingBills !== 1 ? "s" : ""} pending
+            </span>
+          )}
+        </div>
+      )}
+
       {/* ── Runway hero ───────────────────────────────────────────────── */}
       <section
         aria-labelledby="runway-heading"
