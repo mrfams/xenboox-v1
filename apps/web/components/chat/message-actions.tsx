@@ -53,6 +53,8 @@ export interface MessageActionsProps {
     timestamp?: Date;
     conversationId?: string;
   };
+  /** Optional className override */
+  className?: string;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────
@@ -66,6 +68,7 @@ export function MessageActions({
   onRegenerate,
   isRegenerating = false,
   metadata,
+  className,
 }: MessageActionsProps) {
   const [copied, setCopied] = useState(false);
   const [showShareMenu, setShowShareMenu] = useState(false);
@@ -120,6 +123,7 @@ export function MessageActions({
       <div
         className={cn(
           "mt-1 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity",
+          className,
         )}
         role="toolbar"
         aria-label="Message actions"

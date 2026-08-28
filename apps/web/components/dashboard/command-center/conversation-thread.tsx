@@ -538,25 +538,41 @@ export function ConversationThread({
                 </div>
               )}
 
-            {/* Message Reactions */}
-            <div className="flex items-center gap-2 mt-1">
-              <MessageReactions
-                reactions={messageReactions[msg.id] ?? []}
-                onReact={(emoji) => handleReact(msg.id, emoji)}
-              />
-            </div>
-
-            {/* Message Actions (on hover) */}
-            <MessageActions
-              content={msg.content}
-              messageId={msg.id}
-              role={msg.role as "user" | "assistant"}
-              isPinned={pinnedMessages.some((p) => p.id === msg.id)}
-              onPin={handlePin}
-              onRegenerate={
-                msg.role === "assistant" ? handleRegenerate : undefined
-              }
-            />
+            {msg.role === "assistant" ? (
+              <>
+                <MessageActions
+                  content={msg.content}
+                  messageId={msg.id}
+                  role="assistant"
+                  isPinned={pinnedMessages.some((p) => p.id === msg.id)}
+                  onPin={handlePin}
+                  onRegenerate={handleRegenerate}
+                  className="opacity-100"
+                />
+                <div className="flex items-center gap-2 mt-1">
+                  <MessageReactions
+                    reactions={messageReactions[msg.id] ?? []}
+                    onReact={(emoji) => handleReact(msg.id, emoji)}
+                  />
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="flex items-center gap-2 mt-1">
+                  <MessageReactions
+                    reactions={messageReactions[msg.id] ?? []}
+                    onReact={(emoji) => handleReact(msg.id, emoji)}
+                  />
+                </div>
+                <MessageActions
+                  content={msg.content}
+                  messageId={msg.id}
+                  role="user"
+                  isPinned={pinnedMessages.some((p) => p.id === msg.id)}
+                  onPin={handlePin}
+                />
+              </>
+            )}
           </div>
         ))}
         {/* Thinking steps — collapsible, persists after streaming like Claude/ChatGPT */}

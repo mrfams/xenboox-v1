@@ -147,7 +147,7 @@ export default function MissionControlPage() {
         {/* ── Main column — own scroll plane, isolated */}
         <div className="flex min-w-0 flex-1 flex-col overflow-hidden isolate">
           {/* Top bar — fixed, no blurry backdrop */}
-          <header className="sticky top-0 z-10 flex items-center justify-between gap-2 px-4 py-2 sm:px-6">
+          <header className="sticky top-0 z-10 flex items-center justify-between gap-2 border-b border-border/30 bg-background px-4 py-2 sm:px-6">
             <div className="min-w-0">
               {isChatting && (
                 <span className="text-xs font-medium text-muted-foreground">
@@ -187,7 +187,7 @@ export default function MissionControlPage() {
             className={cn(
               "flex min-h-0 flex-1 flex-col px-4 sm:px-6",
               isChatting
-                ? "overflow-y-auto overscroll-contain pt-4"
+                ? "overflow-y-auto overscroll-contain pt-4 pb-24"
                 : "items-center justify-center overflow-hidden py-8",
             )}
           >
@@ -213,8 +213,8 @@ export default function MissionControlPage() {
             )}
           </div>
 
-          {/* Command — compact with file support */}
-          <div className="sticky bottom-0 border-t border-border/30 bg-background/80 px-4 py-2 backdrop-blur-sm sm:px-6">
+          {/* Command — prominent, always-visible input bar */}
+          <div className="sticky bottom-0 border-t border-border/30 bg-background/80 px-4 py-3 backdrop-blur-sm sm:px-6">
             <CommandBar
               onSubmit={(v, files) => {
                 const filePayload = files?.map((f) => ({

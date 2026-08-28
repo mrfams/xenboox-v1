@@ -120,7 +120,7 @@ export function CommandBar({
 
       <div
         className={cn(
-          "relative flex items-end gap-2 rounded-2xl border border-border bg-card px-3 py-2 shadow-md transition-all focus-within:border-primary/50 focus-within:shadow-lg focus-within:ring-2 focus-within:ring-primary/10",
+          "relative flex items-center gap-2.5 rounded-2xl border border-border/60 bg-muted/30 px-4 py-2.5 shadow-lg shadow-black/[0.06] transition-all duration-200 focus-within:border-primary/50 focus-within:bg-card focus-within:shadow-xl focus-within:shadow-primary/[0.04] focus-within:ring-2 focus-within:ring-primary/15",
           busy && "opacity-90",
         )}
       >
@@ -153,7 +153,7 @@ export function CommandBar({
             }
           }}
           placeholder={placeholder}
-          className="max-h-36 min-h-[44px] flex-1 resize-none bg-transparent px-2 py-2 text-[14px] leading-5 text-foreground placeholder:text-muted-foreground/60 focus:outline-none"
+          className="max-h-36 min-h-[48px] flex-1 resize-none bg-transparent px-1 pt-[15px] pb-[11px] text-[15px] leading-5 text-foreground placeholder:text-muted-foreground/50 focus:outline-none"
         />
         {busy && onCancel ? (
           <button
@@ -170,7 +170,7 @@ export function CommandBar({
             onClick={submit}
             disabled={!value.trim() || busy}
             aria-label="Send"
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm transition-all hover:bg-primary/90 hover:shadow disabled:opacity-30"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm transition-all hover:bg-primary/90 hover:shadow disabled:opacity-40"
           >
             <ArrowUp className="h-4 w-4" />
           </button>

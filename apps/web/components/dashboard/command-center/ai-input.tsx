@@ -155,13 +155,13 @@ export function AiInput({
       {/* Input */}
       <div
         className={cn(
-          "relative group rounded-2xl border bg-card transition-all duration-200",
+          "relative group rounded-2xl border transition-all duration-200",
           isFocused
-            ? "border-primary/50 shadow-lg shadow-primary/10 ring-2 ring-primary/10"
-            : "border-border bg-card shadow-md",
+            ? "border-primary/50 bg-card shadow-xl shadow-primary/[0.04] ring-2 ring-primary/15"
+            : "border-border/60 bg-muted/30 shadow-lg shadow-black/[0.06]",
         )}
       >
-        <div className="relative flex items-end gap-2.5 px-3 py-2">
+        <div className="relative flex items-center gap-2.5 px-4 py-2.5">
           <div className="flex items-center shrink-0 self-center">
             <ChatFileUpload
               entityId={entityId}
@@ -187,7 +187,7 @@ export function AiInput({
               }
             }}
             placeholder="Ask anything about your accounting..."
-            className="max-h-[120px] min-h-[44px] flex-1 resize-none overflow-y-auto bg-transparent py-2 text-[14px] leading-5 text-foreground placeholder:text-muted-foreground/60 outline-none"
+            className="max-h-[120px] min-h-[48px] flex-1 resize-none overflow-y-auto bg-transparent px-1 pt-[15px] pb-[11px] text-[15px] leading-5 text-foreground placeholder:text-muted-foreground/50 outline-none"
           />
           <Button
             type="button"
@@ -209,7 +209,7 @@ export function AiInput({
                 ? "bg-error-clay hover:bg-error-clay/90 text-white"
                 : inputValue.trim() || uploadedFiles.length > 0
                   ? "bg-primary hover:bg-primary/90 text-white shadow"
-                  : "bg-muted text-muted-foreground",
+                  : "bg-muted/80 text-muted-foreground/70",
             )}
           >
             {isResponding ? (

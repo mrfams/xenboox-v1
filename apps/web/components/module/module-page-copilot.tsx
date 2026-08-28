@@ -455,7 +455,7 @@ export function ModulePageCopilot({
 
             {/* Composer */}
             <div className="border-t border-border/50 px-4 py-3">
-              <div className="flex items-end gap-2">
+              <div className="flex items-center gap-2">
                 <textarea
                   ref={textareaRef}
                   rows={1}
@@ -477,7 +477,7 @@ export function ModulePageCopilot({
                       ? `Ask about this ${focus.kind.toLowerCase()}`
                       : "Ask about this page"
                   }
-                  className="max-h-[120px] min-h-[24px] flex-1 resize-none overflow-y-auto rounded-lg border border-border/60 bg-muted/40 px-3 py-1.5 text-sm leading-normal text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-ring"
+                  className="max-h-[120px] min-h-[24px] flex-1 resize-none overflow-y-auto rounded-lg border border-border/60 bg-muted/40 px-3 py-[5px] text-sm leading-normal text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-ring"
                 />
                 <Button
                   type="button"
