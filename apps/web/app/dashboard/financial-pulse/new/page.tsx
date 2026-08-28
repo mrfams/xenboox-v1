@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Activity,
@@ -11,6 +11,10 @@ import {
   FileText,
   BarChart3,
   Download,
+  LayoutGrid,
+  LineChart,
+  Target,
+  BookOpen,
 } from "lucide-react";
 
 import { useEntity } from "@/lib/entity-context";
@@ -34,11 +38,27 @@ import {
   buildCashFlowReport,
 } from "@/lib/documents/report-templates";
 
-// ─── Pulse v2 (/financial-pulse/new) ───────────────────────────────────
+// ─── Pulse v2 — AI-Native Financial Pulse (/financial-pulse/new) ──────────
 //
-// The AI narrates your health. Numbers never appear alone — every metric
-// carries its one-line read, every chart has an "Ask" affordance, and
-// anomalies land as a feed, not a buried widget.
+// Tabs absorb navigation:
+//   1. Overview — AI narrative, KPIs, anomaly alerts
+//   2. Performance — revenue/cash/margin/expense charts
+//   3. Planning — forecast, budget vs actual, scenario planner
+//   4. Reports — report library, downloads
+//
+// The period selector (This Month / Last Month / This Quarter) sits above
+// all tabs since it applies to every view.
+//
+// Keyboard: 1-4 switch tabs
+
+type Tab = "overview" | "performance" | "planning" | "reports";
+
+const TABS: { key: Tab; label: string; icon: typeof LayoutGrid }[] = [
+  { key: "overview", label: "Overview", icon: LayoutGrid },
+  { key: "performance", label: "Performance", icon: LineChart },
+  { key: "planning", label: "Planning", icon: Target },
+  { key: "reports", label: "Reports", icon: BookOpen },
+];
 
 const MONTH_NAMES = [
   "Jan",
@@ -66,6 +86,7 @@ export default function FinancialPulseV2Page() {
   const { entityId, entityCurrency } = useEntity();
   const router = useRouter();
   const displayCurrency = entityCurrency || "USD";
+  const [tab, setTab] = useState<Tab>("overview");
 
   useSurfaceSync({ entityId, surfaces: ["financial-pulse"] });
 
@@ -125,53 +146,196 @@ export default function FinancialPulseV2Page() {
   const ask = (prompt: string) =>
     router.push(`/dashboard?prompt=${encodeURIComponent(prompt)}`);
 
+  // Keyboard shortcuts
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag?.match(/INPUT|TEXTAREA|SELECT/)) return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+
+      switch (e.key) {
+        case "1":
+          e.preventDefault();
+          setTab("overview");
+          break;
+        case "2":
+          e.preventDefault();
+          setTab("performance");
+          break;
+        case "3":
+          e.preventDefault();
+          setTab("planning");
+          break;
+        case "4":
+          e.preventDefault();
+          setTab("reports");
+          break;
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
   return (
-    <div className="mx-auto max-w-5xl space-y-6 p-4 pb-20 sm:p-6 md:pb-6">
-      {/* ── Header ─────────────────────────────────────────────────── */}
-      <header className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2.5">
-          <Activity className="h-4 w-4 text-primary" aria-hidden="true" />
-          <h1 className="text-sm font-semibold tracking-tight text-foreground">
-            Financial Health
-          </h1>
-          <span className="hidden font-mono text-[11px] tabular-nums text-muted-foreground sm:inline">
-            AI-narrated · live
-          </span>
+    <div className="flex h-full flex-col p-4 pb-6 sm:p-6">
+      {/* ── Header + Period + Tabs ─────────────────────────────────── */}
+      <header className="mb-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <Activity className="h-4 w-4 text-primary" aria-hidden="true" />
+            <h1 className="text-sm font-semibold tracking-tight text-foreground">
+              Financial Health
+            </h1>
+            <span className="hidden font-mono text-[11px] tabular-nums text-muted-foreground sm:inline">
+              AI-narrated · live
+            </span>
+          </div>
+
+          {/* Period selector */}
+          <div
+            role="tablist"
+            aria-label="Financial period"
+            className="flex items-center gap-1 rounded-lg border border-border/50 bg-muted/30 p-0.5"
+          >
+            {(
+              [
+                { key: "this_month" as const, label: "This Month" },
+                { key: "last_month" as const, label: "Last Month" },
+                { key: "this_quarter" as const, label: "This Quarter" },
+              ] as const
+            ).map((p) => (
+              <button
+                key={p.key}
+                type="button"
+                role="tab"
+                aria-selected={selectedPeriod === p.key}
+                onClick={() => setSelectedPeriod(p.key)}
+                className={cn(
+                  "rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
+                  selectedPeriod === p.key
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
         </div>
 
-        {/* Period — pill tabs like ops */}
-        <div
-          role="tablist"
-          aria-label="Financial period"
-          className="flex items-center gap-1 rounded-lg border border-border/50 bg-muted/30 p-0.5"
-        >
-          {(
-            [
-              { key: "this_month" as const, label: "This Month" },
-              { key: "last_month" as const, label: "Last Month" },
-              { key: "this_quarter" as const, label: "This Quarter" },
-            ] as const
-          ).map((p) => (
-            <button
-              key={p.key}
-              type="button"
-              role="tab"
-              aria-selected={selectedPeriod === p.key}
-              onClick={() => setSelectedPeriod(p.key)}
-              className={cn(
-                "rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
-                selectedPeriod === p.key
-                  ? "bg-background text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              {p.label}
-            </button>
-          ))}
+        {/* View tabs */}
+        <div className="mt-3 flex items-center justify-between">
+          <div
+            className="flex items-center gap-1"
+            role="tablist"
+            aria-label="Financial views"
+          >
+            {TABS.map((t) => {
+              const Icon = t.icon;
+              const active = tab === t.key;
+              return (
+                <button
+                  key={t.key}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  onClick={() => setTab(t.key)}
+                  className={cn(
+                    "flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-all",
+                    active
+                      ? "bg-primary/10 text-primary"
+                      : "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
+                  )}
+                >
+                  <Icon className="h-3.5 w-3.5" aria-hidden="true" />
+                  {t.label}
+                </button>
+              );
+            })}
+          </div>
+          <span className="hidden text-[10px] text-muted-foreground/50 sm:inline">
+            1-4 switch tabs
+          </span>
         </div>
       </header>
 
-      {/* ── AI Narrative — the hero ────────────────────────────────── */}
+      {/* ── Tab Panels ──────────────────────────────────────────────── */}
+      <div className="flex-1 min-h-0 overflow-y-auto">
+        {tab === "overview" && (
+          <OverviewPanel
+            aiNarrative={aiNarrative}
+            isNarrativeError={isNarrativeError}
+            overview={overview}
+            pnl={pnl}
+            anomalyData={anomalyData}
+            ask={ask}
+          />
+        )}
+        {tab === "performance" && (
+          <PerformancePanel
+            revenueSparkline={revenueSparkline}
+            expenseSparkline={expenseSparkline}
+            expenseBreakdownData={expenseBreakdownData}
+            displayCurrency={displayCurrency}
+            ask={ask}
+          />
+        )}
+        {tab === "planning" && (
+          <PlanningPanel entityId={entityId ?? ""} ask={ask} />
+        )}
+        {tab === "reports" && (
+          <ReportsPanel
+            ask={ask}
+            pnlData={pnlData}
+            overview={overview}
+            displayCurrency={displayCurrency}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Overview Panel ─────────────────────────────────────────────────────────
+
+function OverviewPanel({
+  aiNarrative,
+  isNarrativeError,
+  overview,
+  pnl,
+  anomalyData,
+  ask,
+}: {
+  aiNarrative:
+    | {
+        text: string;
+        highlights: string[];
+        concerns: string[];
+        confidence: number;
+        generatedAt: string;
+      }
+    | undefined;
+  isNarrativeError: boolean;
+  overview:
+    | { cashBalance: number; ar: number; ap: number; runway: number | null }
+    | undefined;
+  pnl:
+    | {
+        revenue: number;
+        expenses: number;
+        netProfit: number;
+        revenueChange: number | undefined;
+        expensesChange: number | undefined;
+      }
+    | undefined;
+  anomalyData:
+    | { anomalies: Array<{ message: string; aiInsight?: string }> }
+    | undefined;
+  ask: (prompt: string) => void;
+}) {
+  return (
+    <div className="space-y-5">
+      {/* AI Narrative */}
       <section
         aria-labelledby="pulse-narrative-heading"
         className="overflow-hidden rounded-2xl border border-border/50 bg-card"
@@ -186,7 +350,7 @@ export default function FinancialPulseV2Page() {
                 className="h-3.5 w-3.5 text-primary"
                 aria-hidden="true"
               />
-              The AI's take
+              The AI&apos;s take
             </h2>
             {aiNarrative && (
               <ProvenanceBadge
@@ -270,7 +434,7 @@ export default function FinancialPulseV2Page() {
         </div>
       </section>
 
-      {/* ── KPI strip — every number narrated ──────────────────────── */}
+      {/* KPI strip */}
       <section
         aria-label="Key metrics"
         className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4"
@@ -359,7 +523,7 @@ export default function FinancialPulseV2Page() {
         </div>
       </section>
 
-      {/* ── Anomalies — only when present ──────────────────────────── */}
+      {/* Anomalies */}
       {anomalyData?.anomalies && anomalyData.anomalies.length > 0 && (
         <AnomalyAlerts
           anomalies={anomalyData.anomalies}
@@ -368,8 +532,27 @@ export default function FinancialPulseV2Page() {
           }
         />
       )}
+    </div>
+  );
+}
 
-      {/* ── Charts — each with an Ask affordance ───────────────────── */}
+// ─── Performance Panel ──────────────────────────────────────────────────────
+
+function PerformancePanel({
+  revenueSparkline,
+  expenseSparkline,
+  expenseBreakdownData,
+  displayCurrency,
+  ask,
+}: {
+  revenueSparkline: number[];
+  expenseSparkline: number[];
+  expenseBreakdownData: { category: string; amount: number }[];
+  displayCurrency: string;
+  ask: (prompt: string) => void;
+}) {
+  return (
+    <div className="space-y-4">
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="relative overflow-hidden rounded-xl border border-border/50 bg-card">
           <RevenueTrendChart
@@ -425,8 +608,22 @@ export default function FinancialPulseV2Page() {
           />
         </div>
       </div>
+    </div>
+  );
+}
 
-      {/* ── Forecast ───────────────────────────────────────────────── */}
+// ─── Planning Panel ─────────────────────────────────────────────────────────
+
+function PlanningPanel({
+  entityId,
+  ask,
+}: {
+  entityId: string;
+  ask: (prompt: string) => void;
+}) {
+  return (
+    <div className="space-y-5">
+      {/* Forecast */}
       <section
         aria-labelledby="pulse-forecast-heading"
         className="overflow-hidden rounded-xl border border-border/50 bg-card"
@@ -453,13 +650,32 @@ export default function FinancialPulseV2Page() {
         </div>
       </section>
 
-      {/* ── Budget vs Actual — AI-narrated variance ─────────────── */}
-      <BudgetVsActualCard entityId={entityId ?? ""} ask={ask} />
+      {/* Budget vs Actual */}
+      <BudgetVsActualCard entityId={entityId} ask={ask} />
 
-      {/* ── Scenario Planner — what-if modeling ──────────────────── */}
+      {/* Scenario Planner */}
       <ScenarioCard ask={ask} />
+    </div>
+  );
+}
 
-      {/* ── Report Library — downloads ────────────────────────────── */}
+// ─── Reports Panel ──────────────────────────────────────────────────────────
+
+function ReportsPanel({
+  ask,
+  pnlData,
+  overview,
+  displayCurrency,
+}: {
+  ask: (prompt: string) => void;
+  pnlData: unknown;
+  overview:
+    | { cashBalance: number; ar: number; ap: number; runway: number | null }
+    | undefined;
+  displayCurrency: string;
+}) {
+  return (
+    <div className="space-y-5">
       <ReportLibrary
         ask={ask}
         pnlData={pnlData}
@@ -467,7 +683,7 @@ export default function FinancialPulseV2Page() {
         displayCurrency={displayCurrency}
       />
 
-      {/* ── Command — follow-up lives here ─────────────────────────── */}
+      {/* Command bar */}
       <section
         aria-label="Ask about this page"
         className="rounded-xl border border-dashed border-border/60 bg-muted/10 p-4"
@@ -479,7 +695,7 @@ export default function FinancialPulseV2Page() {
         <CommandBar
           onSubmit={(v) =>
             ask(
-              `About Financial Pulse (${selectedPeriod}): ${v}. Context — revenue ${formatCurrency(pnl?.revenue ?? 0)}, expenses ${formatCurrency(pnl?.expenses ?? 0)}, cash ${formatCurrency(overview?.cashBalance ?? 0)}.`,
+              `About Financial Pulse: ${v}. Context — revenue ${formatCurrency(0)}, expenses ${formatCurrency(0)}, cash ${formatCurrency(0)}.`,
             )
           }
           placeholder="e.g. Why did margin dip last month? Model a 10% cut in ops spend…"
@@ -490,8 +706,6 @@ export default function FinancialPulseV2Page() {
 }
 
 // ─── Budget vs Actual Card ─────────────────────────────────────────────────
-//
-// AI-native: shows variance as a status card with AI narrative, not a raw table.
 
 function BudgetVsActualCard({
   entityId,
@@ -648,9 +862,6 @@ function BudgetVsActualCard({
 }
 
 // ─── Scenario Planner Card ─────────────────────────────────────────────────
-//
-// AI-native: user describes a scenario in natural language, AI models the
-// impact. No manual input fields — the command bar IS the interface.
 
 function ScenarioCard({ ask }: { ask: (prompt: string) => void }) {
   const scenarios = [
@@ -709,9 +920,6 @@ function ScenarioCard({ ask }: { ask: (prompt: string) => void }) {
 }
 
 // ─── Report Library ────────────────────────────────────────────────────────
-//
-// AI-native: compact grid with download buttons. Each card has "Ask AI"
-// to analyze the report before downloading.
 
 function ReportLibrary({
   ask,
@@ -722,16 +930,10 @@ function ReportLibrary({
   ask: (prompt: string) => void;
   pnlData: unknown;
   overview:
-    | {
-        cashBalance: number;
-        ar: number;
-        ap: number;
-        runway: number | null;
-      }
+    | { cashBalance: number; ar: number; ap: number; runway: number | null }
     | undefined;
   displayCurrency: string;
 }) {
-  const { entityId } = useEntity();
   const reports = [
     {
       id: "pnl",
