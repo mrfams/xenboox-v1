@@ -111,22 +111,13 @@ export function Hero() {
       <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         {/* ── Compact Text Zone ── */}
         <div className="flex flex-col items-center gap-4 pt-10 text-center sm:pt-14 md:pt-16 lg:pt-20">
-          {/* Eyebrow */}
-          <div className="hero-fade-up flex items-center gap-2 rounded-full border border-border bg-card/60 px-4 py-1.5 shadow-sm backdrop-blur-sm">
-            <span className="relative flex h-2 w-2">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-balanced-green opacity-75" />
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-balanced-green" />
-            </span>
-            <span className="text-xs font-medium text-muted-foreground">
-              19 AI agents running
-            </span>
-          </div>
-
           {/* Headline */}
           <h1 className="hero-fade-up max-w-4xl text-4xl font-semibold leading-[1.08] tracking-tight text-foreground sm:text-5xl lg:text-[3.5rem]">
-            Your entire accounting department, running{" "}
-            <span className="bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
-              autonomously
+            <span className="whitespace-nowrap">
+              Your entire accounting department,
+            </span>{" "}
+            <span className="bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent whitespace-nowrap">
+              running autonomously
             </span>
             .
           </h1>
@@ -158,7 +149,10 @@ export function Hero() {
             >
               <Link href="#demo">
                 <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 transition-colors duration-300 group-hover:bg-primary/15">
-                  <Play className="h-3 w-3 fill-primary text-primary" aria-hidden="true" />
+                  <Play
+                    className="h-3 w-3 fill-primary text-primary"
+                    aria-hidden="true"
+                  />
                 </span>
                 See it in action
               </Link>
@@ -279,13 +273,13 @@ function InteractiveDemo({
           {/* Agent activity indicator */}
           <AgentActivityBar />
 
-          {/* Live agent count */}
+          {/* Live status */}
           <span className="ml-auto inline-flex items-center gap-1.5 rounded-full bg-balanced-green/10 px-2 py-0.5 text-[10px] font-semibold text-balanced-green">
             <span
               className="h-1.5 w-1.5 animate-pulse rounded-full bg-balanced-green"
               aria-hidden="true"
             />
-            19 agents active
+            Live
           </span>
         </div>
 
