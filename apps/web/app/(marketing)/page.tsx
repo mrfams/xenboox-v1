@@ -32,11 +32,11 @@ export default function HomePage() {
       <SoftwareAppJsonLd />
       <AnnouncementBar />
       <Hero />
+      <Testimonials />
       <StatBar />
       <HowItWorks />
       <Features />
       <DemoVideo />
-      <Testimonials />
       <Security />
       <Cta />
     </>

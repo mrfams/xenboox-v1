@@ -1,4 +1,7 @@
-import { Quote, Star, BadgeCheck, Building2, TrendingUp } from "lucide-react";
+"use client";
+
+import * as React from "react";
+import { Quote } from "lucide-react";
 
 import { Section, SectionHeading } from "@/components/marketing/section";
 import { FadeInUp } from "@/components/marketing/reveal";
@@ -10,12 +13,6 @@ const testimonials = [
     name: "Fatoumata Ceesay",
     role: "CFO, Seagull Logistics",
     location: "Banjul",
-    initials: "FC",
-    company: "Seagull Logistics — freight & customs",
-    metric: "4 days",
-    metricLabel: "month-end close",
-    verified: true,
-    featured: true,
   },
   {
     quote:
@@ -23,12 +20,6 @@ const testimonials = [
     name: "Musa Jallow",
     role: "Founder, SunuFresh Foods",
     location: "Serekunda",
-    initials: "MJ",
-    company: "SunuFresh Foods — FMCG distribution",
-    metric: "GMD 1.8M",
-    metricLabel: "overdue recovered",
-    verified: true,
-    featured: false,
   },
   {
     quote:
@@ -36,12 +27,6 @@ const testimonials = [
     name: "Amina Draboe",
     role: "Ops Lead, Kaira Clinics",
     location: "Kanifing",
-    initials: "AD",
-    company: "Kaira Clinics — 34 staff",
-    metric: "100%",
-    metricLabel: "on-time payroll",
-    verified: true,
-    featured: false,
   },
   {
     quote:
@@ -49,12 +34,6 @@ const testimonials = [
     name: "Omar Darboe",
     role: "Finance Director, Atlantic Traders",
     location: "Banjul",
-    initials: "OD",
-    company: "Atlantic Traders — import/export",
-    metric: "50+",
-    metricLabel: "currencies supported",
-    verified: true,
-    featured: false,
   },
   {
     quote:
@@ -62,12 +41,6 @@ const testimonials = [
     name: "Isatou Touray",
     role: "Owner, Gampetroleum Services",
     location: "Brikama",
-    initials: "IT",
-    company: "Gampetroleum — fuel distribution",
-    metric: "1 weekend",
-    metricLabel: "migration time",
-    verified: true,
-    featured: false,
   },
   {
     quote:
@@ -75,16 +48,77 @@ const testimonials = [
     name: "Lamin Sanyang",
     role: "Managing Partner, LS Consulting",
     location: "Serrekunda",
-    initials: "LS",
-    company: "LS Consulting — professional services",
-    metric: "GMD 200K",
-    metricLabel: "penalties avoided",
-    verified: true,
-    featured: false,
   },
 ];
 
+const CARD_WIDTH = 320;
+const GAP = 24;
+const AUTO_INTERVAL = 3500;
+
 export function Testimonials() {
+  const [index, setIndex] = React.useState(0);
+  const [isPaused, setIsPaused] = React.useState(false);
+  const [visibleCount, setVisibleCount] = React.useState(2);
+  const viewportRef = React.useRef<HTMLDivElement>(null);
+  const isDragging = React.useRef(false);
+  const startX = React.useRef(0);
+  const scrollStart = React.useRef(0);
+
+  // Responsive: 2 cards on laptop (lg >=1024), 1 on smaller
+  React.useEffect(() => {
+    const update = () => {
+      setVisibleCount(window.innerWidth >= 1024 ? 2 : 1);
+    };
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
+
+  const maxIndex = Math.max(0, testimonials.length - visibleCount);
+
+  // Clamp index when visibleCount changes
+  React.useEffect(() => {
+    setIndex((prev) => Math.min(prev, maxIndex));
+  }, [maxIndex]);
+
+  // Auto swipe
+  React.useEffect(() => {
+    if (isPaused) return;
+    const id = setInterval(() => {
+      setIndex((prev) => (prev >= maxIndex ? 0 : prev + 1));
+    }, AUTO_INTERVAL);
+    return () => clearInterval(id);
+  }, [isPaused, maxIndex]);
+
+  // Pointer drag to allow manual swipe
+  const onPointerDown = (e: React.PointerEvent) => {
+    isDragging.current = true;
+    startX.current = e.clientX;
+    scrollStart.current = index;
+    setIsPaused(true);
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+  };
+
+  const onPointerMove = (e: React.PointerEvent) => {
+    if (!isDragging.current) return;
+    const delta = e.clientX - startX.current;
+    // threshold to change slide
+    if (Math.abs(delta) > 60) {
+      if (delta < 0 && index < maxIndex) {
+        setIndex((p) => Math.min(p + 1, maxIndex));
+      } else if (delta > 0 && index > 0) {
+        setIndex((p) => Math.max(p - 1, 0));
+      }
+      isDragging.current = false;
+    }
+  };
+
+  const onPointerUp = () => {
+    isDragging.current = false;
+    // resume after short delay
+    setTimeout(() => setIsPaused(false), 2000);
+  };
+
   return (
     <Section
       id="testimonials"
@@ -99,114 +133,86 @@ export function Testimonials() {
           <SectionHeading
             eyebrow="Real teams, real results • entity-scoped by default"
             title="Teams that closed their books in days, not weeks."
-            lead="Real operators in The Gambia — every workflow audit-trailed, every decision confidence-scored before it posts."
           />
         </FadeInUp>
 
-        {/* Enterprise proof bar */}
-        <FadeInUp delay={0.06}>
-          <div className="mx-auto mt-6 flex flex-wrap items-center justify-center gap-2 text-[11px]">
-            {[
-              "Seagull Logistics",
-              "SunuFresh Foods",
-              "Kaira Clinics",
-              "Atlantic Traders",
-              "Gampetroleum",
-            ].map((logo) => (
-              <span
-                key={logo}
-                className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 font-medium tracking-tight text-muted-foreground"
-              >
-                <Building2 className="h-3.5 w-3.5" aria-hidden />
-                {logo}
-              </span>
-            ))}
-          </div>
-        </FadeInUp>
-
-        <div className="mx-auto mt-10 sm:mt-12 grid max-w-6xl gap-4 sm:gap-5 lg:gap-6 lg:grid-cols-12">
-          {testimonials.map((item, index) => (
-            <FadeInUp
-              key={item.name}
-              delay={index * 0.1}
-              className={item.featured ? "lg:col-span-7" : "lg:col-span-5"}
+        {/* Carousel — one row, swipe left, 2 cards visible on laptop */}
+        <div
+          className="mx-auto mt-10 sm:mt-12"
+          style={{
+            maxWidth: visibleCount === 2 ? CARD_WIDTH * 2 + GAP : CARD_WIDTH,
+          }}
+          onMouseEnter={() => setIsPaused(true)}
+          onMouseLeave={() => setIsPaused(false)}
+        >
+          <div
+            ref={viewportRef}
+            className="overflow-hidden"
+            onPointerDown={onPointerDown}
+            onPointerMove={onPointerMove}
+            onPointerUp={onPointerUp}
+          >
+            <div
+              className="flex"
+              style={{
+                gap: GAP,
+                transform: `translateX(-${index * (CARD_WIDTH + GAP)}px)`,
+                transition: "transform 600ms cubic-bezier(0.32, 0.72, 0, 1)",
+              }}
             >
-              <figure
-                className={`relative flex h-full flex-col overflow-hidden rounded-2xl border p-6 sm:p-7 lg:p-8 transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] hover:-translate-y-1 hover:shadow-[0_24px_60px_-24px_rgba(20,33,61,0.2)] ${
-                  item.featured
-                    ? "border-primary/15 bg-card shadow-[0_8px_30px_-12px_rgba(59,79,224,0.18)]"
-                    : "border-border/60 bg-card/80 backdrop-blur"
-                }`}
-              >
-                <div className="flex items-start justify-between gap-3">
+              {testimonials.map((item) => (
+                <figure
+                  key={item.name}
+                  className="flex shrink-0 flex-col overflow-hidden rounded-2xl border border-border/60 bg-card p-8 shadow-[0_8px_30px_-12px_rgba(59,79,224,0.12)]"
+                  style={{
+                    width: CARD_WIDTH,
+                    minWidth: CARD_WIDTH,
+                    maxWidth: CARD_WIDTH,
+                  }}
+                >
                   <Quote
-                    className={`h-8 w-8 shrink-0 ${item.featured ? "text-primary" : "text-primary/30"}`}
+                    className="h-7 w-7 shrink-0 text-primary/30"
                     aria-hidden="true"
                   />
-                  <span className="inline-flex items-center gap-1 rounded-full border border-balanced-green/15 bg-balanced-green/10 px-2.5 py-1 text-[10px] font-semibold tracking-wider text-balanced-green">
-                    <BadgeCheck className="h-3.5 w-3.5" aria-hidden />
-                    Verified operator
-                  </span>
-                </div>
-                <div
-                  className="mt-3 flex gap-0.5"
-                  role="img"
-                  aria-label="5 out of 5 stars"
-                >
-                  {Array.from({ length: 5 }).map((_, star) => (
-                    <Star
-                      key={star}
-                      className="h-3.5 w-3.5 fill-attention-amber text-attention-amber"
-                      aria-hidden="true"
-                    />
-                  ))}
-                </div>
-                <blockquote className="mt-4 flex-1 text-[17px] font-medium leading-relaxed tracking-tight text-foreground text-pretty">
-                  &ldquo;{item.quote}&rdquo;
-                </blockquote>
+                  <blockquote className="mt-4 flex-1 text-[15px] font-medium leading-relaxed tracking-tight text-foreground text-pretty">
+                    &ldquo;{item.quote}&rdquo;
+                  </blockquote>
 
-                {/* Metric callout */}
-                <div className="mt-6 flex items-center gap-3 rounded-xl border border-border/60 bg-background/60 p-3">
-                  <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                    <TrendingUp className="h-4 w-4" aria-hidden />
-                  </span>
-                  <div>
-                    <p className="text-sm font-semibold tabular-nums tracking-tight text-foreground">
-                      {item.metric}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {item.metricLabel}
-                    </p>
-                  </div>
-                  <span className="ml-auto hidden text-xs text-muted-foreground sm:block">
-                    {item.company}
-                  </span>
-                </div>
-
-                <figcaption className="mt-5 flex items-center gap-3 border-t border-border/60 pt-5">
-                  <span className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
-                    {item.initials}
-                  </span>
-                  <div className="min-w-0">
+                  {/* Footer — always pinned to bottom, level across all cards */}
+                  <figcaption className="mt-8 flex flex-col gap-0.5 border-t border-border/60 pt-5">
                     <p className="text-sm font-semibold tracking-tight text-foreground">
                       {item.name}
                     </p>
-                    <p className="truncate text-xs text-muted-foreground">
+                    <p className="text-xs text-muted-foreground">
                       {item.role} · {item.location}
                     </p>
-                  </div>
-                </figcaption>
-              </figure>
-            </FadeInUp>
-          ))}
-        </div>
+                  </figcaption>
+                </figure>
+              ))}
+            </div>
+          </div>
 
-        <FadeInUp delay={0.14}>
-          <p className="mx-auto mt-8 max-w-2xl text-center text-xs leading-relaxed text-muted-foreground/60">
-            Testimonials from real Xenboox operators in The Gambia — not stock
-            photos. Every quote is tied to an entity with permission to publish.
-          </p>
-        </FadeInUp>
+          {/* Invisible progress/dots for accessibility — hidden visually but keeps structure */}
+          <div
+            className="mt-6 flex items-center justify-center gap-1.5"
+            aria-hidden
+          >
+            {Array.from({ length: maxIndex + 1 }).map((_, i) => (
+              <button
+                key={i}
+                onClick={() => {
+                  setIndex(i);
+                  setIsPaused(true);
+                  setTimeout(() => setIsPaused(false), 3000);
+                }}
+                className={`h-1.5 rounded-full transition-all duration-300 ${
+                  i === index ? "w-6 bg-primary" : "w-1.5 bg-border"
+                }`}
+                aria-label={`Go to slide ${i + 1}`}
+              />
+            ))}
+          </div>
+        </div>
       </div>
     </Section>
   );
