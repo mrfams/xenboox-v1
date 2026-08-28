@@ -176,7 +176,7 @@ export function Hero() {
         </div>
 
         {/* ── Interactive Platform Demo ── */}
-        <div className="hero-fade-up mt-8 sm:mt-10 md:mt-12 lg:mt-14">
+        <div className="hero-fade-up mt-6 sm:mt-8 md:mt-10 lg:mt-12">
           <InteractiveDemo mousePos={mousePos} containerRef={containerRef} />
         </div>
       </div>
@@ -239,7 +239,7 @@ function InteractiveDemo({
   }, [mousePos, containerRef]);
 
   return (
-    <div ref={demoRef} className="relative mx-auto w-full max-w-6xl">
+    <div ref={demoRef} className="relative mx-auto w-full max-w-5xl">
       {/* Glow backdrop — tracks cursor */}
       <div
         className="absolute -inset-12 rounded-[2rem] blur-3xl transition-all duration-700 ease-out"
@@ -283,7 +283,7 @@ function InteractiveDemo({
           </span>
         </div>
 
-        <div className="flex min-h-[400px] sm:min-h-[460px] md:min-h-[520px]">
+        <div className="flex min-h-[320px] sm:min-h-[380px] md:min-h-[420px]">
           {/* ── Sidebar ── */}
           <div className="hidden w-14 flex-col items-center gap-2 border-r border-border bg-muted/20 py-3 sm:flex">
             {surfaces.map((s) => {
