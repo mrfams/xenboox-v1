@@ -51,9 +51,10 @@ const testimonials = [
   },
 ];
 
-const CARD_WIDTH = 320;
-const GAP = 24;
-const AUTO_INTERVAL = 3500;
+// Anthropic-inspired sizing: generous cards, large type, spacious padding
+const CARD_WIDTH = 480;
+const GAP = 32;
+const AUTO_INTERVAL = 4000;
 
 export function Testimonials() {
   const [index, setIndex] = React.useState(0);
@@ -64,7 +65,7 @@ export function Testimonials() {
   const startX = React.useRef(0);
   const scrollStart = React.useRef(0);
 
-  // Responsive: 2 cards on laptop (lg >=1024), 1 on smaller
+  // Responsive: 2 cards on lg, 1 on smaller
   React.useEffect(() => {
     const update = () => {
       setVisibleCount(window.innerWidth >= 1024 ? 2 : 1);
@@ -102,7 +103,6 @@ export function Testimonials() {
   const onPointerMove = (e: React.PointerEvent) => {
     if (!isDragging.current) return;
     const delta = e.clientX - startX.current;
-    // threshold to change slide
     if (Math.abs(delta) > 60) {
       if (delta < 0 && index < maxIndex) {
         setIndex((p) => Math.min(p + 1, maxIndex));
@@ -115,7 +115,6 @@ export function Testimonials() {
 
   const onPointerUp = () => {
     isDragging.current = false;
-    // resume after short delay
     setTimeout(() => setIsPaused(false), 2000);
   };
 
@@ -130,16 +129,15 @@ export function Testimonials() {
       />
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <FadeInUp>
-          <SectionHeading
-            title="Teams that closed their books in days, not weeks."
-          />
+          <SectionHeading title="Teams that closed their books in days, not weeks." />
         </FadeInUp>
 
-        {/* Carousel — one row, swipe left, 2 cards visible on laptop */}
+        {/* Carousel — wider Anthropic-style cards */}
         <div
-          className="mx-auto mt-10 sm:mt-12"
+          className="mx-auto mt-10 sm:mt-14"
           style={{
-            maxWidth: visibleCount === 2 ? CARD_WIDTH * 2 + GAP : CARD_WIDTH,
+            maxWidth:
+              visibleCount === 2 ? CARD_WIDTH * 2 + GAP + 32 : CARD_WIDTH + 32,
           }}
           onMouseEnter={() => setIsPaused(true)}
           onMouseLeave={() => setIsPaused(false)}
@@ -162,7 +160,7 @@ export function Testimonials() {
               {testimonials.map((item) => (
                 <figure
                   key={item.name}
-                  className="flex shrink-0 flex-col overflow-hidden rounded-2xl border border-border/60 bg-card p-8 shadow-[0_8px_30px_-12px_rgba(59,79,224,0.12)]"
+                  className="flex shrink-0 flex-col overflow-hidden rounded-2xl border border-border/60 bg-card p-8 sm:p-10 shadow-[0_8px_30px_-12px_rgba(59,79,224,0.12)]"
                   style={{
                     width: CARD_WIDTH,
                     minWidth: CARD_WIDTH,
@@ -170,19 +168,18 @@ export function Testimonials() {
                   }}
                 >
                   <Quote
-                    className="h-7 w-7 shrink-0 text-primary/30"
+                    className="h-8 w-8 shrink-0 text-primary/30"
                     aria-hidden="true"
                   />
-                  <blockquote className="mt-4 flex-1 text-[15px] font-medium leading-relaxed tracking-tight text-foreground text-pretty">
+                  <blockquote className="mt-5 flex-1 text-lg font-medium leading-relaxed tracking-tight text-foreground text-pretty sm:text-xl">
                     &ldquo;{item.quote}&rdquo;
                   </blockquote>
 
-                  {/* Footer — always pinned to bottom, level across all cards */}
-                  <figcaption className="mt-8 flex flex-col gap-0.5 border-t border-border/60 pt-5">
-                    <p className="text-sm font-semibold tracking-tight text-foreground">
+                  <figcaption className="mt-8 flex flex-col gap-1 border-t border-border/60 pt-5">
+                    <p className="text-base font-semibold tracking-tight text-foreground">
                       {item.name}
                     </p>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-sm text-muted-foreground">
                       {item.role} · {item.location}
                     </p>
                   </figcaption>
@@ -191,9 +188,9 @@ export function Testimonials() {
             </div>
           </div>
 
-          {/* Invisible progress/dots for accessibility — hidden visually but keeps structure */}
+          {/* Progress dots */}
           <div
-            className="mt-6 flex items-center justify-center gap-1.5"
+            className="mt-8 flex items-center justify-center gap-2"
             aria-hidden
           >
             {Array.from({ length: maxIndex + 1 }).map((_, i) => (
@@ -204,8 +201,8 @@ export function Testimonials() {
                   setIsPaused(true);
                   setTimeout(() => setIsPaused(false), 3000);
                 }}
-                className={`h-1.5 rounded-full transition-all duration-300 ${
-                  i === index ? "w-6 bg-primary" : "w-1.5 bg-border"
+                className={`h-2 rounded-full transition-all duration-300 ${
+                  i === index ? "w-8 bg-primary" : "w-2 bg-border"
                 }`}
                 aria-label={`Go to slide ${i + 1}`}
               />
