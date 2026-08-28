@@ -368,12 +368,12 @@ function ModulePageShellInner({
           role="tabpanel"
           id={`module-panel-${activeTab}`}
           aria-labelledby={`module-tab-${activeTab}`}
-          className="flex-1 bg-white"
+          className="flex flex-col flex-1 bg-white"
         >
           {children}
         </div>
       ) : (
-        <div className="flex-1 bg-white">{children}</div>
+        <div className="flex flex-col flex-1 bg-white">{children}</div>
       )}
 
       {pagination && (
@@ -392,5 +392,5 @@ function ModulePageShellInner({
 
   if (noOuterWrapper) return shell;
 
-  return <div className="flex min-h-full flex-col bg-white">{shell}</div>;
+  return <div className="flex h-full flex-col bg-white">{shell}</div>;
 }

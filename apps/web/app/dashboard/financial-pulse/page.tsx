@@ -999,7 +999,7 @@ function FinancialPulseInner() {
       ]}
     >
       <div
-        className="space-y-6 p-3 pb-20 sm:p-6 md:pb-6"
+        className="flex flex-col flex-1 gap-6 p-3 pb-20 sm:p-6 md:pb-6 min-h-0"
         aria-busy={!dashboardData && !pnlData}
       >
         {/* Period Selector */}
@@ -1301,10 +1301,13 @@ function FinancialPulseInner() {
             id="pulse-panel-performance"
             role="tabpanel"
             aria-labelledby="pulse-tab-performance"
-            className="space-y-6"
+            className="flex flex-col flex-1 gap-6 min-h-0"
           >
             {/* Interactive Charts */}
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div
+              className="grid grid-rows-[1fr_1fr] gap-4 sm:grid-cols-2"
+              style={{ minHeight: "80vh" }}
+            >
               <RevenueTrendChart
                 data={revenueSparkline.map((v, i) => ({
                   month: getMonthLabel(i, revenueSparkline.length),
@@ -1332,7 +1335,10 @@ function FinancialPulseInner() {
                 }
               />
             </div>
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div
+              className="grid grid-rows-[1fr_1fr] gap-4 sm:grid-cols-2"
+              style={{ minHeight: "80vh" }}
+            >
               <MarginTrendChart
                 data={revenueSparkline.map((v, i) => {
                   const exp = expenseSparkline[i] ?? 0;

@@ -123,6 +123,7 @@ function ChartCard({
   iconColor,
   onAskAi,
   aiPrompt,
+  className,
   children,
 }: {
   title: string;
@@ -130,10 +131,16 @@ function ChartCard({
   iconColor: string;
   onAskAi?: () => void;
   aiPrompt?: string;
+  className?: string;
   children: React.ReactNode;
 }) {
   return (
-    <div className="group rounded-xl border border-border/50 bg-card/60 p-4 transition-all duration-200 hover:border-border/80 hover:shadow-md">
+    <div
+      className={cn(
+        "group flex flex-col rounded-xl border border-border/50 bg-card/60 p-4 transition-all duration-200 hover:border-border/80 hover:shadow-md",
+        className,
+      )}
+    >
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <Icon className={cn("h-4 w-4", iconColor)} aria-hidden="true" />
@@ -183,7 +190,7 @@ export function RevenueTrendChart({
       <div className="flex items-center justify-between mb-2">
         <TimeRangeSelector value={timeRange} onChange={setTimeRange} />
       </div>
-      <div className="h-[200px]">
+      <div className="flex-1 min-h-[200px]">
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart
             data={filteredData}
@@ -275,7 +282,7 @@ export function ExpenseBreakdownChart({
       onAskAi={onAskAi}
       aiPrompt="Break down my expenses. What's the biggest cost driver?"
     >
-      <div className="h-[200px]">
+      <div className="flex-1 min-h-[200px]">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart
             data={data}
@@ -348,7 +355,7 @@ export function CashFlowChart({
       <div className="flex items-center justify-between mb-2">
         <TimeRangeSelector value={timeRange} onChange={setTimeRange} />
       </div>
-      <div className="h-[200px]">
+      <div className="flex-1 min-h-[200px]">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart
             data={filteredData}
@@ -414,7 +421,7 @@ export function MarginTrendChart({
       <div className="flex items-center justify-between mb-2">
         <TimeRangeSelector value={timeRange} onChange={setTimeRange} />
       </div>
-      <div className="h-[200px]">
+      <div className="flex-1 min-h-[200px]">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart
             data={filteredData}
