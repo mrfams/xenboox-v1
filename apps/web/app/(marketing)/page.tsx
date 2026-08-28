@@ -11,7 +11,7 @@ import {
   SoftwareAppJsonLd,
 } from "@/components/marketing/json-ld";
 import { Security } from "@/components/marketing/security";
-import { StatBar } from "@/components/marketing/stat-bar";
+// import { StatBar } from "@/components/marketing/stat-bar";
 import { Testimonials } from "@/components/marketing/testimonials";
 
 export const metadata: Metadata = {
@@ -33,7 +33,7 @@ export default function HomePage() {
       <AnnouncementBar />
       <Hero />
       <Testimonials />
-      <StatBar />
+      {/* <StatBar /> */}
       <HowItWorks />
       <Features />
       <DemoVideo />

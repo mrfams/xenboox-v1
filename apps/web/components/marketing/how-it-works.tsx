@@ -8,19 +8,19 @@ const steps = [
     icon: PlugZap,
     title: "Connect your business",
     description:
-      "Connect your bank, customers, and suppliers. Xenboox maps your chart of accounts and entity structure in minutes.",
+      "Link your bank, customers, and suppliers. Xenboox learns your chart of accounts, entity structure, and workflows in minutes — not weeks.",
   },
   {
     icon: Workflow,
     title: "Agents do the work",
     description:
-      "19 agents invoice, reconcile, file, and close around the clock. Every action logged and confidence-scored.",
+      "Specialized AI agents handle invoicing, reconciliation, payroll, compliance, and month-end close around the clock. Every action is logged and confidence-scored.",
   },
   {
     icon: CheckCheck,
     title: "You make the decisions",
     description:
-      "Nothing material posts without your approval. Approve, reject, or adjust from a single briefing.",
+      "Nothing material posts without your approval. Review decision briefs, approve in one click, or ask the AI to explain anything before you decide.",
   },
 ];
 
@@ -76,15 +76,6 @@ export function HowItWorks() {
                     <p className="relative mt-2 text-sm leading-relaxed text-muted-foreground sm:text-[15px] text-pretty">
                       {step.description}
                     </p>
-                    {index === 1 && (
-                      <span className="relative mt-4 inline-flex items-center gap-1.5 text-xs font-medium text-primary">
-                        <span
-                          className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse"
-                          aria-hidden
-                        />{" "}
-                        19 agents working now
-                      </span>
-                    )}
                   </div>
                 </FadeInUp>
               </li>
