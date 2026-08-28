@@ -1,17 +1,20 @@
 "use client";
 
-import { useMemo } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import {
   ArrowDownLeft,
   ArrowUpRight,
   CheckCircle2,
   CircleDashed,
-  FileText,
   CreditCard,
+  FileText,
+  Landmark,
   Sparkles,
   TrendingDown,
   TrendingUp,
+  Users,
+  Building2,
+  type LucideIcon,
 } from "lucide-react";
 
 import { useEntity } from "@/lib/entity-context";
@@ -19,18 +22,133 @@ import { trpc } from "@/lib/trpc/client";
 import { cn, formatCurrency } from "@/lib/utils";
 import { useSurfaceSync } from "@/lib/hooks/use-surface-sync";
 import { MetricNarrative } from "@/components/ai-native-v2/metric-narrative";
+import { InvoicesView } from "@/components/operations/invoices-view";
+import { BillsView } from "@/components/finance/bills-view";
+import { CustomersView } from "@/components/operations/customers-view";
+import { VendorsView } from "@/components/operations/vendors-view";
+import { BankingView } from "@/components/operations/banking-view";
 
-// ─── Money Flows (/operations/new) ────────────────────────────────────────
+// ─── Money Flows — AI-Native Operations (/operations/new) ─────────────────
 //
-// Cash first. One hero question — how long does the money last? — then two
-// live streams showing every movement and what your agents did about it.
+// Tabs absorb navigation:
+//   1. Cash Position — runway hero + inflow/outflow streams
+//   2. Invoices — invoice management
+//   3. Bills — bill management
+//   4. People — customers + vendors
+//   5. Banking — bank accounts + reconciliation
+//
+// Keyboard: 1-5 switch tabs, j/k navigate, Enter open detail
+
+type Tab = "cash" | "invoices" | "bills" | "people" | "banking";
+
+const TABS: { key: Tab; label: string; icon: LucideIcon }[] = [
+  { key: "cash", label: "Cash Position", icon: TrendingUp },
+  { key: "invoices", label: "Invoices", icon: FileText },
+  { key: "bills", label: "Bills", icon: CreditCard },
+  { key: "people", label: "People", icon: Users },
+  { key: "banking", label: "Banking", icon: Landmark },
+];
 
 export default function MoneyFlowsPage() {
   const { entityId } = useEntity();
-  const router = useRouter();
+  const [tab, setTab] = useState<Tab>("cash");
 
   useSurfaceSync({ entityId, surfaces: ["operations"] });
 
+  // Keyboard shortcuts
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag?.match(/INPUT|TEXTAREA|SELECT/)) return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+
+      switch (e.key) {
+        case "1":
+          e.preventDefault();
+          setTab("cash");
+          break;
+        case "2":
+          e.preventDefault();
+          setTab("invoices");
+          break;
+        case "3":
+          e.preventDefault();
+          setTab("bills");
+          break;
+        case "4":
+          e.preventDefault();
+          setTab("people");
+          break;
+        case "5":
+          e.preventDefault();
+          setTab("banking");
+          break;
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  return (
+    <div className="flex h-full flex-col p-4 pb-6 sm:p-6">
+      {/* ── Header + Tabs ─────────────────────────────────────────── */}
+      <header className="mb-3">
+        <h1 className="flex items-center gap-2 text-sm font-semibold tracking-tight text-foreground">
+          <TrendingUp className="h-4 w-4 text-primary" aria-hidden="true" />
+          Money Flows
+        </h1>
+
+        <div className="mt-3 flex items-center justify-between">
+          <div
+            className="flex items-center gap-1"
+            role="tablist"
+            aria-label="Operations views"
+          >
+            {TABS.map((t) => {
+              const Icon = t.icon;
+              const active = tab === t.key;
+              return (
+                <button
+                  key={t.key}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  onClick={() => setTab(t.key)}
+                  className={cn(
+                    "flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-all",
+                    active
+                      ? "bg-primary/10 text-primary"
+                      : "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
+                  )}
+                >
+                  <Icon className="h-3.5 w-3.5" aria-hidden="true" />
+                  {t.label}
+                </button>
+              );
+            })}
+          </div>
+          <span className="hidden text-[10px] text-muted-foreground/50 sm:inline">
+            1-5 switch tabs
+          </span>
+        </div>
+      </header>
+
+      {/* ── Tab Panels ──────────────────────────────────────────────── */}
+      <div className="flex-1 min-h-0 overflow-y-auto">
+        {tab === "cash" && <CashPositionPanel />}
+        {tab === "invoices" && <InvoicesView />}
+        {tab === "bills" && <BillsView />}
+        {tab === "people" && <PeoplePanel />}
+        {tab === "banking" && <BankingView />}
+      </div>
+    </div>
+  );
+}
+
+// ─── Cash Position Panel ────────────────────────────────────────────────────
+
+function CashPositionPanel() {
+  const { entityId } = useEntity();
   const { data: dash, isLoading: dashLoading } =
     trpc.dashboard.getDashboardData.useQuery({}, { enabled: !!entityId });
   const { data: cashPos } = trpc.banking.getCashPosition.useQuery(
@@ -50,23 +168,21 @@ export default function MoneyFlowsPage() {
   });
 
   const health = dash?.businessHealth;
-  const { inflows, outflows } = useMemo(() => {
-    const all = txData?.transactions ?? [];
-    return {
-      inflows: all.filter((t) => t.amount > 0).slice(0, 8),
-      outflows: all.filter((t) => t.amount <= 0).slice(0, 8),
-    };
-  }, [txData]);
+  const inflows = (txData?.transactions ?? [])
+    .filter((t) => t.amount > 0)
+    .slice(0, 8);
+  const outflows = (txData?.transactions ?? [])
+    .filter((t) => t.amount <= 0)
+    .slice(0, 8);
 
   const overdueBills = billsOverview?.statusCounts.overdue ?? 0;
   const netChange = cashPos?.netChange ?? 0;
-
   const pendingInvoices = invoiceStats?.pendingCount ?? 0;
   const pendingBills = billsOverview?.statusCounts.pending ?? 0;
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6 p-4 pb-20 sm:p-6 md:pb-6">
-      {/* ── Status strip — at-a-glance counts ────────────────────────── */}
+    <div className="space-y-5">
+      {/* Status strip */}
       {(pendingInvoices > 0 || pendingBills > 0) && (
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 px-1 font-mono text-[11px] tabular-nums text-muted-foreground">
           {pendingInvoices > 0 && (
@@ -88,14 +204,14 @@ export default function MoneyFlowsPage() {
         </div>
       )}
 
-      {/* ── Runway hero ───────────────────────────────────────────────── */}
+      {/* Runway hero */}
       <section
         aria-labelledby="runway-heading"
-        className="rounded-2xl border border-border/50 bg-card p-5 sm:p-6"
+        className="rounded-2xl border border-border/50 bg-card p-5"
       >
-        <h1 id="runway-heading" className="sr-only">
+        <h2 id="runway-heading" className="sr-only">
           Cash position
-        </h1>
+        </h2>
         <div className="grid grid-cols-2 gap-x-6 gap-y-5 sm:grid-cols-4">
           <MetricNarrative
             label="Cash on hand"
@@ -132,18 +248,9 @@ export default function MoneyFlowsPage() {
                 <p className="mt-0.5 text-lg font-semibold tabular-nums text-error-clay">
                   {overdueBills}
                 </p>
-                <button
-                  type="button"
-                  onClick={() =>
-                    router.push(
-                      `/dashboard?prompt=${encodeURIComponent(`Show me the ${overdueBills} overdue bills and draft a payment plan.`)}`,
-                    )
-                  }
-                  className="mt-0.5 inline-flex items-center gap-1 text-[11px] font-medium text-primary hover:text-primary/80"
-                >
-                  <Sparkles className="h-3 w-3" aria-hidden="true" />
-                  Have agents handle it
-                </button>
+                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                  Ask the AI to draft a payment plan.
+                </p>
               </>
             ) : (
               <>
@@ -158,7 +265,6 @@ export default function MoneyFlowsPage() {
           </div>
         </div>
 
-        {/* Narrative line */}
         {cashPos && (
           <p className="mt-4 border-t border-border/30 pt-3 text-xs leading-relaxed text-muted-foreground">
             {netChange >= 0
@@ -170,7 +276,7 @@ export default function MoneyFlowsPage() {
         )}
       </section>
 
-      {/* ── Streams ───────────────────────────────────────────────────── */}
+      {/* Streams */}
       <div className="grid gap-4 lg:grid-cols-2">
         <FlowStream
           title="Money in"
@@ -189,8 +295,8 @@ export default function MoneyFlowsPage() {
               : "",
             amount: formatCurrency(t.amount),
             state: t.isReconciled
-              ? ({ label: "reconciled", tone: "ok" } as const)
-              : ({ label: "unreconciled", tone: "warn" } as const),
+              ? { label: "reconciled", tone: "ok" as const }
+              : { label: "unreconciled", tone: "warn" as const },
           }))}
         />
         <FlowStream
@@ -210,8 +316,8 @@ export default function MoneyFlowsPage() {
               : "",
             amount: formatCurrency(Math.abs(t.amount)),
             state: t.isReconciled
-              ? ({ label: "reconciled", tone: "ok" } as const)
-              : ({ label: "unreconciled", tone: "warn" } as const),
+              ? { label: "reconciled", tone: "ok" as const }
+              : { label: "unreconciled", tone: "warn" as const },
           }))}
         />
       </div>
@@ -219,7 +325,30 @@ export default function MoneyFlowsPage() {
   );
 }
 
-// ─── Flow stream ──────────────────────────────────────────────────────────
+// ─── People Panel (Customers + Vendors side by side) ───────────────────────
+
+function PeoplePanel() {
+  return (
+    <div className="grid gap-6 lg:grid-cols-2">
+      <div>
+        <h2 className="mb-3 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground/60">
+          <Users className="h-3.5 w-3.5" aria-hidden="true" />
+          Customers
+        </h2>
+        <CustomersView />
+      </div>
+      <div>
+        <h2 className="mb-3 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground/60">
+          <Building2 className="h-3.5 w-3.5" aria-hidden="true" />
+          Vendors
+        </h2>
+        <VendorsView />
+      </div>
+    </div>
+  );
+}
+
+// ─── Flow Stream ───────────────────────────────────────────────────────────
 
 type FlowRow = {
   id: string;
@@ -264,7 +393,7 @@ function FlowStream({
             )}
           />
         </span>
-        <h2 className="text-sm font-semibold text-foreground">{title}</h2>
+        <h3 className="text-sm font-semibold text-foreground">{title}</h3>
         <span className="ml-auto font-mono text-[10px] tabular-nums text-muted-foreground/60">
           latest {rows.length || ""}
         </span>
