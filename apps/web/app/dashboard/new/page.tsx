@@ -299,7 +299,7 @@ function AgentConversationsRail({
       <div
         role="tablist"
         aria-label="Agents and conversations"
-        className="sticky top-0 z-10 flex w-full shrink-0 items-stretch gap-0 border-b border-border/40 bg-card"
+        className="sticky top-0 z-10 flex w-full shrink-0 items-center justify-center gap-1.5 border-b border-border/30 bg-background px-3 py-2.5"
       >
         <button
           type="button"
@@ -307,10 +307,10 @@ function AgentConversationsRail({
           aria-selected={active === "agents"}
           onClick={() => setActive("agents")}
           className={cn(
-            "flex flex-1 items-center justify-center gap-1.5 px-3 py-3 text-xs font-medium transition-all duration-200",
+            "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all duration-200",
             active === "agents"
-              ? "bg-primary text-primary-foreground"
-              : "bg-card text-muted-foreground hover:bg-muted hover:text-foreground",
+              ? "bg-primary/10 text-primary"
+              : "text-muted-foreground hover:bg-muted/50 hover:text-foreground",
           )}
         >
           <Bot className="h-3.5 w-3.5" />
@@ -322,10 +322,10 @@ function AgentConversationsRail({
           aria-selected={active === "conversations"}
           onClick={() => setActive("conversations")}
           className={cn(
-            "flex flex-1 items-center justify-center gap-1.5 px-3 py-3 text-xs font-medium transition-all duration-200",
+            "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all duration-200",
             active === "conversations"
-              ? "bg-primary text-primary-foreground"
-              : "bg-card text-muted-foreground hover:bg-muted hover:text-foreground",
+              ? "bg-primary/10 text-primary"
+              : "text-muted-foreground hover:bg-muted/50 hover:text-foreground",
           )}
         >
           <MessageSquare className="h-3.5 w-3.5" />
