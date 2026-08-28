@@ -14,6 +14,7 @@ import {
   Inbox,
   MessageSquare,
   PieChart,
+  Play,
   Send,
   Settings,
   Sparkles,
@@ -153,9 +154,14 @@ export function Hero() {
               asChild
               variant="outline"
               size="lg"
-              className="rounded-full transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+              className="group gap-2 rounded-full border-border/80 bg-background/50 px-6 text-foreground/80 shadow-sm backdrop-blur-sm transition-all duration-300 hover:border-primary/40 hover:bg-primary/5 hover:text-foreground hover:shadow-md hover:shadow-primary/10 hover:ring-1 hover:ring-primary/20 active:scale-[0.98]"
             >
-              <Link href="#demo">See it in action</Link>
+              <Link href="#demo">
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 transition-colors duration-300 group-hover:bg-primary/15">
+                  <Play className="h-3 w-3 fill-primary text-primary" aria-hidden="true" />
+                </span>
+                See it in action
+              </Link>
             </Button>
           </div>
 
@@ -163,7 +169,6 @@ export function Hero() {
           <ul className="hero-fade-up flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-sm text-muted-foreground">
             {[
               "No credit card required",
-              "Built for The Gambia",
               "Human approval on every decision",
             ].map((item) => (
               <li key={item} className="flex items-center gap-2">

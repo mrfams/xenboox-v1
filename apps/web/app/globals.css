@@ -769,3 +769,41 @@
     from { opacity: 0; }
     to { opacity: 1; }
   }
+
+  /* ── Feature Cards — Smooth Slide-In ── */
+  .feature-card-enter {
+    animation: feature-slide 0.6s cubic-bezier(0.32, 0.72, 0, 1) both;
+  }
+  .feature-card-enter:nth-child(1) { animation-delay: 0s; }
+  .feature-card-enter:nth-child(2) { animation-delay: 0.06s; }
+  .feature-card-enter:nth-child(3) { animation-delay: 0.12s; }
+  .feature-card-enter:nth-child(4) { animation-delay: 0.18s; }
+  .feature-card-enter:nth-child(5) { animation-delay: 0.24s; }
+  .feature-card-enter:nth-child(6) { animation-delay: 0.3s; }
+
+  @keyframes feature-slide {
+    from {
+      opacity: 0;
+      transform: translateY(20px) scale(0.97);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  /* ── Newsletter Section — Subtle Fade-Up ── */
+  .newsletter-enter {
+    animation: newsletter-fade 0.8s cubic-bezier(0.32, 0.72, 0, 1) both;
+  }
+
+  @keyframes newsletter-fade {
+    from {
+      opacity: 0;
+      transform: translateY(24px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }

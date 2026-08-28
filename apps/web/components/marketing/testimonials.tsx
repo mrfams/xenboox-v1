@@ -131,7 +131,6 @@ export function Testimonials() {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <FadeInUp>
           <SectionHeading
-            eyebrow="Real teams, real results • entity-scoped by default"
             title="Teams that closed their books in days, not weeks."
           />
         </FadeInUp>

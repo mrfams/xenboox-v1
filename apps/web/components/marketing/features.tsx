@@ -20,9 +20,6 @@ const features = [
       "Auto-reminders before every due date",
       "Collections agent chases late payments",
     ],
-    stat: "GMD 1.8M",
-    statLabel: "overdue collected / mo",
-    accent: "from-violet-500/10 via-primary/5 to-transparent",
   },
   {
     icon: Users,
@@ -33,9 +30,6 @@ const features = [
       "Gambian statutory compliance built in",
       "Payslips delivered to every employee",
     ],
-    stat: "34 staff",
-    statLabel: "in 2 minutes",
-    accent: "from-balanced-green/10 via-balanced-green/80/5 to-transparent",
   },
   {
     icon: ShieldCheck,
@@ -46,18 +40,12 @@ const features = [
       "VAT, CIT, and withholding computed and filed",
       "Deadline alerts before they arrive",
     ],
-    stat: "0 late",
-    statLabel: "filings last 12 mo",
-    accent: "from-attention-amber/10 via-attention-amber/80/5 to-transparent",
   },
   {
     icon: TrendingUp,
     title: "Cash flow & forecasting",
     description: "See where your cash is headed — not just where it has been.",
     bullets: ["Rolling 14-day cash forecast", "Scenario planning in minutes"],
-    stat: "+18%",
-    statLabel: "forecast accuracy",
-    accent: "from-primary/10 via-primary/80/5 to-transparent",
   },
   {
     icon: CalendarDays,
@@ -68,9 +56,6 @@ const features = [
       "Full audit trail on every entry",
       "Bank and vendor auto-reconciliation",
     ],
-    stat: "4 days",
-    statLabel: "vs 3 weeks before",
-    accent: "from-indigo-500/10 via-violet-500/5 to-transparent",
   },
   {
     icon: BarChart3,
@@ -80,9 +65,6 @@ const features = [
       "P&L, balance sheet, and cash flow on demand",
       "Variance analysis in plain English",
     ],
-    stat: "2.3s",
-    statLabel: "avg report render",
-    accent: "from-rose-500/10 via-pink-500/5 to-transparent",
   },
 ];
 
@@ -124,29 +106,17 @@ export function Features() {
               <FadeInUp
                 key={feature.title}
                 delay={(index % 3) * 0.08}
-                className={span}
+                className={`${span} feature-card-enter`}
               >
                 <article className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-border/60 bg-card p-6 sm:p-7 transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] hover:-translate-y-1 hover:border-border/40 hover:shadow-[0_20px_60px_-20px_rgba(20,33,61,0.15)]">
-                  <div
-                    className={`pointer-events-none absolute inset-0 bg-gradient-to-br ${feature.accent} opacity-60 group-hover:opacity-100 transition-opacity`}
-                    aria-hidden
-                  />
-                  <div className="relative flex items-start justify-between gap-4">
-                    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary transition-colors duration-300 group-hover:bg-primary group-hover:text-white">
+                  <div className="relative flex items-center gap-3">
+                    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary transition-all duration-300 group-hover:scale-110 group-hover:bg-primary group-hover:text-white">
                       <feature.icon className="h-5 w-5" aria-hidden="true" />
                     </span>
-                    <span className="inline-flex flex-col items-end rounded-lg border border-border/60 bg-background/60 px-2.5 py-1.5 backdrop-blur">
-                      <span className="text-sm font-semibold tabular-nums tracking-tight text-foreground">
-                        {feature.stat}
-                      </span>
-                      <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                        {feature.statLabel}
-                      </span>
-                    </span>
+                    <h3 className="text-[17px] font-semibold tracking-tight text-foreground">
+                      {feature.title}
+                    </h3>
                   </div>
-                  <h3 className="relative mt-4 text-[17px] font-semibold tracking-tight text-foreground">
-                    {feature.title}
-                  </h3>
                   <p className="relative mt-2 text-[15px] leading-relaxed text-muted-foreground text-pretty">
                     {feature.description}
                   </p>
@@ -178,13 +148,6 @@ export function Features() {
             );
           })}
         </div>
-
-        <FadeInUp delay={0.2}>
-          <p className="mx-auto mt-8 max-w-2xl text-center text-xs leading-relaxed text-muted-foreground/70">
-            Every number is checked before it hits the ledger — agents are
-            extractors and classifiers, never the final authority on a figure.
-          </p>
-        </FadeInUp>
       </div>
     </Section>
   );

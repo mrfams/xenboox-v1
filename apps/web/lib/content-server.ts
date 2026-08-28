@@ -23,6 +23,7 @@ export interface PublicPost {
   readTime: string;
   author: { name: string; role: string };
   tags: string[];
+  image: string | null;
 }
 
 export async function getAllPublishedPostSlugs(): Promise<string[]> {
@@ -52,6 +53,7 @@ export async function getPostBySlug(slug: string): Promise<PublicPost | null> {
     readTime: `${post.readTimeMinutes} min`,
     author: { name: post.authorName, role: post.authorRole },
     tags: post.tags,
+    image: post.image,
   };
 }
 
@@ -97,6 +99,7 @@ export async function getRelatedPosts(
     readTime: `${p.readTimeMinutes} min`,
     author: { name: p.authorName, role: p.authorRole },
     tags: p.tags,
+    image: p.image,
   }));
 }
 

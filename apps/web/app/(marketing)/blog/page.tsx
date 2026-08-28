@@ -6,6 +6,7 @@ import { ArrowRight, Calendar, Search, Tag, Sparkles } from "lucide-react";
 
 import { Section } from "@/components/marketing/section";
 import { FadeInUp } from "@/components/marketing/reveal";
+import { BlogImage } from "@/components/marketing/blog-image";
 import { trpc } from "@/lib/trpc/client";
 import { toast } from "sonner";
 
@@ -185,12 +186,24 @@ export default function BlogPage() {
                 <FadeInUp key={post.slug} delay={index * 0.1}>
                   <Link
                     href={`/blog/${post.slug}`}
-                    className="group relative block h-full overflow-hidden rounded-2xl border border-border/60 bg-card p-8 transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] hover:-translate-y-1 hover:border-border/40 hover:shadow-[0_20px_50px_-20px_rgba(20,33,61,0.15)]"
+                    className="group relative block h-full overflow-hidden rounded-2xl border border-border/60 bg-card transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] hover:-translate-y-1 hover:border-border/40 hover:shadow-[0_20px_50px_-20px_rgba(20,33,61,0.15)]"
                   >
-                    <div className="absolute right-0 top-0 h-40 w-40 translate-x-10 -translate-y-10 rounded-full bg-gradient-to-br from-primary/10 to-balanced-green/10 blur-3xl" />
-                    <div className="relative">
+                    {/* Cover image */}
+                    <div className="relative h-48 overflow-hidden">
+                      {post.image ? (
+                        <BlogImage
+                          src={post.image}
+                          alt={post.title}
+                          className="h-full w-full transition-transform duration-500 group-hover:scale-105"
+                        />
+                      ) : (
+                        <div className="h-full w-full bg-gradient-to-br from-primary/15 via-primary/5 to-balanced-green/10" />
+                      )}
+                      <div className="absolute inset-0 bg-gradient-to-t from-card via-card/20 to-transparent" />
+                    </div>
+                    <div className="relative p-8 -mt-10">
                       <div className="mb-4 flex items-center gap-3">
-                        <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary backdrop-blur-sm">
                           <Tag className="h-3 w-3" />
                           {post.category}
                         </span>
@@ -250,30 +263,44 @@ export default function BlogPage() {
                 <FadeInUp key={post.slug} delay={index * 0.05}>
                   <Link
                     href={`/blog/${post.slug}`}
-                    className="group flex h-full flex-col rounded-2xl border border-border/60 bg-card p-6 transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] hover:-translate-y-1 hover:border-border/40 hover:shadow-[0_20px_50px_-20px_rgba(20,33,61,0.15)]"
+                    className="group flex h-full flex-col overflow-hidden rounded-2xl border border-border/60 bg-card transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] hover:-translate-y-1 hover:border-border/40 hover:shadow-[0_20px_50px_-20px_rgba(20,33,61,0.15)]"
                   >
-                    <div className="mb-4 flex items-center gap-3">
-                      <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
-                        {post.category}
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        {post.readTime}
-                      </span>
+                    {/* Cover image */}
+                    <div className="relative h-40 overflow-hidden">
+                      {post.image ? (
+                        <BlogImage
+                          src={post.image}
+                          alt={post.title}
+                          className="h-full w-full transition-transform duration-500 group-hover:scale-105"
+                        />
+                      ) : (
+                        <div className="h-full w-full bg-gradient-to-br from-primary/15 via-primary/5 to-balanced-green/10" />
+                      )}
                     </div>
-                    <h3 className="line-clamp-2 text-lg font-semibold text-foreground transition-colors group-hover:text-primary">
-                      {post.title}
-                    </h3>
-                    <p className="mt-2 line-clamp-3 flex-1 text-sm text-muted-foreground">
-                      {post.excerpt}
-                    </p>
-                    <div className="mt-4 flex items-center justify-between border-t border-border pt-4">
-                      <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                        <span className="flex items-center gap-1">
-                          <Calendar className="h-3.5 w-3.5" />
-                          {post.date}
+                    <div className="flex flex-1 flex-col p-6">
+                      <div className="mb-3 flex items-center gap-3">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
+                          {post.category}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          {post.readTime}
                         </span>
                       </div>
-                      <ArrowRight className="h-4 w-4 text-muted-foreground opacity-0 transition-all group-hover:opacity-100 group-hover:text-primary" />
+                      <h3 className="line-clamp-2 text-lg font-semibold text-foreground transition-colors group-hover:text-primary">
+                        {post.title}
+                      </h3>
+                      <p className="mt-2 line-clamp-3 flex-1 text-sm text-muted-foreground">
+                        {post.excerpt}
+                      </p>
+                      <div className="mt-4 flex items-center justify-between border-t border-border pt-4">
+                        <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                          <span className="flex items-center gap-1">
+                            <Calendar className="h-3.5 w-3.5" />
+                            {post.date}
+                          </span>
+                        </div>
+                        <ArrowRight className="h-4 w-4 text-muted-foreground opacity-0 transition-all group-hover:opacity-100 group-hover:text-primary" />
+                      </div>
                     </div>
                   </Link>
                 </FadeInUp>

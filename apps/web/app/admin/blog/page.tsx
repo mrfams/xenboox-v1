@@ -16,6 +16,9 @@ import {
   TrendingUp,
   MessageSquare,
   Loader2,
+  Upload,
+  Image,
+  Trash2 as RemoveIcon,
 } from "lucide-react";
 
 import { FadeInUp } from "@/components/marketing/reveal";
@@ -36,6 +39,7 @@ type EditorForm = {
   content: string;
   category: string;
   tags: string;
+  image: string;
 };
 
 const emptyForm: EditorForm = {
@@ -44,6 +48,7 @@ const emptyForm: EditorForm = {
   content: "",
   category: "Product",
   tags: "",
+  image: "",
 };
 
 export default function BlogAdminPage() {
@@ -54,6 +59,7 @@ export default function BlogAdminPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [formData, setFormData] = useState<EditorForm>(emptyForm);
+  const [imageUploading, setImageUploading] = useState(false);
 
   const { data, isLoading } = trpc.content.adminListPosts.useQuery({
     status: selectedCategory === "All" ? undefined : selectedCategory,
@@ -115,6 +121,7 @@ export default function BlogAdminPage() {
       content: post.content,
       category: post.category,
       tags: post.tags.join(", "),
+      image: post.image ?? "",
     });
     setShowEditor(true);
   };
@@ -141,6 +148,7 @@ export default function BlogAdminPage() {
       authorName: "Admin",
       authorRole: "Editor",
       status: "published" as const,
+      ...(formData.image ? { image: formData.image } : {}),
     };
 
     if (editingId) {
@@ -158,6 +166,35 @@ export default function BlogAdminPage() {
         onSuccess: () => setDeleteConfirmId(null),
       },
     );
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setImageUploading(true);
+    try {
+      const formDataUpload = new FormData();
+      formDataUpload.append("file", file);
+
+      const res = await fetch("/api/upload-blog-image", {
+        method: "POST",
+        body: formDataUpload,
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: "Upload failed" }));
+        throw new Error(err.error || "Upload failed");
+      }
+
+      const { url } = await res.json();
+      setFormData((prev) => ({ ...prev, image: url }));
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to upload image");
+    } finally {
+      setImageUploading(false);
+      e.target.value = "";
+    }
   };
 
   const handleTogglePublish = (post: (typeof posts)[number]) => {
@@ -472,6 +509,57 @@ export default function BlogAdminPage() {
               </button>
             </div>
             <div className="p-6 space-y-6">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Cover Image
+                </label>
+                {formData.image ? (
+                  <div className="relative overflow-hidden rounded-xl border border-slate-200">
+                    <img
+                      src={formData.image}
+                      alt="Cover preview"
+                      className="h-48 w-full object-cover"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+                    <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between">
+                      <span className="text-xs text-white/80 truncate max-w-[70%]">
+                        Cover image set
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setFormData((prev) => ({ ...prev, image: "" }))}
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-red-600/90 px-3 py-1.5 text-xs font-medium text-white backdrop-blur-sm transition-colors hover:bg-red-600"
+                      >
+                        <RemoveIcon className="h-3 w-3" />
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <label className="flex cursor-pointer flex-col items-center gap-3 rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 px-6 py-8 transition-colors hover:border-blue-400 hover:bg-blue-50">
+                    {imageUploading ? (
+                      <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
+                    ) : (
+                      <Image className="h-8 w-8 text-slate-400" />
+                    )}
+                    <div className="text-center">
+                      <p className="text-sm font-medium text-slate-700">
+                        {imageUploading ? "Uploading..." : "Click to upload cover image"}
+                      </p>
+                      <p className="mt-1 text-xs text-slate-500">
+                        JPEG, PNG, WebP, or AVIF. Max 5 MB.
+                      </p>
+                    </div>
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp,image/avif"
+                      onChange={handleImageUpload}
+                      disabled={imageUploading}
+                      className="hidden"
+                    />
+                  </label>
+                )}
+              </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">
                   Title

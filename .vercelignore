@@ -11,7 +11,7 @@ dist
 Dockerfile
 docker-compose.yml
 terraform/
-docs/
+/docs/
 *.md
 .github/
 .agents/

@@ -113,6 +113,7 @@ export const contentRouter = router({
           readTime: `${p.readTimeMinutes} min`,
           author: { name: p.authorName, role: p.authorRole },
           tags: p.tags,
+          image: p.image,
           date: p.publishedAt
             ? new Date(p.publishedAt).toLocaleDateString("en-US", {
                 month: "short",

@@ -30,10 +30,12 @@ export function FadeInUp({
   children,
   className = "",
   delay = 0,
+  duration = 0.7,
 }: {
   children: React.ReactNode;
   className?: string;
   delay?: number;
+  duration?: number;
 }) {
   const ref = React.useRef<HTMLDivElement>(null);
   const isInView = useInViewOnce(ref);
@@ -47,7 +49,7 @@ export function FadeInUp({
           ? "translateY(0) blur(0)"
           : "translateY(24px) blur(4px)",
         transition:
-          "opacity 0.7s cubic-bezier(0.32, 0.72, 0, 1), transform 0.7s cubic-bezier(0.32, 0.72, 0, 1)",
+          `opacity ${duration}s cubic-bezier(0.32, 0.72, 0, 1), transform ${duration}s cubic-bezier(0.32, 0.72, 0, 1)`,
         transitionDelay: `${delay}s`,
       }}
     >
