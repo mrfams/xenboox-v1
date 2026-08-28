@@ -3,26 +3,20 @@
  *
  * Run: pnpm tsx packages/db/seed/add-blog-images.ts
  *
- * Uses picsum.photos with seed-based URLs for deterministic images.
+ * Uses themed SVG placeholders stored in public/blog/.
  */
 
-import { db } from "../drizzle";
+import { db } from "../index";
 import { blogPosts } from "../schema/content";
 import { eq } from "drizzle-orm";
 
 const imageMap: Record<string, string> = {
-  "introducing-ai-accounting":
-    "https://picsum.photos/seed/xenboox-ai-accounting/1200/630",
-  "why-traditional-accounting-fails":
-    "https://picsum.photos/seed/xenboox-traditional-fails/1200/630",
-  "building-ai-agents":
-    "https://picsum.photos/seed/xenboox-ai-agents/1200/630",
-  "multi-currency-support":
-    "https://picsum.photos/seed/xenboox-multi-currency/1200/630",
-  "security-best-practices":
-    "https://picsum.photos/seed/xenboox-security/1200/630",
-  "getting-started-guide":
-    "https://picsum.photos/seed/xenboox-getting-started/1200/630",
+  "introducing-ai-accounting": "/blog/ai-accounting.svg",
+  "why-traditional-accounting-fails": "/blog/traditional-fails.svg",
+  "building-ai-agents": "/blog/ai-agents.svg",
+  "multi-currency-support": "/blog/multi-currency.svg",
+  "security-best-practices": "/blog/security.svg",
+  "getting-started-guide": "/blog/getting-started.svg",
 };
 
 async function main() {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
   Plus,
@@ -19,9 +19,12 @@ import {
   Upload,
   Image,
   Trash2 as RemoveIcon,
+  Clipboard,
+  Check,
 } from "lucide-react";
 
 import { FadeInUp } from "@/components/marketing/reveal";
+import { ImageCropper } from "@/components/shared/image-cropper";
 import { trpc } from "@/lib/trpc/client";
 
 const categories = [
@@ -60,11 +63,39 @@ export default function BlogAdminPage() {
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [formData, setFormData] = useState<EditorForm>(emptyForm);
   const [imageUploading, setImageUploading] = useState(false);
+  const [isDragOver, setIsDragOver] = useState(false);
+  const [galleryDragOver, setGalleryDragOver] = useState(false);
+  const [coverPreview, setCoverPreview] = useState<string | null>(null);
+  const [galleryPreviews, setGalleryPreviews] = useState<
+    { tempId: string; url: string; name: string }[]
+  >([]);
+  const [uploadedImages, setUploadedImages] = useState<
+    { url: string; name: string }[]
+  >([]);
+  const [copiedUrl, setCopiedUrl] = useState<string | null>(null);
+  const [cropFile, setCropFile] = useState<File | null>(null);
+  const [cropOpen, setCropOpen] = useState(false);
+  const [cropMode, setCropMode] = useState<"cover" | "gallery">("cover");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
+
+  // Clean up object URLs when editor closes
+  useEffect(() => {
+    if (!showEditor) {
+      if (coverPreview) URL.revokeObjectURL(coverPreview);
+      for (const p of galleryPreviews) URL.revokeObjectURL(p.url);
+      setCoverPreview(null);
+      setGalleryPreviews([]);
+      setUploadedImages([]);
+    }
+  }, [showEditor]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const { data, isLoading } = trpc.content.adminListPosts.useQuery({
     status: selectedCategory === "All" ? undefined : selectedCategory,
     query: searchQuery || undefined,
   });
+
+  const { data: previousImages } = trpc.content.adminListBlogImages.useQuery();
 
   const createPost = trpc.content.adminCreatePost.useMutation({
     onSuccess: () => {
@@ -168,13 +199,14 @@ export default function BlogAdminPage() {
     );
   };
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
+  /** Upload a single blob (from cropper or direct) as cover image */
+  const uploadBlob = async (blob: Blob, name: string) => {
+    const preview = URL.createObjectURL(blob);
+    setCoverPreview(preview);
     setImageUploading(true);
     try {
       const formDataUpload = new FormData();
+      const file = new File([blob], name, { type: "image/jpeg" });
       formDataUpload.append("file", file);
 
       const res = await fetch("/api/upload-blog-image", {
@@ -192,9 +224,197 @@ export default function BlogAdminPage() {
     } catch (err) {
       alert(err instanceof Error ? err.message : "Failed to upload image");
     } finally {
+      URL.revokeObjectURL(preview);
+      setCoverPreview(null);
       setImageUploading(false);
-      e.target.value = "";
     }
+  };
+
+  /** Upload multiple blobs (from cropper or direct) to gallery */
+  const uploadBlobs = async (blobs: { blob: Blob; name: string }[]) => {
+    const previews = blobs.map((b) => ({
+      tempId: `temp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      url: URL.createObjectURL(b.blob),
+      name: b.name,
+    }));
+    setGalleryPreviews((prev) => [...prev, ...previews]);
+    setImageUploading(true);
+    try {
+      const formDataUpload = new FormData();
+      for (const b of blobs) {
+        const file = new File([b.blob], b.name, { type: "image/jpeg" });
+        formDataUpload.append("files", file);
+      }
+
+      const res = await fetch("/api/upload-blog-image", {
+        method: "POST",
+        body: formDataUpload,
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: "Upload failed" }));
+        throw new Error(err.error || "Upload failed");
+      }
+
+      const data = await res.json();
+      if (data.url) {
+        setUploadedImages((prev) => [
+          ...prev,
+          { url: data.url, name: blobs[0].name },
+        ]);
+      } else if (data.uploaded) {
+        setUploadedImages((prev) => [...prev, ...data.uploaded]);
+      }
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to upload images");
+    } finally {
+      for (const p of previews) URL.revokeObjectURL(p.url);
+      setGalleryPreviews((prev) =>
+        prev.filter((p) => !previews.some((pr) => pr.tempId === p.tempId)),
+      );
+      setImageUploading(false);
+    }
+  };
+
+  /** Validate a file for type and size */
+  const validateImageFile = (file: File): boolean => {
+    if (!file.type.startsWith("image/")) {
+      alert("Please select an image file (JPEG, PNG, WebP, or AVIF).");
+      return false;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      alert("File is too large. Maximum size is 5 MB.");
+      return false;
+    }
+    return true;
+  };
+
+  /** Open crop dialog for cover image */
+  const openCropForCover = (file: File) => {
+    if (!validateImageFile(file)) return;
+    setCropFile(file);
+    setCropMode("cover");
+    setCropOpen(true);
+  };
+
+  /** Open crop dialog for gallery — crops one file at a time */
+  const openCropForGallery = (files: File[]) => {
+    const valid = files.filter((f) => {
+      if (!f.type.startsWith("image/")) return false;
+      if (f.size > 5 * 1024 * 1024) return false;
+      return true;
+    });
+    if (valid.length === 0) {
+      alert("No valid images to upload.");
+      return;
+    }
+    if (valid.length !== files.length) {
+      alert(
+        "Some files were skipped (wrong type or too large).\nUploading the valid ones.",
+      );
+    }
+    // Crop the first file; on complete, queue the rest
+    pendingGalleryFilesRef.current = valid.slice(1);
+    setCropFile(valid[0]);
+    setCropMode("gallery");
+    setCropOpen(true);
+  };
+
+  const pendingGalleryFilesRef = useRef<File[]>([]);
+
+  /** Called when cropper produces a cropped blob */
+  const handleCropComplete = async (blob: Blob, previewUrl: string) => {
+    URL.revokeObjectURL(previewUrl);
+    setCropOpen(false);
+    setCropFile(null);
+
+    if (cropMode === "cover") {
+      await uploadBlob(blob, "cover.jpg");
+    } else {
+      // Gallery: upload this blob, then open cropper for next file
+      await uploadBlobs([{ blob, name: "image.jpg" }]);
+      const remaining = pendingGalleryFilesRef.current;
+      if (remaining.length > 0) {
+        const next = remaining[0];
+        pendingGalleryFilesRef.current = remaining.slice(1);
+        setCropFile(next);
+        setCropOpen(true);
+      }
+    }
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    openCropForCover(file);
+    e.target.value = "";
+  };
+
+  const handleGalleryUpload = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const files = e.target.files;
+    if (!files?.length) return;
+    openCropForGallery(Array.from(files));
+    e.target.value = "";
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+
+    const file = e.dataTransfer.files?.[0];
+    if (!file) return;
+    openCropForCover(file);
+  };
+
+  const handleGalleryDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setGalleryDragOver(false);
+
+    const files = Array.from(e.dataTransfer.files);
+    if (files.length) openCropForGallery(files);
+  };
+
+  const handleGalleryDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setGalleryDragOver(true);
+  };
+
+  const handleGalleryDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setGalleryDragOver(false);
+  };
+
+  const copyMarkdown = async (url: string) => {
+    const md = `![image](${url})`;
+    await navigator.clipboard.writeText(md);
+    setCopiedUrl(url);
+    setTimeout(() => setCopiedUrl(null), 2000);
+  };
+
+  const setAsCover = (url: string) => {
+    setFormData((prev) => ({ ...prev, image: url }));
+  };
+
+  const removeGalleryImage = (url: string) => {
+    setUploadedImages((prev) => prev.filter((img) => img.url !== url));
   };
 
   const handleTogglePublish = (post: (typeof posts)[number]) => {
@@ -513,13 +733,53 @@ export default function BlogAdminPage() {
                 <label className="block text-sm font-medium text-slate-700 mb-2">
                   Cover Image
                 </label>
-                {formData.image ? (
-                  <div className="relative overflow-hidden rounded-xl border border-slate-200">
+                {coverPreview ? (
+                  <div
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    onDrop={handleDrop}
+                    className={`relative overflow-hidden rounded-xl border-2 transition-all duration-200 ${
+                      isDragOver
+                        ? "border-blue-500 shadow-[0_0_20px_rgba(59,130,246,0.15)]"
+                        : "border-slate-200"
+                    }`}
+                  >
+                    <img
+                      src={coverPreview}
+                      alt="Upload preview"
+                      className="h-48 w-full object-cover"
+                    />
+                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/30 backdrop-blur-[1px]">
+                      <Loader2 className="h-8 w-8 animate-spin text-white mb-2" />
+                      <p className="text-sm font-semibold text-white">
+                        Uploading cover image...
+                      </p>
+                    </div>
+                  </div>
+                ) : formData.image ? (
+                  <div
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    onDrop={handleDrop}
+                    className={`relative overflow-hidden rounded-xl border-2 transition-all duration-200 ${
+                      isDragOver
+                        ? "border-blue-500 shadow-[0_0_20px_rgba(59,130,246,0.15)]"
+                        : "border-slate-200"
+                    }`}
+                  >
                     <img
                       src={formData.image}
                       alt="Cover preview"
                       className="h-48 w-full object-cover"
                     />
+                    {isDragOver && (
+                      <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-blue-500/20 backdrop-blur-[2px]">
+                        <Image className="h-10 w-10 text-blue-600 mb-2" />
+                        <p className="text-sm font-semibold text-blue-700">
+                          Drop to replace image
+                        </p>
+                      </div>
+                    )}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
                     <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between">
                       <span className="text-xs text-white/80 truncate max-w-[70%]">
@@ -527,7 +787,9 @@ export default function BlogAdminPage() {
                       </span>
                       <button
                         type="button"
-                        onClick={() => setFormData((prev) => ({ ...prev, image: "" }))}
+                        onClick={() =>
+                          setFormData((prev) => ({ ...prev, image: "" }))
+                        }
                         className="inline-flex items-center gap-1.5 rounded-lg bg-red-600/90 px-3 py-1.5 text-xs font-medium text-white backdrop-blur-sm transition-colors hover:bg-red-600"
                       >
                         <RemoveIcon className="h-3 w-3" />
@@ -536,21 +798,31 @@ export default function BlogAdminPage() {
                     </div>
                   </div>
                 ) : (
-                  <label className="flex cursor-pointer flex-col items-center gap-3 rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 px-6 py-8 transition-colors hover:border-blue-400 hover:bg-blue-50">
-                    {imageUploading ? (
-                      <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
-                    ) : (
-                      <Image className="h-8 w-8 text-slate-400" />
-                    )}
+                  <label
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    onDrop={handleDrop}
+                    className={`flex cursor-pointer flex-col items-center gap-3 rounded-xl border-2 border-dashed px-6 py-8 transition-all duration-200 ${
+                      isDragOver
+                        ? "border-blue-500 bg-blue-50 shadow-[0_0_20px_rgba(59,130,246,0.15)]"
+                        : "border-slate-300 bg-slate-50 hover:border-blue-400 hover:bg-blue-50"
+                    }`}
+                  >
+                    <Image
+                      className={`h-8 w-8 transition-colors ${isDragOver ? "text-blue-500" : "text-slate-400"}`}
+                    />
                     <div className="text-center">
                       <p className="text-sm font-medium text-slate-700">
-                        {imageUploading ? "Uploading..." : "Click to upload cover image"}
+                        {isDragOver
+                          ? "Drop image here"
+                          : "Click or drag to upload cover image"}
                       </p>
                       <p className="mt-1 text-xs text-slate-500">
                         JPEG, PNG, WebP, or AVIF. Max 5 MB.
                       </p>
                     </div>
                     <input
+                      ref={fileInputRef}
                       type="file"
                       accept="image/jpeg,image/png,image/webp,image/avif"
                       onChange={handleImageUpload}
@@ -560,6 +832,167 @@ export default function BlogAdminPage() {
                   </label>
                 )}
               </div>
+
+              {/* Image Gallery — multi-file drop zone */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Image Gallery
+                </label>
+                <label
+                  onDragOver={handleGalleryDragOver}
+                  onDragLeave={handleGalleryDragLeave}
+                  onDrop={handleGalleryDrop}
+                  className={`flex cursor-pointer flex-col items-center gap-2 rounded-xl border-2 border-dashed px-6 py-5 transition-all duration-200 ${
+                    galleryDragOver
+                      ? "border-blue-500 bg-blue-50 shadow-[0_0_20px_rgba(59,130,246,0.15)]"
+                      : "border-slate-200 bg-slate-50 hover:border-blue-400 hover:bg-blue-50"
+                  }`}
+                >
+                  {imageUploading ? (
+                    <Loader2 className="h-6 w-6 animate-spin text-blue-500" />
+                  ) : (
+                    <Upload
+                      className={`h-6 w-6 transition-colors ${galleryDragOver ? "text-blue-500" : "text-slate-400"}`}
+                    />
+                  )}
+                  <div className="text-center">
+                    <p className="text-sm font-medium text-slate-700">
+                      {imageUploading
+                        ? "Uploading..."
+                        : galleryDragOver
+                          ? "Drop images here"
+                          : "Click or drag multiple images"}
+                    </p>
+                    <p className="mt-0.5 text-xs text-slate-500">
+                      JPEG, PNG, WebP, or AVIF. Max 5 MB each.
+                    </p>
+                  </div>
+                  <input
+                    ref={galleryInputRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,image/avif"
+                    multiple
+                    onChange={handleGalleryUpload}
+                    disabled={imageUploading}
+                    className="hidden"
+                  />
+                </label>
+
+                {(galleryPreviews.length > 0 || uploadedImages.length > 0) && (
+                  <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-4">
+                    {galleryPreviews.map((preview) => (
+                      <div
+                        key={preview.tempId}
+                        className="relative overflow-hidden rounded-lg border border-slate-200"
+                      >
+                        <img
+                          src={preview.url}
+                          alt={preview.name}
+                          className="h-24 w-full object-cover"
+                        />
+                        <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/30 backdrop-blur-[1px]">
+                          <Loader2 className="h-5 w-5 animate-spin text-white mb-1" />
+                          <p className="text-[10px] font-medium text-white truncate max-w-[80%]">
+                            {preview.name}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                    {uploadedImages.map((img) => (
+                      <div
+                        key={img.url}
+                        className="group relative overflow-hidden rounded-lg border border-slate-200"
+                      >
+                        <img
+                          src={img.url}
+                          alt={img.name}
+                          className="h-24 w-full object-cover"
+                        />
+                        <div className="absolute inset-0 bg-black/0 transition-colors group-hover:bg-black/50">
+                          <div className="absolute inset-0 flex items-center justify-center gap-1.5 opacity-0 transition-opacity group-hover:opacity-100">
+                            <button
+                              type="button"
+                              onClick={() => setAsCover(img.url)}
+                              className="rounded-md bg-white/90 px-2 py-1 text-[10px] font-medium text-slate-700 shadow-sm backdrop-blur-sm transition-colors hover:bg-white"
+                              title="Set as cover image"
+                            >
+                              Cover
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => copyMarkdown(img.url)}
+                              className="rounded-md bg-white/90 px-2 py-1 text-[10px] font-medium text-slate-700 shadow-sm backdrop-blur-sm transition-colors hover:bg-white"
+                              title="Copy markdown"
+                            >
+                              {copiedUrl === img.url ? (
+                                <Check className="inline h-3 w-3 text-green-600" />
+                              ) : (
+                                <Clipboard className="inline h-3 w-3" />
+                              )}
+                              {copiedUrl === img.url ? " Copied" : " Copy"}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => removeGalleryImage(img.url)}
+                              className="rounded-md bg-red-500/90 px-2 py-1 text-[10px] font-medium text-white shadow-sm backdrop-blur-sm transition-colors hover:bg-red-600"
+                              title="Remove from gallery"
+                            >
+                              <RemoveIcon className="inline h-3 w-3" />
+                            </button>
+                          </div>
+                        </div>
+                        {formData.image === img.url && (
+                          <div className="absolute top-1.5 left-1.5 rounded bg-blue-600 px-1.5 py-0.5 text-[9px] font-semibold text-white">
+                            COVER
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {previousImages && previousImages.length > 0 && (
+                  <div className="mt-4">
+                    <p className="text-xs font-medium text-slate-500 mb-2">
+                      Previously used cover images
+                    </p>
+                    <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
+                      {previousImages.map((img) => (
+                        <button
+                          key={img.url}
+                          type="button"
+                          onClick={() => setAsCover(img.url)}
+                          className={`group relative overflow-hidden rounded-lg border-2 transition-all duration-150 ${
+                            formData.image === img.url
+                              ? "border-blue-500 ring-2 ring-blue-500/20"
+                              : "border-transparent hover:border-slate-300"
+                          }`}
+                          title={img.postTitle || "Use as cover"}
+                        >
+                          <img
+                            src={img.url}
+                            alt={img.postTitle || "Previously used image"}
+                            className="h-16 w-full object-cover"
+                          />
+                          <div className="absolute inset-0 bg-black/0 transition-colors group-hover:bg-black/40">
+                            <div className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity group-hover:opacity-100">
+                              <span className="rounded bg-white/90 px-1.5 py-0.5 text-[9px] font-medium text-slate-700 shadow-sm">
+                                {formData.image === img.url ? "Active" : "Use"}
+                              </span>
+                            </div>
+                          </div>
+                          {formData.image === img.url && (
+                            <div className="absolute top-1 left-1 rounded bg-blue-600 px-1 py-0.5 text-[8px] font-bold text-white">
+                              COVER
+                            </div>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">
                   Title
@@ -703,6 +1136,21 @@ export default function BlogAdminPage() {
             </div>
           </div>
         </>
+      )}
+
+      {/* Image Cropper */}
+      {cropFile && (
+        <ImageCropper
+          file={cropFile}
+          open={cropOpen}
+          onClose={() => {
+            setCropOpen(false);
+            setCropFile(null);
+            pendingGalleryFilesRef.current = [];
+          }}
+          onCrop={handleCropComplete}
+          maxOutputSize={1600}
+        />
       )}
     </div>
   );

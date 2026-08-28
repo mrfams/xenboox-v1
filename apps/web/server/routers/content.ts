@@ -348,6 +348,41 @@ export const contentRouter = router({
       }));
     }),
 
+  // ── Admin: Blog Images ─────────────────────────────────────────────────
+
+  adminListBlogImages: adminProtectedProcedure.query(async () => {
+    const rows = await db
+      .select({ image: blogPosts.image })
+      .from(blogPosts)
+      .where(sql`${blogPosts.image} IS NOT NULL AND ${blogPosts.image} <> ''`)
+      .orderBy(desc(blogPosts.updatedAt));
+
+    // Deduplicate while preserving order
+    const seen = new Set<string>();
+    const unique: { url: string; postTitle: string }[] = [];
+    for (const row of rows) {
+      if (row.image && !seen.has(row.image)) {
+        seen.add(row.image);
+        unique.push({ url: row.image, postTitle: "" });
+      }
+    }
+
+    // Fetch titles for the images
+    if (unique.length > 0) {
+      const urls = unique.map((u) => u.url);
+      const postsWithImages = await db
+        .select({ title: blogPosts.title, image: blogPosts.image })
+        .from(blogPosts)
+        .where(sql`${blogPosts.image} IN ${urls}`);
+      const titleMap = new Map(postsWithImages.map((p) => [p.image, p.title]));
+      for (const item of unique) {
+        item.postTitle = titleMap.get(item.url) ?? "";
+      }
+    }
+
+    return unique;
+  }),
+
   // ── Admin: Blog CRUD ────────────────────────────────────────────────────
 
   adminListPosts: adminProtectedProcedure

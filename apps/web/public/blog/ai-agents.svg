@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <defs>
+    <linearGradient id="bg3" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#130a24"/>
+      <stop offset="100%" stop-color="#2e1065"/>
+    </linearGradient>
+    <linearGradient id="glow3" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#a855f7" stop-opacity="0.2"/>
+      <stop offset="100%" stop-color="#7c3aed" stop-opacity="0.05"/>
+    </linearGradient>
+    <radialGradient id="node3" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#c084fc"/>
+      <stop offset="100%" stop-color="#7c3aed"/>
+    </radialGradient>
+  </defs>
+  <!-- Background -->
+  <rect width="1200" height="630" fill="url(#bg3)"/>
+  <!-- Hexagonal grid pattern -->
+  <g opacity="0.04" fill="none" stroke="#a855f7" stroke-width="1">
+    <polygon points="100,80 130,63 160,80 160,114 130,131 100,114"/>
+    <polygon points="220,80 250,63 280,80 280,114 250,131 220,114"/>
+    <polygon points="340,80 370,63 400,80 400,114 370,131 340,114"/>
+    <polygon points="160,148 190,131 220,148 220,182 190,199 160,182"/>
+    <polygon points="280,148 310,131 340,148 340,182 310,199 280,182"/>
+    <polygon points="400,148 430,131 460,148 460,182 430,199 400,182"/>
+    <polygon points="900,440 930,423 960,440 960,474 930,491 900,474"/>
+    <polygon points="1020,440 1050,423 1080,440 1080,474 1050,491 1020,474"/>
+    <polygon points="960,508 990,491 1020,508 1020,542 990,559 960,542"/>
+  </g>
+  <!-- Neural network connections -->
+  <g fill="none" stroke="#a855f7" stroke-width="1.5" opacity="0.3">
+    <!-- Layer connections -->
+    <line x1="350" y1="180" x2="520" y2="260"/>
+    <line x1="350" y1="315" x2="520" y2="260"/>
+    <line x1="350" y1="450" x2="520" y2="370"/>
+    <line x1="520" y1="260" x2="680" y2="315"/>
+    <line x1="520" y1="370" x2="680" y2="315"/>
+    <line x1="520" y1="260" x2="680" y2="200"/>
+    <line x1="520" y1="370" x2="680" y2="430"/>
+    <line x1="680" y1="200" x2="850" y2="260"/>
+    <line x1="680" y1="315" x2="850" y2="260"/>
+    <line x1="680" y1="315" x2="850" y2="370"/>
+    <line x1="680" y1="430" x2="850" y2="370"/>
+  </g>
+  <!-- Network nodes - input layer -->
+  <g fill="url(#node3)">
+    <circle cx="350" cy="180" r="12"/>
+    <circle cx="350" cy="315" r="12"/>
+    <circle cx="350" cy="450" r="12"/>
+  </g>
+  <!-- Hidden layer -->
+  <g fill="#a855f7">
+    <circle cx="520" cy="260" r="16"/>
+    <circle cx="520" cy="370" r="16"/>
+  </g>
+  <!-- Core nodes -->
+  <g fill="#c084fc">
+    <circle cx="680" cy="200" r="14"/>
+    <circle cx="680" cy="315" r="18"/>
+    <circle cx="680" cy="430" r="14"/>
+  </g>
+  <!-- Output layer -->
+  <g fill="url(#node3)">
+    <circle cx="850" cy="260" r="12"/>
+    <circle cx="850" cy="370" r="12"/>
+  </g>
+  <!-- Pulse rings on central node -->
+  <circle cx="680" cy="315" r="30" fill="none" stroke="#c084fc" stroke-width="1" opacity="0.3"/>
+  <circle cx="680" cy="315" r="45" fill="none" stroke="#c084fc" stroke-width="1" opacity="0.15"/>
+  <!-- Glow overlay -->
+  <rect width="1200" height="630" fill="url(#glow3)"/>
+  <!-- Corner accents -->
+  <rect x="40" y="40" width="60" height="3" rx="1.5" fill="#a855f7" opacity="0.6"/>
+  <rect x="40" y="40" width="3" height="60" rx="1.5" fill="#a855f7" opacity="0.6"/>
+  <rect x="1100" y="587" width="60" height="3" rx="1.5" fill="#a855f7" opacity="0.6"/>
+  <rect x="1157" y="530" width="3" height="60" rx="1.5" fill="#a855f7" opacity="0.6"/>
+</svg>

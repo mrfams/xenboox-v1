@@ -42,7 +42,6 @@ export async function generateMetadata({
       publishedTime: post.date,
       authors: [post.author.name],
       tags: post.tags,
-      ...(post.image ? { images: [{ url: post.image, width: 1200, height: 630 }] } : {}),
     },
   };
 }

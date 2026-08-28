@@ -10,7 +10,7 @@ export const demoPosts: (typeof blogPosts.$inferInsert)[] = [
   {
     slug: "introducing-ai-accounting",
     title: "Introducing AI-Native Accounting for Businesses in The Gambia",
-    image: "https://picsum.photos/seed/xenboox-ai-accounting/1200/630",
+    image: "/blog/ai-accounting.svg",
     excerpt:
       "How Xenboox uses 19 specialized AI agents to transform accounting from a manual chore into an automated, intelligent system — built for Gambian businesses.",
     content:
@@ -27,7 +27,7 @@ export const demoPosts: (typeof blogPosts.$inferInsert)[] = [
   {
     slug: "why-traditional-accounting-fails",
     title: "Why Traditional Accounting Software Fails African Businesses",
-    image: "https://picsum.photos/seed/xenboox-traditional-fails/1200/630",
+    image: "/blog/traditional-fails.svg",
     excerpt:
       "Desktop-first design, single-currency assumptions, and zero mobile money support — here's what's broken and what we built instead.",
     content:
@@ -44,7 +44,7 @@ export const demoPosts: (typeof blogPosts.$inferInsert)[] = [
   {
     slug: "building-ai-agents",
     title: "Building Intelligent AI Agents for Accounting",
-    image: "https://picsum.photos/seed/xenboox-ai-agents/1200/630",
+    image: "/blog/ai-agents.svg",
     excerpt:
       "A deep dive into how we build and deploy AI agents that handle real accounting tasks with accuracy and reliability.",
     content:
@@ -61,7 +61,7 @@ export const demoPosts: (typeof blogPosts.$inferInsert)[] = [
   {
     slug: "multi-currency-support",
     title: "Multi-Currency Support: Handling Global Transactions",
-    image: "https://picsum.photos/seed/xenboox-multi-currency/1200/630",
+    image: "/blog/multi-currency.svg",
     excerpt:
       "How we built multi-currency support that handles exchange rates, conversions, and reporting automatically.",
     content:
@@ -78,7 +78,7 @@ export const demoPosts: (typeof blogPosts.$inferInsert)[] = [
   {
     slug: "security-best-practices",
     title: "How Xenboox Protects Your Financial Data",
-    image: "https://picsum.photos/seed/xenboox-security/1200/630",
+    image: "/blog/security.svg",
     excerpt:
       "AES-256 encryption, entity isolation, and a complete audit trail — here's how we keep your books safe.",
     content:
@@ -95,7 +95,7 @@ export const demoPosts: (typeof blogPosts.$inferInsert)[] = [
   {
     slug: "getting-started-guide",
     title: "Getting Started with Xenboox: A Complete Guide",
-    image: "https://picsum.photos/seed/xenboox-getting-started/1200/630",
+    image: "/blog/getting-started.svg",
     excerpt:
       "Everything you need to know to set up your account, configure your business, and start using Xenboox effectively.",
     content:
