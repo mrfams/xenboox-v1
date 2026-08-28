@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { Suspense, useState, useRef, useEffect, useCallback } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import {
   Activity,
   TrendingUp,
@@ -20,6 +21,10 @@ import {
   ChevronUp,
   Globe,
   Loader2,
+  LineChart,
+  Target,
+  FileBarChart,
+  type LucideIcon,
 } from "lucide-react";
 
 import { useEntity } from "@/lib/entity-context";
@@ -734,9 +739,113 @@ const REPORTS = [
   // },
 ];
 
+// ─── Tabs ──────────────────────────────────────────────────────────────────
+
+type PulseTab = "overview" | "performance" | "planning" | "reports";
+
+const TABS: { key: PulseTab; label: string; icon: LucideIcon }[] = [
+  { key: "overview", label: "Overview", icon: Activity },
+  { key: "performance", label: "Performance", icon: LineChart },
+  { key: "planning", label: "Planning", icon: Target },
+  { key: "reports", label: "Reports", icon: FileBarChart },
+];
+
+function isPulseTab(v: string | null | undefined): v is PulseTab {
+  return TABS.some((t) => t.key === v);
+}
+
+// ─── Keyboard-Navigable Tab List ──────────────────────────────────────────
+
+function PulseTabList({
+  activeTab,
+  onTabChange,
+}: {
+  activeTab: PulseTab;
+  onTabChange: (key: PulseTab) => void;
+}) {
+  const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const tabIndex = TABS.findIndex((t) => t.key === activeTab);
+
+  const focusTab = useCallback((index: number) => {
+    const clamped = Math.max(0, Math.min(index, TABS.length - 1));
+    tabRefs.current[clamped]?.focus();
+  }, []);
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      switch (e.key) {
+        case "ArrowRight":
+          e.preventDefault();
+          focusTab(tabIndex + 1);
+          break;
+        case "ArrowLeft":
+          e.preventDefault();
+          focusTab(tabIndex - 1);
+          break;
+        case "Home":
+          e.preventDefault();
+          focusTab(0);
+          break;
+        case "End":
+          e.preventDefault();
+          focusTab(TABS.length - 1);
+          break;
+      }
+    },
+    [tabIndex, focusTab],
+  );
+
+  return (
+    <div
+      role="tablist"
+      aria-label="Financial Pulse sections"
+      className="flex items-center gap-1 overflow-x-auto border-b border-border/50 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+    >
+      {TABS.map((tab, i) => {
+        const Icon = tab.icon;
+        const isActive = activeTab === tab.key;
+
+        return (
+          <button
+            key={tab.key}
+            ref={(el) => {
+              tabRefs.current[i] = el;
+            }}
+            type="button"
+            role="tab"
+            id={`pulse-tab-${tab.key}`}
+            aria-selected={isActive}
+            aria-controls={`pulse-panel-${tab.key}`}
+            tabIndex={isActive ? 0 : -1}
+            onClick={() => onTabChange(tab.key)}
+            onKeyDown={handleKeyDown}
+            className={cn(
+              "flex items-center gap-1.5 border-b-2 -mb-px px-3 py-2.5 text-xs font-medium transition-colors whitespace-nowrap",
+              isActive
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-foreground hover:border-border",
+            )}
+          >
+            <Icon className="h-3.5 w-3.5" aria-hidden="true" />
+            {tab.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 // ─── Page ──────────────────────────────────────────────────────────────────
 
 export default function FinancialPulsePage() {
+  return (
+    <Suspense>
+      <FinancialPulseInner />
+    </Suspense>
+  );
+}
+
+function FinancialPulseInner() {
   const { entityId, entityCurrency } = useEntity();
   const { openWithFocus } = useModuleAi();
 
@@ -750,6 +859,22 @@ export default function FinancialPulsePage() {
   // ── Cross-surface sync ────────────────────────────────────────────────
   // Listen for data_changed events from other surfaces and refetch
   useSurfaceSync({ entityId, surfaces: ["financial-pulse"] });
+
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const [activeTab, setActiveTab] = useState<PulseTab>(
+    isPulseTab(searchParams.get("tab")) ? searchParams.get("tab")! : "overview",
+  );
+
+  const handleTabChange = useCallback(
+    (key: PulseTab) => {
+      setActiveTab(key);
+      const params = new URLSearchParams(searchParams.toString());
+      params.set("tab", key);
+      router.replace(`?${params.toString()}`, { scroll: false });
+    },
+    [router, searchParams],
+  );
 
   const [selectedPeriod, setSelectedPeriod] = useState<
     "this_month" | "last_month" | "this_quarter"
@@ -917,486 +1042,537 @@ export default function FinancialPulsePage() {
           </div>
         </div>
 
-        {/* AI Narrative */}
-        <AiFinancialNarrative
-          aiNarrative={aiNarrative}
-          overview={overview}
-          pnl={pnl}
-          isError={isNarrativeError}
-        />
+        {/* Section Tabs */}
+        <PulseTabList activeTab={activeTab} onTabChange={handleTabChange} />
 
-        {/* Anomaly Alerts */}
-        {anomalyData?.anomalies && anomalyData.anomalies.length > 0 && (
-          <AnomalyAlerts
-            anomalies={anomalyData.anomalies}
-            onInvestigate={(anomaly) =>
-              askAiAbout(
-                `Investigate this anomaly: ${anomaly.message}. ${anomaly.aiInsight}`,
-              )
-            }
-          />
+        {/* ── Overview Tab ── */}
+        {activeTab === "overview" && (
+          <div
+            id="pulse-panel-overview"
+            role="tabpanel"
+            aria-labelledby="pulse-tab-overview"
+            className="space-y-6"
+          >
+            {/* AI Narrative */}
+            <AiFinancialNarrative
+              aiNarrative={aiNarrative}
+              overview={overview}
+              pnl={pnl}
+              isError={isNarrativeError}
+            />
+
+            {/* Anomaly Alerts */}
+            {anomalyData?.anomalies && anomalyData.anomalies.length > 0 && (
+              <AnomalyAlerts
+                anomalies={anomalyData.anomalies}
+                onInvestigate={(anomaly) =>
+                  askAiAbout(
+                    `Investigate this anomaly: ${anomaly.message}. ${anomaly.aiInsight}`,
+                  )
+                }
+              />
+            )}
+
+            {/* Data Freshness Indicator */}
+            <div className="flex items-center justify-end">
+              <span className="text-xs text-muted-foreground">
+                Data refreshes every 5 minutes
+              </span>
+            </div>
+
+            {/* KPI Cards */}
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+              <KPICard
+                label="Revenue"
+                value={formatCurrency(pnl?.revenue ?? 0)}
+                previousValue={
+                  pnl?.revenueChange
+                    ? formatCurrency(
+                        (pnl.revenue ?? 0) /
+                          (1 + (pnl.revenueChange ?? 0) / 100),
+                      )
+                    : undefined
+                }
+                change={
+                  pnl?.revenueChange
+                    ? `${pnl.revenueChange > 0 ? "+" : ""}${pnl.revenueChange.toFixed(1)}%`
+                    : undefined
+                }
+                icon={TrendingUp}
+                color="text-balanced-green"
+                sparkline={revenueSparkline}
+                onDrillDown={() => {
+                  const expenses = pnlData?.current.expensesByAccount ?? [];
+                  const totalExpenses = expenses.reduce(
+                    (s, e) => s + Math.abs(e.amount),
+                    0,
+                  );
+                  setDrillDown({
+                    title: "Revenue Breakdown",
+                    total: formatCurrency(pnl?.revenue ?? 0),
+                    items: (pnlData?.current.revenueByAccount ?? [])
+                      .slice(0, 10)
+                      .map((a) => ({
+                        label: a.accountName,
+                        value: formatCurrency(a.amount),
+                        percentage: pnl?.revenue
+                          ? `${((a.amount / pnl.revenue) * 100).toFixed(1)}%`
+                          : undefined,
+                        color: "bg-balanced-green",
+                      })),
+                    insight: pnl?.revenueChange
+                      ? `Revenue ${pnl.revenueChange > 0 ? "grew" : "declined"} ${Math.abs(pnl.revenueChange).toFixed(1)}% vs prior period.`
+                      : undefined,
+                  });
+                }}
+                onAskAi={() =>
+                  askAiAbout(
+                    "Explain my revenue position and trends. What's driving the change vs last month?",
+                  )
+                }
+                aiPrompt="Explain revenue"
+              />
+              <KPICard
+                label="Expenses"
+                value={formatCurrency(pnl?.expenses ?? 0)}
+                previousValue={
+                  pnl?.expensesChange
+                    ? formatCurrency(
+                        (pnl.expenses ?? 0) /
+                          (1 + (pnl.expensesChange ?? 0) / 100),
+                      )
+                    : undefined
+                }
+                change={
+                  pnl?.expensesChange
+                    ? `${pnl.expensesChange > 0 ? "+" : ""}${pnl.expensesChange.toFixed(1)}%`
+                    : undefined
+                }
+                icon={TrendingDown}
+                color="text-error-clay"
+                sparkline={expenseSparkline}
+                onDrillDown={() => {
+                  const expenses = pnlData?.current.expensesByAccount ?? [];
+                  const totalExpenses = expenses.reduce(
+                    (s, e) => s + Math.abs(e.amount),
+                    0,
+                  );
+                  setDrillDown({
+                    title: "Expense Breakdown",
+                    total: formatCurrency(pnl?.expenses ?? 0),
+                    items: expenses.slice(0, 10).map((a) => ({
+                      label: a.accountName,
+                      value: formatCurrency(Math.abs(a.amount)),
+                      percentage:
+                        totalExpenses > 0
+                          ? `${((Math.abs(a.amount) / totalExpenses) * 100).toFixed(1)}%`
+                          : undefined,
+                      color: "bg-error-clay",
+                    })),
+                    insight: pnl?.expensesChange
+                      ? `Expenses ${pnl.expensesChange > 0 ? "increased" : "decreased"} ${Math.abs(pnl.expensesChange).toFixed(1)}% vs prior period.`
+                      : undefined,
+                  });
+                }}
+                onAskAi={() =>
+                  askAiAbout(
+                    "Break down my expenses. What's the biggest cost driver and how can I reduce it?",
+                  )
+                }
+                aiPrompt="Explain expenses"
+              />
+              <KPICard
+                label="Net Profit"
+                value={formatCurrency(pnlData?.current.netProfit ?? 0)}
+                icon={BarChart3}
+                color="text-primary"
+                onDrillDown={() => {
+                  setDrillDown({
+                    title: "Profitability Summary",
+                    total: formatCurrency(pnlData?.current.netProfit ?? 0),
+                    items: [
+                      {
+                        label: "Revenue",
+                        value: formatCurrency(pnl?.revenue ?? 0),
+                        color: "bg-balanced-green",
+                      },
+                      {
+                        label: "Cost of Goods Sold",
+                        value: formatCurrency(pnlData?.current.cogs ?? 0),
+                        color: "bg-attention-amber",
+                      },
+                      {
+                        label: "Gross Profit",
+                        value: formatCurrency(
+                          (pnl?.revenue ?? 0) - (pnlData?.current.cogs ?? 0),
+                        ),
+                        color: "bg-primary",
+                      },
+                      {
+                        label: "Operating Expenses",
+                        value: formatCurrency(pnl?.expenses ?? 0),
+                        color: "bg-error-clay",
+                      },
+                      {
+                        label: "Net Profit",
+                        value: formatCurrency(pnlData?.current.netProfit ?? 0),
+                        color: "bg-primary",
+                      },
+                    ],
+                    insight:
+                      pnl?.revenue && pnl?.expenses
+                        ? pnl.revenue > 0
+                          ? `Net margin: ${(((pnlData?.current.netProfit ?? 0) / pnl.revenue) * 100).toFixed(1)}%. Revenue-expense spread: ${(pnl.revenueChange ?? 0) - (pnl.expensesChange ?? 0) > 0 ? "expanding" : "narrowing"}.`
+                          : `Net margin: —. Revenue-expense spread: ${(pnl.revenueChange ?? 0) - (pnl.expensesChange ?? 0) > 0 ? "expanding" : "narrowing"}.`
+                        : undefined,
+                  });
+                }}
+                onAskAi={() =>
+                  askAiAbout(
+                    "Explain my profitability. Is my margin improving or declining? What should I focus on?",
+                  )
+                }
+                aiPrompt="Explain profit"
+              />
+              <KPICard
+                label="Cash Balance"
+                value={formatCurrency(overview?.cashBalance ?? 0)}
+                icon={Wallet}
+                color="text-primary"
+                sparkline={cashSparkline}
+                onDrillDown={() => {
+                  setDrillDown({
+                    title: "Cash Position",
+                    total: formatCurrency(overview?.cashBalance ?? 0),
+                    items: [
+                      {
+                        label: "Accounts Receivable",
+                        value: formatCurrency(
+                          overview?.accountsReceivable ?? 0,
+                        ),
+                        color: "bg-balanced-green",
+                      },
+                      {
+                        label: "Accounts Payable",
+                        value: formatCurrency(overview?.accountsPayable ?? 0),
+                        color: "bg-error-clay",
+                      },
+                      {
+                        label: "Net Position",
+                        value: formatCurrency(
+                          (overview?.cashBalance ?? 0) +
+                            (overview?.accountsReceivable ?? 0) -
+                            (overview?.accountsPayable ?? 0),
+                        ),
+                        color: "bg-primary",
+                      },
+                    ],
+                    insight:
+                      overview?.runway !== null &&
+                      overview?.runway !== undefined
+                        ? overview.runway <= 0
+                          ? "Immediate action required — runway is critically low."
+                          : overview.runway < 3
+                            ? `At current burn rate, you have approximately ${overview.runway.toFixed(1)} months of runway. This is critically low.`
+                            : `At current burn rate, you have approximately ${overview.runway.toFixed(1)} months of runway.`
+                        : "Runway unknown — connect your bank accounts for accurate data.",
+                  });
+                }}
+                onAskAi={() =>
+                  askAiAbout(
+                    "Explain my cash position. How many months of runway do I have? What's the trend?",
+                  )
+                }
+                aiPrompt="Explain cash"
+              />
+            </div>
+
+            {/* Daily Close Status */}
+            <DailyCloseStatus />
+
+            {/* Live Exchange Rates */}
+            <LiveExchangeRates />
+          </div>
         )}
 
-        {/* Data Freshness Indicator */}
-        <div className="flex items-center justify-end">
-          <span className="text-xs text-muted-foreground">
-            Data refreshes every 5 minutes
-          </span>
-        </div>
-
-        {/* KPI Cards */}
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <KPICard
-            label="Revenue"
-            value={formatCurrency(pnl?.revenue ?? 0)}
-            previousValue={
-              pnl?.revenueChange
-                ? formatCurrency(
-                    (pnl.revenue ?? 0) / (1 + (pnl.revenueChange ?? 0) / 100),
+        {/* ── Performance Tab ── */}
+        {activeTab === "performance" && (
+          <div
+            id="pulse-panel-performance"
+            role="tabpanel"
+            aria-labelledby="pulse-tab-performance"
+            className="space-y-6"
+          >
+            {/* Interactive Charts */}
+            <div className="grid gap-4 sm:grid-cols-2">
+              <RevenueTrendChart
+                data={revenueSparkline.map((v, i) => ({
+                  month: getMonthLabel(i, revenueSparkline.length),
+                  revenue: v,
+                  prior: expenseSparkline[i] ? undefined : undefined,
+                }))}
+                currency={displayCurrency}
+                onAskAi={() =>
+                  askAiAbout(
+                    "Explain my revenue trend. What's driving the changes?",
                   )
-                : undefined
-            }
-            change={
-              pnl?.revenueChange
-                ? `${pnl.revenueChange > 0 ? "+" : ""}${pnl.revenueChange.toFixed(1)}%`
-                : undefined
-            }
-            icon={TrendingUp}
-            color="text-balanced-green"
-            sparkline={revenueSparkline}
-            onDrillDown={() => {
-              const expenses = pnlData?.current.expensesByAccount ?? [];
-              const totalExpenses = expenses.reduce(
-                (s, e) => s + Math.abs(e.amount),
-                0,
-              );
-              setDrillDown({
-                title: "Revenue Breakdown",
-                total: formatCurrency(pnl?.revenue ?? 0),
-                items: (pnlData?.current.revenueByAccount ?? [])
-                  .slice(0, 10)
-                  .map((a) => ({
-                    label: a.accountName,
-                    value: formatCurrency(a.amount),
-                    percentage: pnl?.revenue
-                      ? `${((a.amount / pnl.revenue) * 100).toFixed(1)}%`
-                      : undefined,
-                    color: "bg-balanced-green",
-                  })),
-                insight: pnl?.revenueChange
-                  ? `Revenue ${pnl.revenueChange > 0 ? "grew" : "declined"} ${Math.abs(pnl.revenueChange).toFixed(1)}% vs prior period.`
-                  : undefined,
-              });
-            }}
-            onAskAi={() =>
-              askAiAbout(
-                "Explain my revenue position and trends. What's driving the change vs last month?",
-              )
-            }
-            aiPrompt="Explain revenue"
-          />
-          <KPICard
-            label="Expenses"
-            value={formatCurrency(pnl?.expenses ?? 0)}
-            previousValue={
-              pnl?.expensesChange
-                ? formatCurrency(
-                    (pnl.expenses ?? 0) / (1 + (pnl.expensesChange ?? 0) / 100),
+                }
+              />
+              <CashFlowChart
+                data={revenueSparkline.map((v, i) => ({
+                  month: getMonthLabel(i, revenueSparkline.length),
+                  incoming: v,
+                  outgoing: expenseSparkline[i] ?? 0,
+                }))}
+                currency={displayCurrency}
+                onAskAi={() =>
+                  askAiAbout(
+                    "Analyze my cash flow. Am I spending more than I'm earning?",
                   )
-                : undefined
-            }
-            change={
-              pnl?.expensesChange
-                ? `${pnl.expensesChange > 0 ? "+" : ""}${pnl.expensesChange.toFixed(1)}%`
-                : undefined
-            }
-            icon={TrendingDown}
-            color="text-error-clay"
-            sparkline={expenseSparkline}
-            onDrillDown={() => {
-              const expenses = pnlData?.current.expensesByAccount ?? [];
-              const totalExpenses = expenses.reduce(
-                (s, e) => s + Math.abs(e.amount),
-                0,
-              );
-              setDrillDown({
-                title: "Expense Breakdown",
-                total: formatCurrency(pnl?.expenses ?? 0),
-                items: expenses.slice(0, 10).map((a) => ({
-                  label: a.accountName,
-                  value: formatCurrency(Math.abs(a.amount)),
-                  percentage:
-                    totalExpenses > 0
-                      ? `${((Math.abs(a.amount) / totalExpenses) * 100).toFixed(1)}%`
-                      : undefined,
-                  color: "bg-error-clay",
-                })),
-                insight: pnl?.expensesChange
-                  ? `Expenses ${pnl.expensesChange > 0 ? "increased" : "decreased"} ${Math.abs(pnl.expensesChange).toFixed(1)}% vs prior period.`
-                  : undefined,
-              });
-            }}
-            onAskAi={() =>
-              askAiAbout(
-                "Break down my expenses. What's the biggest cost driver and how can I reduce it?",
-              )
-            }
-            aiPrompt="Explain expenses"
-          />
-          <KPICard
-            label="Net Profit"
-            value={formatCurrency(pnlData?.current.netProfit ?? 0)}
-            icon={BarChart3}
-            color="text-primary"
-            onDrillDown={() => {
-              setDrillDown({
-                title: "Profitability Summary",
-                total: formatCurrency(pnlData?.current.netProfit ?? 0),
-                items: [
-                  {
-                    label: "Revenue",
-                    value: formatCurrency(pnl?.revenue ?? 0),
-                    color: "bg-balanced-green",
-                  },
-                  {
-                    label: "Cost of Goods Sold",
-                    value: formatCurrency(pnlData?.current.cogs ?? 0),
-                    color: "bg-attention-amber",
-                  },
-                  {
-                    label: "Gross Profit",
-                    value: formatCurrency(
-                      (pnl?.revenue ?? 0) - (pnlData?.current.cogs ?? 0),
-                    ),
-                    color: "bg-primary",
-                  },
-                  {
-                    label: "Operating Expenses",
-                    value: formatCurrency(pnl?.expenses ?? 0),
-                    color: "bg-error-clay",
-                  },
-                  {
-                    label: "Net Profit",
-                    value: formatCurrency(pnlData?.current.netProfit ?? 0),
-                    color: "bg-primary",
-                  },
-                ],
-                insight:
-                  pnl?.revenue && pnl?.expenses
-                    ? pnl.revenue > 0
-                      ? `Net margin: ${(((pnlData?.current.netProfit ?? 0) / pnl.revenue) * 100).toFixed(1)}%. Revenue-expense spread: ${(pnl.revenueChange ?? 0) - (pnl.expensesChange ?? 0) > 0 ? "expanding" : "narrowing"}.`
-                      : `Net margin: —. Revenue-expense spread: ${(pnl.revenueChange ?? 0) - (pnl.expensesChange ?? 0) > 0 ? "expanding" : "narrowing"}.`
-                    : undefined,
-              });
-            }}
-            onAskAi={() =>
-              askAiAbout(
-                "Explain my profitability. Is my margin improving or declining? What should I focus on?",
-              )
-            }
-            aiPrompt="Explain profit"
-          />
-          <KPICard
-            label="Cash Balance"
-            value={formatCurrency(overview?.cashBalance ?? 0)}
-            icon={Wallet}
-            color="text-primary"
-            sparkline={cashSparkline}
-            onDrillDown={() => {
-              setDrillDown({
-                title: "Cash Position",
-                total: formatCurrency(overview?.cashBalance ?? 0),
-                items: [
-                  {
-                    label: "Accounts Receivable",
-                    value: formatCurrency(overview?.accountsReceivable ?? 0),
-                    color: "bg-balanced-green",
-                  },
-                  {
-                    label: "Accounts Payable",
-                    value: formatCurrency(overview?.accountsPayable ?? 0),
-                    color: "bg-error-clay",
-                  },
-                  {
-                    label: "Net Position",
-                    value: formatCurrency(
-                      (overview?.cashBalance ?? 0) +
-                        (overview?.accountsReceivable ?? 0) -
-                        (overview?.accountsPayable ?? 0),
-                    ),
-                    color: "bg-primary",
-                  },
-                ],
-                insight:
-                  overview?.runway !== null && overview?.runway !== undefined
-                    ? overview.runway <= 0
-                      ? "Immediate action required — runway is critically low."
-                      : overview.runway < 3
-                        ? `At current burn rate, you have approximately ${overview.runway.toFixed(1)} months of runway. This is critically low.`
-                        : `At current burn rate, you have approximately ${overview.runway.toFixed(1)} months of runway.`
-                    : "Runway unknown — connect your bank accounts for accurate data.",
-              });
-            }}
-            onAskAi={() =>
-              askAiAbout(
-                "Explain my cash position. How many months of runway do I have? What's the trend?",
-              )
-            }
-            aiPrompt="Explain cash"
-          />
-        </div>
+                }
+              />
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <MarginTrendChart
+                data={revenueSparkline.map((v, i) => {
+                  const exp = expenseSparkline[i] ?? 0;
+                  const margin = v > 0 ? ((v - exp) / v) * 100 : 0;
+                  return {
+                    month: getMonthLabel(i, revenueSparkline.length),
+                    margin: Math.round(margin * 10) / 10,
+                    target: 25,
+                  };
+                })}
+                onAskAi={() =>
+                  askAiAbout(
+                    "Analyze my profit margin trend. Is it improving or declining?",
+                  )
+                }
+              />
+              <ExpenseBreakdownChart
+                data={expenseBreakdownData}
+                currency={displayCurrency}
+                onAskAi={() =>
+                  askAiAbout(
+                    "Break down my expenses. What's the biggest cost driver?",
+                  )
+                }
+              />
+            </div>
 
-        {/* Daily Close Status */}
-        <DailyCloseStatus />
-
-        {/* Live Exchange Rates */}
-        <LiveExchangeRates />
-
-        {/* Interactive Charts */}
-        <div className="grid gap-4 sm:grid-cols-2">
-          <RevenueTrendChart
-            data={revenueSparkline.map((v, i) => ({
-              month: getMonthLabel(i, revenueSparkline.length),
-              revenue: v,
-              prior: expenseSparkline[i] ? undefined : undefined,
-            }))}
-            currency={displayCurrency}
-            onAskAi={() =>
-              askAiAbout(
-                "Explain my revenue trend. What's driving the changes?",
-              )
-            }
-          />
-          <CashFlowChart
-            data={revenueSparkline.map((v, i) => ({
-              month: getMonthLabel(i, revenueSparkline.length),
-              incoming: v,
-              outgoing: expenseSparkline[i] ?? 0,
-            }))}
-            currency={displayCurrency}
-            onAskAi={() =>
-              askAiAbout(
-                "Analyze my cash flow. Am I spending more than I'm earning?",
-              )
-            }
-          />
-        </div>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <MarginTrendChart
-            data={revenueSparkline.map((v, i) => {
-              const exp = expenseSparkline[i] ?? 0;
-              const margin = v > 0 ? ((v - exp) / v) * 100 : 0;
-              return {
-                month: getMonthLabel(i, revenueSparkline.length),
-                margin: Math.round(margin * 10) / 10,
-                target: 25,
-              };
-            })}
-            onAskAi={() =>
-              askAiAbout(
-                "Analyze my profit margin trend. Is it improving or declining?",
-              )
-            }
-          />
-          <ExpenseBreakdownChart
-            data={expenseBreakdownData}
-            currency={displayCurrency}
-            onAskAi={() =>
-              askAiAbout(
-                "Break down my expenses. What's the biggest cost driver?",
-              )
-            }
-          />
-        </div>
-
-        {/* Scenario Planner */}
-        <ScenarioPlanner onAskAi={askAiAbout} />
-
-        {/* AI Forecast */}
-        <section>
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-semibold tracking-tight text-foreground">
-              AI Forecast
-            </h3>
-            <button
-              type="button"
-              onClick={() =>
-                askAiAbout(
-                  "Explain my financial forecast for the next 3 months",
-                )
-              }
-              className="inline-flex items-center gap-1.5 rounded-lg border border-primary/20 bg-primary/5 px-2.5 py-1 text-[11px] font-medium text-primary hover:bg-primary/10 transition-colors"
-            >
-              <Sparkles className="h-3 w-3" />
-              Ask AI
-            </button>
+            {/* Scenario Planner */}
+            <ScenarioPlanner onAskAi={askAiAbout} />
           </div>
-          <ForecastView />
-        </section>
+        )}
 
-        {/* Budget vs Actual */}
-        <BudgetVsActualSection
-          entityId={entityId ?? ""}
-          askAiAbout={askAiAbout}
-        />
-
-        {/* Report Library */}
-        <section>
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-semibold tracking-tight text-foreground">
-              Reports
-            </h3>
-            <span className="text-[10px] text-muted-foreground">
-              Click to analyze with AI · Download buttons for export
-            </span>
-          </div>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {REPORTS.map((report) => {
-              const Icon = report.icon;
-              // Build report data for downloads
-              const reportData =
-                report.id === "pnl" && pnlData
-                  ? buildPnlReport({
-                      entityName: entity?.name || "Your Business",
-                      currency: displayCurrency,
-                      period: new Date().toLocaleDateString("en-US", {
-                        month: "long",
-                        year: "numeric",
-                      }),
-                      revenue: pnlData.current.revenue,
-                      revenueByAccount: pnlData.current.revenueByAccount.map(
-                        (a) => ({
-                          code: a.accountCode,
-                          name: a.accountName,
-                          amount: a.amount,
-                        }),
-                      ),
-                      expenses: pnlData.current.expenses,
-                      expensesByAccount: pnlData.current.expensesByAccount.map(
-                        (a) => ({
-                          code: a.accountCode,
-                          name: a.accountName,
-                          amount: a.amount,
-                        }),
-                      ),
-                      cogs: pnlData.current.cogs,
-                      grossProfit: pnlData.current.grossProfit,
-                      opExpenses: pnlData.current.opExpenses,
-                      netProfit: pnlData.current.netProfit,
-                      narrative: aiNarrative?.text,
-                    })
-                  : report.id === "cash-flow"
-                    ? buildCashFlowReport({
-                        entityName: entity?.name || "Your Business",
-                        currency: displayCurrency,
-                        period: new Date().toLocaleDateString("en-US", {
-                          month: "long",
-                          year: "numeric",
-                        }),
-                        openingCash: overview?.cashBalance ?? 0,
-                        operating: {
-                          lines: [
-                            {
-                              name: "Revenue",
-                              amount: pnlData?.current.revenue ?? 0,
-                            },
-                          ],
-                          total: pnlData?.current.revenue ?? 0,
-                        },
-                        investing: { lines: [], total: 0 },
-                        financing: { lines: [], total: 0 },
-                        closingCash: overview?.cashBalance ?? 0,
-                      })
-                    : {
-                        title: report.label,
-                        entityName: entity?.name || "Your Business",
-                        currency: displayCurrency,
-                        generatedAt: new Date(),
-                        sections: [],
-                      };
-
-              return (
-                <div
-                  key={report.id}
-                  className="group rounded-xl border border-border/50 bg-card p-4 transition-all duration-200 hover:border-border/80 hover:shadow-md"
+        {/* ── Planning Tab ── */}
+        {activeTab === "planning" && (
+          <div
+            id="pulse-panel-planning"
+            role="tabpanel"
+            aria-labelledby="pulse-tab-planning"
+            className="space-y-6"
+          >
+            {/* AI Forecast */}
+            <section>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-semibold tracking-tight text-foreground">
+                  AI Forecast
+                </h3>
+                <button
+                  type="button"
+                  onClick={() =>
+                    askAiAbout(
+                      "Explain my financial forecast for the next 3 months",
+                    )
+                  }
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-primary/20 bg-primary/5 px-2.5 py-1 text-[11px] font-medium text-primary hover:bg-primary/10 transition-colors"
                 >
-                  <button
-                    type="button"
-                    onClick={() => askAiAbout(report.aiPrompt)}
-                    className="w-full text-left"
-                  >
-                    <div className="flex items-start gap-3">
-                      <div
-                        className={cn(
-                          "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl",
-                          report.color.split(" ")[0],
-                        )}
+                  <Sparkles className="h-3 w-3" />
+                  Ask AI
+                </button>
+              </div>
+              <ForecastView />
+            </section>
+
+            {/* Budget vs Actual */}
+            <BudgetVsActualSection
+              entityId={entityId ?? ""}
+              askAiAbout={askAiAbout}
+            />
+          </div>
+        )}
+
+        {/* ── Reports Tab ── */}
+        {activeTab === "reports" && (
+          <div
+            id="pulse-panel-reports"
+            role="tabpanel"
+            aria-labelledby="pulse-tab-reports"
+            className="space-y-6"
+          >
+            {/* Report Library */}
+            <section>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-semibold tracking-tight text-foreground">
+                  Reports
+                </h3>
+                <span className="text-[10px] text-muted-foreground">
+                  Click to analyze with AI · Download buttons for export
+                </span>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                {REPORTS.map((report) => {
+                  const Icon = report.icon;
+                  // Build report data for downloads
+                  const reportData =
+                    report.id === "pnl" && pnlData
+                      ? buildPnlReport({
+                          entityName: entity?.name || "Your Business",
+                          currency: displayCurrency,
+                          period: new Date().toLocaleDateString("en-US", {
+                            month: "long",
+                            year: "numeric",
+                          }),
+                          revenue: pnlData.current.revenue,
+                          revenueByAccount:
+                            pnlData.current.revenueByAccount.map((a) => ({
+                              code: a.accountCode,
+                              name: a.accountName,
+                              amount: a.amount,
+                            })),
+                          expenses: pnlData.current.expenses,
+                          expensesByAccount:
+                            pnlData.current.expensesByAccount.map((a) => ({
+                              code: a.accountCode,
+                              name: a.accountName,
+                              amount: a.amount,
+                            })),
+                          cogs: pnlData.current.cogs,
+                          grossProfit: pnlData.current.grossProfit,
+                          opExpenses: pnlData.current.opExpenses,
+                          netProfit: pnlData.current.netProfit,
+                          narrative: aiNarrative?.text,
+                        })
+                      : report.id === "cash-flow"
+                        ? buildCashFlowReport({
+                            entityName: entity?.name || "Your Business",
+                            currency: displayCurrency,
+                            period: new Date().toLocaleDateString("en-US", {
+                              month: "long",
+                              year: "numeric",
+                            }),
+                            openingCash: overview?.cashBalance ?? 0,
+                            operating: {
+                              lines: [
+                                {
+                                  name: "Revenue",
+                                  amount: pnlData?.current.revenue ?? 0,
+                                },
+                              ],
+                              total: pnlData?.current.revenue ?? 0,
+                            },
+                            investing: { lines: [], total: 0 },
+                            financing: { lines: [], total: 0 },
+                            closingCash: overview?.cashBalance ?? 0,
+                          })
+                        : {
+                            title: report.label,
+                            entityName: entity?.name || "Your Business",
+                            currency: displayCurrency,
+                            generatedAt: new Date(),
+                            sections: [],
+                          };
+
+                  return (
+                    <div
+                      key={report.id}
+                      className="group rounded-xl border border-border/50 bg-card p-4 transition-all duration-200 hover:border-border/80 hover:shadow-md"
+                    >
+                      <button
+                        type="button"
+                        onClick={() => askAiAbout(report.aiPrompt)}
+                        className="w-full text-left"
                       >
-                        <Icon
-                          className={cn("h-5 w-5", report.color.split(" ")[1])}
+                        <div className="flex items-start gap-3">
+                          <div
+                            className={cn(
+                              "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl",
+                              report.color.split(" ")[0],
+                            )}
+                          >
+                            <Icon
+                              className={cn(
+                                "h-5 w-5",
+                                report.color.split(" ")[1],
+                              )}
+                            />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-foreground group-hover:text-primary transition-colors">
+                              {report.label}
+                            </p>
+                            <p className="mt-0.5 text-xs text-muted-foreground line-clamp-2">
+                              {report.description}
+                            </p>
+                          </div>
+                          <Sparkles className="h-4 w-4 shrink-0 text-muted-foreground/40 opacity-0 group-hover:opacity-100 transition-opacity text-primary" />
+                        </div>
+                      </button>
+                      {/* Download buttons */}
+                      <div className="mt-3 pt-3 border-t border-border/30">
+                        <DocumentDownloadButtons
+                          data={reportData}
+                          formats={["pdf", "excel", "word"]}
+                          size="xs"
                         />
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-foreground group-hover:text-primary transition-colors">
-                          {report.label}
-                        </p>
-                        <p className="mt-0.5 text-xs text-muted-foreground line-clamp-2">
-                          {report.description}
-                        </p>
-                      </div>
-                      <Sparkles className="h-4 w-4 shrink-0 text-muted-foreground/40 opacity-0 group-hover:opacity-100 transition-opacity text-primary" />
                     </div>
-                  </button>
-                  {/* Download buttons */}
-                  <div className="mt-3 pt-3 border-t border-border/30">
-                    <DocumentDownloadButtons
-                      data={reportData}
-                      formats={["pdf", "excel", "word"]}
-                      size="xs"
-                    />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </section>
+                  );
+                })}
+              </div>
+            </section>
 
-        {/* Quick Actions */}
-        <div className="rounded-xl border border-border/50 bg-card p-4">
-          <h3 className="text-sm font-semibold text-foreground mb-3">
-            Quick Actions
-          </h3>
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => askAiAbout("Show me my trial balance")}
-              className="inline-flex items-center gap-2 rounded-lg border border-border/50 bg-background px-4 py-2 text-sm text-foreground hover:bg-accent transition-colors"
-            >
-              <FileText className="h-4 w-4" aria-hidden="true" />
-              View Ledger
-            </button>
-            <button
-              type="button"
-              onClick={() => askAiAbout("Show me my cash flow for this month")}
-              className="inline-flex items-center gap-2 rounded-lg border border-border/50 bg-background px-4 py-2 text-sm text-foreground hover:bg-accent transition-colors"
-            >
-              <ArrowRightLeft className="h-4 w-4" aria-hidden="true" />
-              Cash Flow
-            </button>
-            <button
-              type="button"
-              onClick={() =>
-                askAiAbout(
-                  "Generate a comprehensive financial report for this month",
-                )
-              }
-              className="inline-flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-4 py-2 text-sm text-primary hover:bg-primary/10 transition-colors"
-            >
-              <Bot className="h-4 w-4" aria-hidden="true" />
-              Ask AI for custom report
-            </button>
+            {/* Quick Actions */}
+            <div className="rounded-xl border border-border/50 bg-card p-4">
+              <h3 className="text-sm font-semibold text-foreground mb-3">
+                Quick Actions
+              </h3>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => askAiAbout("Show me my trial balance")}
+                  className="inline-flex items-center gap-2 rounded-lg border border-border/50 bg-background px-4 py-2 text-sm text-foreground hover:bg-accent transition-colors"
+                >
+                  <FileText className="h-4 w-4" aria-hidden="true" />
+                  View Ledger
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    askAiAbout("Show me my cash flow for this month")
+                  }
+                  className="inline-flex items-center gap-2 rounded-lg border border-border/50 bg-background px-4 py-2 text-sm text-foreground hover:bg-accent transition-colors"
+                >
+                  <ArrowRightLeft className="h-4 w-4" aria-hidden="true" />
+                  Cash Flow
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    askAiAbout(
+                      "Generate a comprehensive financial report for this month",
+                    )
+                  }
+                  className="inline-flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-4 py-2 text-sm text-primary hover:bg-primary/10 transition-colors"
+                >
+                  <Bot className="h-4 w-4" aria-hidden="true" />
+                  Ask AI for custom report
+                </button>
+              </div>
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* KPI Drill-Down Drawer */}
