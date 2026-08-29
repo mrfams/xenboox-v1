@@ -185,45 +185,45 @@ export function Hero() {
             close. Every decision confidence-scored, every action audit-trailed.
             You approve what matters.
           </p>
-
-          {/* CTAs */}
-          <div className="hero-fade-up flex flex-col gap-3 sm:flex-row sm:items-center">
-            <Button
-              asChild
-              size="lg"
-              className="gap-2 rounded-full shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/25 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
-            >
-              <Link href="/onboarding">
-                Start free
-                <ArrowRight className="h-4 w-4" aria-hidden="true" />
-              </Link>
-            </Button>
-            <Button
-              asChild
-              variant="outline"
-              size="lg"
-              className="group gap-2 rounded-full border-border/80 bg-background/50 px-6 text-foreground/80 shadow-sm backdrop-blur-sm transition-all duration-300 hover:border-primary/40 hover:bg-primary/5 hover:text-foreground hover:shadow-md hover:shadow-primary/10 hover:ring-1 hover:ring-primary/20 active:scale-[0.98]"
-            >
-              <Link href="#demo">
-                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 transition-colors duration-300 group-hover:bg-primary/15">
-                  <Play
-                    className="h-3 w-3 fill-primary text-primary"
-                    aria-hidden="true"
-                  />
-                </span>
-                See it in action
-              </Link>
-            </Button>
-          </div>
         </div>
 
-        {/* ── Interactive Platform Demo — full bleed then fade ── */}
+        {/* ── Interactive Platform Demo — full bleed ── */}
         <div className="hero-fade-up mt-8 sm:mt-10 md:mt-12 lg:mt-14">
           <InteractiveDemo />
         </div>
 
-        {/* Trust badges — below visual screen (after fade anchor) */}
-        <ul className="hero-fade-up mt-10 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-sm text-muted-foreground sm:mt-12">
+        {/* CTAs — moved below visual */}
+        <div className="hero-fade-up mt-10 flex flex-col items-center gap-3 sm:mt-12 sm:flex-row sm:justify-center">
+          <Button
+            asChild
+            size="lg"
+            className="gap-2 rounded-full shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/25 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+          >
+            <Link href="/onboarding">
+              Start free
+              <ArrowRight className="h-4 w-4" aria-hidden="true" />
+            </Link>
+          </Button>
+          <Button
+            asChild
+            variant="outline"
+            size="lg"
+            className="group gap-2 rounded-full border-border/80 bg-background/50 px-6 text-foreground/80 shadow-sm backdrop-blur-sm transition-all duration-300 hover:border-primary/40 hover:bg-primary/5 hover:text-foreground hover:shadow-md hover:shadow-primary/10 hover:ring-1 hover:ring-primary/20 active:scale-[0.98]"
+          >
+            <Link href="#demo">
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 transition-colors duration-300 group-hover:bg-primary/15">
+                <Play
+                  className="h-3 w-3 fill-primary text-primary"
+                  aria-hidden="true"
+                />
+              </span>
+              See it in action
+            </Link>
+          </Button>
+        </div>
+
+        {/* Trust badges — below CTAs */}
+        <ul className="hero-fade-up mt-6 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-sm text-muted-foreground">
           {["No credit card required", "Human approval on every decision"].map(
             (item) => (
               <li key={item} className="flex items-center gap-2">
@@ -237,15 +237,15 @@ export function Hero() {
         </ul>
       </div>
 
-      {/* Bottom fade — generous, professional: full screen then soft dissolve */}
-      <div
+      {/* Bottom fade — disabled since CTAs are now below visual */}
+      {/* <div
         className="pointer-events-none absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-background via-background/80 to-transparent sm:h-48 lg:h-64"
         aria-hidden="true"
       />
       <div
         className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-background to-transparent lg:h-32"
         aria-hidden="true"
-      />
+      /> */}
     </section>
   );
 }
