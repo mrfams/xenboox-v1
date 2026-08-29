@@ -66,37 +66,94 @@ const surfaces: {
 // ─── Main Hero Component ─────────────────────────────────────────────────────
 
 export function Hero() {
-  const containerRef = React.useRef<HTMLDivElement>(null);
-  const [mousePos, setMousePos] = React.useState({ x: 0, y: 0 });
+  const heroRef = React.useRef<HTMLElement>(null);
 
-  const handleMouseMove = React.useCallback((e: React.MouseEvent) => {
-    if (!containerRef.current) return;
-    const rect = containerRef.current.getBoundingClientRect();
-    setMousePos({
-      x: e.clientX - rect.left,
-      y: e.clientY - rect.top,
-    });
+  // Production-grade spotlight: CSS vars + rAF, no React re-render per move
+  // Visible by design: outer 800px at 0.09 + inner 420px at 0.15, grid masked
+  React.useEffect(() => {
+    const el = heroRef.current;
+    if (!el) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if (window.matchMedia("(pointer: coarse)").matches) return;
+
+    let raf = 0;
+    let lastX = -9999;
+    let lastY = -9999;
+
+    const onMove = (e: PointerEvent) => {
+      const rect = el.getBoundingClientRect();
+      lastX = e.clientX - rect.left;
+      lastY = e.clientY - rect.top;
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
+        el.style.setProperty("--x", `${lastX}px`);
+        el.style.setProperty("--y", `${lastY}px`);
+        raf = 0;
+      });
+    };
+    const onEnter = () => el.style.setProperty("--spotlight", "1");
+    const onLeave = () => {
+      el.style.setProperty("--spotlight", "0");
+      el.style.setProperty("--x", "-9999px");
+      el.style.setProperty("--y", "-9999px");
+    };
+
+    el.style.setProperty("--x", "-9999px");
+    el.style.setProperty("--y", "-9999px");
+    el.style.setProperty("--spotlight", "0");
+    el.addEventListener("pointermove", onMove, { passive: true });
+    el.addEventListener("pointerenter", onEnter);
+    el.addEventListener("pointerleave", onLeave);
+    return () => {
+      el.removeEventListener("pointermove", onMove);
+      el.removeEventListener("pointerenter", onEnter);
+      el.removeEventListener("pointerleave", onLeave);
+      if (raf) cancelAnimationFrame(raf);
+    };
   }, []);
 
   return (
     <section
-      ref={containerRef}
-      onMouseMove={handleMouseMove}
-      className="relative overflow-hidden bg-background pb-10 sm:pb-14 lg:pb-20"
+      ref={heroRef as React.RefObject<HTMLDivElement>}
+      className="relative overflow-hidden bg-background pb-10 sm:pb-14 lg:pb-20 [--x:-9999px] [--y:-9999px] [--spotlight:0]"
+      style={{ willChange: "auto" } as React.CSSProperties}
     >
-      {/* Cursor spotlight effect */}
+      {/* Layer 1: outer wash — 800px, unmistakable but premium */}
       <div
-        className="pointer-events-none absolute inset-0 z-[1] opacity-0 transition-opacity duration-500"
+        className="pointer-events-none absolute inset-0 z-[1] opacity-[var(--spotlight)] transition-opacity duration-300"
         style={{
-          opacity: mousePos.x > 0 ? 1 : 0,
-          background: `radial-gradient(600px circle at ${mousePos.x}px ${mousePos.y}px, hsl(var(--primary) / 0.04), transparent 70%)`,
+          background:
+            "radial-gradient(800px circle at var(--x) var(--y), hsl(var(--primary) / 0.09), transparent 68%)",
+          willChange: "opacity",
         }}
         aria-hidden="true"
       />
-
-      {/* Ambient background */}
+      {/* Layer 2: inner core — tighter, brighter, sells the flashlight */}
       <div
-        className="pointer-events-none absolute inset-0 bg-grid opacity-40"
+        className="pointer-events-none absolute inset-0 z-[1] opacity-[var(--spotlight)] transition-opacity duration-300"
+        style={{
+          background:
+            "radial-gradient(420px circle at var(--x) var(--y), hsl(var(--primary) / 0.14), transparent 62%)",
+          willChange: "opacity",
+        }}
+        aria-hidden="true"
+      />
+      {/* Layer 3: grid reveal — grid brightens only under cursor (Stripe/Linear) */}
+      <div
+        className="pointer-events-none absolute inset-0 z-[1] opacity-[var(--spotlight)] transition-opacity duration-300"
+        style={{
+          WebkitMaskImage:
+            "radial-gradient(560px circle at var(--x) var(--y), black 18%, transparent 68%)",
+          maskImage:
+            "radial-gradient(560px circle at var(--x) var(--y), black 18%, transparent 68%)",
+        }}
+        aria-hidden="true"
+      >
+        <div className="absolute inset-0 bg-grid opacity-40" />
+      </div>
+      {/* Static grid for non-hover / reduced-motion fallback */}
+      <div
+        className="pointer-events-none absolute inset-0 bg-grid opacity-[0.06] [[style*='--spotlight:1']_&]:opacity-0"
         aria-hidden="true"
       />
       <div
@@ -162,7 +219,7 @@ export function Hero() {
 
         {/* ── Interactive Platform Demo — full bleed then fade ── */}
         <div className="hero-fade-up mt-8 sm:mt-10 md:mt-12 lg:mt-14">
-          <InteractiveDemo mousePos={mousePos} containerRef={containerRef} />
+          <InteractiveDemo />
         </div>
 
         {/* Trust badges — below visual screen (after fade anchor) */}
@@ -195,16 +252,11 @@ export function Hero() {
 
 // ─── Interactive Platform Demo ───────────────────────────────────────────────
 
-function InteractiveDemo({
-  mousePos,
-  containerRef,
-}: {
-  mousePos: { x: number; y: number };
-  containerRef: React.RefObject<HTMLDivElement | null>;
-}) {
+function InteractiveDemo() {
   const [activeSurface, setActiveSurface] = React.useState<Surface>("command");
   const [isAutoPlaying, setIsAutoPlaying] = React.useState(true);
-  const demoRef = React.useRef<HTMLDivElement>(null);
+  const demoWrapRef = React.useRef<HTMLDivElement>(null);
+  const cardRef = React.useRef<HTMLDivElement>(null);
 
   // Auto-cycle through surfaces
   React.useEffect(() => {
@@ -230,30 +282,107 @@ function InteractiveDemo({
     setTimeout(() => setIsAutoPlaying(true), 20000);
   };
 
-  // Calculate cursor offset relative to the demo
-  const demoOffset = React.useMemo(() => {
-    if (!demoRef.current || !containerRef.current) return { x: 0, y: 0 };
-    const demoRect = demoRef.current.getBoundingClientRect();
-    const contRect = containerRef.current.getBoundingClientRect();
-    return {
-      x: mousePos.x - (demoRect.left - contRect.left),
-      y: mousePos.y - (demoRect.top - contRect.top),
+  // Production-grade demo spotlight + border glow: rAF + CSS vars, no React churn
+  React.useEffect(() => {
+    const wrap = demoWrapRef.current;
+    const card = cardRef.current;
+    if (!wrap || !card) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if (window.matchMedia("(pointer: coarse)").matches) return;
+
+    let raf = 0;
+    let lx = -9999;
+    let ly = -9999;
+    let wx = -9999;
+    let wy = -9999;
+
+    const onMove = (e: PointerEvent) => {
+      const r = card.getBoundingClientRect();
+      lx = e.clientX - r.left;
+      ly = e.clientY - r.top;
+      const wr = wrap.getBoundingClientRect();
+      wx = e.clientX - wr.left;
+      wy = e.clientY - wr.top;
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
+        card.style.setProperty("--dx", `${lx}px`);
+        card.style.setProperty("--dy", `${ly}px`);
+        wrap.style.setProperty("--wx", `${wx}px`);
+        wrap.style.setProperty("--wy", `${wy}px`);
+        raf = 0;
+      });
     };
-  }, [mousePos, containerRef]);
+    const onEnter = () => {
+      card.style.setProperty("--dspot", "1");
+      wrap.style.setProperty("--dspot", "1");
+    };
+    const onLeave = () => {
+      card.style.setProperty("--dspot", "0");
+      wrap.style.setProperty("--dspot", "0");
+    };
+
+    card.style.setProperty("--dx", "-9999px");
+    card.style.setProperty("--dy", "-9999px");
+    wrap.style.setProperty("--wx", "-9999px");
+    wrap.style.setProperty("--wy", "-9999px");
+    card.style.setProperty("--dspot", "0");
+    wrap.style.setProperty("--dspot", "0");
+
+    card.addEventListener("pointermove", onMove, { passive: true });
+    card.addEventListener("pointerenter", onEnter);
+    card.addEventListener("pointerleave", onLeave);
+    return () => {
+      card.removeEventListener("pointermove", onMove);
+      card.removeEventListener("pointerenter", onEnter);
+      card.removeEventListener("pointerleave", onLeave);
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, []);
 
   return (
-    <div ref={demoRef} className="relative mx-auto w-full max-w-5xl">
-      {/* Glow backdrop — tracks cursor */}
+    <div
+      ref={demoWrapRef}
+      className="relative mx-auto w-full max-w-5xl [--wx:-9999px] [--wy:-9999px] [--dspot:0]"
+    >
+      {/* Outer wash — 600px, visible but soft */}
       <div
-        className="absolute -inset-12 rounded-[2rem] blur-3xl transition-all duration-700 ease-out"
+        className="pointer-events-none absolute -inset-12 rounded-[2rem] opacity-[var(--dspot)] blur-3xl transition-opacity duration-300"
         style={{
-          background: `radial-gradient(500px circle at ${demoOffset.x}px ${demoOffset.y}px, hsl(var(--primary) / 0.12), transparent 70%)`,
+          background:
+            "radial-gradient(600px circle at var(--wx) var(--wy), hsl(var(--primary) / 0.16), transparent 68%)",
+          willChange: "opacity",
+        }}
+        aria-hidden="true"
+      />
+      {/* Inner core — tighter, brighter */}
+      <div
+        className="pointer-events-none absolute -inset-8 rounded-[2rem] opacity-[var(--dspot)] blur-2xl transition-opacity duration-300"
+        style={{
+          background:
+            "radial-gradient(340px circle at var(--wx) var(--wy), hsl(var(--primary) / 0.12), transparent 60%)",
         }}
         aria-hidden="true"
       />
 
-      {/* Platform window */}
-      <div className="relative overflow-hidden rounded-2xl border border-border/60 bg-card shadow-2xl shadow-primary/8 dark:shadow-primary/15">
+      {/* Platform window — with cursor-following border glow */}
+      <div
+        ref={cardRef}
+        className="relative overflow-hidden rounded-2xl border border-border/60 bg-card shadow-2xl shadow-primary/8 dark:shadow-primary/15 [--dx:-9999px] [--dy:-9999px] [--dspot:0]"
+      >
+        {/* Border glow — paints only the 1px border */}
+        <div
+          className="pointer-events-none absolute inset-0 rounded-2xl opacity-[var(--dspot)] transition-opacity duration-300"
+          style={{
+            background:
+              "radial-gradient(520px circle at var(--dx) var(--dy), hsl(var(--primary) / 0.26), transparent 58%)",
+            WebkitMask:
+              "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
+            WebkitMaskComposite: "xor",
+            maskComposite: "exclude",
+            padding: "1px",
+          }}
+          aria-hidden="true"
+        />
         {/* Window chrome */}
         <div className="flex items-center gap-1.5 border-b border-border bg-muted/40 px-4 py-2.5">
           <span
