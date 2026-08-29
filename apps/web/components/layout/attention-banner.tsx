@@ -7,23 +7,54 @@ import {
   Bell,
   ChevronRight,
   FileCheck,
-  Clock,
+  Inbox,
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAttentionSignals } from "@/lib/hooks/use-attention-signals";
 
-// ─── Attention Banner ──────────────────────────────────────────────────────
+// ─── Attention Dock ──────────────────────────────────────────────────────────
 //
-// A prominent, dismissible banner that sits below the top nav and above
-// page content. It makes it impossible to miss when something needs the
-// user's attention — approvals, escalations, pending reviews.
+// PRODUCT DECISION — PM Research Summary (Aug 2026)
 //
-// Two tones:
-//   - "action" (destructive) — agent blocked on you, approval needed
-//   - "info" (primary) — new results ready to view
+// Research: 6 sources fanned out (Cursor, Devin, Claude/Anthropic, ChatGPT,
+// Linear, Foundey/Eleken notification-UX studies).
 //
-// Dismissed per session via sessionStorage. Auto-hides when count is 0.
+// Findings:
+// • Linear: Inbox is the notification center. No global banner. Bell + G+I
+//   shortcut, snooze, grouping by file/issue. Banner = notification debt.
+// • Cursor: silent macOS banners (visual-only) + in-app chime. Agent shows
+//   "needs approval" as OS notification + terminal review, not destructive
+//   strip. v1.5 changelog: "OS notifications when agent run finishes or
+//   input is required."
+// • ChatGPT: Activity view via sidebar bell, Work/Chat/Pinned filters,
+//   floating pet states (Running/Needs input/Ready/Blocked). No banner.
+// • Anthropic HITL guides: scoped approval gates before side effects,
+//   async-friendly queues, evidence + control (not just Approve button),
+//   interrupt_before on high-risk nodes, HMAC-locked payloads.
+// • Foundey/Eleken: 3 types — Informational → quiet (badge/inbox), Action
+//   required non-urgent → inbox entry, Action required urgent → modal/banner.
+//   Using high-urgency banner for non-urgent trains users to ignore.
+//   "Send only for events users care about. Match urgency to channel."
+// • Heed: Slack/email bury approvals. Real systems use webhook → ack with
+//   identity+timestamp+programmatic resume.
+//
+// Decision: RETIRE destructive global alert pattern. The Activity Hub IS the
+// inbox (Linear: Inbox, ChatGPT: Activity view). The banner becomes a
+// Cursor/Linear-inspired Attention Dock — a minimal, border-b, typographic
+// strip, not a rounded destructive alert. It surfaces queue depth without
+// interrupting every surface.
+//
+// Why this shape:
+// • Devin/Cursor aesthetic: monochrome, editorial, flat, tabular-nums,
+//   border-border/40, bg-muted/20 icon, tracking-tight titles.
+// • Linear affordance: "Review" → Activity Hub (deep link via topSurface),
+//   dismiss per session, re-show on new count (sessionStorage).
+// • AI-native: AI proposes, human decides in dedicated queue. No banner debt.
+//
+// Success metrics: click-through to Activity Hub, dismiss rate, time-to-
+// decision, not banner visibility.
+// ────────────────────────────────────────────────────────────────────────────
 
 type BannerTone = "action" | "info";
 
@@ -31,14 +62,12 @@ export function AttentionBanner() {
   const { byKey, totals } = useAttentionSignals();
   const [dismissed, setDismissed] = useState(false);
 
-  // Check sessionStorage on mount
   useEffect(() => {
     const key = "attention-banner-dismissed";
     const val = sessionStorage.getItem(key);
     if (val === "true") setDismissed(true);
   }, []);
 
-  // Reset dismiss when counts change (new item arrives → show again)
   useEffect(() => {
     if (totals.action > 0 || totals.new > 0) {
       setDismissed(false);
@@ -46,18 +75,14 @@ export function AttentionBanner() {
     }
   }, [totals.action, totals.new]);
 
-  // Nothing pending → don't render
   const hasAction = totals.action > 0;
   const hasNew = totals.new > 0;
   if (!hasAction && !hasNew) return null;
-
-  // Dismissed → don't render
   if (dismissed) return null;
 
   const tone: BannerTone = hasAction ? "action" : "info";
   const count = tone === "action" ? totals.action : totals.new;
 
-  // Find the surface with the most items to link to
   const topSurface = Object.entries(byKey)
     .filter(([, v]) => v.count > 0)
     .sort((a, b) => b[1].count - a[1].count)[0];
@@ -79,26 +104,22 @@ export function AttentionBanner() {
             ? "Operations"
             : "Ledger";
 
-  // Build detail items
+  // Build compact meta — Cursor/Linear: tabular-nums, · separators, no pill spam
+  const hubAction = byKey["activity-hub"];
+  const opsAction = byKey["operations"];
   const details: { label: string; count: number; icon: typeof Bell }[] = [];
 
   if (totals.action > 0) {
-    // Count activity-hub action items
-    const hubAction = byKey["activity-hub"];
     if (hubAction.count > 0) {
       details.push({
-        label:
-          hubAction.count === 1 ? "needs your decision" : "need your decisions",
+        label: hubAction.count === 1 ? "needs decision" : "need decisions",
         count: hubAction.count,
         icon: FileCheck,
       });
     }
-
-    // Count operations action items
-    const opsAction = byKey["operations"];
     if (opsAction.count > 0) {
       details.push({
-        label: opsAction.count === 1 ? "overdue item" : "overdue items",
+        label: opsAction.count === 1 ? "overdue" : "overdue",
         count: opsAction.count,
         icon: AlertTriangle,
       });
@@ -126,100 +147,111 @@ export function AttentionBanner() {
 
   return (
     <div
-      role="alert"
+      role="status"
       aria-live="polite"
-      className={cn(
-        "mx-3 mt-2 rounded-xl border px-4 py-3 sm:mx-4 sm:mt-3",
+      aria-label={
         tone === "action"
-          ? "border-destructive/20 bg-destructive/5"
-          : "border-primary/20 bg-primary/5",
-      )}
+          ? `${count} items need attention`
+          : `${count} new updates`
+      }
+      className="border-b border-border/40 bg-card/80 backdrop-blur supports-[backdrop-filter]:bg-card/60"
     >
-      <div className="flex items-start gap-3">
-        {/* Icon */}
-        <div
-          className={cn(
-            "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg",
-            tone === "action" ? "bg-destructive/10" : "bg-primary/10",
-          )}
-        >
-          {tone === "action" ? (
-            <AlertTriangle className="h-4 w-4 text-destructive" />
-          ) : (
-            <Bell className="h-4 w-4 text-primary" />
-          )}
-        </div>
-
-        {/* Content */}
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <p
-              className={cn(
-                "text-sm font-semibold",
-                tone === "action" ? "text-destructive" : "text-primary",
-              )}
-            >
-              {tone === "action"
-                ? `${count} item${count !== 1 ? "s" : ""} waiting for you`
-                : `${count} new update${count !== 1 ? "s" : ""} ready`}
-            </p>
-            <span
-              className={cn(
-                "inline-flex items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] font-bold",
-                tone === "action"
-                  ? "bg-destructive/10 text-destructive"
-                  : "bg-primary/10 text-primary",
-              )}
-            >
-              {count}
-            </span>
+      <div className="flex items-center justify-between gap-3 px-4 py-2.5 sm:px-6">
+        {/* Left: icon + title + meta — Linear/Cursor dense row */}
+        <div className="flex min-w-0 items-center gap-3">
+          {/* Icon — editorial, not destructive. 28px rounded-md, muted */}
+          <div
+            className={cn(
+              "hidden h-7 w-7 shrink-0 items-center justify-center rounded-md border sm:flex",
+              tone === "action"
+                ? "border-amber-500/20 bg-amber-500/[0.08] text-amber-600 dark:text-amber-500"
+                : "border-border/50 bg-muted/30 text-muted-foreground",
+            )}
+            aria-hidden="true"
+          >
+            {tone === "action" ? (
+              <Inbox className="h-3.5 w-3.5" />
+            ) : (
+              <Bell className="h-3.5 w-3.5" />
+            )}
           </div>
 
-          {/* Detail items */}
-          {details.length > 0 && (
-            <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5">
-              {details.map((d) => (
+          <div className="min-w-0">
+            {/* Title + count badge */}
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-[13px] font-medium leading-none tracking-tight text-foreground">
+                {tone === "action"
+                  ? `${count} ${count === 1 ? "item needs" : "items need"} your attention`
+                  : `${count} ${count === 1 ? "new update" : "new updates"}`}
+              </p>
+              <span className="inline-flex items-center rounded-full border border-border/50 bg-muted/50 px-1.5 py-0.5 text-[10px] font-medium tabular-nums leading-none text-muted-foreground">
+                {count}
+              </span>
+              <span className="hidden items-center gap-1.5 text-[10px] font-medium uppercase tracking-widest text-muted-foreground/60 sm:inline-flex">
                 <span
-                  key={d.label}
-                  className="flex items-center gap-1 text-xs text-muted-foreground"
-                >
-                  <d.icon className="h-3 w-3" aria-hidden="true" />
-                  <span className="font-mono tabular-nums">{d.count}</span>{" "}
-                  {d.label}
-                </span>
-              ))}
+                  className="h-1 w-1 rounded-full bg-border"
+                  aria-hidden="true"
+                />
+                {surfaceLabel}
+              </span>
             </div>
-          )}
 
-          {/* CTA */}
-          <Link
-            href={surfaceHref}
-            className={cn(
-              "mt-1.5 inline-flex items-center gap-1 text-xs font-medium transition-colors",
-              tone === "action"
-                ? "text-destructive hover:text-destructive/80"
-                : "text-primary hover:text-primary/80",
+            {/* Meta — tabular-nums, dot separators, Cursor/Linear style */}
+            {details.length > 0 && (
+              <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs leading-none text-muted-foreground">
+                {details.map((d, i) => (
+                  <span
+                    key={d.label}
+                    className="inline-flex items-center gap-1"
+                  >
+                    {i > 0 && (
+                      <span
+                        className="h-1 w-1 rounded-full bg-border"
+                        aria-hidden="true"
+                      />
+                    )}
+                    <d.icon
+                      className="h-3 w-3 text-muted-foreground/60"
+                      aria-hidden="true"
+                    />
+                    <span className="font-mono text-[11px] tabular-nums text-foreground/80">
+                      {d.count}
+                    </span>
+                    <span className="text-[11px]">{d.label}</span>
+                  </span>
+                ))}
+                <span className="hidden items-center gap-2 sm:inline-flex">
+                  <span
+                    className="h-1 w-1 rounded-full bg-border"
+                    aria-hidden="true"
+                  />
+                  <span className="text-[11px] text-muted-foreground">
+                    in {surfaceLabel}
+                  </span>
+                </span>
+              </div>
             )}
-          >
-            Go to {surfaceLabel}
-            <ChevronRight className="h-3 w-3" aria-hidden="true" />
-          </Link>
+          </div>
         </div>
 
-        {/* Dismiss */}
-        <button
-          type="button"
-          onClick={handleDismiss}
-          aria-label="Dismiss banner"
-          className={cn(
-            "shrink-0 rounded-lg p-1.5 transition-colors",
-            tone === "action"
-              ? "text-destructive/60 hover:bg-destructive/10 hover:text-destructive"
-              : "text-primary/60 hover:bg-primary/10 hover:text-primary",
-          )}
-        >
-          <X className="h-3.5 w-3.5" />
-        </button>
+        {/* Right: actions — Devin/Cursor: primary filled + ghost, compact */}
+        <div className="flex shrink-0 items-center gap-1.5">
+          <Link
+            href={surfaceHref}
+            className="inline-flex items-center gap-1 rounded-md bg-foreground px-3 py-1.5 text-xs font-medium leading-none text-background shadow-sm transition-colors hover:bg-foreground/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          >
+            Review
+            <ChevronRight className="h-3 w-3 opacity-70" aria-hidden="true" />
+          </Link>
+          <button
+            type="button"
+            onClick={handleDismiss}
+            aria-label="Dismiss"
+            className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
       </div>
     </div>
   );

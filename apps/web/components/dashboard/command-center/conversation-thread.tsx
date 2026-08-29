@@ -414,158 +414,150 @@ export function ConversationThread({
             key={msg.id}
             id={`message-${msg.id}`}
             className={cn(
-              "flex gap-2 group relative",
-              msg.role === "user" ? "justify-end" : "justify-start",
+              "group relative flex flex-col gap-1",
+              msg.role === "user" ? "items-end" : "items-start",
             )}
           >
+            {/* Message content — stacked vertically so toolbar sits below */}
             <div
               className={cn(
-                "relative text-[14px] leading-7",
+                "flex flex-col gap-3",
                 msg.role === "assistant"
-                  ? "max-w-[85%] px-1 py-1 text-foreground"
-                  : "max-w-[75%] rounded-2xl bg-primary px-3.5 py-2.5 text-primary-foreground",
+                  ? "w-full max-w-[85%]"
+                  : "max-w-[75%] items-end",
               )}
             >
-              <p className="whitespace-pre-wrap break-words">{msg.content}</p>
+              <div
+                className={cn(
+                  "relative text-[14px] leading-7",
+                  msg.role === "assistant"
+                    ? "px-1 py-1 text-foreground"
+                    : "rounded-2xl bg-primary px-3.5 py-2.5 text-primary-foreground",
+                )}
+              >
+                <p className="whitespace-pre-wrap break-words">{msg.content}</p>
 
-              {/* Retry button for error messages */}
-              {msg.role === "assistant" && msg.status === "error" && (
-                <div className="mt-3">
-                  <button
-                    type="button"
-                    onClick={() => handleRegenerate(msg.id)}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/5 px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/10 transition-colors"
-                  >
-                    <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
-                    Retry
-                  </button>
-                </div>
-              )}
-
-              {/* Confidence badge — hidden for cleaner thread */}
-              {/*
-              {msg.role === "assistant" && msg.confidence !== undefined && (
-                <div className="mt-2">
-                  <ConfidenceBadge score={msg.confidence / 100} />
-                </div>
-              )}
-              */}
-
-              {/* Knowledge citations */}
-              {msg.role === "assistant" &&
-                msg.citations &&
-                msg.citations.length > 0 && (
-                  <KnowledgeCitations
-                    citations={msg.citations.flatMap((event) =>
-                      event.citations.map((c) => ({
-                        index: c.index,
-                        content: c.content,
-                        sourceType: c.sourceType,
-                        documentId: c.documentId,
-                        score: c.score,
-                        method: c.method,
-                      })),
-                    )}
-                  />
+                {/* Retry button for error messages */}
+                {msg.role === "assistant" && msg.status === "error" && (
+                  <div className="mt-3">
+                    <button
+                      type="button"
+                      onClick={() => handleRegenerate(msg.id)}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/5 px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/10 transition-colors"
+                    >
+                      <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
+                      Retry
+                    </button>
+                  </div>
                 )}
 
-              {/* Batch ingestion results */}
+                {/* Knowledge citations */}
+                {msg.role === "assistant" &&
+                  msg.citations &&
+                  msg.citations.length > 0 && (
+                    <KnowledgeCitations
+                      citations={msg.citations.flatMap((event) =>
+                        event.citations.map((c) => ({
+                          index: c.index,
+                          content: c.content,
+                          sourceType: c.sourceType,
+                          documentId: c.documentId,
+                          score: c.score,
+                          method: c.method,
+                        })),
+                      )}
+                    />
+                  )}
+
+                {/* Batch ingestion results */}
+                {msg.role === "assistant" &&
+                  msg.batchResults &&
+                  msg.batchResults.length > 0 && (
+                    <>
+                      {msg.batchResults.map((result) => (
+                        <BatchProgressInline
+                          key={result.batchId}
+                          batchId={result.batchId}
+                          totalDocuments={result.totalDocuments}
+                          completedDocuments={result.completedDocuments}
+                          failedDocuments={result.failedDocuments}
+                          documents={result.documents}
+                          message={result.message}
+                        />
+                      ))}
+                    </>
+                  )}
+              </div>
+
+              {/* Committed data tables (from completed messages) */}
               {msg.role === "assistant" &&
-                msg.batchResults &&
-                msg.batchResults.length > 0 && (
-                  <>
-                    {msg.batchResults.map((result) => (
-                      <BatchProgressInline
-                        key={result.batchId}
-                        batchId={result.batchId}
-                        totalDocuments={result.totalDocuments}
-                        completedDocuments={result.completedDocuments}
-                        failedDocuments={result.failedDocuments}
-                        documents={result.documents}
-                        message={result.message}
+                msg.dataTables &&
+                msg.dataTables.length > 0 && (
+                  <div className="space-y-3">
+                    {msg.dataTables.map((table, i) => (
+                      <DataTableInline
+                        key={`committed-table-${msg.id}-${i}`}
+                        title={table.title}
+                        columns={table.columns}
+                        rows={table.rows}
+                        summary={table.summary}
+                        currency={table.currency}
+                        selectable={table.rows.length > 1}
+                        expandable={table.rows.some((r) => r.detail)}
                       />
                     ))}
-                  </>
+                  </div>
+                )}
+
+              {/* Committed charts (from completed messages) */}
+              {msg.role === "assistant" &&
+                msg.charts &&
+                msg.charts.length > 0 && (
+                  <div className="space-y-3">
+                    {msg.charts.map((chart, i) => (
+                      <ChartInline
+                        key={`committed-chart-${msg.id}-${i}`}
+                        type={chart.chartType}
+                        title={chart.title}
+                        data={chart.data}
+                        xKey={chart.xKey}
+                        yKey={chart.yKey}
+                        series={chart.series}
+                        currency={chart.currency}
+                        summary={chart.summary}
+                      />
+                    ))}
+                  </div>
                 )}
             </div>
 
-            {/* Committed data tables (from completed messages) */}
-            {msg.role === "assistant" &&
-              msg.dataTables &&
-              msg.dataTables.length > 0 && (
-                <div className="mt-3 space-y-3">
-                  {msg.dataTables.map((table, i) => (
-                    <DataTableInline
-                      key={`committed-table-${msg.id}-${i}`}
-                      title={table.title}
-                      columns={table.columns}
-                      rows={table.rows}
-                      summary={table.summary}
-                      currency={table.currency}
-                      selectable={table.rows.length > 1}
-                      expandable={table.rows.some((r) => r.detail)}
-                    />
-                  ))}
-                </div>
+            {/* Toolbar — BELOW message like ChatGPT/Claude, not beside */}
+            <div
+              className={cn(
+                "flex items-center gap-1",
+                msg.role === "assistant" ? "justify-start" : "justify-end",
               )}
-
-            {/* Committed charts (from completed messages) */}
-            {msg.role === "assistant" &&
-              msg.charts &&
-              msg.charts.length > 0 && (
-                <div className="mt-3 space-y-3">
-                  {msg.charts.map((chart, i) => (
-                    <ChartInline
-                      key={`committed-chart-${msg.id}-${i}`}
-                      type={chart.chartType}
-                      title={chart.title}
-                      data={chart.data}
-                      xKey={chart.xKey}
-                      yKey={chart.yKey}
-                      series={chart.series}
-                      currency={chart.currency}
-                      summary={chart.summary}
-                    />
-                  ))}
-                </div>
-              )}
-
-            {msg.role === "assistant" ? (
-              <>
-                <MessageActions
-                  content={msg.content}
-                  messageId={msg.id}
-                  role="assistant"
-                  isPinned={pinnedMessages.some((p) => p.id === msg.id)}
-                  onPin={handlePin}
-                  onRegenerate={handleRegenerate}
-                  className="opacity-100 justify-start"
-                />
-                <div className="flex items-center gap-2 mt-1 justify-start">
-                  <MessageReactions
-                    reactions={messageReactions[msg.id] ?? []}
-                    onReact={(emoji) => handleReact(msg.id, emoji)}
-                  />
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="flex items-center gap-2 mt-1 justify-end">
-                  <MessageReactions
-                    reactions={messageReactions[msg.id] ?? []}
-                    onReact={(emoji) => handleReact(msg.id, emoji)}
-                  />
-                </div>
-                <MessageActions
-                  content={msg.content}
-                  messageId={msg.id}
-                  role="user"
-                  isPinned={pinnedMessages.some((p) => p.id === msg.id)}
-                  onPin={handlePin}
-                  className="justify-end"
-                />
-              </>
-            )}
+            >
+              <MessageActions
+                content={msg.content}
+                messageId={msg.id}
+                role={msg.role as "user" | "assistant"}
+                isPinned={pinnedMessages.some((p) => p.id === msg.id)}
+                onPin={handlePin}
+                onRegenerate={
+                  msg.role === "assistant" ? handleRegenerate : undefined
+                }
+                className={cn(
+                  // ChatGPT/Claude pattern: faint below, fully visible on hover/focus
+                  "mt-0 opacity-60 group-hover:opacity-100 group-focus-within:opacity-100 sm:opacity-60",
+                  msg.role === "assistant" ? "justify-start" : "justify-end",
+                )}
+              />
+              <MessageReactions
+                reactions={messageReactions[msg.id] ?? []}
+                onReact={(emoji) => handleReact(msg.id, emoji)}
+              />
+            </div>
           </div>
         ))}
         {/* Thinking steps — collapsible, persists after streaming like Claude/ChatGPT */}
