@@ -11,9 +11,12 @@ export async function GET() {
     // Check DB is reachable
     await db.execute(sql`SELECT 1`);
 
-    // Check Redis is reachable
-    const { redis } = await import("@/lib/redis");
-    await redis.ping();
+    // Check Redis is reachable — gracefully degrades if env not set (e.g., Upstash not yet configured)
+    const { getRedis } = await import("@/lib/redis");
+    const redis = getRedis();
+    if (redis) {
+      await redis.ping();
+    }
 
     return NextResponse.json({ ready: true });
   } catch (error) {

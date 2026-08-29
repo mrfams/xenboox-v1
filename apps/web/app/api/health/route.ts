@@ -29,15 +29,20 @@ export async function GET() {
     };
   }
 
-  // ── Redis check ──
+  // ── Redis check ── (gracefully degrades if Upstash not configured)
   try {
-    const { redis } = await import("@/lib/redis");
-    const redisStart = Date.now();
-    await redis.ping();
-    checks.redis = {
-      status: "up",
-      latencyMs: Date.now() - redisStart,
-    };
+    const { getRedis } = await import("@/lib/redis");
+    const redis = getRedis();
+    if (!redis) {
+      checks.redis = { status: "degraded", error: "Upstash not configured" };
+    } else {
+      const redisStart = Date.now();
+      await redis.ping();
+      checks.redis = {
+        status: "up",
+        latencyMs: Date.now() - redisStart,
+      };
+    }
   } catch (error) {
     checks.redis = {
       status: "down",
