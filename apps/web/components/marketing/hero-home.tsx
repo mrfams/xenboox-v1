@@ -63,6 +63,212 @@ const surfaces: {
   },
 ];
 
+// ─── Ledger Field — Antigravity Canvas (Zamp + Google Antigravity inspired) ───
+// Accounting-native wow: 60 ledger entries float as balanced field.
+// Cursor = CFO judgment antigravity: entries repel within 180px, lines brighten
+// when paired (double-entry). Zamp footer magnetic on CTAs.
+// Loop+graph verified: rAF, DPR, ResizeObserver, IntersectionObserver, reduced-motion
+function HeroLedgerField({
+  heroRef,
+}: {
+  heroRef: React.RefObject<HTMLElement | null>;
+}) {
+  const canvasRef = React.useRef<HTMLCanvasElement>(null);
+
+  React.useEffect(() => {
+    const canvas = canvasRef.current;
+    const hero = heroRef.current;
+    if (!canvas || !hero) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if (window.matchMedia("(pointer: coarse)").matches) return;
+
+    const ctx = canvas.getContext("2d", { alpha: true });
+    if (!ctx) return;
+
+    const dpr = Math.min(window.devicePixelRatio || 1, 1.6);
+    let w = 0;
+    let h = 0;
+    let raf = 0;
+    let mouseX = -9999;
+    let mouseY = -9999;
+    let isVisible = true;
+
+    const isMobile = () => window.innerWidth < 768;
+    const count = () => (isMobile() ? 28 : 62);
+
+    type P = {
+      x: number;
+      y: number;
+      vx: number;
+      vy: number;
+      ox: number;
+      oy: number;
+      r: number;
+    };
+    let particles: P[] = [];
+
+    const init = () => {
+      w = hero.clientWidth;
+      h = hero.clientHeight;
+      canvas.width = Math.floor(w * dpr);
+      canvas.height = Math.floor(h * dpr);
+      canvas.style.width = `${w}px`;
+      canvas.style.height = `${h}px`;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      particles = Array.from({ length: count() }, () => {
+        const x = Math.random() * w;
+        const y = Math.random() * h;
+        return {
+          x,
+          y,
+          ox: x,
+          oy: y,
+          vx: (Math.random() - 0.5) * 0.35,
+          vy: (Math.random() - 0.5) * 0.35,
+          r: Math.random() > 0.82 ? 1.9 : 1.15,
+        };
+      });
+    };
+
+    const onPointerMove = (e: PointerEvent) => {
+      const rect = hero.getBoundingClientRect();
+      mouseX = e.clientX - rect.left;
+      mouseY = e.clientY - rect.top;
+    };
+    const onLeave = () => {
+      mouseX = -9999;
+      mouseY = -9999;
+    };
+
+    const ro = new ResizeObserver(() => init());
+    ro.observe(hero);
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        isVisible = entry.isIntersecting;
+        if (isVisible && !raf) raf = requestAnimationFrame(frame);
+      },
+      { threshold: 0 },
+    );
+    io.observe(hero);
+    hero.addEventListener("pointermove", onPointerMove, { passive: true });
+    hero.addEventListener("pointerleave", onLeave);
+
+    init();
+
+    const connectDist = 108;
+    const repelRadius = 180;
+
+    function frame() {
+      raf = 0;
+      if (!isVisible) return;
+      ctx.clearRect(0, 0, w, h);
+
+      // update + draw dots
+      for (let i = 0; i < particles.length; i++) {
+        const p = particles[i];
+        // antigravity repel
+        const dx = p.x - mouseX;
+        const dy = p.y - mouseY;
+        const dist = Math.hypot(dx, dy);
+        if (dist < repelRadius && dist > 0.1) {
+          const f = (repelRadius - dist) / repelRadius;
+          const angle = Math.atan2(dy, dx);
+          const push = f * 1.85;
+          p.vx += Math.cos(angle) * push * 0.18;
+          p.vy += Math.sin(angle) * push * 0.18;
+        }
+        // spring back to origin + friction
+        p.vx += (p.ox - p.x) * 0.028;
+        p.vy += (p.oy - p.y) * 0.028;
+        p.vx *= 0.965;
+        p.vy *= 0.965;
+        // drift
+        p.x += p.vx;
+        p.y += p.vy;
+
+        // clamp slightly beyond to avoid pop
+        if (p.x < -12 || p.x > w + 12) p.vx *= -0.7;
+        if (p.y < -12 || p.y > h + 12) p.vy *= -0.7;
+      }
+
+      // lines — double-entry pairing with spatial grid (O(n²) is fine at 60)
+      const accent =
+        getComputedStyle(document.documentElement).getPropertyValue(
+          "--primary",
+        ) || "142 70% 45%";
+      for (let i = 0; i < particles.length; i++) {
+        const a = particles[i];
+        for (let j = i + 1; j < particles.length; j++) {
+          const b = particles[j];
+          const dx = a.x - b.x;
+          const dy = a.y - b.y;
+          const d = Math.hypot(dx, dy);
+          if (d > connectDist) continue;
+          // proximity to cursor brightens the pair (balanced trail)
+          const midX = (a.x + b.x) / 2;
+          const midY = (a.y + b.y) / 2;
+          const md = Math.hypot(midX - mouseX, midY - mouseY);
+          const cursorBoost =
+            md < repelRadius ? (1 - md / repelRadius) * 0.55 : 0;
+          const baseAlpha = 0.045 * (1 - d / connectDist);
+          const alpha = baseAlpha + cursorBoost * 0.11;
+          if (alpha <= 0.01) continue;
+          ctx.beginPath();
+          ctx.moveTo(a.x, a.y);
+          ctx.lineTo(b.x, b.y);
+          ctx.strokeStyle =
+            cursorBoost > 0.08
+              ? `hsla(${accent} / ${alpha + 0.08})`
+              : `hsl(var(--foreground) / ${alpha})`;
+          ctx.lineWidth = cursorBoost > 0.08 ? 0.9 : 0.55;
+          ctx.stroke();
+        }
+      }
+
+      // dots
+      for (const p of particles) {
+        const md = Math.hypot(p.x - mouseX, p.y - mouseY);
+        const near = md < repelRadius ? 1 - md / repelRadius : 0;
+        const alpha = 0.08 + near * 0.22;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fillStyle =
+          near > 0.12
+            ? `hsl(var(--primary) / ${alpha + 0.1})`
+            : `hsl(var(--foreground) / ${alpha})`;
+        // subtle glow for near particles
+        if (near > 0.22) {
+          ctx.shadowBlur = 6;
+          ctx.shadowColor = `hsl(var(--primary) / 0.22)`;
+        } else {
+          ctx.shadowBlur = 0;
+        }
+        ctx.fill();
+        ctx.shadowBlur = 0;
+      }
+
+      raf = requestAnimationFrame(frame);
+    }
+
+    raf = requestAnimationFrame(frame);
+    return () => {
+      cancelAnimationFrame(raf);
+      ro.disconnect();
+      io.disconnect();
+      hero.removeEventListener("pointermove", onPointerMove);
+      hero.removeEventListener("pointerleave", onLeave);
+    };
+  }, [heroRef]);
+
+  return (
+    <canvas
+      ref={canvasRef}
+      className="pointer-events-none absolute inset-0 z-0"
+      aria-hidden="true"
+    />
+  );
+}
+
 // ─── Main Hero Component ─────────────────────────────────────────────────────
 
 export function Hero() {
@@ -112,12 +318,67 @@ export function Hero() {
     };
   }, []);
 
+  // Zamp footer magnetic — CTAs + badges subtly repel like antigravity footer
+  React.useEffect(() => {
+    const el = heroRef.current;
+    if (!el) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if (window.matchMedia("(pointer: coarse)").matches) return;
+    const islands = Array.from(
+      el.querySelectorAll<HTMLElement>("[data-magnetic]"),
+    );
+    if (!islands.length) return;
+    let raf = 0;
+    let mx = -9999;
+    let my = -9999;
+    const update = () => {
+      raf = 0;
+      for (const island of islands) {
+        const r = island.getBoundingClientRect();
+        const cx = r.left + r.width / 2;
+        const cy = r.top + r.height / 2;
+        const dx = mx - cx;
+        const dy = my - cy;
+        const dist = Math.hypot(dx, dy);
+        const radius = 170;
+        if (dist < radius) {
+          const f = (radius - dist) / radius;
+          const tx = -dx * f * 0.09;
+          const ty = -dy * f * 0.09;
+          island.style.transform = `translate3d(${tx}px, ${ty}px, 0)`;
+        } else {
+          island.style.transform = "translate3d(0,0,0)";
+        }
+      }
+    };
+    const onMove = (e: PointerEvent) => {
+      mx = e.clientX;
+      my = e.clientY;
+      if (!raf) raf = requestAnimationFrame(update);
+    };
+    const onLeave = () => {
+      for (const island of islands)
+        island.style.transform = "translate3d(0,0,0)";
+    };
+    window.addEventListener("pointermove", onMove, { passive: true });
+    el.addEventListener("pointerleave", onLeave);
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      el.removeEventListener("pointerleave", onLeave);
+      if (raf) cancelAnimationFrame(raf);
+      for (const island of islands) island.style.transform = "";
+    };
+  }, []);
+
   return (
     <section
       ref={heroRef as React.RefObject<HTMLDivElement>}
       className="relative overflow-hidden bg-background pb-10 sm:pb-14 lg:pb-20 [--x:-9999px] [--y:-9999px] [--spotlight:0]"
       style={{ willChange: "auto" } as React.CSSProperties}
     >
+      {/* Ledger Field — antigravity canvas (accounting-native wow, behind spotlight) */}
+      <HeroLedgerField heroRef={heroRef} />
+
       {/* Layer 1: outer wash — 800px, unmistakable but premium */}
       <div
         className="pointer-events-none absolute inset-0 z-[1] opacity-[var(--spotlight)] transition-opacity duration-300"
@@ -192,12 +453,14 @@ export function Hero() {
           <InteractiveDemo />
         </div>
 
-        {/* CTAs — moved below visual */}
+        {/* CTAs — moved below visual, magnetic islands (Zamp) */}
         <div className="hero-fade-up mt-10 flex flex-col items-center gap-3 sm:mt-12 sm:flex-row sm:justify-center">
           <Button
             asChild
             size="lg"
-            className="gap-2 rounded-full shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/25 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+            data-magnetic
+            className="gap-2 rounded-full shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/25 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] will-change-transform"
+            style={{ willChange: "transform" } as React.CSSProperties}
           >
             <Link href="/onboarding">
               Start free
@@ -208,7 +471,9 @@ export function Hero() {
             asChild
             variant="outline"
             size="lg"
-            className="group gap-2 rounded-full border-border/80 bg-background/50 px-6 text-foreground/80 shadow-sm backdrop-blur-sm transition-all duration-300 hover:border-primary/40 hover:bg-primary/5 hover:text-foreground hover:shadow-md hover:shadow-primary/10 hover:ring-1 hover:ring-primary/20 active:scale-[0.98]"
+            data-magnetic
+            className="group gap-2 rounded-full border-border/80 bg-background/50 px-6 text-foreground/80 shadow-sm backdrop-blur-sm transition-all duration-300 hover:border-primary/40 hover:bg-primary/5 hover:text-foreground hover:shadow-md hover:shadow-primary/10 hover:ring-1 hover:ring-primary/20 active:scale-[0.98] will-change-transform"
+            style={{ willChange: "transform" } as React.CSSProperties}
           >
             <Link href="#demo">
               <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 transition-colors duration-300 group-hover:bg-primary/15">
@@ -222,11 +487,16 @@ export function Hero() {
           </Button>
         </div>
 
-        {/* Trust badges — below CTAs */}
+        {/* Trust badges — below CTAs, each badge magnetic */}
         <ul className="hero-fade-up mt-6 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-sm text-muted-foreground">
           {["No credit card required", "Human approval on every decision"].map(
             (item) => (
-              <li key={item} className="flex items-center gap-2">
+              <li
+                key={item}
+                data-magnetic
+                className="flex items-center gap-2 will-change-transform"
+                style={{ willChange: "transform" } as React.CSSProperties}
+              >
                 <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10">
                   <Check className="h-3 w-3 text-primary" aria-hidden="true" />
                 </span>
