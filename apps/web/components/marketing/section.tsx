@@ -19,6 +19,7 @@ export function Section({
 }
 
 export function SectionHeading({
+  eyebrow,
   title,
   lead,
   align = "center",
@@ -37,6 +38,11 @@ export function SectionHeading({
           : "max-w-2xl items-start text-left",
       )}
     >
+      {eyebrow ? (
+        <span className="inline-flex rounded-full border border-border/60 bg-muted/30 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+          {eyebrow}
+        </span>
+      ) : null}
       <h2 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl lg:text-5xl">
         {title}
       </h2>
