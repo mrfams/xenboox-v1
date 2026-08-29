@@ -82,7 +82,7 @@ export function Hero() {
     <section
       ref={containerRef}
       onMouseMove={handleMouseMove}
-      className="relative overflow-hidden bg-background"
+      className="relative overflow-hidden bg-background pb-10 sm:pb-14 lg:pb-20"
     >
       {/* Cursor spotlight effect */}
       <div
@@ -158,32 +158,35 @@ export function Hero() {
               </Link>
             </Button>
           </div>
+        </div>
 
-          {/* Trust badges */}
-          <ul className="hero-fade-up flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-sm text-muted-foreground">
-            {[
-              "No credit card required",
-              "Human approval on every decision",
-            ].map((item) => (
+        {/* ── Interactive Platform Demo — full bleed then fade ── */}
+        <div className="hero-fade-up mt-8 sm:mt-10 md:mt-12 lg:mt-14">
+          <InteractiveDemo mousePos={mousePos} containerRef={containerRef} />
+        </div>
+
+        {/* Trust badges — below visual screen (after fade anchor) */}
+        <ul className="hero-fade-up mt-10 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-sm text-muted-foreground sm:mt-12">
+          {["No credit card required", "Human approval on every decision"].map(
+            (item) => (
               <li key={item} className="flex items-center gap-2">
                 <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10">
                   <Check className="h-3 w-3 text-primary" aria-hidden="true" />
                 </span>
                 {item}
               </li>
-            ))}
-          </ul>
-        </div>
-
-        {/* ── Interactive Platform Demo ── */}
-        <div className="hero-fade-up mt-6 sm:mt-8 md:mt-10 lg:mt-12">
-          <InteractiveDemo mousePos={mousePos} containerRef={containerRef} />
-        </div>
+            ),
+          )}
+        </ul>
       </div>
 
-      {/* Bottom fade */}
+      {/* Bottom fade — generous, professional: full screen then soft dissolve */}
       <div
-        className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-background to-transparent"
+        className="pointer-events-none absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-background via-background/80 to-transparent sm:h-48 lg:h-64"
+        aria-hidden="true"
+      />
+      <div
+        className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-background to-transparent lg:h-32"
         aria-hidden="true"
       />
     </section>
