@@ -1,8 +1,9 @@
 "use client";
 
 import * as React from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
-import { Section, SectionHeading } from "@/components/marketing/section";
+import { Section } from "@/components/marketing/section";
 import { FadeInUp } from "@/components/marketing/reveal";
 
 const testimonials = [
@@ -147,9 +148,9 @@ export function Testimonials() {
           </div>
         </FadeInUp>
 
-        {/* Carousel — editorial, not fixed-pixel toy */}
+        {/* Carousel — editorial, with arrow controls */}
         <div
-          className="mx-auto mt-10 sm:mt-14"
+          className="relative mx-auto mt-10 sm:mt-14"
           style={{
             maxWidth:
               visibleCount === 2 ? CARD_WIDTH * 2 + GAP + 32 : CARD_WIDTH + 32,
@@ -157,9 +158,36 @@ export function Testimonials() {
           onMouseEnter={() => setIsPaused(true)}
           onMouseLeave={() => setIsPaused(false)}
         >
+          {/* Arrow — left */}
+          <button
+            type="button"
+            aria-label="Previous testimonials"
+            onClick={() => {
+              setIndex((p) => (p <= 0 ? maxIndex : p - 1));
+              setIsPaused(true);
+              setTimeout(() => setIsPaused(false), 3000);
+            }}
+            className="absolute left-1 top-[42%] z-10 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-border bg-card/90 shadow-sm backdrop-blur transition-all hover:bg-accent hover:text-foreground hover:shadow-md disabled:opacity-30 disabled:pointer-events-none sm:left-0 sm:h-9 sm:w-9 sm:-translate-x-1/2"
+          >
+            <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+          </button>
+          {/* Arrow — right */}
+          <button
+            type="button"
+            aria-label="Next testimonials"
+            onClick={() => {
+              setIndex((p) => (p >= maxIndex ? 0 : p + 1));
+              setIsPaused(true);
+              setTimeout(() => setIsPaused(false), 3000);
+            }}
+            className="absolute right-1 top-[42%] z-10 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-border bg-card/90 shadow-sm backdrop-blur transition-all hover:bg-accent hover:text-foreground hover:shadow-md disabled:opacity-30 disabled:pointer-events-none sm:right-0 sm:h-9 sm:w-9 sm:translate-x-1/2"
+          >
+            <ChevronRight className="h-4 w-4" aria-hidden="true" />
+          </button>
+
           <div
             ref={viewportRef}
-            className="overflow-hidden"
+            className="overflow-hidden rounded-[1.65rem]"
             onPointerDown={onPointerDown}
             onPointerMove={onPointerMove}
             onPointerUp={onPointerUp}
