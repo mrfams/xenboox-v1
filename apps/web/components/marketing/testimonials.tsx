@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { Quote } from "lucide-react";
 
 import { Section, SectionHeading } from "@/components/marketing/section";
 import { FadeInUp } from "@/components/marketing/reveal";
@@ -44,17 +43,26 @@ const testimonials = [
   },
   {
     quote:
-      "The compliance agent caught a NAPSA filing error that would have cost us GMD 200K in penalties. It flagged it before we even knew there was a problem.",
+      "The compliance agent caught a filing error that would have cost us GMD 200K in penalties. It flagged it before we even knew there was a problem.",
     name: "Lamin Sanyang",
     role: "Managing Partner, LS Consulting",
     location: "Serrekunda",
   },
 ];
 
-// Anthropic-inspired sizing: generous cards, large type, spacious padding
+// Production sizing — editorial width, generous line-length
 const CARD_WIDTH = 480;
 const GAP = 32;
-const AUTO_INTERVAL = 4000;
+const AUTO_INTERVAL = 4800;
+
+function initials(name: string) {
+  return name
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+}
 
 export function Testimonials() {
   const [index, setIndex] = React.useState(0);
@@ -65,7 +73,6 @@ export function Testimonials() {
   const startX = React.useRef(0);
   const scrollStart = React.useRef(0);
 
-  // Responsive: 2 cards on lg, 1 on smaller
   React.useEffect(() => {
     const update = () => {
       setVisibleCount(window.innerWidth >= 1024 ? 2 : 1);
@@ -77,12 +84,10 @@ export function Testimonials() {
 
   const maxIndex = Math.max(0, testimonials.length - visibleCount);
 
-  // Clamp index when visibleCount changes
   React.useEffect(() => {
     setIndex((prev) => Math.min(prev, maxIndex));
   }, [maxIndex]);
 
-  // Auto swipe
   React.useEffect(() => {
     if (isPaused) return;
     const id = setInterval(() => {
@@ -91,7 +96,6 @@ export function Testimonials() {
     return () => clearInterval(id);
   }, [isPaused, maxIndex]);
 
-  // Pointer drag to allow manual swipe
   const onPointerDown = (e: React.PointerEvent) => {
     isDragging.current = true;
     startX.current = e.clientX;
@@ -121,18 +125,29 @@ export function Testimonials() {
   return (
     <Section
       id="testimonials"
-      className="relative overflow-hidden bg-paper-2/60"
+      className="relative overflow-hidden bg-background py-20 sm:py-24 lg:py-28"
     >
+      {/* Subtle editorial wash — not the old 0.06 indigo blob */}
       <div
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_70%_50%_at_50%_0%,rgba(59,79,224,0.06),transparent_70%)]"
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_70%_45%_at_50%_0%,hsl(var(--primary)/0.05),transparent_70%)]"
         aria-hidden
       />
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <FadeInUp>
-          <SectionHeading title="Teams that closed their books in days, not weeks." />
+          <div className="mx-auto max-w-3xl text-center">
+            <h2 className="text-3xl font-semibold leading-[1.06] tracking-tight text-foreground sm:text-4xl lg:text-[2.6rem]">
+              Teams that closed their books
+              <br />
+              <span className="text-muted-foreground">in days, not weeks.</span>
+            </h2>
+            <p className="mx-auto mt-4 max-w-2xl text-[15px] leading-relaxed text-muted-foreground sm:text-base">
+              Finance leads and founders on what changed after Xenboox took the
+              busywork.
+            </p>
+          </div>
         </FadeInUp>
 
-        {/* Carousel — wider Anthropic-style cards */}
+        {/* Carousel — editorial, not fixed-pixel toy */}
         <div
           className="mx-auto mt-10 sm:mt-14"
           style={{
@@ -160,35 +175,50 @@ export function Testimonials() {
               {testimonials.map((item) => (
                 <figure
                   key={item.name}
-                  className="flex shrink-0 flex-col overflow-hidden rounded-2xl border border-border/60 bg-card p-8 sm:p-10 shadow-[0_8px_30px_-12px_rgba(59,79,224,0.12)]"
+                  className="group flex shrink-0 flex-col rounded-[1.65rem] border border-border/40 bg-border/10 p-[5px] transition-all duration-300 hover:border-border/60"
                   style={{
                     width: CARD_WIDTH,
                     minWidth: CARD_WIDTH,
                     maxWidth: CARD_WIDTH,
                   }}
                 >
-                  <Quote
-                    className="h-8 w-8 shrink-0 text-primary/30"
-                    aria-hidden="true"
-                  />
-                  <blockquote className="mt-5 flex-1 text-lg font-medium leading-relaxed tracking-tight text-foreground text-pretty sm:text-xl">
-                    &ldquo;{item.quote}&rdquo;
-                  </blockquote>
+                  <div className="flex flex-1 flex-col rounded-[1.35rem] bg-card p-8 sm:p-9">
+                    {/* Opening mark — editorial, not lucide Quote */}
+                    <span
+                      aria-hidden="true"
+                      className="font-serif text-[42px] font-light leading-none tracking-tight text-primary/12 select-none"
+                      style={{ fontFamily: "Georgia, serif" }}
+                    >
+                      “
+                    </span>
 
-                  <figcaption className="mt-8 flex flex-col gap-1 border-t border-border/60 pt-5">
-                    <p className="text-base font-semibold tracking-tight text-foreground">
-                      {item.name}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      {item.role} · {item.location}
-                    </p>
-                  </figcaption>
+                    <blockquote
+                      className="mt-1 flex-1 text-pretty text-[17px] font-normal leading-[1.65] tracking-[-0.01em] text-foreground antialiased [text-wrap:balance] hyphens-auto"
+                      style={{ hyphens: "auto" as const }}
+                    >
+                      {item.quote}
+                    </blockquote>
+
+                    <figcaption className="mt-8 flex items-center gap-3 border-t border-border/40 pt-6">
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border/50 bg-muted/30 font-mono text-[11px] font-medium tracking-wide text-foreground">
+                        {initials(item.name)}
+                      </span>
+                      <span className="min-w-0">
+                        <cite className="block truncate text-[13px] font-semibold not-italic leading-tight tracking-tight text-foreground">
+                          {item.name}
+                        </cite>
+                        <span className="block truncate text-[12.5px] leading-tight text-muted-foreground">
+                          {item.role}
+                        </span>
+                      </span>
+                    </figcaption>
+                  </div>
                 </figure>
               ))}
             </div>
           </div>
 
-          {/* Progress dots */}
+          {/* Progress — editorial dots, 8px → 24px active */}
           <div
             className="mt-8 flex items-center justify-center gap-2"
             aria-hidden
@@ -201,13 +231,18 @@ export function Testimonials() {
                   setIsPaused(true);
                   setTimeout(() => setIsPaused(false), 3000);
                 }}
-                className={`h-2 rounded-full transition-all duration-300 ${
-                  i === index ? "w-8 bg-primary" : "w-2 bg-border"
+                className={`h-1.5 rounded-full transition-all duration-300 ${
+                  i === index
+                    ? "w-6 bg-foreground"
+                    : "w-1.5 bg-border hover:bg-border/80"
                 }`}
                 aria-label={`Go to slide ${i + 1}`}
               />
             ))}
           </div>
+          <p className="sr-only" aria-live="polite">
+            Slide {index + 1} of {maxIndex + 1}
+          </p>
         </div>
       </div>
     </Section>
