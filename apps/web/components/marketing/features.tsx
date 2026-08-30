@@ -27,7 +27,7 @@ const features = [
     description:
       "Run payroll in one click — salaries, taxes, and statutory deductions computed correctly every time.",
     bullets: [
-      "Gambian statutory compliance built in",
+      "Statutory compliance built in for your country",
       "Payslips delivered to every employee",
     ],
   },
