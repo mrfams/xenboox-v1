@@ -846,6 +846,7 @@ function SurfacePanel({
 function CommandCenter() {
   const [visibleMessages, setVisibleMessages] = React.useState(0);
   const [isTyping, setIsTyping] = React.useState(false);
+  const [draft, setDraft] = React.useState("");
 
   React.useEffect(() => {
     const timers: NodeJS.Timeout[] = [];
@@ -938,12 +939,21 @@ function CommandCenter() {
         )}
       </div>
 
-      <div className="mt-3 flex items-center gap-2 rounded-xl border border-border bg-muted/30 px-4 py-3">
-        <span className="text-sm text-muted-foreground">Type a command...</span>
-        <Send
-          className="ml-auto h-4 w-4 text-muted-foreground"
-          aria-hidden="true"
+      <div className="mt-3 flex items-center gap-2 rounded-xl border border-border bg-muted/30 px-4 py-3 focus-within:border-primary/30 focus-within:ring-2 focus-within:ring-primary/10 focus-within:bg-background/50 transition-colors">
+        <input
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              setDraft("");
+            }
+          }}
+          placeholder="Type a command..."
+          aria-label="Type a command"
+          className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none"
         />
+        <Send className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
       </div>
     </div>
   );
