@@ -103,22 +103,8 @@ export function HowItWorks() {
           </div>
         </FadeInUp>
 
-        {/* Timeline + Steps — graph: product steps × design craft × engineering perf */}
+        {/* Timeline + Steps */}
         <div className="relative mt-12 sm:mt-16 lg:mt-20">
-          {/* Desktop connector — track + progress fill */}
-          <div
-            className="pointer-events-none absolute left-[calc(16.666%+1rem)] right-[calc(16.666%+1rem)] top-[44px] hidden h-px lg:block"
-            aria-hidden
-          >
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-border to-transparent" />
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-primary/40 to-transparent opacity-60" />
-          </div>
-          {/* Mobile spine */}
-          <div
-            className="pointer-events-none absolute left-[22px] top-6 bottom-6 w-px bg-gradient-to-b from-border via-border to-transparent sm:left-7 lg:hidden"
-            aria-hidden
-          />
-
           <ol
             className="relative grid gap-5 sm:gap-6 lg:grid-cols-3 lg:gap-6"
             aria-label="How Xenboox works in three steps"
