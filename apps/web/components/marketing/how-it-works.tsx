@@ -96,14 +96,7 @@ export function HowItWorks() {
         {/* Header — editorial, not centered blob */}
         <FadeInUp>
           <div className="mx-auto max-w-3xl text-center">
-            <span className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-muted/30 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
-              <span
-                className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse"
-                aria-hidden
-              />
-              How it works
-            </span>
-            <h2 className="mt-5 text-3xl font-semibold leading-[1.05] tracking-tight text-foreground sm:text-4xl lg:text-[2.75rem]">
+            <h2 className="text-3xl font-semibold leading-[1.05] tracking-tight text-foreground sm:text-4xl lg:text-[2.75rem]">
               Set up in minutes.
               <br />
               <span className="text-muted-foreground">
