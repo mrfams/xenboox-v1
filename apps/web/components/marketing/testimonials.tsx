@@ -56,15 +56,6 @@ const CARD_WIDTH = 480;
 const GAP = 32;
 const AUTO_INTERVAL = 4800;
 
-function initials(name: string) {
-  return name
-    .split(" ")
-    .map((n) => n[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
-}
-
 export function Testimonials() {
   const [index, setIndex] = React.useState(0);
   const [isPaused, setIsPaused] = React.useState(false);
@@ -227,17 +218,12 @@ export function Testimonials() {
                       {item.quote}
                     </blockquote>
 
-                    <figcaption className="mt-8 flex items-center gap-3 border-t border-border/40 pt-6">
-                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border/50 bg-muted/30 font-mono text-[11px] font-medium tracking-wide text-foreground">
-                        {initials(item.name)}
-                      </span>
-                      <span className="min-w-0">
-                        <cite className="block truncate text-[13px] font-semibold not-italic leading-tight tracking-tight text-foreground">
-                          {item.name}
-                        </cite>
-                        <span className="block truncate text-[12.5px] leading-tight text-muted-foreground">
-                          {item.role}
-                        </span>
+                    <figcaption className="mt-8 flex flex-col gap-1 border-t border-border/40 pt-6">
+                      <cite className="block truncate text-[13px] font-semibold not-italic leading-tight tracking-tight text-foreground">
+                        {item.name}
+                      </cite>
+                      <span className="block truncate text-[12.5px] leading-tight text-muted-foreground">
+                        {item.role}
                       </span>
                     </figcaption>
                   </div>
