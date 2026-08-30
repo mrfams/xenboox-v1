@@ -4,7 +4,7 @@ import { ArrowRight, Check, X } from "lucide-react";
 import { FadeInUp } from "@/components/marketing/reveal";
 
 const rows = [
-  { feature: "19 AI agents", xenboox: true, qb: false, xero: false },
+  { feature: "Specialized AI agents", xenboox: true, qb: false, xero: false },
   {
     feature: "Multi-currency (50+)",
     xenboox: true,

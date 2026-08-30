@@ -38,7 +38,7 @@ export function OrganizationJsonLd() {
         "@type": "Organization",
         name: "Xenboox",
         description:
-          "AI-native full-stack accounting platform with 19 specialized agents for invoicing, payroll, compliance, and financial reporting.",
+          "AI-native full-stack accounting platform with specialized agents for invoicing, payroll, compliance, and financial reporting.",
         url: SITE_URL,
         logo: `${SITE_URL}/favicon.svg`,
         sameAs: [
@@ -68,7 +68,7 @@ export function SoftwareAppJsonLd() {
         applicationCategory: "BusinessApplication",
         operatingSystem: "Web",
         description:
-          "AI-native accounting platform with 19 specialized agents that handle invoicing, payroll, compliance, month-end close, and financial reporting.",
+          "AI-native accounting platform with specialized agents that handle invoicing, payroll, compliance, month-end close, and financial reporting.",
         url: SITE_URL,
         offers: {
           "@type": "AggregateOffer",

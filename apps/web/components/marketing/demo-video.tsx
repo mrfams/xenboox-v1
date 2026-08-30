@@ -41,7 +41,7 @@ export function DemoVideo() {
     <>
       <VideoObjectJsonLd
         name="Xenboox — 2-Minute Product Walkthrough"
-        description="See how 19 AI agents handle invoicing, payroll, compliance, and month-end close — agents do the work, you make the decisions."
+        description="See how specialized AI agents handle invoicing, payroll, compliance, and month-end close — agents do the work, you make the decisions."
         duration="PT2M"
         embedUrl={YOUTUBE_EMBED}
         thumbnailUrl="https://xenboox.com/opengraph-image"
@@ -107,7 +107,7 @@ export function DemoVideo() {
                           className="h-1.5 w-1.5 animate-pulse rounded-full bg-balanced-green"
                           aria-hidden="true"
                         />
-                        19 agents
+                        20+ agents
                       </span>
                     </div>
                     <div className="space-y-2 text-left">

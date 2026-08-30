@@ -1,19 +1,14 @@
 "use client";
 
 import * as React from "react";
-import {
-  Bot,
-  CalendarCheck,
-  FileSearch,
-  ShieldCheck,
-} from "lucide-react";
+import { Bot, CalendarCheck, FileSearch, ShieldCheck } from "lucide-react";
 
 import { FadeInUp } from "@/components/marketing/reveal";
 
 const stats = [
   {
     icon: Bot,
-    target: 19,
+    target: 20,
     suffix: "",
     label: "Specialized agents",
     description: "Each built for one job",
@@ -78,11 +73,7 @@ function useCountUp(target: number, duration = 1600) {
   return { ref, value };
 }
 
-function StatItem({
-  stat,
-}: {
-  stat: (typeof stats)[number];
-}) {
+function StatItem({ stat }: { stat: (typeof stats)[number] }) {
   const { ref, value } = useCountUp(stat.target);
   const Icon = stat.icon;
 
@@ -97,13 +88,9 @@ function StatItem({
       <div>
         <span className="text-3xl sm:text-4xl font-bold tracking-tight text-foreground tabular-nums">
           {stat.target === 0 ? 0 : value}
-          {stat.suffix && (
-            <span className="text-primary">{stat.suffix}</span>
-          )}
+          {stat.suffix && <span className="text-primary">{stat.suffix}</span>}
         </span>
-        <p className="mt-1 text-sm font-medium text-foreground">
-          {stat.label}
-        </p>
+        <p className="mt-1 text-sm font-medium text-foreground">{stat.label}</p>
         <p className="mt-0.5 text-xs text-muted-foreground">
           {stat.description}
         </p>
