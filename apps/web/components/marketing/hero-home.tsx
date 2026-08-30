@@ -667,22 +667,9 @@ function InteractiveDemo() {
             className="h-2.5 w-2.5 rounded-full bg-balanced-green/70"
             aria-hidden="true"
           />
-          <span className="ml-3 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-            <Bot className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
-            Xenboox
-          </span>
 
           {/* Agent activity indicator */}
           <AgentActivityBar />
-
-          {/* Live status */}
-          <span className="ml-auto inline-flex items-center gap-1.5 rounded-full bg-balanced-green/10 px-2 py-0.5 text-[10px] font-semibold text-balanced-green">
-            <span
-              className="h-1.5 w-1.5 animate-pulse rounded-full bg-balanced-green"
-              aria-hidden="true"
-            />
-            Live
-          </span>
         </div>
 
         <div className="flex min-h-[320px] sm:min-h-[380px] md:min-h-[420px]">
