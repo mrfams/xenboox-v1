@@ -13,9 +13,17 @@ import { Section } from "@/components/marketing/section";
 import { FadeInUp } from "@/components/marketing/reveal";
 
 export const metadata: Metadata = {
-  title: "Download",
+  title: "Download — Access Xenboox Anywhere | Xenboox",
   description:
-    "Access Xenboox from anywhere - web, desktop, or mobile. Download the app or launch in your browser.",
+    "Access Xenboox from anywhere — web, desktop, or mobile. Full-featured AI accounting platform with 19 agents. No installation required for web.",
+  openGraph: {
+    title: "Download — Access Xenboox Anywhere | Xenboox",
+    description:
+      "Access Xenboox from anywhere — web, desktop, or mobile. Full-featured AI accounting platform.",
+    url: "https://xenboox.com/download",
+    siteName: "Xenboox",
+    type: "website",
+  },
 };
 
 const platforms = [
@@ -263,8 +271,50 @@ export default function DownloadPage() {
         </div>
       </section>
 
-      {/* Security Note */}
+      {/* Version Info */}
       <section className="py-12 sm:py-16">
+        <div className="mx-auto max-w-3xl px-4 sm:px-6">
+          <FadeInUp>
+            <div className="rounded-2xl border border-border bg-card p-6 sm:p-8">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                  <h3 className="text-lg font-semibold text-foreground">
+                    Latest Version
+                  </h3>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Web app is always up to date — no manual updates needed.
+                  </p>
+                </div>
+                <div className="flex items-center gap-4">
+                  <div className="text-center">
+                    <p className="text-sm font-medium text-foreground">Web</p>
+                    <p className="text-xs text-balanced-green font-medium">
+                      Always current
+                    </p>
+                  </div>
+                  <div className="h-8 w-px bg-border" />
+                  <div className="text-center">
+                    <p className="text-sm font-medium text-foreground">
+                      Desktop
+                    </p>
+                    <p className="text-xs text-muted-foreground">Coming soon</p>
+                  </div>
+                  <div className="h-8 w-px bg-border" />
+                  <div className="text-center">
+                    <p className="text-sm font-medium text-foreground">
+                      Mobile
+                    </p>
+                    <p className="text-xs text-muted-foreground">Coming soon</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </FadeInUp>
+        </div>
+      </section>
+
+      {/* Security Note */}
+      <section className="py-12 sm:py-16 bg-paper-2/60 border-t border-border">
         <div className="mx-auto max-w-xl px-4 text-center sm:px-6">
           <FadeInUp>
             <h2 className="text-2xl font-semibold tracking-tight text-foreground">

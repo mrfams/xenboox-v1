@@ -73,7 +73,13 @@ const intents = [
 
 /* ── Self-Service Resources ───────────────────────────────── */
 
-const resources = [
+const resources: {
+  icon: typeof BookOpen;
+  title: string;
+  description: string;
+  href: string;
+  external?: boolean;
+}[] = [
   {
     icon: BookOpen,
     title: "Documentation",
@@ -84,13 +90,15 @@ const resources = [
     icon: Zap,
     title: "System Status",
     description: "Real-time platform health and uptime",
-    href: "#",
+    href: "https://status.xenboox.com",
+    external: true,
   },
   {
     icon: MessageSquare,
     title: "Community",
     description: "Ask questions and share knowledge",
-    href: "#",
+    href: "https://community.xenboox.com",
+    external: true,
   },
 ];
 
@@ -111,7 +119,7 @@ const channels = [
     detail: "Start a conversation",
     sla: "Instant",
     note: "Available Mon-Fri, 9am-6pm WAT",
-    href: "#",
+    href: "https://app.xenboox.com/chat",
   },
   {
     icon: Phone,
@@ -172,8 +180,7 @@ export default function ContactPage() {
           <div className="mx-auto max-w-3xl">
             <FadeInUp>
               <h1 className="text-4xl font-semibold leading-[1.05] tracking-tight text-foreground sm:text-5xl lg:text-6xl">
-                We&apos;re here to{" "}
-                <span className="text-primary">help</span>
+                We&apos;re here to <span className="text-primary">help</span>
               </h1>
             </FadeInUp>
             <FadeInUp delay={0.1}>
@@ -270,6 +277,9 @@ export default function ContactPage() {
               <FadeInUp key={resource.title} delay={index * 0.08}>
                 <Link
                   href={resource.href}
+                  {...(resource.external
+                    ? { target: "_blank", rel: "noopener noreferrer" }
+                    : {})}
                   className="group flex items-center gap-4 rounded-xl border border-border/60 bg-card p-5 transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5 hover:border-border/40"
                 >
                   <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-white">
@@ -356,6 +366,28 @@ export default function ContactPage() {
                 ))}
               </div>
 
+              {/* Office Hours */}
+              <FadeInUp delay={0.45}>
+                <div className="mt-6 rounded-xl border border-border/60 bg-card p-5">
+                  <div className="flex items-start gap-3">
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                      <Clock className="h-5 w-5" />
+                    </span>
+                    <div>
+                      <h4 className="font-semibold text-foreground">
+                        Office Hours
+                      </h4>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Mon–Fri, 9:00 AM – 6:00 PM WAT (GMT+0)
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Enterprise support available 24/7
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </FadeInUp>
+
               {/* Office Location */}
               <FadeInUp delay={0.5}>
                 <div className="mt-6 rounded-xl border border-border/60 bg-card p-5">
@@ -383,6 +415,63 @@ export default function ContactPage() {
                   </div>
                 </div>
               </FadeInUp>
+
+              {/* Emergency Contact */}
+              <FadeInUp delay={0.55}>
+                <div className="mt-6 rounded-xl border border-attention-amber/20 bg-attention-amber/5 p-5">
+                  <div className="flex items-start gap-3">
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-attention-amber/10 text-attention-amber">
+                      <Zap className="h-5 w-5" />
+                    </span>
+                    <div>
+                      <h4 className="font-semibold text-foreground">
+                        Critical Issue?
+                      </h4>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        For urgent production issues, email{" "}
+                        <a
+                          href="mailto:urgent@xenboox.com"
+                          className="font-medium text-primary hover:underline"
+                        >
+                          urgent@xenboox.com
+                        </a>
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Response within 1 hour for Enterprise customers
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </FadeInUp>
+
+              {/* Social Media */}
+              <FadeInUp delay={0.6}>
+                <div className="mt-6">
+                  <h4 className="text-sm font-medium text-muted-foreground mb-3">
+                    Follow us
+                  </h4>
+                  <div className="flex items-center gap-3">
+                    {[
+                      { name: "Twitter", href: "https://twitter.com/xenboox" },
+                      {
+                        name: "LinkedIn",
+                        href: "https://linkedin.com/company/xenboox",
+                      },
+                      { name: "GitHub", href: "https://github.com/xenboox" },
+                    ].map((social) => (
+                      <Link
+                        key={social.name}
+                        href={social.href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium text-muted-foreground transition-all hover:bg-accent/50 hover:text-foreground"
+                      >
+                        {social.name}
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              </FadeInUp>
             </div>
           </div>
         </div>
@@ -398,7 +487,10 @@ export default function ContactPage() {
               </h2>
               <p className="mt-3 text-muted-foreground">
                 Can&apos;t find what you&apos;re looking for?{" "}
-                <Link href="#form" className="text-primary font-medium hover:underline">
+                <Link
+                  href="#form"
+                  className="text-primary font-medium hover:underline"
+                >
                   Send us a message
                 </Link>
                 .

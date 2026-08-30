@@ -36,6 +36,18 @@ import {
 import { FadeInUp } from "@/components/marketing/reveal";
 import { Cta } from "@/components/marketing/cta";
 import { Testimonials } from "@/components/marketing/testimonials";
+import {
+  StickyNav,
+  type StickyNavItem,
+} from "@/components/marketing/sticky-nav";
+import {
+  HowItWorks,
+  type HowItWorksStep,
+} from "@/components/marketing/how-it-works";
+import {
+  FeatureComparison,
+  type ComparisonCategory,
+} from "@/components/marketing/feature-comparison";
 
 // ── Animated Counter ──────────────────────────────────────────────────────────
 
@@ -219,11 +231,41 @@ function AutomationVisual() {
   ];
 
   const agentRows = [
-    { name: "Invoice Agent", status: "Processing", task: "INV-1043", color: "text-balanced-green", dot: "bg-balanced-green" },
-    { name: "Payroll Agent", status: "Calculating", task: "Batch #142", color: "text-primary", dot: "bg-primary" },
-    { name: "Compliance Agent", status: "Filing", task: "VAT GRA-08", color: "text-attention-amber", dot: "bg-attention-amber" },
-    { name: "Treasury Agent", status: "Monitoring", task: "Cash flow", color: "text-balanced-green", dot: "bg-balanced-green" },
-    { name: "CFO Agent", status: "Reviewing", task: "Monthly close", color: "text-primary", dot: "bg-primary" },
+    {
+      name: "Invoice Agent",
+      status: "Processing",
+      task: "INV-1043",
+      color: "text-balanced-green",
+      dot: "bg-balanced-green",
+    },
+    {
+      name: "Payroll Agent",
+      status: "Calculating",
+      task: "Batch #142",
+      color: "text-primary",
+      dot: "bg-primary",
+    },
+    {
+      name: "Compliance Agent",
+      status: "Filing",
+      task: "VAT GRA-08",
+      color: "text-attention-amber",
+      dot: "bg-attention-amber",
+    },
+    {
+      name: "Treasury Agent",
+      status: "Monitoring",
+      task: "Cash flow",
+      color: "text-balanced-green",
+      dot: "bg-balanced-green",
+    },
+    {
+      name: "CFO Agent",
+      status: "Reviewing",
+      task: "Monthly close",
+      color: "text-primary",
+      dot: "bg-primary",
+    },
   ];
 
   return (
@@ -249,7 +291,8 @@ function AutomationVisual() {
                   className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
                   style={{
                     opacity: 0,
-                    animation: "slide-up 0.35s cubic-bezier(0.32, 0.72, 0, 1) forwards",
+                    animation:
+                      "slide-up 0.35s cubic-bezier(0.32, 0.72, 0, 1) forwards",
                   }}
                 >
                   <div
@@ -383,7 +426,9 @@ function AutomationVisual() {
                           </span>
                         </div>
                       </td>
-                      <td className={`px-3 py-2.5 text-xs font-medium ${row.color}`}>
+                      <td
+                        className={`px-3 py-2.5 text-xs font-medium ${row.color}`}
+                      >
                         {row.status}
                       </td>
                       <td className="px-3 py-2.5 text-xs text-muted-foreground">
@@ -447,11 +492,27 @@ function ReportingVisual() {
   ];
 
   const reportItems = [
-    { name: "Profit & Loss — August 2026", status: "Ready", color: "text-balanced-green" },
-    { name: "Balance Sheet — As of 31 Aug", status: "Ready", color: "text-balanced-green" },
-    { name: "Cash Flow Statement", status: "Ready", color: "text-balanced-green" },
+    {
+      name: "Profit & Loss — August 2026",
+      status: "Ready",
+      color: "text-balanced-green",
+    },
+    {
+      name: "Balance Sheet — As of 31 Aug",
+      status: "Ready",
+      color: "text-balanced-green",
+    },
+    {
+      name: "Cash Flow Statement",
+      status: "Ready",
+      color: "text-balanced-green",
+    },
     { name: "VAT Return GRA-2026-08", status: "Filed", color: "text-primary" },
-    { name: "Aged Receivables", status: "3 overdue", color: "text-attention-amber" },
+    {
+      name: "Aged Receivables",
+      status: "3 overdue",
+      color: "text-attention-amber",
+    },
   ];
 
   return (
@@ -520,17 +581,38 @@ function ReportingVisual() {
                 <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                   Revenue trend
                 </p>
-                <svg viewBox="0 0 400 80" className="h-20 w-full" aria-hidden="true">
+                <svg
+                  viewBox="0 0 400 80"
+                  className="h-20 w-full"
+                  aria-hidden="true"
+                >
                   <defs>
-                    <linearGradient id="rptGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-                      <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity="0.3" />
-                      <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity="0" />
+                    <linearGradient
+                      id="rptGrad"
+                      x1="0%"
+                      y1="0%"
+                      x2="0%"
+                      y2="100%"
+                    >
+                      <stop
+                        offset="0%"
+                        stopColor="hsl(var(--primary))"
+                        stopOpacity="0.3"
+                      />
+                      <stop
+                        offset="100%"
+                        stopColor="hsl(var(--primary))"
+                        stopOpacity="0"
+                      />
                     </linearGradient>
                   </defs>
                   <path
                     d="M0 65 L40 58 L80 54 L120 44 L160 40 L200 34 L240 30 L280 24 L320 20 L360 14 L400 10"
-                    fill="none" stroke="hsl(var(--primary))" strokeWidth="2.5"
-                    strokeLinecap="round" strokeLinejoin="round"
+                    fill="none"
+                    stroke="hsl(var(--primary))"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
                     style={{
                       strokeDasharray: 600,
                       strokeDashoffset: showChart ? 0 : 600,
@@ -540,7 +622,10 @@ function ReportingVisual() {
                   <path
                     d="M0 65 L40 58 L80 54 L120 44 L160 40 L200 34 L240 30 L280 24 L320 20 L360 14 L400 10 L400 80 L0 80 Z"
                     fill="url(#rptGrad)"
-                    style={{ opacity: showChart ? 1 : 0, transition: "opacity 0.8s ease-out 0.8s" }}
+                    style={{
+                      opacity: showChart ? 1 : 0,
+                      transition: "opacity 0.8s ease-out 0.8s",
+                    }}
                   />
                 </svg>
               </div>
@@ -687,20 +772,86 @@ function CurrencyVisual() {
   }, []);
 
   const rates = [
-    { currency: "GMD", flag: "\u{1F1EC}\u{1F1F2}", rate: "53.20", change: "+0.8%", pair: "GMD/USD" },
-    { currency: "USD", flag: "\u{1F1FA}\u{1F1F8}", rate: "1.00", change: "+0.2%", pair: "USD/USD" },
-    { currency: "EUR", flag: "\u{1F1EA}\u{1F1FA}", rate: "0.92", change: "+0.3%", pair: "EUR/USD" },
-    { currency: "GBP", flag: "\u{1F1EC}\u{1F1E7}", rate: "0.79", change: "-0.1%", pair: "GBP/USD" },
-    { currency: "NGN", flag: "\u{1F1F3}\u{1F1EC}", rate: "1,540", change: "-0.4%", pair: "NGN/USD" },
-    { currency: "GHS", flag: "\u{1F1EC}\u{1F1ED}", rate: "14.85", change: "+0.1%", pair: "GHS/USD" },
+    {
+      currency: "GMD",
+      flag: "\u{1F1EC}\u{1F1F2}",
+      rate: "53.20",
+      change: "+0.8%",
+      pair: "GMD/USD",
+    },
+    {
+      currency: "USD",
+      flag: "\u{1F1FA}\u{1F1F8}",
+      rate: "1.00",
+      change: "+0.2%",
+      pair: "USD/USD",
+    },
+    {
+      currency: "EUR",
+      flag: "\u{1F1EA}\u{1F1FA}",
+      rate: "0.92",
+      change: "+0.3%",
+      pair: "EUR/USD",
+    },
+    {
+      currency: "GBP",
+      flag: "\u{1F1EC}\u{1F1E7}",
+      rate: "0.79",
+      change: "-0.1%",
+      pair: "GBP/USD",
+    },
+    {
+      currency: "NGN",
+      flag: "\u{1F1F3}\u{1F1EC}",
+      rate: "1,540",
+      change: "-0.4%",
+      pair: "NGN/USD",
+    },
+    {
+      currency: "GHS",
+      flag: "\u{1F1EC}\u{1F1ED}",
+      rate: "14.85",
+      change: "+0.1%",
+      pair: "GHS/USD",
+    },
   ];
 
   const txRows = [
-    { date: "28 Aug", desc: "Seafood Solutions — INV-1042", gmd: "486,000", usd: "9,135", color: "text-balanced-green" },
-    { date: "27 Aug", desc: "Atlantic Traders — EUR payment", gmd: "215,000", usd: "4,037", color: "text-balanced-green" },
-    { date: "26 Aug", desc: "Cloudflare hosting — USD", gmd: "-42,500", usd: "-799", color: "text-error-clay" },
-    { date: "25 Aug", desc: "Kaira Clinics — payroll", gmd: "-1,920,000", usd: "-36,094", color: "text-error-clay" },
-    { date: "24 Aug", desc: "SunuFresh Foods — INV-1038", gmd: "312,000", usd: "5,864", color: "text-balanced-green" },
+    {
+      date: "28 Aug",
+      desc: "Seafood Solutions — INV-1042",
+      gmd: "486,000",
+      usd: "9,135",
+      color: "text-balanced-green",
+    },
+    {
+      date: "27 Aug",
+      desc: "Atlantic Traders — EUR payment",
+      gmd: "215,000",
+      usd: "4,037",
+      color: "text-balanced-green",
+    },
+    {
+      date: "26 Aug",
+      desc: "Cloudflare hosting — USD",
+      gmd: "-42,500",
+      usd: "-799",
+      color: "text-error-clay",
+    },
+    {
+      date: "25 Aug",
+      desc: "Kaira Clinics — payroll",
+      gmd: "-1,920,000",
+      usd: "-36,094",
+      color: "text-error-clay",
+    },
+    {
+      date: "24 Aug",
+      desc: "SunuFresh Foods — INV-1038",
+      gmd: "312,000",
+      usd: "5,864",
+      color: "text-balanced-green",
+    },
   ];
 
   return (
@@ -839,8 +990,12 @@ function CurrencyVisual() {
                   <tr className="border-b border-border bg-muted/40 text-[10px] uppercase tracking-wider text-muted-foreground">
                     <th className="px-3 py-2.5 font-semibold">Date</th>
                     <th className="px-3 py-2.5 font-semibold">Description</th>
-                    <th className="px-3 py-2.5 text-right font-semibold">GMD</th>
-                    <th className="px-3 py-2.5 text-right font-semibold">USD</th>
+                    <th className="px-3 py-2.5 text-right font-semibold">
+                      GMD
+                    </th>
+                    <th className="px-3 py-2.5 text-right font-semibold">
+                      USD
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -859,10 +1014,14 @@ function CurrencyVisual() {
                       <td className="px-3 py-2.5 text-xs text-foreground">
                         {row.desc}
                       </td>
-                      <td className={`px-3 py-2.5 text-right font-mono text-[11px] tabular-nums ${row.color}`}>
+                      <td
+                        className={`px-3 py-2.5 text-right font-mono text-[11px] tabular-nums ${row.color}`}
+                      >
                         {row.gmd}
                       </td>
-                      <td className={`px-3 py-2.5 text-right font-mono text-[11px] tabular-nums ${row.color}`}>
+                      <td
+                        className={`px-3 py-2.5 text-right font-mono text-[11px] tabular-nums ${row.color}`}
+                      >
                         {row.usd}
                       </td>
                     </tr>
@@ -907,26 +1066,84 @@ function SecurityVisual() {
   }, []);
 
   const auditRows = [
-    { time: "14:32:08", actor: "CFO Agent", action: "Posted journal #JE-2847", hash: "a3f8\u2026c12", color: "text-balanced-green" },
-    { time: "14:31:55", actor: "Invoice Agent", action: "Created INV-1042", hash: "7b2e\u2026d49", color: "text-primary" },
-    { time: "14:30:22", actor: "You", action: "Approved payroll batch", hash: "e91a\u2026f37", color: "text-foreground" },
-    { time: "14:29:10", actor: "Compliance Agent", action: "Filed VAT return GRA-2026-08", hash: "4d6c\u2026a83", color: "text-primary" },
-    { time: "14:28:03", actor: "Treasury Agent", action: "Reconciled 12 transactions", hash: "f07b\u2026e51", color: "text-balanced-green" },
+    {
+      time: "14:32:08",
+      actor: "CFO Agent",
+      action: "Posted journal #JE-2847",
+      hash: "a3f8\u2026c12",
+      color: "text-balanced-green",
+    },
+    {
+      time: "14:31:55",
+      actor: "Invoice Agent",
+      action: "Created INV-1042",
+      hash: "7b2e\u2026d49",
+      color: "text-primary",
+    },
+    {
+      time: "14:30:22",
+      actor: "You",
+      action: "Approved payroll batch",
+      hash: "e91a\u2026f37",
+      color: "text-foreground",
+    },
+    {
+      time: "14:29:10",
+      actor: "Compliance Agent",
+      action: "Filed VAT return GRA-2026-08",
+      hash: "4d6c\u2026a83",
+      color: "text-primary",
+    },
+    {
+      time: "14:28:03",
+      actor: "Treasury Agent",
+      action: "Reconciled 12 transactions",
+      hash: "f07b\u2026e51",
+      color: "text-balanced-green",
+    },
   ];
 
   const accessRows = [
-    { role: "Admin", scope: "All entities", permissions: "Full access", users: "2" },
-    { role: "CFO", scope: "All entities", permissions: "Read, write, approve", users: "1" },
-    { role: "Accountant", scope: "Entity-scoped", permissions: "Read, write", users: "3" },
-    { role: "Viewer", scope: "Entity-scoped", permissions: "Read only", users: "5" },
+    {
+      role: "Admin",
+      scope: "All entities",
+      permissions: "Full access",
+      users: "2",
+    },
+    {
+      role: "CFO",
+      scope: "All entities",
+      permissions: "Read, write, approve",
+      users: "1",
+    },
+    {
+      role: "Accountant",
+      scope: "Entity-scoped",
+      permissions: "Read, write",
+      users: "3",
+    },
+    {
+      role: "Viewer",
+      scope: "Entity-scoped",
+      permissions: "Read only",
+      users: "5",
+    },
   ];
 
   const encryptionItems = [
     { label: "Data at rest", status: "AES-256-GCM", icon: Shield },
     { label: "Data in transit", status: "TLS 1.3", icon: Shield },
-    { label: "Field-level encryption", status: "PBKDF2 key derivation", icon: Lock },
+    {
+      label: "Field-level encryption",
+      status: "PBKDF2 key derivation",
+      icon: Lock,
+    },
     { label: "Database", status: "Neon Postgres + RLS", icon: Database },
-    { label: "Key management", status: "Per-record key versioning", icon: Settings },
+    {
+      label: "Key management",
+      status: "Per-record key versioning",
+      icon: Settings,
+    },
   ];
 
   return (
@@ -969,7 +1186,9 @@ function SecurityVisual() {
                       <td className="px-3 py-2.5 font-mono text-[11px] tabular-nums text-muted-foreground">
                         {row.time}
                       </td>
-                      <td className={`px-3 py-2.5 text-xs font-medium ${row.color}`}>
+                      <td
+                        className={`px-3 py-2.5 text-xs font-medium ${row.color}`}
+                      >
                         {row.actor}
                       </td>
                       <td className="px-3 py-2.5 text-xs text-foreground">
@@ -1016,7 +1235,9 @@ function SecurityVisual() {
                     <th className="px-3 py-2.5 font-semibold">Role</th>
                     <th className="px-3 py-2.5 font-semibold">Scope</th>
                     <th className="px-3 py-2.5 font-semibold">Permissions</th>
-                    <th className="px-3 py-2.5 text-right font-semibold">Users</th>
+                    <th className="px-3 py-2.5 text-right font-semibold">
+                      Users
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1185,6 +1406,51 @@ const stats = [
   { value: 24, suffix: "/7", label: "Support" },
 ];
 
+const howItWorksSteps: HowItWorksStep[] = [
+  {
+    step: "1",
+    title: "Connect your bank",
+    description:
+      "Link your bank accounts, payment processors, and existing tools. The AI imports your historical data and learns your patterns.",
+    icon: Globe,
+  },
+  {
+    step: "2",
+    title: "AI does the work",
+    description:
+      "19 AI agents categorize transactions, reconcile accounts, process payroll, and close your month — all automatically.",
+    icon: Bot,
+  },
+  {
+    step: "3",
+    title: "You approve decisions",
+    description:
+      "Review confidence-scored recommendations in the Activity Hub. Approve, reject, or ask questions. You're always in control.",
+    icon: CheckCircle2,
+  },
+];
+
+const featuresComparisonCategories: ComparisonCategory[] = [
+  {
+    name: "Core",
+    features: [
+      { name: "AI agents that do the work", values: [true, false, false] },
+      { name: "Month-end close automation", values: [true, false, false] },
+      { name: "Confidence-scored approvals", values: [true, false, false] },
+      { name: "Free tier", values: [true, false, false] },
+    ],
+  },
+  {
+    name: "Features",
+    features: [
+      { name: "Multi-currency (50+)", values: [true, "Add-on", "Standard+"] },
+      { name: "Unlimited users", values: [true, "Per-seat", "Per-seat"] },
+      { name: "Bank reconciliation", values: [true, true, true] },
+      { name: "Mobile money support", values: [true, false, false] },
+    ],
+  },
+];
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function FeaturesPage() {
@@ -1275,6 +1541,15 @@ export default function FeaturesPage() {
         </div>
       </section>
 
+      {/* Sticky Section Navigation */}
+      <StickyNav
+        items={[
+          ...featureSections.map((s) => ({ id: s.id, label: s.eyebrow })),
+          { id: "how-it-works", label: "How It Works" },
+          { id: "compare", label: "Compare" },
+        ]}
+      />
+
       {/* Feature Sections — realistic dashboard visuals with tab switching */}
       {featureSections.map((section, index) => {
         const { Visual } = section;
@@ -1289,9 +1564,7 @@ export default function FeaturesPage() {
                   index % 2 === 1 ? "lg:grid-flow-dense" : ""
                 }`}
               >
-                <FadeInUp
-                  className={index % 2 === 1 ? "lg:col-start-2" : ""}
-                >
+                <FadeInUp className={index % 2 === 1 ? "lg:col-start-2" : ""}>
                   <div className="flex flex-col items-start gap-4">
                     <h2 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl lg:text-5xl">
                       {section.title}
@@ -1327,6 +1600,56 @@ export default function FeaturesPage() {
         );
       })}
 
+      {/* How It Works */}
+      <HowItWorks
+        id="how-it-works"
+        title="Three steps to autonomous accounting"
+        subtitle="Connect your bank, let the AI work, and approve what matters. That's it."
+        steps={howItWorksSteps}
+      />
+
+      {/* Video Demo */}
+      <section className="border-t border-border bg-paper py-16 sm:py-20">
+        <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
+          <FadeInUp>
+            <div className="mx-auto max-w-2xl text-center mb-10">
+              <h2 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
+                See Xenboox in action
+              </h2>
+              <p className="mt-3 text-muted-foreground">
+                Watch how AI agents handle your books while you focus on growing
+                your business.
+              </p>
+            </div>
+          </FadeInUp>
+
+          <FadeInUp delay={0.1}>
+            <div className="relative overflow-hidden rounded-2xl border border-border bg-card shadow-2xl">
+              <div className="aspect-video flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-balanced-green/5">
+                <div className="text-center">
+                  <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 text-primary mb-4">
+                    <svg
+                      className="h-8 w-8"
+                      viewBox="0 0 24 24"
+                      fill="currentColor"
+                      aria-hidden="true"
+                    >
+                      <path d="M8 5v14l11-7z" />
+                    </svg>
+                  </div>
+                  <p className="text-sm font-medium text-foreground">
+                    Product Demo
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    2 min · See AI agents close a month end
+                  </p>
+                </div>
+              </div>
+            </div>
+          </FadeInUp>
+        </div>
+      </section>
+
       {/* Bento Grid */}
       <Section className="bg-paper">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -1343,12 +1666,36 @@ export default function FeaturesPage() {
 
           <div className="mt-10 sm:mt-16 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {[
-              { icon: CreditCard, title: "Accounts Payable", description: "Automate bill processing and payments" },
-              { icon: TrendingUp, title: "Accounts Receivable", description: "Track invoices and collect payments faster" },
-              { icon: FileText, title: "Document AI", description: "Extract data from receipts and invoices" },
-              { icon: Globe, title: "Multi-Entity", description: "Manage multiple businesses in one place" },
-              { icon: Users, title: "Team Collaboration", description: "Role-based access and approval workflows" },
-              { icon: Clock, title: "Real-Time Sync", description: "Updates across all devices instantly" },
+              {
+                icon: CreditCard,
+                title: "Accounts Payable",
+                description: "Automate bill processing and payments",
+              },
+              {
+                icon: TrendingUp,
+                title: "Accounts Receivable",
+                description: "Track invoices and collect payments faster",
+              },
+              {
+                icon: FileText,
+                title: "Document AI",
+                description: "Extract data from receipts and invoices",
+              },
+              {
+                icon: Globe,
+                title: "Multi-Entity",
+                description: "Manage multiple businesses in one place",
+              },
+              {
+                icon: Users,
+                title: "Team Collaboration",
+                description: "Role-based access and approval workflows",
+              },
+              {
+                icon: Clock,
+                title: "Real-Time Sync",
+                description: "Updates across all devices instantly",
+              },
             ].map((item) => (
               <FadeInUp key={item.title}>
                 <div className="group h-full rounded-2xl border border-border/60 bg-card p-6 transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] hover:-translate-y-1 hover:border-border/40 hover:shadow-[0_20px_50px_-20px_rgba(20,33,61,0.15)]">
@@ -1367,6 +1714,16 @@ export default function FeaturesPage() {
           </div>
         </div>
       </Section>
+
+      {/* Comparison Section */}
+      <FeatureComparison
+        title="Why Xenboox vs traditional software"
+        subtitle="Traditional tools give you forms. Xenboox gives you AI agents that do the work."
+        columns={["Xenboox", "QuickBooks", "Xero"]}
+        highlightColumn={0}
+        categories={featuresComparisonCategories}
+        links={[{ label: "View all comparisons", href: "/compare" }]}
+      />
 
       {/* Testimonials — carousel matching homepage */}
       <Testimonials />

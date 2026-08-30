@@ -1,9 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, Bot, Check, X } from "lucide-react";
+import { ArrowRight, Bot, Check, X, Star } from "lucide-react";
 import { FadeInUp } from "@/components/marketing/reveal";
 import { BreadcrumbJsonLd } from "@/components/marketing/json-ld";
+import {
+  FeatureComparison,
+  type ComparisonCategory,
+} from "@/components/marketing/feature-comparison";
+import { LogoCloud } from "@/components/marketing/logo-cloud";
 
 const comparisons = [
   {
@@ -25,6 +30,102 @@ const comparisons = [
       "50+ currencies",
       "Multi-jurisdiction tax",
     ],
+  },
+  {
+    name: "Xenboox vs FreshBooks",
+    slug: "freshbooks",
+    tagline: "Full accounting suite vs invoicing tool",
+    highlights: [
+      "Double-entry bookkeeping",
+      "19 AI agents included",
+      "Multi-entity support",
+    ],
+  },
+  {
+    name: "Xenboox vs Wave",
+    slug: "wave",
+    tagline: "AI automation vs free basic software",
+    highlights: [
+      "AI agents vs manual entry",
+      "50+ currencies",
+      "Enterprise-grade security",
+    ],
+  },
+];
+
+const featureMatrix: ComparisonCategory[] = [
+  {
+    name: "AI & Automation",
+    features: [
+      {
+        name: "AI agents that do the work",
+        values: [true, false, false, false],
+      },
+      {
+        name: "Month-end close automation",
+        values: [true, false, false, false],
+      },
+      {
+        name: "Confidence-scored approvals",
+        values: [true, false, false, false],
+      },
+      { name: "Anomaly detection", values: [true, "Add-on", false, false] },
+    ],
+  },
+  {
+    name: "Core Accounting",
+    features: [
+      { name: "Double-entry bookkeeping", values: [true, true, true, true] },
+      { name: "Bank reconciliation", values: [true, true, true, "Basic"] },
+      { name: "Invoicing", values: [true, true, true, true] },
+      { name: "Payroll processing", values: [true, true, "Add-on", "Add-on"] },
+    ],
+  },
+  {
+    name: "Multi-Currency & Global",
+    features: [
+      {
+        name: "Multi-currency (50+)",
+        values: [true, "Add-on", "Standard+", false],
+      },
+      { name: "Multi-entity support", values: [true, false, false, false] },
+      { name: "Mobile money integration", values: [true, false, false, false] },
+      {
+        name: "Multi-jurisdiction tax",
+        values: [true, false, "Limited", false],
+      },
+    ],
+  },
+  {
+    name: "Pricing & Users",
+    features: [
+      { name: "Free tier", values: [true, false, false, true] },
+      {
+        name: "Unlimited users",
+        values: [true, "Per-seat", "Per-seat", "Limited"],
+      },
+      { name: "Starting price", values: ["$0", "$30/mo", "$15/mo", "Free"] },
+      { name: "Enterprise plan", values: [true, true, true, false] },
+    ],
+  },
+];
+
+const switchedFrom = [
+  {
+    name: "Seagull Logistics",
+    from: "QuickBooks",
+    quote: "We closed our first month in 4 days instead of 3 weeks.",
+  },
+  {
+    name: "Atlantic Traders",
+    from: "Xero",
+    quote:
+      "Multi-currency reconciliation that used to take hours now takes minutes.",
+  },
+  {
+    name: "SunuFresh Foods",
+    from: "Wave",
+    quote: "The AI agents do in 10 minutes what our bookkeeper did all week.",
   },
 ];
 
@@ -50,20 +151,32 @@ export default function CompareIndexPage() {
         </div>
       </section>
 
+      {/* Individual Comparison Cards */}
       <section className="py-16 bg-background">
-        <div className="mx-auto max-w-4xl px-4">
+        <div className="mx-auto max-w-5xl px-4">
+          <FadeInUp>
+            <div className="mb-10 text-center">
+              <h2 className="text-2xl font-bold text-foreground">
+                Detailed comparisons
+              </h2>
+              <p className="mt-2 text-muted-foreground">
+                Deep-dive into how Xenboox compares to each competitor.
+              </p>
+            </div>
+          </FadeInUp>
+
           <div className="grid gap-6 sm:grid-cols-2">
             {comparisons.map((comp, i) => (
-              <FadeInUp key={comp.slug} delay={i * 0.1}>
+              <FadeInUp key={comp.slug} delay={i * 0.08}>
                 <Link
                   href={`/compare/${comp.slug}`}
                   aria-label={`Compare Xenboox vs ${comp.slug}`}
                   className="group block rounded-2xl border border-border/60 bg-card p-6 transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] hover:shadow-[0_20px_50px_-20px_rgba(20,33,61,0.15)] hover:-translate-y-1 hover:border-border/40"
                 >
-                  <h2 className="text-xl font-bold text-foreground group-hover:text-primary transition-colors">
+                  <h3 className="text-lg font-bold text-foreground group-hover:text-primary transition-colors">
                     {comp.name}
-                  </h2>
-                  <p className="mt-2 text-sm text-muted-foreground">
+                  </h3>
+                  <p className="mt-1 text-sm text-muted-foreground">
                     {comp.tagline}
                   </p>
                   <ul className="mt-4 space-y-2">
@@ -88,21 +201,91 @@ export default function CompareIndexPage() {
               </FadeInUp>
             ))}
           </div>
+        </div>
+      </section>
 
-          <FadeInUp delay={0.25}>
-            <div className="mt-10 flex flex-wrap items-center justify-center gap-3 text-sm">
+      {/* Feature Comparison Matrix */}
+      <FeatureComparison
+        title="Feature-by-feature comparison"
+        subtitle="See exactly what you get with each platform — no marketing fluff."
+        columns={["Xenboox", "QuickBooks", "Xero", "Wave"]}
+        highlightColumn={0}
+        categories={featureMatrix}
+        links={[
+          { label: "vs QuickBooks", href: "/compare/quickbooks" },
+          { label: "vs Xero", href: "/compare/xero" },
+        ]}
+      />
+
+      {/* Social Proof */}
+      <section className="py-16 bg-paper-2/60 border-t border-border">
+        <div className="mx-auto max-w-5xl px-4 sm:px-6">
+          <FadeInUp>
+            <div className="mb-10 text-center">
+              <h2 className="text-3xl font-semibold tracking-tight text-foreground">
+                Companies that switched to Xenboox
+              </h2>
+              <p className="mt-3 text-muted-foreground">
+                They left traditional software behind. Here&apos;s what they
+                found.
+              </p>
+            </div>
+          </FadeInUp>
+
+          <div className="grid gap-6 md:grid-cols-3">
+            {switchedFrom.map((item, i) => (
+              <FadeInUp key={item.name} delay={i * 0.1}>
+                <div className="rounded-2xl border border-border/60 bg-card p-6 transition-all duration-300 hover:shadow-lg hover:-translate-y-1">
+                  <div className="flex items-center gap-1 mb-4">
+                    {Array.from({ length: 5 }).map((_, j) => (
+                      <Star
+                        key={j}
+                        className="h-4 w-4 fill-attention-amber text-attention-amber"
+                        aria-hidden="true"
+                      />
+                    ))}
+                  </div>
+                  <blockquote className="text-sm leading-relaxed text-foreground">
+                    &ldquo;{item.quote}&rdquo;
+                  </blockquote>
+                  <div className="mt-4 pt-4 border-t border-border/40">
+                    <p className="text-sm font-semibold text-foreground">
+                      {item.name}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Switched from {item.from}
+                    </p>
+                  </div>
+                </div>
+              </FadeInUp>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* CTA */}
+      <section className="py-16 bg-background border-t border-border">
+        <div className="mx-auto max-w-3xl px-4 text-center">
+          <FadeInUp>
+            <h2 className="text-3xl font-semibold tracking-tight text-foreground">
+              Ready to switch?
+            </h2>
+            <p className="mt-4 text-lg text-muted-foreground">
+              Start free with 1 AI agent. Most teams migrate in under 48 hours.
+            </p>
+            <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
               <Link
-                href="/pricing"
-                className="inline-flex h-10 items-center rounded-full border border-border bg-card px-5 font-medium text-foreground hover:bg-accent/50 transition-colors"
+                href="/register"
+                className="inline-flex h-12 items-center rounded-full bg-primary px-8 text-sm font-medium text-primary-foreground shadow-lg shadow-primary/25 transition-all duration-300 hover:shadow-primary/40 hover:scale-[1.02] active:scale-[0.98]"
               >
-                View pricing
-                <ArrowRight className="ml-1.5 h-4 w-4" aria-hidden="true" />
+                Start Free Trial
+                <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
               <Link
-                href="/pricing#compare"
-                className="inline-flex h-10 items-center rounded-full bg-primary px-5 font-medium text-primary-foreground hover:bg-primary-hover transition-colors"
+                href="/pricing"
+                className="inline-flex h-12 items-center rounded-full border border-border bg-card px-8 text-sm font-medium text-foreground transition-all duration-300 hover:bg-accent/50"
               >
-                Quick comparison table
+                View Pricing
               </Link>
             </div>
           </FadeInUp>

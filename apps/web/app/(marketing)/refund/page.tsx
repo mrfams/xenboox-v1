@@ -3,9 +3,16 @@ import type { Metadata } from "next";
 import { LegalHero, LegalContent } from "@/components/marketing/legal-hero";
 
 export const metadata: Metadata = {
-  title: "Refund Policy",
+  title: "Refund Policy | Xenboox",
   description:
     "Our policy on refunds, cancellations, and billing disputes. We aim to be fair and transparent.",
+  openGraph: {
+    title: "Refund Policy | Xenboox",
+    description: "Our policy on refunds, cancellations, and billing disputes.",
+    url: "https://xenboox.com/refund",
+    siteName: "Xenboox",
+    type: "website",
+  },
 };
 
 const tableOfContents = [

@@ -18,9 +18,17 @@ import {
 import { FadeInUp } from "@/components/marketing/reveal";
 
 export const metadata: Metadata = {
-  title: "Documentation",
+  title: "Documentation — Guides, API Reference | Xenboox",
   description:
-    "Everything you need to build with Xenboox - from quickstart guides to API references.",
+    "Everything you need to build with Xenboox — from quickstart guides to API references, SDKs, and integration tutorials.",
+  openGraph: {
+    title: "Documentation — Guides, API Reference | Xenboox",
+    description:
+      "Everything you need to build with Xenboox — quickstart guides, API references, SDKs.",
+    url: "https://xenboox.com/docs",
+    siteName: "Xenboox",
+    type: "website",
+  },
 };
 
 const categories = [
@@ -127,6 +135,27 @@ const popularGuides = [
     readTime: "12 min read",
   },
 ];
+
+const codeExample = `// Create an invoice with the Xenboox API
+import { Xenboox } from '@xenboox/sdk';
+
+const xenboox = new Xenboox({ apiKey: 'xk_live_...' });
+
+const invoice = await xenboox.invoices.create({
+  customer: 'cus_seagull_logistics',
+  currency: 'GMD',
+  line_items: [
+    {
+      description: 'Freight services — Banjul to Dubai',
+      amount: 486000,
+      quantity: 1,
+    },
+  ],
+  due_date: '2026-09-15',
+});
+
+console.log(invoice.id); // "inv_1042"
+console.log(invoice.status); // "draft"`;
 
 export default function DocsPage() {
   return (
@@ -266,6 +295,70 @@ export default function DocsPage() {
             </FadeInUp>
           ))}
         </div>
+      </section>
+
+      {/* Code Example */}
+      <section className="py-10 border-t border-border">
+        <FadeInUp>
+          <div className="grid gap-8 lg:grid-cols-2 items-start">
+            <div>
+              <h2 className="text-xl font-semibold text-foreground mb-3">
+                Ship in minutes, not days
+              </h2>
+              <p className="text-sm text-muted-foreground leading-relaxed mb-4">
+                Our SDK makes it easy to integrate Xenboox into your existing
+                workflows. Create invoices, reconcile accounts, and generate
+                reports with a few lines of code.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {["TypeScript", "Python", "Go", "Ruby"].map((lang) => (
+                  <span
+                    key={lang}
+                    className="inline-flex items-center rounded-full bg-muted/50 px-2.5 py-0.5 text-xs font-medium text-muted-foreground"
+                  >
+                    {lang}
+                  </span>
+                ))}
+              </div>
+            </div>
+            <div className="rounded-2xl border border-border bg-ledger-ink overflow-hidden">
+              <div className="flex items-center gap-1.5 border-b border-white/10 px-4 py-2.5">
+                <span className="h-2.5 w-2.5 rounded-full bg-error-clay/70" />
+                <span className="h-2.5 w-2.5 rounded-full bg-attention-amber/70" />
+                <span className="h-2.5 w-2.5 rounded-full bg-balanced-green/70" />
+                <span className="ml-3 text-[11px] font-medium text-paper/50">
+                  example.ts
+                </span>
+              </div>
+              <pre className="p-4 overflow-x-auto text-[13px] leading-relaxed text-paper/90 font-mono">
+                <code>{codeExample}</code>
+              </pre>
+            </div>
+          </div>
+        </FadeInUp>
+      </section>
+
+      {/* Feedback */}
+      <section className="py-8 border-t border-border">
+        <FadeInUp>
+          <div className="flex items-center justify-center gap-4 text-sm">
+            <span className="text-muted-foreground">Was this helpful?</span>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                className="inline-flex h-8 items-center gap-1.5 rounded-full border border-border bg-card px-3 text-xs font-medium text-muted-foreground transition-all hover:bg-accent/50 hover:text-foreground"
+              >
+                👍 Yes
+              </button>
+              <button
+                type="button"
+                className="inline-flex h-8 items-center gap-1.5 rounded-full border border-border bg-card px-3 text-xs font-medium text-muted-foreground transition-all hover:bg-accent/50 hover:text-foreground"
+              >
+                👎 No
+              </button>
+            </div>
+          </div>
+        </FadeInUp>
       </section>
 
       {/* Need Help */}

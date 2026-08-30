@@ -96,6 +96,63 @@ const pressKit = [
     description: "High-resolution product screenshots",
     format: "ZIP",
   },
+  {
+    name: "Company Fact Sheet",
+    description: "Key facts, figures, and executive summary",
+    format: "PDF",
+  },
+  {
+    name: "Brand Guidelines",
+    description: "Typography, spacing, and usage rules",
+    format: "PDF",
+  },
+  {
+    name: "Founder Headshots",
+    description: "High-resolution photos of the founding team",
+    format: "ZIP",
+  },
+];
+
+const recentCoverage = [
+  {
+    outlet: "TechCrunch",
+    headline:
+      "Xenboox raises seed round to bring AI-native accounting to emerging markets",
+    date: "Aug 2025",
+    type: "Funding",
+  },
+  {
+    outlet: "Forbes",
+    headline:
+      "How 19 AI agents are replacing the traditional accounting department",
+    date: "Jul 2025",
+    type: "Feature",
+  },
+  {
+    outlet: "VentureBeat",
+    headline:
+      "AI-native startups are quietly transforming financial operations for SMEs",
+    date: "Jun 2025",
+    type: "Industry",
+  },
+];
+
+const mediaContacts = [
+  {
+    name: "Press Inquiries",
+    email: "press@xenboox.com",
+    note: "General media, interviews, commentary",
+  },
+  {
+    name: "Partnership Inquiries",
+    email: "partnerships@xenboox.com",
+    note: "Integration and reseller partnerships",
+  },
+  {
+    name: "Legal & Compliance",
+    email: "legal@xenboox.com",
+    note: "DMCA, compliance, regulatory inquiries",
+  },
 ];
 
 export default function PressPage() {
@@ -214,8 +271,44 @@ export default function PressPage() {
         </div>
       </Section>
 
+      {/* Recent Coverage */}
+      <Section className="bg-paper-2/60">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <SectionHeading
+            eyebrow="Recent Coverage"
+            title="Xenboox in the news"
+            lead="Latest press coverage and media mentions."
+          />
+
+          <div className="mt-16 space-y-4">
+            {recentCoverage.map((article, index) => (
+              <FadeInUp key={article.headline} delay={index * 0.08}>
+                <div className="flex items-start justify-between gap-4 rounded-2xl border border-border bg-card p-6 transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3 mb-2">
+                      <span className="text-sm font-bold text-foreground">
+                        {article.outlet}
+                      </span>
+                      <span className="inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
+                        {article.type}
+                      </span>
+                    </div>
+                    <p className="text-foreground font-medium">
+                      {article.headline}
+                    </p>
+                  </div>
+                  <span className="shrink-0 text-xs text-muted-foreground">
+                    {article.date}
+                  </span>
+                </div>
+              </FadeInUp>
+            ))}
+          </div>
+        </div>
+      </Section>
+
       {/* Press Kit */}
-      <Section className="bg-paper-2/60" id="press-kit">
+      <Section className="bg-paper" id="press-kit">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <SectionHeading
             eyebrow="Press Kit"
@@ -249,41 +342,72 @@ export default function PressPage() {
         </div>
       </Section>
 
-      {/* Press Contact */}
-      <Section className="bg-paper">
+      {/* Media Contacts */}
+      <Section className="bg-paper-2/60">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="mx-auto max-w-2xl text-center">
-            <FadeInUp>
-              <h2 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
-                Get in touch
-              </h2>
-              <p className="mt-4 text-lg text-muted-foreground">
-                For press inquiries, interview requests, or media appearances,
-                contact our press team.
-              </p>
-              <div className="mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row">
-                <a
-                  href="mailto:press@xenboox.com"
-                  className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-medium text-primary-foreground shadow-lg shadow-primary/25 transition-all hover:shadow-primary/40 hover:scale-[1.02] active:scale-[0.98]"
-                >
-                  <Mail className="h-4 w-4" />
-                  press@xenboox.com
-                </a>
-                <a
-                  href="https://twitter.com/xenboox"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-6 py-3 text-sm font-medium text-foreground transition-all hover:bg-accent/50"
-                >
-                  @xenboox
-                  <ExternalLink className="h-3.5 w-3.5" />
-                </a>
-              </div>
-              <p className="mt-6 text-sm text-muted-foreground">
-                Response time: Within 24 hours for media inquiries
-              </p>
-            </FadeInUp>
+          <SectionHeading
+            eyebrow="Media Contacts"
+            title="Who to contact"
+            lead="Reach the right person for your inquiry."
+          />
+
+          <div className="mt-16 grid gap-4 sm:grid-cols-3">
+            {mediaContacts.map((contact, index) => (
+              <FadeInUp key={contact.name} delay={index * 0.08}>
+                <div className="rounded-2xl border border-border bg-card p-6 text-center transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5">
+                  <h3 className="font-semibold text-foreground">
+                    {contact.name}
+                  </h3>
+                  <a
+                    href={`mailto:${contact.email}`}
+                    className="mt-2 inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"
+                  >
+                    <Mail className="h-3.5 w-3.5" />
+                    {contact.email}
+                  </a>
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    {contact.note}
+                  </p>
+                </div>
+              </FadeInUp>
+            ))}
           </div>
+        </div>
+      </Section>
+
+      {/* CTA */}
+      <Section className="bg-paper">
+        <div className="mx-auto max-w-2xl px-4 text-center">
+          <FadeInUp>
+            <h2 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
+              Get in touch
+            </h2>
+            <p className="mt-4 text-lg text-muted-foreground">
+              For press inquiries, interview requests, or media appearances,
+              contact our press team.
+            </p>
+            <div className="mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row">
+              <a
+                href="mailto:press@xenboox.com"
+                className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-medium text-primary-foreground shadow-lg shadow-primary/25 transition-all hover:shadow-primary/40 hover:scale-[1.02] active:scale-[0.98]"
+              >
+                <Mail className="h-4 w-4" />
+                press@xenboox.com
+              </a>
+              <a
+                href="https://twitter.com/xenboox"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-6 py-3 text-sm font-medium text-foreground transition-all hover:bg-accent/50"
+              >
+                @xenboox
+                <ExternalLink className="h-3.5 w-3.5" />
+              </a>
+            </div>
+            <p className="mt-6 text-sm text-muted-foreground">
+              Response time: Within 24 hours for media inquiries
+            </p>
+          </FadeInUp>
         </div>
       </Section>
     </>

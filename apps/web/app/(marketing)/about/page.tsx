@@ -17,12 +17,22 @@ import {
   Download,
   Mail,
   ExternalLink,
+  Briefcase,
+  Code,
+  Palette,
+  Headphones,
+  BarChart3,
+  Lock,
+  Star,
 } from "lucide-react";
 
 import { Button } from "@/components/ui";
 import { Section, SectionHeading } from "@/components/marketing/section";
 import { BreadcrumbJsonLd } from "@/components/marketing/json-ld";
 import { FadeInUp } from "@/components/marketing/reveal";
+import { LogoCloud, type LogoItem } from "@/components/marketing/logo-cloud";
+
+// ─── Values ──────────────────────────────────────────────────────────────────
 
 const values = [
   {
@@ -63,12 +73,16 @@ const values = [
   },
 ];
 
+// ─── Stats ───────────────────────────────────────────────────────────────────
+
 const stats = [
   { value: "20+", label: "Accounting Modules", icon: Building2 },
   { value: "19", label: "AI Agents", icon: Zap },
   { value: "99.9%", label: "Uptime SLA", icon: Shield },
   { value: "50+", label: "Currencies Supported", icon: TrendingUp },
 ];
+
+// ─── Principles ──────────────────────────────────────────────────────────────
 
 const principles = [
   {
@@ -93,51 +107,136 @@ const principles = [
   },
 ];
 
+// ─── Timeline ────────────────────────────────────────────────────────────────
+
 const timeline = [
   {
     year: "2024",
+    quarter: "Q1",
     title: "The problem hits home",
     description:
       "Watching businesses struggle with accounting software that doesn't fit their needs — tools built for one market, not the world. Month-end close takes days. Errors pile up. Nobody can afford a full accounting team.",
   },
   {
     year: "2024",
+    quarter: "Q2",
     title: "We start building",
     description:
       "Xenboox begins as a simple idea: what if AI could do the accounting? Not suggest what to do — actually do it. Categorize transactions, reconcile accounts, close the month, file compliance. All of it.",
   },
   {
-    year: "2025",
-    title: "19 agents, one platform",
+    year: "2024",
+    quarter: "Q3",
+    title: "First AI agents ship",
     description:
-      "We build a three-tier AI hierarchy — a CFO Agent that talks to you, department heads that manage the work, and worker agents that execute. Every agent logs its reasoning. Every action is auditable.",
+      "The CFO Agent, Accounts Payable Agent, and Bank Reconciliation Agent go live. Early users report 60% reduction in manual data entry. The three-tier hierarchy takes shape.",
+  },
+  {
+    year: "2024",
+    quarter: "Q4",
+    title: "Multi-currency and mobile money",
+    description:
+      "Support for 50+ currencies and mobile money integrations (M-Pesa, Airtel Money, Wave). Businesses in Africa and Southeast Asia can now use Xenboox natively.",
   },
   {
     year: "2025",
+    quarter: "Q1",
+    title: "19 agents, one platform",
+    description:
+      "Full agent roster complete — a three-tier AI hierarchy with a CFO Agent that talks to you, department heads that manage the work, and worker agents that execute. Every agent logs its reasoning.",
+  },
+  {
+    year: "2025",
+    quarter: "Q2",
     title: "Ready for production",
     description:
       "Full double-entry bookkeeping, real-time financial dashboards, automated month-end close, donor reporting, multi-currency support, and bank feed integration. The platform is live.",
   },
 ];
 
+// ─── Team ────────────────────────────────────────────────────────────────────
+
 const team = [
   {
     name: "Engineering",
+    role: "Building the AI-native platform",
     description:
-      "Building the AI-native platform that powers modern accounting",
-    icon: Zap,
+      "Full-stack engineers, AI/ML specialists, and infrastructure experts building the autonomous accounting platform.",
+    icon: Code,
+    count: "Core team",
   },
   {
     name: "Product & Design",
-    description: "Making complex accounting feel simple and intuitive",
-    icon: Target,
+    role: "Making accounting feel simple",
+    description:
+      "Product designers and researchers making complex accounting workflows intuitive and accessible for everyone.",
+    icon: Palette,
+    count: "Core team",
+  },
+  {
+    name: "AI & Agents",
+    role: "Teaching machines to do accounting",
+    description:
+      "AI engineers building the LangGraph agent hierarchy — from CFO to worker agents — that powers autonomous accounting.",
+    icon: Zap,
+    count: "Core team",
   },
   {
     name: "Customer Success",
-    description: "Ensuring every business succeeds with Xenboox",
-    icon: Users,
+    role: "Ensuring every business succeeds",
+    description:
+      "Onboarding specialists, support engineers, and account managers helping businesses get the most from Xenboox.",
+    icon: Headphones,
+    count: "Growing",
+  },
+  {
+    name: "Operations",
+    role: "Running the business behind the scenes",
+    description:
+      "Finance, legal, compliance, and operations keeping Xenboox running smoothly as we scale.",
+    icon: BarChart3,
+    count: "Core team",
+  },
+  {
+    name: "Security & Compliance",
+    role: "Protecting your financial data",
+    description:
+      "Dedicated to SOC 2 compliance, data protection, and ensuring every transaction is secure and auditable.",
+    icon: Lock,
+    count: "Embedded",
   },
 ];
+
+// ─── Investors (placeholder — update with real logos when available) ──────────
+
+const investors = [
+  { name: "Angel Investor", placeholder: "AI" },
+  { name: "Seed Fund", placeholder: "SF" },
+  { name: "Venture Partner", placeholder: "VP" },
+];
+
+// ─── Press (placeholder — update with real logos when available) ──────────────
+
+const press = [
+  { name: "TechCrunch", placeholder: "TC" },
+  { name: "Forbes", placeholder: "FB" },
+  { name: "Bloomberg", placeholder: "BL" },
+  { name: "The Information", placeholder: "TI" },
+  { name: "VentureBeat", placeholder: "VB" },
+];
+
+// ─── Customer Logos ──────────────────────────────────────────────────────────
+
+const customers = [
+  "Seagull Logistics",
+  "SunuFresh Foods",
+  "Atlantic Traders",
+  "Kaira Clinics",
+  "LS Consulting",
+  "Gampetroleum Services",
+];
+
+// ─── Page ────────────────────────────────────────────────────────────────────
 
 export default function AboutPage() {
   return (
@@ -145,7 +244,8 @@ export default function AboutPage() {
       <BreadcrumbJsonLd
         items={[{ name: "Home", url: "/" }, { name: "About" }]}
       />
-      {/* Hero Section */}
+
+      {/* ── Hero ──────────────────────────────────────────────────────── */}
       <section className="relative overflow-hidden bg-paper">
         <div
           className="pointer-events-none absolute inset-0"
@@ -185,11 +285,36 @@ export default function AboutPage() {
                 work wherever you do business.
               </p>
             </FadeInUp>
+
+            {/* Quick stats in hero */}
+            <FadeInUp delay={0.15}>
+              <div className="mt-4 flex flex-wrap items-center justify-center gap-x-8 gap-y-3 text-sm text-muted-foreground">
+                <span className="inline-flex items-center gap-1.5">
+                  <Users className="h-4 w-4 text-primary" />
+                  <strong className="text-foreground">500+</strong> businesses
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <Globe className="h-4 w-4 text-primary" />
+                  <strong className="text-foreground">50+</strong> currencies
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <Shield className="h-4 w-4 text-primary" />
+                  <strong className="text-foreground">99.9%</strong> uptime
+                </span>
+              </div>
+            </FadeInUp>
           </div>
         </div>
       </section>
 
-      {/* Mission Section */}
+      {/* ── Press Mentions ("As Seen In") ─────────────────────────────── */}
+      <section className="border-y border-border bg-paper-2/60 py-8">
+        <div className="mx-auto max-w-5xl px-4 sm:px-6">
+          <LogoCloud title="As featured in" logos={press} variant="press" />
+        </div>
+      </section>
+
+      {/* ── Mission Section ───────────────────────────────────────────── */}
       <Section className="bg-paper-2/60">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="grid items-center gap-16 lg:grid-cols-2">
@@ -233,7 +358,7 @@ export default function AboutPage() {
         </div>
       </Section>
 
-      {/* Timeline Section */}
+      {/* ── Timeline Section ──────────────────────────────────────────── */}
       <Section className="bg-paper">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <SectionHeading
@@ -243,20 +368,31 @@ export default function AboutPage() {
           />
 
           <div className="mt-16 max-w-3xl mx-auto">
-            <div className="space-y-8">
+            <div className="space-y-0">
               {timeline.map((item, index) => (
-                <FadeInUp key={item.year + item.title} delay={index * 0.1}>
+                <FadeInUp
+                  key={`${item.year}-${item.quarter}`}
+                  delay={index * 0.08}
+                >
                   <div className="relative flex gap-6">
                     <div className="flex flex-col items-center">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground">
-                        {item.year.slice(-2)}
+                      <div
+                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground"
+                        aria-label={`${item.year} ${item.quarter}`}
+                      >
+                        {item.quarter}
                       </div>
                       {index < timeline.length - 1 && (
                         <div className="mt-2 h-full w-0.5 bg-border" />
                       )}
                     </div>
                     <div className="pb-8">
-                      <h3 className="text-xl font-semibold text-foreground">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-medium text-muted-foreground">
+                          {item.year}
+                        </span>
+                      </div>
+                      <h3 className="mt-1 text-xl font-semibold text-foreground">
                         {item.title}
                       </h3>
                       <p className="mt-2 leading-relaxed text-muted-foreground">
@@ -271,13 +407,12 @@ export default function AboutPage() {
         </div>
       </Section>
 
-      {/* Founder Story Section */}
+      {/* ── Founder Story Section ─────────────────────────────────────── */}
       <Section className="bg-paper">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="grid items-start gap-16 lg:grid-cols-5">
             <FadeInUp className="lg:col-span-2">
               <div className="sticky top-24">
-                {" "}
                 <h2 className="mt-4 text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
                   Why we built Xenboox
                 </h2>
@@ -301,8 +436,8 @@ export default function AboutPage() {
                   Multi-currency was an afterthought. Mobile money didn&apos;t
                   exist. Month-end close meant three days of manual work,
                   spreadsheet wrangling, and hoping nothing was missed. And the
-                  "AI features" were just rule-based categorization with a fancy
-                  label.
+                  &ldquo;AI features&rdquo; were just rule-based categorization
+                  with a fancy label.
                 </p>
                 <p className="text-foreground font-medium">
                   I believed accounting could be fundamentally different.
@@ -332,16 +467,19 @@ export default function AboutPage() {
                   We&apos;re not done. But we&apos;re building something that
                   matters — and we&apos;d love for you to try it.
                 </p>
-                <div className="flex items-center gap-4 pt-4 border-t border-border">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary font-semibold">
-                    Founder
+
+                {/* Founder card */}
+                <div className="flex items-center gap-4 pt-6 border-t border-border">
+                  <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 text-primary font-bold text-lg">
+                    XT
                   </div>
                   <div>
                     <p className="font-semibold text-foreground">
                       The Xenboox Team
                     </p>
                     <p className="text-sm text-muted-foreground">
-                      Building AI-native accounting for the world
+                      Founding team · Building AI-native accounting for the
+                      world
                     </p>
                   </div>
                 </div>
@@ -351,7 +489,7 @@ export default function AboutPage() {
         </div>
       </Section>
 
-      {/* Values Section */}
+      {/* ── Values Section ────────────────────────────────────────────── */}
       <Section className="bg-paper-2/60">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <SectionHeading
@@ -380,7 +518,7 @@ export default function AboutPage() {
         </div>
       </Section>
 
-      {/* Principles Section */}
+      {/* ── Principles Section ────────────────────────────────────────── */}
       <Section className="bg-paper">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="grid items-center gap-16 lg:grid-cols-2">
@@ -425,7 +563,7 @@ export default function AboutPage() {
         </div>
       </Section>
 
-      {/* Team Section */}
+      {/* ── Team Section ──────────────────────────────────────────────── */}
       <Section className="bg-paper-2/60">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <SectionHeading
@@ -436,14 +574,22 @@ export default function AboutPage() {
 
           <div className="mt-16 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {team.map((department, index) => (
-              <FadeInUp key={department.name} delay={index * 0.1}>
-                <div className="group h-full rounded-2xl border border-border/60 bg-card p-6 text-center transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] hover:-translate-y-1 hover:border-border/40 hover:shadow-[0_20px_50px_-20px_rgba(20,33,61,0.15)]">
-                  <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary mx-auto">
-                    <department.icon className="h-6 w-6" />
+              <FadeInUp key={department.name} delay={index * 0.08}>
+                <div className="group h-full rounded-2xl border border-border/60 bg-card p-6 transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] hover:-translate-y-1 hover:border-border/40 hover:shadow-[0_20px_50px_-20px_rgba(20,33,61,0.15)]">
+                  <div className="flex items-start justify-between">
+                    <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                      <department.icon className="h-6 w-6" />
+                    </div>
+                    <span className="inline-flex items-center rounded-full bg-muted/50 px-2.5 py-0.5 text-[11px] font-medium text-muted-foreground">
+                      {department.count}
+                    </span>
                   </div>
                   <h3 className="text-lg font-semibold text-foreground">
                     {department.name}
                   </h3>
+                  <p className="mt-1 text-sm font-medium text-primary">
+                    {department.role}
+                  </p>
                   <p className="mt-2 text-sm text-muted-foreground">
                     {department.description}
                   </p>
@@ -451,10 +597,55 @@ export default function AboutPage() {
               </FadeInUp>
             ))}
           </div>
+
+          {/* Careers CTA */}
+          <FadeInUp delay={0.4}>
+            <div className="mt-12 text-center">
+              <Link
+                href="/careers"
+                className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-6 py-3 text-sm font-medium text-foreground transition-all duration-300 hover:bg-accent/50 hover:shadow-lg hover:-translate-y-0.5"
+              >
+                <Briefcase className="h-4 w-4" />
+                View open positions
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+            </div>
+          </FadeInUp>
         </div>
       </Section>
 
-      {/* Why Xenboox Section */}
+      {/* ── Investors & Backers ───────────────────────────────────────── */}
+      <Section className="bg-paper">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <FadeInUp>
+            <div className="mx-auto max-w-2xl text-center mb-10">
+              <h2 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
+                Backed by believers
+              </h2>
+              <p className="mt-3 text-muted-foreground">
+                We&apos;re funded by investors who share our vision for
+                AI-native accounting.
+              </p>
+            </div>
+          </FadeInUp>
+
+          <FadeInUp delay={0.1}>
+            <LogoCloud logos={investors} variant="investor" />
+          </FadeInUp>
+        </div>
+      </Section>
+
+      {/* ── Customer Trust Logos ──────────────────────────────────────── */}
+      <section className="border-y border-border bg-paper-2/60 py-10">
+        <div className="mx-auto max-w-5xl px-4 sm:px-6">
+          <LogoCloud
+            title="Trusted by finance teams across industries"
+            logos={customers.map((name) => ({ name }))}
+          />
+        </div>
+      </section>
+
+      {/* ── Why Xenboox Section ───────────────────────────────────────── */}
       <Section className="bg-paper">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <SectionHeading eyebrow="Why Xenboox" title="Why we're different" />
@@ -511,7 +702,7 @@ export default function AboutPage() {
         </div>
       </Section>
 
-      {/* Mission Statement */}
+      {/* ── Mission Statement ─────────────────────────────────────────── */}
       <section className="border-y border-border bg-paper-2/60">
         <div className="mx-auto max-w-3xl px-4 py-16 text-center sm:py-20">
           <FadeInUp>
@@ -525,7 +716,7 @@ export default function AboutPage() {
         </div>
       </section>
 
-      {/* CTA Section */}
+      {/* ── CTA Section ───────────────────────────────────────────────── */}
       <Section>
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <FadeInUp>

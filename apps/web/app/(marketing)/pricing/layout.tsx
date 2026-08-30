@@ -1,9 +1,17 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Pricing — Start Free, Scale As You Grow",
+  title: "Pricing — AI-Native Accounting for SMEs | Xenboox",
   description:
-    "Free tier with 1 AI agent. Starter plan with all AI agents. Business plan for multi-entity, multi-currency. No hidden fees.",
+    "Start free with 1 AI agent. Upgrade to unlock all 19 agents, multi-currency, payroll, and treasury. Cancel anytime. 30-day money-back guarantee.",
+  openGraph: {
+    title: "Pricing — AI-Native Accounting for SMEs | Xenboox",
+    description:
+      "Start free with 1 AI agent. Upgrade to unlock all 19 agents, multi-currency, payroll, and treasury.",
+    url: "https://xenboox.com/pricing",
+    siteName: "Xenboox",
+    type: "website",
+  },
 };
 
 export default function PricingLayout({

@@ -14,6 +14,22 @@ import {
 
 import { FadeInUp } from "@/components/marketing/reveal";
 import { BreadcrumbJsonLd } from "@/components/marketing/json-ld";
+import { LogoCloud } from "@/components/marketing/logo-cloud";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Xenboox — AI-Native Accounting Platform | One-Pager",
+  description:
+    "19 AI agents handle invoicing, payroll, compliance, and close. Multi-currency, multi-entity, bank-grade security. Start free.",
+  openGraph: {
+    title: "Xenboox — AI-Native Accounting Platform",
+    description:
+      "19 AI agents handle invoicing, payroll, compliance, and close.",
+    url: "https://xenboox.com/one-pager",
+    siteName: "Xenboox",
+    type: "website",
+  },
+};
 
 const features = [
   "19 AI agents handling invoicing, payroll, compliance, and close",
@@ -33,6 +49,14 @@ const stats = [
   { value: "99.9%", label: "Uptime SLA" },
 ];
 
+const customerLogos = [
+  { name: "Seagull Logistics" },
+  { name: "SunuFresh Foods" },
+  { name: "Atlantic Traders" },
+  { name: "Kaira Clinics" },
+  { name: "LS Consulting" },
+];
+
 export default function OnePagerPage() {
   return (
     <>
@@ -41,16 +65,28 @@ export default function OnePagerPage() {
       />
 
       {/* Hero */}
-      <section className="bg-paper py-16 sm:py-24">
-        <div className="mx-auto max-w-4xl px-4 text-center">
+      <section className="relative overflow-hidden bg-paper">
+        <div
+          className="pointer-events-none absolute inset-0"
+          aria-hidden="true"
+          style={{
+            backgroundImage:
+              "radial-gradient(rgba(20, 33, 61, 0.06) 1px, transparent 1px)",
+            backgroundSize: "24px 24px",
+            maskImage:
+              "radial-gradient(ellipse at center, black 30%, transparent 75%)",
+            WebkitMaskImage:
+              "radial-gradient(ellipse at center, black 30%, transparent 75%)",
+          }}
+        />
+        <div className="relative mx-auto max-w-4xl px-4 py-16 sm:py-24 text-center">
           <FadeInUp>
-            {" "}
-            <h1 className="mt-6 text-4xl sm:text-5xl font-bold tracking-tight text-foreground">
-              Xenboox
+            <h1 className="text-4xl sm:text-5xl font-bold tracking-tight text-foreground">
+              Your books. On autopilot.
             </h1>
             <p className="mt-4 text-xl text-muted-foreground max-w-2xl mx-auto">
-              AI-native accounting platform. 19 agents do the work. Humans make
-              decisions.
+              19 AI agents handle invoicing, payroll, compliance, and month-end
+              close — so you can focus on growing your business.
             </p>
           </FadeInUp>
 
@@ -68,6 +104,34 @@ export default function OnePagerPage() {
               ))}
             </div>
           </FadeInUp>
+
+          <FadeInUp delay={0.2}>
+            <div className="mt-10 flex flex-wrap justify-center gap-4">
+              <Link
+                href="/register"
+                className="inline-flex h-12 items-center rounded-full bg-primary px-8 text-sm font-medium text-primary-foreground shadow-lg shadow-primary/25 transition-all duration-300 hover:shadow-primary/40 hover:scale-[1.02] active:scale-[0.98]"
+              >
+                Start Free Trial
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Link>
+              <Link
+                href="/pricing"
+                className="inline-flex h-12 items-center rounded-full border border-border bg-card px-8 text-sm font-medium text-foreground transition-all duration-300 hover:bg-accent/50"
+              >
+                View Pricing
+              </Link>
+            </div>
+          </FadeInUp>
+        </div>
+      </section>
+
+      {/* Social Proof */}
+      <section className="border-y border-border bg-paper-2/60 py-8">
+        <div className="mx-auto max-w-4xl px-4">
+          <LogoCloud
+            title="Trusted by finance teams across industries"
+            logos={customerLogos}
+          />
         </div>
       </section>
 
@@ -146,29 +210,51 @@ export default function OnePagerPage() {
 
       {/* Pricing */}
       <section className="py-16 bg-background">
-        <div className="mx-auto max-w-3xl px-4">
+        <div className="mx-auto max-w-4xl px-4">
           <FadeInUp>
             <h2 className="text-2xl font-bold text-foreground mb-8 text-center">
               Simple pricing
             </h2>
-            <div className="grid gap-4 sm:grid-cols-3">
+            <div className="grid gap-4 sm:grid-cols-4">
               {[
-                { name: "Free", price: "$0", desc: "Solo founders" },
+                {
+                  name: "Free",
+                  price: "$0",
+                  desc: "Solo founders",
+                  highlight: false,
+                },
                 {
                   name: "Starter",
                   price: "$29/mo",
                   desc: "Growing businesses",
+                  highlight: true,
                 },
                 {
                   name: "Business",
                   price: "$79/mo",
                   desc: "Multi-entity teams",
+                  highlight: false,
+                },
+                {
+                  name: "Enterprise",
+                  price: "Custom",
+                  desc: "Complex organizations",
+                  highlight: false,
                 },
               ].map((tier) => (
                 <div
                   key={tier.name}
-                  className="rounded-xl border border-border bg-card p-5 text-center"
+                  className={`rounded-xl border bg-card p-5 text-center transition-all ${
+                    tier.highlight
+                      ? "border-primary shadow-lg shadow-primary/10"
+                      : "border-border"
+                  }`}
                 >
+                  {tier.highlight && (
+                    <div className="text-[10px] font-semibold text-primary mb-2 uppercase tracking-wider">
+                      Most Popular
+                    </div>
+                  )}
                   <div className="text-sm font-medium text-muted-foreground">
                     {tier.name}
                   </div>

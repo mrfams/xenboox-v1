@@ -3,9 +3,16 @@ import type { Metadata } from "next";
 import { LegalHero, LegalContent } from "@/components/marketing/legal-hero";
 
 export const metadata: Metadata = {
-  title: "Privacy Policy",
+  title: "Privacy Policy | Xenboox",
   description:
     "How Xenboox collects, uses, and protects your personal data. We believe in transparency and giving you control over your information.",
+  openGraph: {
+    title: "Privacy Policy | Xenboox",
+    description: "How Xenboox collects, uses, and protects your personal data.",
+    url: "https://xenboox.com/privacy",
+    siteName: "Xenboox",
+    type: "website",
+  },
 };
 
 const tableOfContents = [

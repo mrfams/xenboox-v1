@@ -13,27 +13,32 @@ import {
 
 import { FadeInUp } from "@/components/marketing/reveal";
 import { BreadcrumbJsonLd } from "@/components/marketing/json-ld";
+import {
+  HowItWorks,
+  type HowItWorksStep,
+} from "@/components/marketing/how-it-works";
 
-const steps = [
+const migrationSteps: HowItWorksStep[] = [
   {
+    step: "1",
+    title: "Export your data",
+    description:
+      "Export your chart of accounts, customers, vendors, and transactions from QuickBooks or Xero as CSV/Excel files.",
     icon: Upload,
-    title: "1. Export your data",
-    desc: "Export your chart of accounts, customers, vendors, and transactions from QuickBooks or Xero as CSV/Excel files.",
   },
   {
+    step: "2",
+    title: "Upload to Xenboox",
+    description:
+      "Drag and drop your files into the import wizard. The AI maps your data to Xenboox's schema automatically.",
     icon: FileText,
-    title: "2. Upload to Xenboox",
-    desc: "Drag and drop your files into the import wizard. The AI maps your data to Xenboox's schema automatically.",
   },
   {
+    step: "3",
+    title: "Review & confirm",
+    description:
+      "Review the AI's mapping suggestions. Confirm or adjust before importing. The AI learns from your corrections.",
     icon: CheckCircle2,
-    title: "3. Review & confirm",
-    desc: "Review the AI's mapping suggestions. Confirm or adjust before importing. The AI learns from your corrections.",
-  },
-  {
-    icon: Zap,
-    title: "4. Start using Xenboox",
-    desc: "Your data is live. The 19 AI agents start working immediately — categorizing, reconciling, and forecasting.",
   },
 ];
 
@@ -100,30 +105,44 @@ export default function MigrationPage() {
       </section>
 
       {/* Steps */}
-      <section className="py-16 bg-background">
+      <HowItWorks
+        title="How migration works"
+        subtitle="Three simple steps to switch from your current software."
+        steps={migrationSteps}
+      />
+
+      {/* Timeline Estimates */}
+      <section className="py-12 bg-paper-2/60 border-y border-border">
         <div className="mx-auto max-w-4xl px-4">
           <FadeInUp>
-            <h2 className="text-2xl font-bold text-foreground mb-8 text-center">
-              How migration works
-            </h2>
-          </FadeInUp>
-          <div className="grid gap-6 sm:grid-cols-2">
-            {steps.map((step, i) => (
-              <FadeInUp key={step.title} delay={i * 0.1}>
-                <div className="rounded-2xl border border-border bg-card p-6">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 dark:bg-blue-900/40 mb-4">
-                    <step.icon className="h-5 w-5 text-primary" />
-                  </div>
-                  <h3 className="font-semibold text-foreground">
-                    {step.title}
-                  </h3>
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    {step.desc}
+            <div className="grid gap-6 sm:grid-cols-3 text-center">
+              {[
+                {
+                  time: "~5 min",
+                  label: "QuickBooks import",
+                  desc: "Chart of accounts + transactions",
+                },
+                {
+                  time: "~5 min",
+                  label: "Xero import",
+                  desc: "Contacts + invoices + journals",
+                },
+                {
+                  time: "~10 min",
+                  label: "Spreadsheet import",
+                  desc: "Any CSV/Excel format",
+                },
+              ].map((item) => (
+                <div key={item.label}>
+                  <p className="text-2xl font-bold text-primary">{item.time}</p>
+                  <p className="mt-1 text-sm font-medium text-foreground">
+                    {item.label}
                   </p>
+                  <p className="text-xs text-muted-foreground">{item.desc}</p>
                 </div>
-              </FadeInUp>
-            ))}
-          </div>
+              ))}
+            </div>
+          </FadeInUp>
         </div>
       </section>
 

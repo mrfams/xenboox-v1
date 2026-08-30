@@ -22,6 +22,14 @@ import {
 
 import { FadeInUp } from "@/components/marketing/reveal";
 import { trpc } from "@/lib/trpc/client";
+import {
+  TestimonialCard,
+  type Testimonial,
+} from "@/components/marketing/testimonial-card";
+import {
+  HowItWorks,
+  type HowItWorksStep,
+} from "@/components/marketing/how-it-works";
 
 const departments = [
   "All",
@@ -94,6 +102,48 @@ const benefits = [
   "Home office stipend",
   "Generous PTO",
   "Parental leave",
+];
+
+const employeeTestimonials: Testimonial[] = [
+  {
+    quote:
+      "I joined Xenboox because I wanted to build AI that actually does accounting — not just suggests what to do. Six months in, our agents close months autonomously. It's the most impactful work I've done.",
+    name: "Senior Engineer",
+    role: "Engineering · Joined 2024",
+  },
+  {
+    quote:
+      "The pace here is real. We ship weekly, talk to users daily, and see our work in production the same week. No other startup moves this fast while keeping quality this high.",
+    name: "Product Designer",
+    role: "Product & Design · Joined 2024",
+  },
+  {
+    quote:
+      "What surprised me most is how much ownership you get from day one. I run our compliance module like my own company — strategy, execution, results. That's rare at any stage.",
+    name: "AI Engineer",
+    role: "AI & Agents · Joined 2025",
+  },
+];
+
+const interviewSteps: HowItWorksStep[] = [
+  {
+    step: "1",
+    title: "Apply online",
+    description:
+      "Submit your application with a short note on why Xenboox interests you. We review every application within 48 hours.",
+  },
+  {
+    step: "2",
+    title: "Technical conversation",
+    description:
+      "A 45-minute chat with the hiring manager about your experience, how you think about problems, and what you'd build here.",
+  },
+  {
+    step: "3",
+    title: "Team meet & offer",
+    description:
+      "Meet 2-3 team members, see the codebase, and get a written offer within a week. No trick questions — just real conversation.",
+  },
 ];
 
 export default function CareersPage() {
@@ -264,8 +314,35 @@ export default function CareersPage() {
         </div>
       </section>
 
-      {/* Benefits */}
+      {/* Employee Testimonials */}
       <section className="py-12 sm:py-16 bg-paper-2/60 border-y border-border">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+          <FadeInUp>
+            <div className="text-center mb-12">
+              <h2 className="text-3xl font-semibold tracking-tight text-foreground">
+                Why people join Xenboox
+              </h2>
+              <p className="mt-4 text-lg text-muted-foreground">
+                Hear from the team building the future of AI-native accounting.
+              </p>
+            </div>
+          </FadeInUp>
+          <div className="grid gap-6 md:grid-cols-3">
+            {employeeTestimonials.map((t, i) => (
+              <FadeInUp key={t.name} delay={i * 0.1}>
+                <TestimonialCard
+                  testimonial={t}
+                  showRating={false}
+                  showPlan={false}
+                />
+              </FadeInUp>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Benefits */}
+      <section className="py-12 sm:py-16">
         <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
           <FadeInUp>
             <div className="text-center mb-12">
@@ -291,6 +368,34 @@ export default function CareersPage() {
               </FadeInUp>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* Interview Process */}
+      <HowItWorks
+        title="What to expect"
+        subtitle="Our interview process is designed to be respectful of your time — no trick questions, no marathon sessions."
+        steps={interviewSteps}
+      />
+
+      {/* Diversity & Inclusion */}
+      <section className="py-12 sm:py-16 bg-paper-2/60 border-y border-border">
+        <div className="mx-auto max-w-3xl px-4 sm:px-6 text-center">
+          <FadeInUp>
+            <h2 className="text-3xl font-semibold tracking-tight text-foreground">
+              Built by diverse perspectives
+            </h2>
+            <p className="mt-4 text-lg text-muted-foreground leading-relaxed">
+              We believe the best products are built by teams that reflect the
+              diverse businesses they serve. We actively encourage applications
+              from people of all backgrounds, experiences, and perspectives —
+              regardless of race, gender, age, disability, or background.
+            </p>
+            <p className="mt-4 text-muted-foreground">
+              Our team spans The Gambia, Ireland, and the US. We work across
+              time zones, cultures, and perspectives — because our users do too.
+            </p>
+          </FadeInUp>
         </div>
       </section>
 

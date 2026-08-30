@@ -12,6 +12,20 @@ import {
 
 import { FadeInUp } from "@/components/marketing/reveal";
 import { BreadcrumbJsonLd } from "@/components/marketing/json-ld";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Service Level Agreement | Xenboox",
+  description:
+    "Our commitment to 99.9% uptime, response time SLAs, and service credits. Enterprise-grade reliability for your accounting platform.",
+  openGraph: {
+    title: "Service Level Agreement | Xenboox",
+    description: "Our commitment to 99.9% uptime and response time SLAs.",
+    url: "https://xenboox.com/sla",
+    siteName: "Xenboox",
+    type: "website",
+  },
+};
 
 const commitments = [
   {
@@ -141,6 +155,29 @@ export default function SLAPage() {
                 </tbody>
               </table>
             </div>
+          </FadeInUp>
+        </div>
+      </section>
+
+      {/* Status Page Link */}
+      <section className="py-12 bg-paper-2/60 border-y border-border">
+        <div className="mx-auto max-w-3xl px-4 text-center">
+          <FadeInUp>
+            <h2 className="text-2xl font-bold text-foreground mb-3">
+              Real-time status
+            </h2>
+            <p className="text-muted-foreground mb-6">
+              Check our live uptime dashboard for real-time platform health.
+            </p>
+            <a
+              href="https://status.xenboox.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex h-12 items-center rounded-full border border-border bg-card px-8 text-sm font-medium text-foreground transition-all duration-300 hover:bg-accent/50"
+            >
+              status.xenboox.com
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </a>
           </FadeInUp>
         </div>
       </section>

@@ -14,6 +14,11 @@ import {
 
 import { FadeInUp } from "@/components/marketing/reveal";
 import { BreadcrumbJsonLd } from "@/components/marketing/json-ld";
+import {
+  FeatureComparison,
+  type ComparisonCategory,
+} from "@/components/marketing/feature-comparison";
+import { TestimonialCard } from "@/components/marketing/testimonial-card";
 
 const benefits = [
   {
@@ -48,54 +53,33 @@ const benefits = [
   },
 ];
 
-const comparison = [
+const accountantsComparison: ComparisonCategory[] = [
   {
-    feature: "AI-powered automation",
-    xenboox: true,
-    quickbooks: false,
-    xero: false,
+    name: "For Firms",
+    features: [
+      { name: "AI-powered automation", values: [true, false, false] },
+      {
+        name: "Multi-entity from one dashboard",
+        values: [true, "Enterprise only", "Add-on ($)"],
+      },
+      {
+        name: "Unlimited users & clients",
+        values: [true, "Per-seat pricing", "Per-seat pricing"],
+      },
+      { name: "Client portal included", values: [true, false, false] },
+    ],
   },
   {
-    feature: "Multi-entity from one dashboard",
-    xenboox: true,
-    quickbooks: "Enterprise only",
-    xero: "Add-on ($)",
-  },
-  {
-    feature: "Unlimited users & clients",
-    xenboox: true,
-    quickbooks: "Per-seat pricing",
-    xero: "Per-seat pricing",
-  },
-  {
-    feature: "Multi-currency built-in",
-    xenboox: true,
-    quickbooks: "Paid add-on",
-    xero: "Standard+",
-  },
-  {
-    feature: "Month-end close automation",
-    xenboox: true,
-    quickbooks: false,
-    xero: false,
-  },
-  {
-    feature: "Confidence-scored AI decisions",
-    xenboox: true,
-    quickbooks: false,
-    xero: false,
-  },
-  {
-    feature: "Client portal included",
-    xenboox: true,
-    quickbooks: false,
-    xero: false,
-  },
-  {
-    feature: "Free tier for small practices",
-    xenboox: true,
-    quickbooks: false,
-    xero: false,
+    name: "Features",
+    features: [
+      {
+        name: "Multi-currency built-in",
+        values: [true, "Paid add-on", "Standard+"],
+      },
+      { name: "Month-end close automation", values: [true, false, false] },
+      { name: "Confidence-scored AI decisions", values: [true, false, false] },
+      { name: "Free tier for small practices", values: [true, false, false] },
+    ],
   },
 ];
 
@@ -178,101 +162,29 @@ export default function ForAccountantsPage() {
       </section>
 
       {/* Comparison Table */}
-      <section className="py-16 bg-muted ">
-        <div className="mx-auto max-w-4xl px-4">
-          <FadeInUp>
-            <h2 className="text-2xl font-bold text-foreground mb-2 text-center">
-              Xenboox vs traditional accounting software
-            </h2>
-            <p className="text-muted-foreground text-center mb-8">
-              Purpose-built for firms that manage multiple clients.
-            </p>
-          </FadeInUp>
-          <FadeInUp delay={0.1}>
-            <div className="rounded-2xl border border-border bg-card overflow-hidden">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-border bg-muted/50">
-                    <th className="text-left px-4 py-3 font-semibold text-foreground">
-                      Feature
-                    </th>
-                    <th className="text-center px-4 py-3 font-semibold text-primary">
-                      Xenboox
-                    </th>
-                    <th className="text-center px-4 py-3 font-semibold text-muted-foreground">
-                      QuickBooks
-                    </th>
-                    <th className="text-center px-4 py-3 font-semibold text-muted-foreground">
-                      Xero
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {comparison.map((row, i) => (
-                    <tr
-                      key={row.feature}
-                      className={i % 2 === 0 ? "bg-background" : "bg-muted/20"}
-                    >
-                      <td className="px-4 py-2.5 text-foreground">
-                        {row.feature}
-                      </td>
-                      <td className="px-4 py-2.5 text-center">
-                        {row.xenboox === true ? (
-                          <Check className="h-4 w-4 text-balanced-green mx-auto" />
-                        ) : (
-                          <span className="text-muted-foreground">
-                            {row.xenboox}
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-4 py-2.5 text-center">
-                        {row.quickbooks === true ? (
-                          <Check className="h-4 w-4 text-balanced-green mx-auto" />
-                        ) : row.quickbooks === false ? (
-                          <span className="text-error-clay/60">—</span>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">
-                            {row.quickbooks}
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-4 py-2.5 text-center">
-                        {row.xero === true ? (
-                          <Check className="h-4 w-4 text-balanced-green mx-auto" />
-                        ) : row.xero === false ? (
-                          <span className="text-error-clay/60">—</span>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">
-                            {row.xero}
-                          </span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </FadeInUp>
-        </div>
-      </section>
+      <FeatureComparison
+        title="Xenboox vs traditional accounting software"
+        subtitle="Purpose-built for firms that manage multiple clients."
+        columns={["Xenboox", "QuickBooks", "Xero"]}
+        highlightColumn={0}
+        categories={accountantsComparison}
+      />
 
       {/* Testimonial */}
       <section className="py-16 bg-background">
         <div className="mx-auto max-w-3xl px-4">
           <FadeInUp>
-            <blockquote className="rounded-2xl border border-border bg-card p-8 text-center">
-              <p className="text-lg text-foreground leading-relaxed">
-                &ldquo;We manage 40 client entities. Before Xenboox, month-end
-                close took two weeks of my team&rsquo;s time. Now it takes three
-                days — and the AI does most of the work.&rdquo;
-              </p>
-              <footer className="mt-6">
-                <p className="font-semibold text-foreground">Omar Darboe</p>
-                <p className="text-sm text-muted-foreground">
-                  Finance Director, Atlantic Traders
-                </p>
-              </footer>
-            </blockquote>
+            <TestimonialCard
+              testimonial={{
+                quote:
+                  "We manage 40 client entities. Before Xenboox, month-end close took two weeks of my team's time. Now it takes three days — and the AI does most of the work.",
+                name: "Omar Darboe",
+                role: "Finance Director, Atlantic Traders",
+                rating: 5,
+              }}
+              showRating
+              showPlan={false}
+            />
           </FadeInUp>
         </div>
       </section>
