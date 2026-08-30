@@ -122,8 +122,8 @@ function HeroNumbersField({
     type Dot = { x: number; y: number; morph: number; txt: string };
     let dots: Dot[] = [];
 
-    const SPACING = 26;
-    const RADIUS = 300;
+    const SPACING = 38;
+    const RADIUS = 320;
 
     const init = () => {
       w = hero.clientWidth;
@@ -227,24 +227,25 @@ function HeroNumbersField({
         }
 
         if (d.morph < 0.28) {
-          // dot perfection — slightly larger base for visibility
-          const alpha = 0.07 + d.morph * 0.11;
-          const sz = 1.4 + d.morph * 1.35;
+          // dot perfection — larger, more breathing room
+          const alpha = 0.08 + d.morph * 0.12;
+          const sz = 1.6 + d.morph * 1.4;
           ctx.fillStyle =
             d.morph > 0.12
               ? "hsl(var(--primary) / " + (alpha + 0.07) + ")"
               : "hsl(var(--foreground) / " + alpha + ")";
           ctx.fillRect(d.x - sz / 2, d.y - sz / 2, sz, sz);
         } else {
-          // number — bigger, more spread, fully visible across whole effect radius
-          const alpha = 0.11 + d.morph * 0.14;
+          // number — readable, well-spaced, professional mono
+          const alpha = 0.14 + d.morph * 0.16;
           ctx.font =
-            "12px 'Geist Mono', 'JetBrains Mono', ui-monospace, monospace";
+            "500 13px 'Geist Mono', 'JetBrains Mono', ui-monospace, monospace";
+          // letter-spacing via canvas: use 0.02em tracked
+          (ctx as unknown as { letterSpacing: string }).letterSpacing = "0.02em";
           ctx.fillStyle =
             d.morph > 0.45
               ? "hsl(var(--primary) / " + (alpha + 0.04) + ")"
               : "hsl(var(--foreground) / " + alpha + ")";
-          // center number on dot position
           const m = ctx.measureText(d.txt);
           ctx.fillText(d.txt, d.x - m.width / 2, d.y + 4);
         }
