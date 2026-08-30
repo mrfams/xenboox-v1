@@ -83,7 +83,6 @@ export function Features() {
       <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <FadeInUp>
           <SectionHeading
-            eyebrow="20 modules, one system"
             title="Everything a finance team does. Done by agents."
             lead="All 20 modules work together as one system — no spreadsheets, no plugins, no patchwork. Built for how SMEs actually operate."
           />
