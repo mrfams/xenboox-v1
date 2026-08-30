@@ -38,7 +38,7 @@ const steps: Step[] = [
   },
   {
     n: "02",
-    kicker: "19 agents  •  24/7",
+    kicker: "Autonomous  •  24/7",
     icon: Workflow,
     title: "Agents do the work",
     description:

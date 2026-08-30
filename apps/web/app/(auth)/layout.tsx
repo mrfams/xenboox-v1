@@ -50,7 +50,7 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
           </h1>
           <p className="mt-6 text-lg leading-relaxed text-slate-300">
             Automated journal entries, reconciliations, payroll, and financial
-            reporting — powered by 19 AI agents that learn your business.
+            reporting — powered by autonomous agents that learn your business.
           </p>
 
           {/* Social proof */}
@@ -97,7 +97,7 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
         <div className="relative z-10 grid grid-cols-2 gap-4">
           {[
             {
-              label: "19 AI Agents",
+              label: "Autonomous Agents",
               desc: "Autonomous financial operations",
             },
             { label: "50+ Currencies", desc: "Real-time exchange rates" },
