@@ -8,15 +8,12 @@ import {
   Shield,
   CreditCard,
   RotateCcw,
-  Check,
-  X,
   ArrowUpRight,
   Zap,
   Users,
   Building2,
   Headphones,
 } from "lucide-react";
-// Note: Check and X are now in the shared FeatureComparison component
 
 import { Section } from "@/components/marketing/section";
 import { FadeInUp } from "@/components/marketing/reveal";
@@ -25,17 +22,10 @@ import {
   BreadcrumbJsonLd,
   ProductJsonLd,
 } from "@/components/marketing/json-ld";
-import { ComparisonTeaser } from "@/components/marketing/comparison-teaser";
 import { RoiCalculator } from "@/components/marketing/roi-calculator";
-import {
-  TestimonialCard,
-  type Testimonial,
-} from "@/components/marketing/testimonial-card";
-import { LogoCloud, type LogoItem } from "@/components/marketing/logo-cloud";
-import {
-  FeatureComparison,
-  type ComparisonCategory,
-} from "@/components/marketing/feature-comparison";
+import { TestimonialCard } from "@/components/marketing/testimonial-card";
+import { LogoCloud } from "@/components/marketing/logo-cloud";
+import { FeatureComparison } from "@/components/marketing/feature-comparison";
 
 // ─── Tiers ───────────────────────────────────────────────────────────────────
 

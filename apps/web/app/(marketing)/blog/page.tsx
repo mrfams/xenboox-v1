@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import { NewsletterForm } from "@/components/marketing/newsletter-form";
 import { BreadcrumbJsonLd } from "@/components/marketing/json-ld";
+import { FadeInUp } from "@/components/marketing/reveal";
 import { getAllPublishedPosts } from "@/lib/content-server";
 import { BlogGrid } from "@/components/marketing/blog-grid";
 
