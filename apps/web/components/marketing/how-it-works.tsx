@@ -146,32 +146,24 @@ export function HowItWorks() {
                         {step.n}
                       </span>
 
-                      {/* Top row */}
-                      <div className="relative flex items-center justify-between">
-                        <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/[0.08] text-primary ring-1 ring-primary/10 transition-colors duration-300 group-hover:bg-primary group-hover:text-white group-hover:ring-primary">
+                      {/* Top row — icon + title same row */}
+                      <div className="relative flex items-center gap-3">
+                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/[0.08] text-primary ring-1 ring-primary/10 transition-colors duration-300 group-hover:bg-primary group-hover:text-white group-hover:ring-primary">
                           <step.icon
                             className="h-5 w-5"
                             aria-hidden="true"
                             strokeWidth={1.75}
                           />
                         </span>
-                        <span className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-background px-2.5 py-1 font-mono text-[11px] font-medium tracking-wide text-muted-foreground">
-                          <span
-                            className="h-1.5 w-1.5 rounded-full bg-primary"
-                            aria-hidden
-                          />
-                          {step.n}
-                        </span>
+                        <h3 className="text-[17px] font-semibold leading-tight tracking-tight text-foreground sm:text-lg">
+                          {step.title}
+                        </h3>
                       </div>
 
                       {/* Kicker */}
                       <p className="relative mt-4 font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground/70">
                         {step.kicker}
                       </p>
-
-                      <h3 className="relative mt-2 text-[17px] font-semibold leading-tight tracking-tight text-foreground sm:text-lg">
-                        {step.title}
-                      </h3>
                       <p className="relative mt-2 text-pretty text-sm leading-relaxed text-muted-foreground sm:text-[14.5px]">
                         {step.description}
                       </p>
