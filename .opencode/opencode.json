@@ -29,6 +29,17 @@
     }
   },
   "mcp": {
+    "chrome-devtools": {
+      "type": "local",
+      "command": [
+        "npx",
+        "-y",
+        "chrome-devtools-mcp",
+        "--headless",
+        "--isolated"
+      ],
+      "enabled": true
+    },
     "gbrain": {
       "type": "local",
       "command": ["npx", "-y", "gbrain", "serve"],

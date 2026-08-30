@@ -56,24 +56,62 @@ export function LoginForm({
 
       // No MFA required — sign in with the mobile token directly
       if ("token" in result && result.token) {
-        const signInResult = await signIn("credentials", {
-          directAuthToken: result.token,
-          redirect: false,
-        });
+        try {
+          const signInResult = await signIn("credentials", {
+            directAuthToken: result.token,
+            redirect: false,
+          });
 
-        if (signInResult?.error) {
-          setError("Failed to establish session. Please try again.");
+          if (signInResult?.error) {
+            // NextAuth surfaces rate-limit as a generic error; surface a humane message
+            if (
+              signInResult.error === "AccessDenied" ||
+              /too many requests/i.test(signInResult.error)
+            ) {
+              setError(
+                "Too many attempts. Please wait a minute and try again.",
+              );
+            } else {
+              setError("Failed to establish session. Please try again.");
+            }
+            return;
+          }
+
+          if (!signInResult || (!signInResult.ok && !signInResult.url)) {
+            // Edge case: middleware 429 returns {error} without url → NextAuth throws Invalid URL
+            setError("Too many requests. Please wait a minute and try again.");
+            return;
+          }
+
+          router.push("/dashboard");
+          router.refresh();
+        } catch (signInErr) {
+          const msg =
+            signInErr instanceof Error ? signInErr.message : String(signInErr);
+          if (
+            /Failed to construct 'URL'/i.test(msg) ||
+            /Invalid URL/i.test(msg)
+          ) {
+            setError("Too many requests. Please wait a minute and try again.");
+          } else {
+            setError(msg);
+          }
           return;
         }
-
-        router.push("/dashboard");
-        router.refresh();
       } else {
         setError("Unexpected response from server.");
       }
     } catch (err) {
       if (err instanceof Error) {
-        setError(err.message);
+        // Handle middleware 429 Invalid URL transparently
+        if (
+          /Failed to construct 'URL'/i.test(err.message) ||
+          /Invalid URL/i.test(err.message)
+        ) {
+          setError("Too many requests. Please wait a minute and try again.");
+        } else {
+          setError(err.message);
+        }
       } else {
         setError("Something went wrong. Please try again.");
       }
