@@ -63,11 +63,11 @@ const surfaces: {
   },
 ];
 
-// ─── Numbers Field — accounting-native random drift (professional, demo-safe) ───
-// Random financial figures drift like ledger entries left to settle. Mono 10-11px,
-// opacity 0.06-0.09, speed 0.18-0.32. Demo card is punch-holed (no numbers under
-// visual) and spotlight is dimmed so the visual stays crisp. Cursor adds
-// micro-turbulence, not repel.
+// ─── Numbers Field — dot perfection → numbers on hover (dynamic, demo-safe) ───
+// Base: perfect mono dot grid at 0.06. On cursor, dots within 140px morph
+// into *dynamic* financial numbers (any value, not a fixed list) at 10-11px,
+// then spring-restore to dots. Numbers are generated live via
+// randomFinancialNumber(). Demo card is punch-holed.
 function HeroNumbersField({
   heroRef,
 }: {
@@ -93,37 +93,37 @@ function HeroNumbersField({
     let mouseY = -9999;
     let isVisible = true;
 
-    const isMobile = () => window.innerWidth < 768;
-    const pool = [
-      "486,000",
-      "72,900",
-      "413,100",
-      "2.1M",
-      "1.92M",
-      "84,500",
-      "340K",
-      "3.2M",
-      "1.4M",
-      "GMD",
-      "USD",
-      "EUR",
-      "Dr",
-      "Cr",
-      "+12%",
-      "–3%",
-      "18%",
-      "25%",
-    ];
+    // dynamic financial number — any value, not a list
+    function randomFinancialNumber(): string {
+      const r = Math.random();
+      if (r < 0.22) {
+        // large with commas: 12,000 — 980,000
+        const n = Math.floor(Math.random() * 968000 + 12000);
+        return n.toLocaleString("en-US");
+      } else if (r < 0.45) {
+        // K/M: 1.2K — 9.8M
+        const v = (Math.random() * 9 + 0.8).toFixed(1);
+        return Math.random() > 0.5 ? v + "K" : v + "M";
+      } else if (r < 0.68) {
+        // small: 800 — 9,500
+        const n = Math.floor(Math.random() * 8700 + 800);
+        return n.toLocaleString("en-US");
+      } else if (r < 0.85) {
+        // percent: -5% — +19%
+        const n = Math.floor(Math.random() * 24 - 5);
+        return (n >= 0 ? "+" : "") + n + "%";
+      } else {
+        // decimal ledger: 1,250.00 style
+        const n = (Math.random() * 9000 + 200).toFixed(2);
+        return Number(n).toLocaleString("en-US", { minimumFractionDigits: 2 });
+      }
+    }
 
-    type N = {
-      x: number;
-      y: number;
-      vx: number;
-      vy: number;
-      txt: string;
-      size: number;
-    };
-    let nums: N[] = [];
+    type Dot = { x: number; y: number; morph: number; txt: string };
+    let dots: Dot[] = [];
+
+    const SPACING = 18;
+    const RADIUS = 140;
 
     const init = () => {
       w = hero.clientWidth;
@@ -133,21 +133,27 @@ function HeroNumbersField({
       canvas.style.width = w + "px";
       canvas.style.height = h + "px";
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      const n = isMobile() ? 22 : 34;
-      nums = Array.from({ length: n }, () => ({
-        x: Math.random() * w,
-        y: Math.random() * h,
-        vx: (Math.random() - 0.5) * 0.32 + (Math.random() > 0.5 ? 0.12 : -0.12),
-        vy: (Math.random() - 0.5) * 0.22,
-        txt: pool[Math.floor(Math.random() * pool.length)],
-        size: Math.random() > 0.7 ? 11 : 10,
-      }));
+      const cols = Math.floor(w / SPACING) + 2;
+      const rows = Math.floor(h / SPACING) + 2;
+      const ox = (w % SPACING) / 2;
+      const oy = (h % SPACING) / 2;
+      dots = [];
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          dots.push({
+            x: ox + c * SPACING,
+            y: oy + r * SPACING,
+            morph: 0,
+            txt: randomFinancialNumber(),
+          });
+        }
+      }
     };
 
     const onMove = (e: PointerEvent) => {
-      const r = hero.getBoundingClientRect();
-      mouseX = e.clientX - r.left;
-      mouseY = e.clientY - r.top;
+      const rect = hero.getBoundingClientRect();
+      mouseX = e.clientX - rect.left;
+      mouseY = e.clientY - rect.top;
     };
     const onLeave = () => {
       mouseX = -9999;
@@ -175,10 +181,10 @@ function HeroNumbersField({
       const hr = hero.getBoundingClientRect();
       const dr = demo.getBoundingClientRect();
       return {
-        x: dr.left - hr.left - 20,
-        y: dr.top - hr.top - 20,
-        w: dr.width + 40,
-        h: dr.height + 40,
+        x: dr.left - hr.left - 24,
+        y: dr.top - hr.top - 24,
+        w: dr.width + 48,
+        h: dr.height + 48,
       };
     }
 
@@ -188,45 +194,57 @@ function HeroNumbersField({
       ctx.clearRect(0, 0, w, h);
       const demoRect = getDemoRect();
 
-      for (const n of nums) {
-        // micro-turbulence near cursor
-        const dx = n.x - mouseX;
-        const dy = n.y - mouseY;
-        const d = Math.hypot(dx, dy);
-        if (d < 140 && d > 0.5) {
-          const f = (140 - d) / 140;
-          n.vx += (Math.random() - 0.5) * f * 0.28;
-          n.vy += (Math.random() - 0.5) * f * 0.28;
-        }
-        n.x += n.vx;
-        n.y += n.vy;
-
-        // gentle drift + wrap
-        if (n.x < -80) n.x = w + 40;
-        if (n.x > w + 80) n.x = -40;
-        if (n.y < -20) n.y = h + 20;
-        if (n.y > h + 20) n.y = -20;
-
+      for (const d of dots) {
         // punch hole: skip if inside demo card
         if (
           demoRect &&
-          n.x > demoRect.x &&
-          n.x < demoRect.x + demoRect.w &&
-          n.y > demoRect.y &&
-          n.y < demoRect.y + demoRect.h
+          d.x > demoRect.x &&
+          d.x < demoRect.x + demoRect.w &&
+          d.y > demoRect.y &&
+          d.y < demoRect.y + demoRect.h
         ) {
+          // still update morph to 0 so it restores, but don't draw
+          d.morph += (0 - d.morph) * 0.07;
           continue;
         }
 
-        const near = d < 140 ? 1 - d / 140 : 0;
-        const alpha = 0.055 + near * 0.07;
-        ctx.font =
-          n.size + "px 'Geist Mono', 'JetBrains Mono', ui-monospace, monospace";
-        ctx.fillStyle =
-          near > 0.12
-            ? "hsl(var(--primary) / " + (alpha + 0.06) + ")"
-            : "hsl(var(--foreground) / " + alpha + ")";
-        ctx.fillText(n.txt, n.x, n.y);
+        const dx = d.x - mouseX;
+        const dy = d.y - mouseY;
+        const dist2 = dx * dx + dy * dy;
+        const tgt =
+          dist2 < RADIUS * RADIUS
+            ? Math.pow(1 - Math.sqrt(dist2) / RADIUS, 1.35)
+            : 0;
+        // lerp morph with spring-like easing
+        const speed = tgt > d.morph ? 0.14 : 0.07;
+        d.morph += (tgt - d.morph) * speed;
+        if (d.morph < 0.004) d.morph = 0;
+        if (d.morph > 0.998) d.morph = 1;
+
+        // assign new dynamic number when crossing into number state
+        if (d.morph > 0.42 && tgt > 0.42 && Math.random() < 0.015) {
+          d.txt = randomFinancialNumber();
+        }
+
+        if (d.morph < 0.42) {
+          // dot perfection
+          const alpha = 0.06 + d.morph * 0.09;
+          const sz = 1 + d.morph * 1.15;
+          ctx.fillStyle =
+            d.morph > 0.12
+              ? "hsl(var(--primary) / " + (alpha + 0.06) + ")"
+              : "hsl(var(--foreground) / " + alpha + ")";
+          ctx.fillRect(d.x - sz / 2, d.y - sz / 2, sz, sz);
+        } else {
+          // number
+          const alpha = 0.09 + d.morph * 0.08;
+          ctx.font =
+            "10px 'Geist Mono', 'JetBrains Mono', ui-monospace, monospace";
+          ctx.fillStyle = "hsl(var(--foreground) / " + alpha + ")";
+          // center number on dot position
+          const m = ctx.measureText(d.txt);
+          ctx.fillText(d.txt, d.x - m.width / 2, d.y + 3);
+        }
       }
 
       raf = requestAnimationFrame(frame);
