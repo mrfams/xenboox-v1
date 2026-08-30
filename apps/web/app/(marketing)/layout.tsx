@@ -113,21 +113,42 @@ function FooterNewsletterForm() {
     return (
       <div className="flex flex-col items-center gap-2">
         <span className="flex h-10 w-10 items-center justify-center rounded-full bg-balanced-green/15">
-          <svg className="h-5 w-5 text-balanced-green" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <svg
+            className="h-5 w-5 text-balanced-green"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
             <path d="M20 6 9 17l-5-5" />
           </svg>
         </span>
         <p className="text-sm font-medium text-foreground">You're all set!</p>
-        <p className="text-xs text-paper/50">Check your inbox for a welcome email.</p>
+        <p className="text-xs text-paper/50">
+          Check your inbox for a welcome email.
+        </p>
       </div>
     );
   }
 
   return (
-    <form onSubmit={handleSubmit} className="mt-6 flex w-full max-w-lg mx-auto flex-col gap-3">
+    <form
+      onSubmit={handleSubmit}
+      className="mt-6 flex w-full max-w-lg mx-auto flex-col gap-3"
+    >
       <div className="flex gap-2.5 flex-col sm:flex-row">
         <div className="relative flex-1">
-          <svg className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-paper/30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <svg
+            className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-paper/30"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
             <rect width="20" height="16" x="2" y="4" rx="2" />
             <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
           </svg>
@@ -148,16 +169,39 @@ function FooterNewsletterForm() {
         >
           {submitting ? (
             <>
-              <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+              <svg
+                className="h-4 w-4 animate-spin"
+                viewBox="0 0 24 24"
+                fill="none"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                />
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                />
               </svg>
               Subscribing…
             </>
           ) : (
             <>
               Subscribe
-              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg
+                className="h-4 w-4"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
                 <path d="M5 12h14" />
                 <path d="m12 5 7 7-7 7" />
               </svg>
@@ -348,41 +392,36 @@ export default function MarketingLayout({
         <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
           {/* Newsletter — professional standalone section */}
           <FadeInUp duration={0.4}>
-          <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-ledger-ink via-ledger-ink to-ledger-ink-2 p-8 sm:p-10 mb-10">
-            {/* Decorative background elements */}
-            <div className="pointer-events-none absolute inset-0" aria-hidden="true">
-              <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-primary/10 blur-3xl" />
-              <div className="absolute -bottom-16 -left-16 h-48 w-48 rounded-full bg-balanced-green/10 blur-3xl" />
+            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-ledger-ink via-ledger-ink to-ledger-ink-2 p-8 sm:p-10 mb-10">
+              {/* Decorative background elements */}
               <div
-                className="absolute inset-0 opacity-[0.03]"
-                style={{
-                  backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.8) 1px, transparent 1px)",
-                  backgroundSize: "20px 20px",
-                }}
-              />
-            </div>
-
-            <div className="relative mx-auto max-w-xl text-center">
-              {/* Eyebrow */}
-              <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1">
-                <span className="relative flex h-1.5 w-1.5">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75" />
-                  <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-primary" />
-                </span>
-                <span className="text-[11px] font-medium text-paper/60">Join 2,400+ finance leaders</span>
+                className="pointer-events-none absolute inset-0"
+                aria-hidden="true"
+              >
+                <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-primary/10 blur-3xl" />
+                <div className="absolute -bottom-16 -left-16 h-48 w-48 rounded-full bg-balanced-green/10 blur-3xl" />
+                <div
+                  className="absolute inset-0 opacity-[0.03]"
+                  style={{
+                    backgroundImage:
+                      "radial-gradient(circle, rgba(255,255,255,0.8) 1px, transparent 1px)",
+                    backgroundSize: "20px 20px",
+                  }}
+                />
               </div>
 
-              <h3 className="text-2xl font-bold tracking-tight text-paper sm:text-3xl">
-                Stay in the loop
-              </h3>
-              <p className="mt-3 text-sm leading-relaxed text-paper/50 max-w-md mx-auto">
-                Product updates, accounting best practices, and industry insights.
-                Delivered bi-weekly.
-              </p>
+              <div className="relative mx-auto max-w-xl text-center">
+                <h3 className="text-2xl font-bold tracking-tight text-paper sm:text-3xl">
+                  Stay in the loop
+                </h3>
+                <p className="mt-3 text-sm leading-relaxed text-paper/50 max-w-md mx-auto">
+                  Product updates, accounting best practices, and industry
+                  insights. Delivered bi-weekly.
+                </p>
 
-              <FooterNewsletterForm />
+                <FooterNewsletterForm />
+              </div>
             </div>
-          </div>
           </FadeInUp>
 
           {/* Links */}
