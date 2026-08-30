@@ -26,6 +26,27 @@ export interface PublicPost {
   image: string | null;
 }
 
+export async function getAllPublishedPosts(): Promise<PublicPost[]> {
+  const rows = await db
+    .select()
+    .from(blogPosts)
+    .where(eq(blogPosts.status, "published"))
+    .orderBy(desc(blogPosts.publishedAt), desc(blogPosts.createdAt));
+
+  return rows.map((p) => ({
+    slug: p.slug,
+    title: p.title,
+    excerpt: p.excerpt,
+    content: p.content,
+    category: p.category,
+    date: fmtDate(p.publishedAt),
+    readTime: `${p.readTimeMinutes} min`,
+    author: { name: p.authorName, role: p.authorRole },
+    tags: p.tags,
+    image: p.image,
+  }));
+}
+
 export async function getAllPublishedPostSlugs(): Promise<string[]> {
   const rows = await db
     .select({ slug: blogPosts.slug })

@@ -79,3 +79,4 @@ export * from "./payment-links";
 export * from "./ai-corrections";
 export * from "./daily-close";
 export * from "./referrals";
+export * from "./announcements";
