@@ -1,14 +1,6 @@
 "use client";
 
-import {
-  ArrowRight,
-  Check,
-  CheckCheck,
-  PlugZap,
-  ShieldCheck,
-  Workflow,
-} from "lucide-react";
-import Link from "next/link";
+import { Check, CheckCheck, PlugZap, Workflow } from "lucide-react";
 
 import { Section } from "@/components/marketing/section";
 import { FadeInUp } from "@/components/marketing/reveal";
@@ -220,46 +212,6 @@ export function HowItWorks() {
               </li>
             ))}
           </ol>
-
-          {/* Proof bar — closes the loop */}
-          <FadeInUp delay={0.4}>
-            <div className="mt-8 flex flex-col items-center justify-between gap-4 rounded-2xl border border-border/50 bg-muted/20 px-4 py-4 sm:flex-row sm:px-6 lg:mt-10">
-              <div className="flex flex-wrap items-center justify-center gap-6 text-center sm:justify-start sm:text-left">
-                <div className="flex items-center gap-2">
-                  <ShieldCheck className="h-4 w-4 text-primary" aria-hidden />
-                  <span className="text-sm font-medium text-foreground">
-                    Audit trail on every action
-                  </span>
-                </div>
-                <span
-                  className="hidden h-4 w-px bg-border sm:block"
-                  aria-hidden
-                />
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <span className="font-mono tabular-nums font-semibold text-foreground">
-                    19
-                  </span>{" "}
-                  agents
-                </div>
-                <span
-                  className="hidden h-4 w-px bg-border sm:block"
-                  aria-hidden
-                />
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <span className="font-mono tabular-nums font-semibold text-foreground">
-                    3 days
-                  </span>{" "}
-                  to first close
-                </div>
-              </div>
-              <Link
-                href="/onboarding"
-                className="inline-flex shrink-0 items-center gap-2 rounded-full bg-foreground px-4 py-2 text-sm font-medium text-background transition-colors hover:bg-foreground/90"
-              >
-                Start free <ArrowRight className="h-4 w-4" aria-hidden />
-              </Link>
-            </div>
-          </FadeInUp>
         </div>
       </div>
     </Section>
