@@ -20,11 +20,10 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "Xenboox — AI-Native Accounting Platform | One-Pager",
   description:
-    "19 AI agents handle invoicing, payroll, compliance, and close. Multi-currency, multi-entity, bank-grade security. Start free.",
+    "AI agents handle invoicing, payroll, compliance, and close. Multi-currency, multi-entity, bank-grade security. Start free.",
   openGraph: {
     title: "Xenboox — AI-Native Accounting Platform",
-    description:
-      "19 AI agents handle invoicing, payroll, compliance, and close.",
+    description: "AI agents handle invoicing, payroll, compliance, and close.",
     url: "https://xenboox.com/one-pager",
     siteName: "Xenboox",
     type: "website",
@@ -32,7 +31,7 @@ export const metadata: Metadata = {
 };
 
 const features = [
-  "19 AI agents handling invoicing, payroll, compliance, and close",
+  "AI agents handling invoicing, payroll, compliance, and close",
   "Multi-currency support for 50+ currencies",
   "Unlimited users and entities on all paid plans",
   "Append-only audit trail with confidence scoring",
@@ -43,7 +42,7 @@ const features = [
 ];
 
 const stats = [
-  { value: "19", label: "AI Agents" },
+  { value: "20+", label: "AI Agents" },
   { value: "50+", label: "Currencies" },
   { value: "4 days", label: "Avg. Month-End Close" },
   { value: "99.9%", label: "Uptime SLA" },
@@ -85,7 +84,7 @@ export default function OnePagerPage() {
               Your books. On autopilot.
             </h1>
             <p className="mt-4 text-xl text-muted-foreground max-w-2xl mx-auto">
-              19 AI agents handle invoicing, payroll, compliance, and month-end
+              AI agents handle invoicing, payroll, compliance, and month-end
               close — so you can focus on growing your business.
             </p>
           </FadeInUp>
@@ -146,8 +145,8 @@ export default function OnePagerPage() {
               <p className="text-muted-foreground leading-relaxed mb-6">
                 Xenboox is an AI-native accounting platform built for businesses
                 in The Gambia and emerging markets. Instead of giving you forms
-                to fill out, 19 specialized AI agents handle the accounting work
-                — from invoicing and payroll to compliance and month-end close.
+                to fill out, specialized AI agents handle the accounting work —
+                from invoicing and payroll to compliance and month-end close.
                 Every decision is confidence-scored. Below 70%, it asks you.
                 Below 40%, it escalates.
               </p>

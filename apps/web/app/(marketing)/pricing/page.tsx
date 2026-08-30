@@ -68,7 +68,7 @@ const monthlyTiers = [
     annualSavings: 58,
     features: [
       "Up to 3 entities",
-      "All 19 AI agents",
+      "All AI agents",
       "Unlimited journal entries",
       "Full AP/AR module",
       "Payroll processing",
@@ -89,7 +89,7 @@ const monthlyTiers = [
     annualSavings: 158,
     features: [
       "Up to 10 entities",
-      "All 19 AI agents",
+      "All AI agents",
       "Unlimited everything",
       "Multi-currency support",
       "Fixed assets & depreciation",
@@ -111,7 +111,7 @@ const monthlyTiers = [
     annualSavings: null,
     features: [
       "Unlimited entities",
-      "All 19 AI agents",
+      "All AI agents",
       "Unlimited everything",
       "Multi-currency + multi-entity consolidation",
       "Advanced compliance & audit trail",
@@ -150,9 +150,9 @@ const comparisonCategories = [
       {
         name: "AI Agents",
         free: "1 (CFO)",
-        starter: "All 19",
-        business: "All 19",
-        enterprise: "All 19",
+        starter: "All",
+        business: "All",
+        enterprise: "All",
       },
       {
         name: "Entities",
@@ -437,7 +437,7 @@ const faqs = [
   },
   {
     q: "What's the difference between Starter and Business?",
-    a: "Starter covers up to 3 entities with all 19 AI agents. Business adds multi-currency, fixed assets, inventory, and up to 10 entities.",
+    a: "Starter covers up to 3 entities with all AI agents. Business adds multi-currency, fixed assets, inventory, and up to 10 entities.",
   },
 ];
 
@@ -455,7 +455,7 @@ export default function PricingPage() {
       <FaqJsonLd items={faqs.map((f) => ({ question: f.q, answer: f.a }))} />
       <ProductJsonLd
         name="Xenboox Starter"
-        description="Full access to all 19 AI agents, unlimited journal entries, AP/AR, payroll, and treasury."
+        description="Full access to all AI agents, unlimited journal entries, AP/AR, payroll, and treasury."
         price="29"
       />
       {/* ── Hero ──────────────────────────────────────────────────────── */}
@@ -717,13 +717,13 @@ export default function PricingPage() {
                 </div>
                 <div className="h-8 w-px bg-border" />
                 <div className="text-center">
-                  <p className="text-2xl font-bold text-foreground">19</p>
+                  <p className="text-2xl font-bold text-foreground">20+</p>
                   <p className="text-xs text-muted-foreground">AI Agents</p>
                 </div>
                 <div className="h-8 w-px bg-border" />
                 <div className="text-center">
-                  <p className="text-2xl font-bold text-foreground">99%</p>
-                  <p className="text-xs text-muted-foreground">Uptime</p>
+                  <p className="text-2xl font-bold text-foreground">99.9%</p>
+                  <p className="text-xs text-muted-foreground">Uptime SLA</p>
                 </div>
               </div>
               <LogoCloud
@@ -785,7 +785,7 @@ export default function PricingPage() {
                 step: "3",
                 title: "AI picks up where you left off",
                 description:
-                  "Your 19 AI agents start working immediately. Most teams are fully operational within 48 hours.",
+                  "Your AI agents start working immediately. Most teams are fully operational within 48 hours.",
               },
             ].map((item, i) => (
               <FadeInUp key={item.step} delay={i * 0.1}>

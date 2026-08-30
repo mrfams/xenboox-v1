@@ -24,7 +24,7 @@ const benefits = [
   {
     icon: Bot,
     title: "AI handles the busywork",
-    desc: "19 AI agents automate data entry, categorization, reconciliation, and month-end close. Your team focuses on advisory, not admin.",
+    desc: "AI agents automate data entry, categorization, reconciliation, and month-end close. Your team focuses on advisory, not admin.",
   },
   {
     icon: Users,
@@ -101,7 +101,7 @@ export default function ForAccountantsPage() {
               <span className="text-primary">Start advising.</span>
             </h1>
             <p className="mt-4 text-lg text-muted-foreground max-w-2xl mx-auto">
-              Xenboox gives your firm 19 AI agents that handle bookkeeping,
+              Xenboox gives your firm AI agents that handle bookkeeping,
               payroll, compliance, and close — so your team can focus on what
               clients actually pay for: strategic advice.
             </p>

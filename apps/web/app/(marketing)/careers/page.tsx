@@ -255,7 +255,7 @@ export default function CareersPage() {
         <div className="mx-auto max-w-6xl px-4 py-12">
           <div className="grid grid-cols-2 gap-6 text-center md:grid-cols-4">
             {[
-              { label: "AI Agents", value: "19", icon: Users },
+              { label: "AI Agents", value: "20+", icon: Users },
               { label: "Accounting Modules", value: "20", icon: Building2 },
               { label: "Currencies Supported", value: "50+", icon: Globe },
               {

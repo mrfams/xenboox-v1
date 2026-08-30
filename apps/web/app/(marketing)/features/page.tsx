@@ -1418,7 +1418,7 @@ const howItWorksSteps: HowItWorksStep[] = [
     step: "2",
     title: "AI does the work",
     description:
-      "19 AI agents categorize transactions, reconcile accounts, process payroll, and close your month — all automatically.",
+      "AI agents categorize transactions, reconcile accounts, process payroll, and close your month — all automatically.",
     icon: Bot,
   },
   {

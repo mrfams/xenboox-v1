@@ -15,7 +15,7 @@ import { FadeInUp } from "@/components/marketing/reveal";
 export const metadata: Metadata = {
   title: "Download — Access Xenboox Anywhere | Xenboox",
   description:
-    "Access Xenboox from anywhere — web, desktop, or mobile. Full-featured AI accounting platform with 19 agents. No installation required for web.",
+    "Access Xenboox from anywhere — web, desktop, or mobile. Full-featured AI accounting platform with AI agents. No installation required for web.",
   openGraph: {
     title: "Download — Access Xenboox Anywhere | Xenboox",
     description:

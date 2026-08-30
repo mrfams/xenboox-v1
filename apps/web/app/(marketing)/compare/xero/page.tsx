@@ -7,7 +7,7 @@ import { BreadcrumbJsonLd } from "@/components/marketing/json-ld";
 
 const features = [
   { feature: "AI-powered automation", xenboox: true, xero: false },
-  { feature: "19 specialized AI agents", xenboox: true, xero: false },
+  { feature: "Specialized AI agents", xenboox: true, xero: false },
   {
     feature: "Multi-currency (50+ currencies)",
     xenboox: true,

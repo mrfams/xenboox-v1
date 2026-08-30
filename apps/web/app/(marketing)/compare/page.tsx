@@ -16,7 +16,7 @@ const comparisons = [
     slug: "quickbooks",
     tagline: "AI workforce vs manual forms",
     highlights: [
-      "19 AI agents vs 0",
+      "AI agents vs 0",
       "Multi-currency built-in",
       "Unlimited users",
     ],
@@ -37,7 +37,7 @@ const comparisons = [
     tagline: "Full accounting suite vs invoicing tool",
     highlights: [
       "Double-entry bookkeeping",
-      "19 AI agents included",
+      "AI agents included",
       "Multi-entity support",
     ],
   },

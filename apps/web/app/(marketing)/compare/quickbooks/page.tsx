@@ -7,7 +7,7 @@ import { BreadcrumbJsonLd } from "@/components/marketing/json-ld";
 
 const features = [
   { feature: "AI-powered automation", xenboox: true, quickbooks: false },
-  { feature: "19 specialized AI agents", xenboox: true, quickbooks: false },
+  { feature: "Specialized AI agents", xenboox: true, quickbooks: false },
   {
     feature: "Multi-currency (50+ currencies)",
     xenboox: true,
@@ -82,7 +82,7 @@ export default function CompareQuickBooksPage() {
               {
                 icon: Bot,
                 title: "AI Agents, Not Forms",
-                desc: "Xenboox has 19 AI agents that handle invoicing, payroll, compliance, and close. QuickBooks gives you forms to fill out.",
+                desc: "Xenboox has specialized AI agents that handle invoicing, payroll, compliance, and close. QuickBooks gives you forms to fill out.",
               },
               {
                 icon: Globe,

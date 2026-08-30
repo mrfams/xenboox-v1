@@ -35,7 +35,7 @@ export const metadata: Metadata = {
 const companyFacts = [
   { label: "Founded", value: "2024" },
   { label: "Headquarters", value: "Global (Remote-first)" },
-  { label: "AI Agents", value: "19 specialized agents" },
+  { label: "AI Agents", value: "20+ specialized agents" },
   { label: "Currencies Supported", value: "50+" },
   { label: "Accounting Modules", value: "20+" },
   { label: "Uptime SLA", value: "99.9%" },
@@ -124,7 +124,7 @@ const recentCoverage = [
   {
     outlet: "Forbes",
     headline:
-      "How 19 AI agents are replacing the traditional accounting department",
+      "How AI agents are replacing the traditional accounting department",
     date: "Jul 2025",
     type: "Feature",
   },

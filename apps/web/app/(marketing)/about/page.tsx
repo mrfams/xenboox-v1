@@ -77,7 +77,7 @@ const values = [
 
 const stats = [
   { value: "20+", label: "Accounting Modules", icon: Building2 },
-  { value: "19", label: "AI Agents", icon: Zap },
+  { value: "20+", label: "AI Agents", icon: Zap },
   { value: "99.9%", label: "Uptime SLA", icon: Shield },
   { value: "50+", label: "Currencies Supported", icon: TrendingUp },
 ];
@@ -141,7 +141,7 @@ const timeline = [
   {
     year: "2025",
     quarter: "Q1",
-    title: "19 agents, one platform",
+    title: "Full agent roster",
     description:
       "Full agent roster complete — a three-tier AI hierarchy with a CFO Agent that talks to you, department heads that manage the work, and worker agents that execute. Every agent logs its reasoning.",
   },
@@ -291,7 +291,7 @@ export default function AboutPage() {
               <div className="mt-4 flex flex-wrap items-center justify-center gap-x-8 gap-y-3 text-sm text-muted-foreground">
                 <span className="inline-flex items-center gap-1.5">
                   <Users className="h-4 w-4 text-primary" />
-                  <strong className="text-foreground">500+</strong> businesses
+                  <strong className="text-foreground">50+</strong> businesses
                 </span>
                 <span className="inline-flex items-center gap-1.5">
                   <Globe className="h-4 w-4 text-primary" />
@@ -329,7 +329,7 @@ export default function AboutPage() {
                   reports, and financial clarity.
                 </p>
                 <p className="text-lg leading-relaxed text-muted-foreground">
-                  Xenboox gives you 19 AI agents that handle invoicing, payroll,
+                  Xenboox gives you AI agents that handle invoicing, payroll,
                   reconciliation, compliance, and month-end close — the work of
                   a full finance department, at a fraction of the cost.
                 </p>
@@ -682,7 +682,7 @@ export default function AboutPage() {
                 </h3>
                 <ul className="space-y-4">
                   {[
-                    "19 AI agents that handle your books while you sleep",
+                    "AI agents that handle your books while you sleep",
                     "Month-end close in 10 minutes, not 5 days",
                     "Real-time dashboards that explain what the numbers mean",
                     "Multi-currency, mobile money, and bank feeds built in",
@@ -708,7 +708,7 @@ export default function AboutPage() {
           <FadeInUp>
             <p className="text-lg leading-relaxed text-muted-foreground sm:text-xl">
               Every business deserves an accounting department that works around
-              the clock. Xenboox gives you 19 AI agents that handle invoicing,
+              the clock. Xenboox gives you AI agents that handle invoicing,
               payroll, compliance, and close — so you can focus on growing your
               business, not managing your books.
             </p>
