@@ -63,12 +63,12 @@ const surfaces: {
   },
 ];
 
-// ─── Ledger Field — Antigravity Canvas (Zamp + Google Antigravity inspired) ───
-// Accounting-native wow: 60 ledger entries float as balanced field.
-// Cursor = CFO judgment antigravity: entries repel within 180px, lines brighten
-// when paired (double-entry). Zamp footer magnetic on CTAs.
-// Loop+graph verified: rAF, DPR, ResizeObserver, IntersectionObserver, reduced-motion
-function HeroLedgerField({
+// ─── Numbers Field — accounting-native random drift (professional, demo-safe) ───
+// Random financial figures drift like ledger entries left to settle. Mono 10-11px,
+// opacity 0.06-0.09, speed 0.18-0.32. Demo card is punch-holed (no numbers under
+// visual) and spotlight is dimmed so the visual stays crisp. Cursor adds
+// micro-turbulence, not repel.
+function HeroNumbersField({
   heroRef,
 }: {
   heroRef: React.RefObject<HTMLElement | null>;
@@ -94,46 +94,60 @@ function HeroLedgerField({
     let isVisible = true;
 
     const isMobile = () => window.innerWidth < 768;
-    const count = () => (isMobile() ? 28 : 62);
+    const pool = [
+      "486,000",
+      "72,900",
+      "413,100",
+      "2.1M",
+      "1.92M",
+      "84,500",
+      "340K",
+      "3.2M",
+      "1.4M",
+      "GMD",
+      "USD",
+      "EUR",
+      "Dr",
+      "Cr",
+      "+12%",
+      "–3%",
+      "18%",
+      "25%",
+    ];
 
-    type P = {
+    type N = {
       x: number;
       y: number;
       vx: number;
       vy: number;
-      ox: number;
-      oy: number;
-      r: number;
+      txt: string;
+      size: number;
     };
-    let particles: P[] = [];
+    let nums: N[] = [];
 
     const init = () => {
       w = hero.clientWidth;
       h = hero.clientHeight;
       canvas.width = Math.floor(w * dpr);
       canvas.height = Math.floor(h * dpr);
-      canvas.style.width = `${w}px`;
-      canvas.style.height = `${h}px`;
+      canvas.style.width = w + "px";
+      canvas.style.height = h + "px";
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      particles = Array.from({ length: count() }, () => {
-        const x = Math.random() * w;
-        const y = Math.random() * h;
-        return {
-          x,
-          y,
-          ox: x,
-          oy: y,
-          vx: (Math.random() - 0.5) * 0.35,
-          vy: (Math.random() - 0.5) * 0.35,
-          r: Math.random() > 0.82 ? 1.9 : 1.15,
-        };
-      });
+      const n = isMobile() ? 22 : 34;
+      nums = Array.from({ length: n }, () => ({
+        x: Math.random() * w,
+        y: Math.random() * h,
+        vx: (Math.random() - 0.5) * 0.32 + (Math.random() > 0.5 ? 0.12 : -0.12),
+        vy: (Math.random() - 0.5) * 0.22,
+        txt: pool[Math.floor(Math.random() * pool.length)],
+        size: Math.random() > 0.7 ? 11 : 10,
+      }));
     };
 
-    const onPointerMove = (e: PointerEvent) => {
-      const rect = hero.getBoundingClientRect();
-      mouseX = e.clientX - rect.left;
-      mouseY = e.clientY - rect.top;
+    const onMove = (e: PointerEvent) => {
+      const r = hero.getBoundingClientRect();
+      mouseX = e.clientX - r.left;
+      mouseY = e.clientY - r.top;
     };
     const onLeave = () => {
       mouseX = -9999;
@@ -150,101 +164,69 @@ function HeroLedgerField({
       { threshold: 0 },
     );
     io.observe(hero);
-    hero.addEventListener("pointermove", onPointerMove, { passive: true });
+    hero.addEventListener("pointermove", onMove, { passive: true });
     hero.addEventListener("pointerleave", onLeave);
 
     init();
 
-    const connectDist = 108;
-    const repelRadius = 180;
+    function getDemoRect() {
+      const demo = hero.querySelector<HTMLElement>("[data-hero-demo]");
+      if (!demo) return null;
+      const hr = hero.getBoundingClientRect();
+      const dr = demo.getBoundingClientRect();
+      return {
+        x: dr.left - hr.left - 20,
+        y: dr.top - hr.top - 20,
+        w: dr.width + 40,
+        h: dr.height + 40,
+      };
+    }
 
     function frame() {
       raf = 0;
       if (!isVisible) return;
       ctx.clearRect(0, 0, w, h);
+      const demoRect = getDemoRect();
 
-      // update + draw dots
-      for (let i = 0; i < particles.length; i++) {
-        const p = particles[i];
-        // antigravity repel
-        const dx = p.x - mouseX;
-        const dy = p.y - mouseY;
-        const dist = Math.hypot(dx, dy);
-        if (dist < repelRadius && dist > 0.1) {
-          const f = (repelRadius - dist) / repelRadius;
-          const angle = Math.atan2(dy, dx);
-          const push = f * 1.85;
-          p.vx += Math.cos(angle) * push * 0.18;
-          p.vy += Math.sin(angle) * push * 0.18;
+      for (const n of nums) {
+        // micro-turbulence near cursor
+        const dx = n.x - mouseX;
+        const dy = n.y - mouseY;
+        const d = Math.hypot(dx, dy);
+        if (d < 140 && d > 0.5) {
+          const f = (140 - d) / 140;
+          n.vx += (Math.random() - 0.5) * f * 0.28;
+          n.vy += (Math.random() - 0.5) * f * 0.28;
         }
-        // spring back to origin + friction
-        p.vx += (p.ox - p.x) * 0.028;
-        p.vy += (p.oy - p.y) * 0.028;
-        p.vx *= 0.965;
-        p.vy *= 0.965;
-        // drift
-        p.x += p.vx;
-        p.y += p.vy;
+        n.x += n.vx;
+        n.y += n.vy;
 
-        // clamp slightly beyond to avoid pop
-        if (p.x < -12 || p.x > w + 12) p.vx *= -0.7;
-        if (p.y < -12 || p.y > h + 12) p.vy *= -0.7;
-      }
+        // gentle drift + wrap
+        if (n.x < -80) n.x = w + 40;
+        if (n.x > w + 80) n.x = -40;
+        if (n.y < -20) n.y = h + 20;
+        if (n.y > h + 20) n.y = -20;
 
-      // lines — double-entry pairing with spatial grid (O(n²) is fine at 60)
-      const accent =
-        getComputedStyle(document.documentElement).getPropertyValue(
-          "--primary",
-        ) || "142 70% 45%";
-      for (let i = 0; i < particles.length; i++) {
-        const a = particles[i];
-        for (let j = i + 1; j < particles.length; j++) {
-          const b = particles[j];
-          const dx = a.x - b.x;
-          const dy = a.y - b.y;
-          const d = Math.hypot(dx, dy);
-          if (d > connectDist) continue;
-          // proximity to cursor brightens the pair (balanced trail)
-          const midX = (a.x + b.x) / 2;
-          const midY = (a.y + b.y) / 2;
-          const md = Math.hypot(midX - mouseX, midY - mouseY);
-          const cursorBoost =
-            md < repelRadius ? (1 - md / repelRadius) * 0.55 : 0;
-          const baseAlpha = 0.045 * (1 - d / connectDist);
-          const alpha = baseAlpha + cursorBoost * 0.11;
-          if (alpha <= 0.01) continue;
-          ctx.beginPath();
-          ctx.moveTo(a.x, a.y);
-          ctx.lineTo(b.x, b.y);
-          ctx.strokeStyle =
-            cursorBoost > 0.08
-              ? `hsla(${accent} / ${alpha + 0.08})`
-              : `hsl(var(--foreground) / ${alpha})`;
-          ctx.lineWidth = cursorBoost > 0.08 ? 0.9 : 0.55;
-          ctx.stroke();
+        // punch hole: skip if inside demo card
+        if (
+          demoRect &&
+          n.x > demoRect.x &&
+          n.x < demoRect.x + demoRect.w &&
+          n.y > demoRect.y &&
+          n.y < demoRect.y + demoRect.h
+        ) {
+          continue;
         }
-      }
 
-      // dots
-      for (const p of particles) {
-        const md = Math.hypot(p.x - mouseX, p.y - mouseY);
-        const near = md < repelRadius ? 1 - md / repelRadius : 0;
-        const alpha = 0.08 + near * 0.22;
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        const near = d < 140 ? 1 - d / 140 : 0;
+        const alpha = 0.055 + near * 0.07;
+        ctx.font =
+          n.size + "px 'Geist Mono', 'JetBrains Mono', ui-monospace, monospace";
         ctx.fillStyle =
           near > 0.12
-            ? `hsl(var(--primary) / ${alpha + 0.1})`
-            : `hsl(var(--foreground) / ${alpha})`;
-        // subtle glow for near particles
-        if (near > 0.22) {
-          ctx.shadowBlur = 6;
-          ctx.shadowColor = `hsl(var(--primary) / 0.22)`;
-        } else {
-          ctx.shadowBlur = 0;
-        }
-        ctx.fill();
-        ctx.shadowBlur = 0;
+            ? "hsl(var(--primary) / " + (alpha + 0.06) + ")"
+            : "hsl(var(--foreground) / " + alpha + ")";
+        ctx.fillText(n.txt, n.x, n.y);
       }
 
       raf = requestAnimationFrame(frame);
@@ -255,7 +237,7 @@ function HeroLedgerField({
       cancelAnimationFrame(raf);
       ro.disconnect();
       io.disconnect();
-      hero.removeEventListener("pointermove", onPointerMove);
+      hero.removeEventListener("pointermove", onMove);
       hero.removeEventListener("pointerleave", onLeave);
     };
   }, [heroRef]);
@@ -377,31 +359,31 @@ export function Hero() {
       style={{ willChange: "auto" } as React.CSSProperties}
     >
       {/* Ledger Field — antigravity canvas (accounting-native wow, behind spotlight) */}
-      <HeroLedgerField heroRef={heroRef} />
+      <HeroNumbersField heroRef={heroRef} />
 
       {/* Layer 1: outer wash — 800px, unmistakable but premium */}
       <div
-        className="pointer-events-none absolute inset-0 z-[1] opacity-[var(--spotlight)] transition-opacity duration-300"
+        className="pointer-events-none absolute inset-0 z-0 opacity-[var(--spotlight)] transition-opacity duration-300"
         style={{
           background:
-            "radial-gradient(800px circle at var(--x) var(--y), hsl(var(--primary) / 0.09), transparent 68%)",
+            "radial-gradient(760px circle at var(--x) var(--y), hsl(var(--primary) / 0.055), transparent 68%)",
           willChange: "opacity",
         }}
         aria-hidden="true"
       />
       {/* Layer 2: inner core — tighter, brighter, sells the flashlight */}
       <div
-        className="pointer-events-none absolute inset-0 z-[1] opacity-[var(--spotlight)] transition-opacity duration-300"
+        className="pointer-events-none absolute inset-0 z-0 opacity-[var(--spotlight)] transition-opacity duration-300"
         style={{
           background:
-            "radial-gradient(420px circle at var(--x) var(--y), hsl(var(--primary) / 0.14), transparent 62%)",
+            "radial-gradient(400px circle at var(--x) var(--y), hsl(var(--primary) / 0.08), transparent 62%)",
           willChange: "opacity",
         }}
         aria-hidden="true"
       />
       {/* Layer 3: grid reveal — grid brightens only under cursor (Stripe/Linear) */}
       <div
-        className="pointer-events-none absolute inset-0 z-[1] opacity-[var(--spotlight)] transition-opacity duration-300"
+        className="pointer-events-none absolute inset-0 z-0 opacity-[var(--spotlight)] transition-opacity duration-300"
         style={{
           WebkitMaskImage:
             "radial-gradient(560px circle at var(--x) var(--y), black 18%, transparent 68%)",
@@ -426,7 +408,7 @@ export function Hero() {
         }}
       />
 
-      <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <div className="relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         {/* ── Compact Text Zone ── */}
         <div className="flex flex-col items-center gap-4 pt-10 text-center sm:pt-14 md:pt-16 lg:pt-20">
           {/* Headline */}
@@ -449,7 +431,10 @@ export function Hero() {
         </div>
 
         {/* ── Interactive Platform Demo — full bleed ── */}
-        <div className="hero-fade-up mt-8 sm:mt-10 md:mt-12 lg:mt-14">
+        <div
+          data-hero-demo
+          className="hero-fade-up mt-8 sm:mt-10 md:mt-12 lg:mt-14"
+        >
           <InteractiveDemo />
         </div>
 
@@ -619,7 +604,7 @@ function InteractiveDemo() {
         className="pointer-events-none absolute -inset-12 rounded-[2rem] opacity-[var(--dspot)] blur-3xl transition-opacity duration-300"
         style={{
           background:
-            "radial-gradient(600px circle at var(--wx) var(--wy), hsl(var(--primary) / 0.16), transparent 68%)",
+            "radial-gradient(600px circle at var(--wx) var(--wy), hsl(var(--primary) / 0.09), transparent 68%)",
           willChange: "opacity",
         }}
         aria-hidden="true"
@@ -629,7 +614,7 @@ function InteractiveDemo() {
         className="pointer-events-none absolute -inset-8 rounded-[2rem] opacity-[var(--dspot)] blur-2xl transition-opacity duration-300"
         style={{
           background:
-            "radial-gradient(340px circle at var(--wx) var(--wy), hsl(var(--primary) / 0.12), transparent 60%)",
+            "radial-gradient(340px circle at var(--wx) var(--wy), hsl(var(--primary) / 0.06), transparent 60%)",
         }}
         aria-hidden="true"
       />
@@ -644,7 +629,7 @@ function InteractiveDemo() {
           className="pointer-events-none absolute inset-0 rounded-2xl opacity-[var(--dspot)] transition-opacity duration-300"
           style={{
             background:
-              "radial-gradient(520px circle at var(--dx) var(--dy), hsl(var(--primary) / 0.26), transparent 58%)",
+              "radial-gradient(520px circle at var(--dx) var(--dy), hsl(var(--primary) / 0.14), transparent 58%)",
             WebkitMask:
               "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
             WebkitMaskComposite: "xor",
