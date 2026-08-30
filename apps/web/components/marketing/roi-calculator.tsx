@@ -152,7 +152,7 @@ export function RoiCalculator() {
       </div>
 
       {/* Results */}
-      <div className="mt-8 grid grid-cols-3 gap-3">
+      <div className="mt-8 grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div className="rounded-xl bg-primary/5 p-4 text-center">
           <Clock className="h-5 w-5 text-primary mx-auto mb-2" />
           <p className="text-2xl font-bold text-primary">

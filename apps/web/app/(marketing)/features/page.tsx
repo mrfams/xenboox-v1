@@ -531,7 +531,7 @@ function ReportingVisual() {
                 August 2026
               </span>
             </div>
-            <div className="mb-4 grid grid-cols-3 gap-3">
+            <div className="mb-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
               {metrics.map((m, i) => (
                 <div
                   key={m.label}
@@ -932,7 +932,7 @@ function CurrencyVisual() {
                 ECB · Updated hourly
               </span>
             </div>
-            <div className="flex-1 grid grid-cols-2 gap-2">
+            <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-2">
               {rates.map((r, i) => (
                 <div
                   key={r.currency}

@@ -241,7 +241,8 @@ function HeroNumbersField({
           ctx.font =
             "500 13px 'Geist Mono', 'JetBrains Mono', ui-monospace, monospace";
           // letter-spacing via canvas: use 0.02em tracked
-          (ctx as unknown as { letterSpacing: string }).letterSpacing = "0.02em";
+          (ctx as unknown as { letterSpacing: string }).letterSpacing =
+            "0.02em";
           ctx.fillStyle =
             d.morph > 0.45
               ? "hsl(var(--primary) / " + (alpha + 0.04) + ")"
@@ -954,7 +955,10 @@ function CommandCenter() {
           aria-label="Type a command"
           className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none"
         />
-        <Send className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+        <Send
+          className="h-4 w-4 shrink-0 text-muted-foreground"
+          aria-hidden="true"
+        />
       </div>
     </div>
   );
@@ -1079,7 +1083,7 @@ function FinancialPulse() {
       </div>
 
       {/* Metric cards */}
-      <div className="mb-4 grid grid-cols-3 gap-3">
+      <div className="mb-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
         {metrics.map((m, i) => (
           <div
             key={m.label}

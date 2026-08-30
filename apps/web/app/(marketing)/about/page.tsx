@@ -337,7 +337,7 @@ export default function AboutPage() {
             </FadeInUp>
 
             <FadeInUp delay={0.1}>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {stats.map((stat) => (
                   <div
                     key={stat.label}
