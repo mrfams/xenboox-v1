@@ -5,21 +5,20 @@
  * The six-month seed (Feb–Jul) and launch seed stop at July — this module
  * makes the demo feel LIVE by adding:
  *
- *   1. August 2026 AR invoices (open/overdue/paid mix) + lines
- *   2. August 2026 bank transactions (deposits, expenses, payroll, fee)
- *   3. August 2026 mobile money activity
- *   4. August 2026 payroll run (approved, awaiting disbursement)
- *   5. Depreciation schedule for EVERY active asset (Feb–Aug) — the
- *      Fixed Assets page renders the per-asset schedule, and only 5 of 24
- *      assets had one
- *   6. A full FY2026 operating budget with monthly lines + variance records
- *      (budget-vs-actual surfaces on Reports/Expenses)
- *   7. More estimates (EST-2026-006..010) in mixed states so the
- *      estimate-conversion + margin-review flows have material
- *   8. More expense claims (submitted / approved / flagged / reimbursed)
- *   9. August journal entries (revenue recognition, COGS, opex, salary)
- *  10. Fresh August notifications (unread) so the bell + Work feed show
- *      current activity
+ *   1. August 2026 AR invoices (28 invoices, open/overdue/paid/partial mix)
+ *   2. August 2026 AP bills (14 supplier invoices, paid/pending/overdue)
+ *   3. August 2026 bank transactions (26 txns incl. weekend activity)
+ *   4. August 2026 mobile money activity (11 transactions)
+ *   5. August 2026 customer payments (11 AR receipts)
+ *   6. August 2026 vendor payments (5 AP disbursements)
+ *   7. August 2026 payroll run (approved, awaiting disbursement)
+ *   8. Depreciation schedule for EVERY active asset (Feb–Aug)
+ *   9. FY2026 operating budget with monthly lines + variance records
+ *  10. Estimates (EST-2026-006..010) in mixed states
+ *  11. Expense claims (submitted / approved / flagged / reimbursed)
+ *  12. August journal entries (13 entries: revenue, COGS, collections,
+ *       payments, salary, depreciation, marketing, insurance)
+ *  13. Fresh August notifications (15 alerts, unread + read mix)
  *
  * Idempotent: deterministic ids (fresh `g*` prefix families so there is no
  * collision with existing seeds) + onConflictDoNothing. Runs AFTER
@@ -34,6 +33,10 @@ import {
   customers,
   salesInvoices,
   salesInvoiceLines,
+  invoicesAp,
+  invoiceApLines,
+  paymentsAp,
+  paymentsAr,
 } from "../schema/ap-ar";
 import { employees, payrollRuns, payrollLineItems } from "../schema/payroll";
 import { bankAccounts, bankTransactions } from "../schema/treasury";
@@ -185,15 +188,46 @@ export async function seedCurrentMonth() {
 
   // ── 1. August AR invoices ───────────────────────────────────────────────
   // Continue from SI-2026-057 (max created by six-month seed).
+  // Realistic mix: weekday + weekend dates, varied amounts, partial payments
   const augSales = [
-    { cIdx: 0, pIdx: 0, qty: 25, d: 4, status: "pending" as const },
-    { cIdx: 1, pIdx: 5, qty: 10, d: 6, status: "pending" as const },
-    { cIdx: 2, pIdx: 0, qty: 40, d: 8, status: "pending" as const },
-    { cIdx: 3, pIdx: 6, qty: 180, d: 10, status: "pending" as const },
-    { cIdx: 4, pIdx: 7, qty: 120, d: 12, status: "overdue" as const },
-    { cIdx: 5, pIdx: 1, qty: 100, d: 14, status: "pending" as const },
-    { cIdx: 6, pIdx: 0, qty: 70, d: 15, status: "pending" as const },
-    { cIdx: 7, pIdx: 4, qty: 20, d: 16, status: "paid" as const },
+    // Week 1 (Aug 1-7) — start of month rush
+    { cIdx: 0, pIdx: 0, qty: 25, d: 1, status: "paid" as const, paidPct: 1.0 },
+    { cIdx: 2, pIdx: 3, qty: 15, d: 1, status: "pending" as const, paidPct: 0 },
+    { cIdx: 1, pIdx: 5, qty: 10, d: 3, status: "pending" as const, paidPct: 0 },
+    { cIdx: 4, pIdx: 7, qty: 200, d: 4, status: "pending" as const, paidPct: 0 },
+    { cIdx: 3, pIdx: 0, qty: 50, d: 5, status: "paid" as const, paidPct: 1.0 },
+    // Weekend (Aug 6-7) — Saturday/Sunday orders
+    { cIdx: 5, pIdx: 2, qty: 80, d: 6, status: "pending" as const, paidPct: 0 },
+    { cIdx: 0, pIdx: 6, qty: 300, d: 7, status: "paid" as const, paidPct: 1.0 },
+    // Week 2 (Aug 8-14)
+    { cIdx: 6, pIdx: 0, qty: 40, d: 8, status: "pending" as const, paidPct: 0 },
+    { cIdx: 7, pIdx: 4, qty: 15, d: 9, status: "paid" as const, paidPct: 1.0 },
+    { cIdx: 1, pIdx: 1, qty: 60, d: 10, status: "pending" as const, paidPct: 0 },
+    { cIdx: 2, pIdx: 0, qty: 30, d: 11, status: "overdue" as const, paidPct: 0 },
+    { cIdx: 3, pIdx: 5, qty: 8, d: 12, status: "pending" as const, paidPct: 0 },
+    // Weekend (Aug 13-14)
+    { cIdx: 4, pIdx: 3, qty: 25, d: 13, status: "pending" as const, paidPct: 0 },
+    { cIdx: 5, pIdx: 7, qty: 150, d: 14, status: "paid" as const, paidPct: 0.6 },
+    // Week 3 (Aug 15-21)
+    { cIdx: 6, pIdx: 2, qty: 45, d: 15, status: "pending" as const, paidPct: 0 },
+    { cIdx: 0, pIdx: 0, qty: 60, d: 16, status: "paid" as const, paidPct: 1.0 },
+    { cIdx: 7, pIdx: 6, qty: 500, d: 17, status: "pending" as const, paidPct: 0 },
+    { cIdx: 1, pIdx: 4, qty: 12, d: 18, status: "pending" as const, paidPct: 0 },
+    // Weekend (Aug 20-21)
+    { cIdx: 2, pIdx: 1, qty: 90, d: 20, status: "overdue" as const, paidPct: 0 },
+    { cIdx: 3, pIdx: 0, qty: 35, d: 21, status: "pending" as const, paidPct: 0 },
+    // Week 4 (Aug 22-28)
+    { cIdx: 4, pIdx: 5, qty: 6, d: 22, status: "pending" as const, paidPct: 0 },
+    { cIdx: 5, pIdx: 2, qty: 55, d: 23, status: "pending" as const, paidPct: 0 },
+    { cIdx: 6, pIdx: 7, qty: 180, d: 25, status: "pending" as const, paidPct: 0 },
+    { cIdx: 0, pIdx: 3, qty: 20, d: 26, status: "paid" as const, paidPct: 1.0 },
+    // Weekend (Aug 27-28)
+    { cIdx: 1, pIdx: 0, qty: 45, d: 27, status: "pending" as const, paidPct: 0 },
+    { cIdx: 7, pIdx: 6, qty: 250, d: 28, status: "paid" as const, paidPct: 0.5 },
+    // Week 5 (Aug 29-31)
+    { cIdx: 2, pIdx: 4, qty: 10, d: 29, status: "pending" as const, paidPct: 0 },
+    { cIdx: 3, pIdx: 1, qty: 70, d: 30, status: "pending" as const, paidPct: 0 },
+    { cIdx: 4, pIdx: 0, qty: 55, d: 31, status: "pending" as const, paidPct: 0 },
   ];
   let arCount = 0;
   for (let k = 0; k < augSales.length; k++) {
@@ -204,7 +238,20 @@ export async function seedCurrentMonth() {
     const invId = uuid("g1", seq);
     const cid = customerIds[s.cIdx % customerIds.length];
     if (!cid) continue;
-    const paid = s.status === "paid" ? String(amount) : "0";
+    const paidAmt = Math.round(amount * (s.paidPct ?? 0));
+    const balance = amount - paidAmt;
+    const invoiceDate = new Date(`${day(s.d)}T09:00:00Z`);
+    // Sent at time varies — some sent same day, some next morning
+    const sentHour = s.d % 7 < 5 ? 9 : 11; // weekends sent later
+    const sentAt = s.status !== "draft"
+      ? new Date(`${day(s.d)}T${String(sentHour).padStart(2, "0")}:00:00Z`)
+      : null;
+    // Paid at varies — some same day, some days later
+    const paidAt = s.paidPct === 1.0
+      ? new Date(`${day(Math.min(31, s.d + (s.d % 3) + 1))}T15:00:00Z`)
+      : s.paidPct > 0 && s.paidPct < 1.0
+        ? new Date(`${day(Math.min(31, s.d + 3))}T14:00:00Z`)
+        : null;
     await db
       .insert(salesInvoices)
       .values({
@@ -213,17 +260,22 @@ export async function seedCurrentMonth() {
         customerId: cid,
         invoiceNumber: `SI-2026-${String(seq).padStart(3, "0")}`,
         invoiceDate: day(s.d),
-        dueDate: day(Math.min(28, s.d + 30)),
+        dueDate: day(Math.min(31, s.d + 30)),
         status: s.status,
         totalAmount: String(amount),
-        paidAmount: paid,
-        balance: String(amount - parseFloat(paid)),
+        paidAmount: String(paidAmt),
+        balance: String(balance),
         currency: "GMD",
-        sentAt: new Date(`${day(s.d)}T09:00:00Z`),
+        sentAt,
+        paidAt: paidAt ?? undefined,
         notes:
           s.status === "overdue"
             ? "Overdue — follow up with collections agent"
-            : null,
+            : s.paidPct === 1.0
+              ? "Fully paid"
+              : s.paidPct > 0
+                ? `Partial payment received (${Math.round((s.paidPct ?? 0) * 100)}%)`
+                : null,
       })
       .onConflictDoNothing();
     await db
@@ -826,7 +878,229 @@ export async function seedCurrentMonth() {
   }
   console.log(`  Expense claims (Aug): +${clCount}`);
 
-  // ── 9. August journal entries ───────────────────────────────────────────
+  // ── 9. August AP bills (supplier invoices) ──────────────────────────────
+  const augBills = [
+    { sIdx: 0, desc: "Rice (50kg) x 100 — bulk order", d: 2, total: 650000, status: "paid" as const, paidPct: 1.0 },
+    { sIdx: 1, desc: "Sugar (10kg) x 200", d: 3, total: 360000, status: "pending" as const, paidPct: 0 },
+    { sIdx: 2, desc: "Cooking Oil (5L) x 50", d: 5, total: 70000, status: "paid" as const, paidPct: 1.0 },
+    { sIdx: 0, desc: "Flour (25kg) x 80", d: 7, total: 336000, status: "pending" as const, paidPct: 0 },
+    { sIdx: 3, desc: "Tomato Paste (carton) x 30", d: 8, total: 288000, status: "paid" as const, paidPct: 0.5 },
+    { sIdx: 4, desc: "Milk Powder (carton) x 25", d: 10, total: 300000, status: "pending" as const, paidPct: 0 },
+    { sIdx: 1, desc: "Bottled Water (case) x 500", d: 12, total: 240000, status: "pending" as const, paidPct: 0 },
+    { sIdx: 5, desc: "Soap (carton) x 100", d: 14, total: 240000, status: "overdue" as const, paidPct: 0 },
+    { sIdx: 0, desc: "Rice (50kg) x 60 — restock", d: 18, total: 390000, status: "pending" as const, paidPct: 0 },
+    { sIdx: 2, desc: "Cooking Oil (5L) x 80", d: 20, total: 112000, status: "pending" as const, paidPct: 0 },
+    { sIdx: 3, desc: "Flour (25kg) x 40", d: 22, total: 168000, status: "paid" as const, paidPct: 1.0 },
+    { sIdx: 4, desc: "Milk Powder (carton) x 15", d: 25, total: 180000, status: "pending" as const, paidPct: 0 },
+    { sIdx: 1, desc: "Sugar (10kg) x 150", d: 27, total: 270000, status: "pending" as const, paidPct: 0 },
+    { sIdx: 5, desc: "Soap (carton) x 60", d: 29, total: 144000, status: "pending" as const, paidPct: 0 },
+  ];
+  let apCount = 0;
+  for (let k = 0; k < augBills.length; k++) {
+    const b = augBills[k];
+    const sid = supplierIds[b.sIdx % supplierIds.length];
+    if (!sid) continue;
+    const seq = 301 + k;
+    const billId = uuid("g20", seq);
+    const paidAmt = Math.round(b.total * (b.paidPct ?? 0));
+    const balance = b.total - paidAmt;
+    const paidAt = b.paidPct === 1.0
+      ? new Date(`${day(Math.min(31, b.d + 5))}T16:00:00Z`)
+      : b.paidPct > 0
+        ? new Date(`${day(Math.min(31, b.d + 7))}T14:00:00Z`)
+        : null;
+    await db
+      .insert(invoicesAp)
+      .values({
+        id: billId,
+        entityId,
+        supplierId: sid,
+        invoiceNumber: `BILL-2026-${String(seq).padStart(3, "0")}`,
+        invoiceDate: day(b.d),
+        dueDate: day(Math.min(31, b.d + 30)),
+        status: b.status,
+        totalAmount: String(b.total),
+        paidAmount: String(paidAmt),
+        balance: String(balance),
+        currency: "GMD",
+        notes: b.desc,
+        createdAt: new Date(`${day(b.d)}T10:00:00Z`),
+      })
+      .onConflictDoNothing();
+    await db
+      .insert(invoiceApLines)
+      .values({
+        invoiceApId: billId,
+        accountId: ACCT.inventory,
+        description: b.desc,
+        quantity: "1",
+        unitPrice: String(b.total),
+        amount: String(b.total),
+      })
+      .onConflictDoNothing();
+    apCount++;
+  }
+  console.log(`  AP bills (Aug): +${apCount}`);
+
+  // ── 10. Customer payments (AR receipts) ──────────────────────────────────
+  // Payments received from customers against their invoices
+  const arPayments = [
+    { cIdx: 0, d: 8, amount: 162500, method: "bank_transfer", ref: "PAY-2026-08-001" },
+    { cIdx: 2, d: 10, amount: 260000, method: "bank_transfer", ref: "PAY-2026-08-002" },
+    { cIdx: 3, d: 12, amount: 86400, method: "mobile_money", ref: "WAVE-2026-08-C1" },
+    { cIdx: 5, d: 15, amount: 112000, method: "bank_transfer", ref: "PAY-2026-08-003" },
+    { cIdx: 7, d: 18, amount: 144000, method: "cash", ref: "CASH-2026-08-001" },
+    { cIdx: 0, d: 20, amount: 312000, method: "bank_transfer", ref: "PAY-2026-08-004" },
+    { cIdx: 1, d: 22, amount: 120000, method: "mobile_money", ref: "WAVE-2026-08-C2" },
+    { cIdx: 4, d: 25, amount: 288000, method: "bank_transfer", ref: "PAY-2026-08-005" },
+    { cIdx: 6, d: 27, amount: 205000, method: "bank_transfer", ref: "PAY-2026-08-006" },
+    { cIdx: 2, d: 29, amount: 96000, method: "cash", ref: "CASH-2026-08-002" },
+    { cIdx: 3, d: 30, amount: 48000, method: "mobile_money", ref: "WAVE-2026-08-C3" },
+  ];
+  let arPayCount = 0;
+  for (let k = 0; k < arPayments.length; k++) {
+    const p = arPayments[k];
+    const cid = customerIds[p.cIdx % customerIds.length];
+    if (!cid) continue;
+    const payId = uuid("g21", k + 1);
+    await db
+      .insert(paymentsAr)
+      .values({
+        id: payId,
+        entityId,
+        customerId: cid,
+        amount: String(p.amount),
+        currency: "GMD",
+        paymentDate: day(p.d),
+        paymentMethod: p.method,
+        reference: p.ref,
+        notes: `Customer payment — ${p.method.replace(/_/g, " ")}`,
+        createdAt: new Date(`${day(p.d)}T16:00:00Z`),
+      })
+      .onConflictDoNothing();
+    arPayCount++;
+  }
+  console.log(`  Customer payments (Aug): +${arPayCount}`);
+
+  // ── 11. Vendor payments (AP disbursements) ──────────────────────────────
+  const apPayments = [
+    { sIdx: 0, d: 7, amount: 650000, method: "bank_transfer", ref: "VEND-2026-08-001" },
+    { sIdx: 2, d: 10, amount: 70000, method: "bank_transfer", ref: "VEND-2026-08-002" },
+    { sIdx: 3, d: 15, amount: 144000, method: "bank_transfer", ref: "VEND-2026-08-003" },
+    { sIdx: 0, d: 20, amount: 390000, method: "bank_transfer", ref: "VEND-2026-08-004" },
+    { sIdx: 3, d: 25, amount: 168000, method: "mobile_money", ref: "WAVE-2026-08-V1" },
+  ];
+  let apPayCount = 0;
+  for (let k = 0; k < apPayments.length; k++) {
+    const p = apPayments[k];
+    const sid = supplierIds[p.sIdx % supplierIds.length];
+    if (!sid) continue;
+    const payId = uuid("g22", k + 1);
+    await db
+      .insert(paymentsAp)
+      .values({
+        id: payId,
+        entityId,
+        supplierId: sid,
+        amount: String(p.amount),
+        currency: "GMD",
+        paymentDate: day(p.d),
+        paymentMethod: p.method,
+        reference: p.ref,
+        notes: `Vendor payment — ${p.method.replace(/_/g, " ")}`,
+        createdAt: new Date(`${day(p.d)}T17:00:00Z`),
+      })
+      .onConflictDoNothing();
+    apPayCount++;
+  }
+  console.log(`  Vendor payments (Aug): +${apPayCount}`);
+
+  // ── 12. More bank transactions (weekend + varied) ───────────────────────
+  if (bankAccountId) {
+    const moreTxs: Array<{
+      d: number;
+      type: "deposit" | "withdrawal" | "fee";
+      amount: string;
+      desc: string;
+      ref: string;
+    }> = [
+      // Weekend transactions (realistic — business doesn't stop)
+      { d: 6, type: "deposit", amount: "85000", desc: "Weekend market sales — Serrekunda", ref: "WKND-2026-08-1" },
+      { d: 7, type: "withdrawal", amount: "18500", desc: "Fuel — weekend delivery run", ref: "WKND-2026-08-2" },
+      { d: 13, type: "deposit", amount: "125000", desc: "Weekend collections — Banjul market", ref: "WKND-2026-08-3" },
+      { d: 14, type: "withdrawal", amount: "9200", desc: "Staff transport — weekend shift", ref: "WKND-2026-08-4" },
+      { d: 20, type: "deposit", amount: "95000", desc: "Weekend sales — Fajara", ref: "WKND-2026-08-5" },
+      { d: 21, type: "fee", amount: "1800", desc: "ATM withdrawal fee", ref: "ATM-2026-08-3" },
+      { d: 27, type: "deposit", amount: "142000", desc: "Weekend sales — Kanifing", ref: "WKND-2026-08-6" },
+      { d: 28, type: "withdrawal", amount: "22000", desc: "Weekend restocking — suppliers", ref: "WKND-2026-08-7" },
+      // Weekday transactions (more varied)
+      { d: 22, type: "deposit", amount: "180000", desc: "Customer payment — large order", ref: "PAY-2026-08-LG1" },
+      { d: 23, type: "withdrawal", amount: "45000", desc: "Insurance premium — Q3", ref: "INS-AUG" },
+      { d: 24, type: "deposit", amount: "67500", desc: "Mobile money collections batch", ref: "MOMO-BATCH-AUG" },
+      { d: 25, type: "withdrawal", amount: "32000", desc: "Marketing — social media ads", ref: "MKTG-AUG" },
+      { d: 26, type: "withdrawal", amount: "15000", desc: "Office maintenance", ref: "MAINT-AUG" },
+      { d: 29, type: "deposit", amount: "210000", desc: "End-of-month collections", ref: "COLL-2026-08-EOM" },
+      { d: 30, type: "withdrawal", amount: "88000", desc: "Payroll disbursement", ref: "PAYROLL-AUG" },
+      { d: 31, type: "fee", amount: "3200", desc: "Monthly account maintenance fee", ref: "FEE-2026-08-2" },
+    ];
+    for (let i = 0; i < moreTxs.length; i++) {
+      const tx = moreTxs[i];
+      await db
+        .insert(bankTransactions)
+        .values({
+          id: uuid("g23", i + 1),
+          entityId,
+          bankAccountId,
+          transactionDate: day(tx.d),
+          type: tx.type,
+          amount: tx.amount,
+          description: tx.desc,
+          reference: tx.ref,
+          isReconciled: tx.d <= 25,
+          source: "bank_feed",
+        })
+        .onConflictDoNothing();
+    }
+    console.log(`  More bank transactions (Aug): +${moreTxs.length}`);
+  }
+
+  // ── 13. More mobile money transactions ──────────────────────────────────
+  if (mmAccountId) {
+    const moreMm = [
+      { amt: "28500", from: "Banjul Retail Shop", d: 8, type: "collection" as const },
+      { amt: "19200", from: "Fajara Pharmacy", d: 11, type: "collection" as const },
+      { amt: "45000", from: "Kanifing Warehouse", d: 15, type: "collection" as const },
+      { amt: "32000", from: "Serekunda Market Traders", d: 18, type: "collection" as const },
+      { amt: "15800", from: "Brusubi Gas Station", d: 22, type: "collection" as const },
+      { amt: "62000", from: "Hotel Kairaba Beach", d: 25, type: "collection" as const },
+      { amt: "38500", from: "Brikama Fresh Produce", d: 28, type: "collection" as const },
+      { amt: "22000", from: "Main Operating Account", d: 25, type: "transfer" as const, fee: "100", net: "22100", desc: "Transfer to bank — collections" },
+    ];
+    for (let i = 0; i < moreMm.length; i++) {
+      const it = moreMm[i];
+      await db
+        .insert(mobileMoneyTransactions)
+        .values({
+          id: uuid("g24", i + 1),
+          entityId,
+          mobileMoneyAccountId: mmAccountId,
+          providerTxId: `WAVE-2026-08-${i + 4}`,
+          type: it.type,
+          amount: it.amt,
+          fee: it.fee ?? "0",
+          netAmount: it.net ?? it.amt,
+          counterpartyName: it.from,
+          description: it.desc ?? `Mobile money collection — ${it.from}`,
+          status: "successful",
+          initiatedAt: new Date(`${day(it.d)}T14:00:00Z`),
+          completedAt: new Date(`${day(it.d)}T14:05:00Z`),
+        })
+        .onConflictDoNothing();
+    }
+    console.log(`  More mobile money (Aug): +${moreMm.length}`);
+  }
+
+  // ── 14. August journal entries ───────────────────────────────────────────
   const augPeriod = await db
     .select({ id: fiscalPeriods.id })
     .from(fiscalPeriods)
@@ -846,32 +1120,116 @@ export async function seedCurrentMonth() {
       d: number;
       lines: Array<[string, string, string]>;
     }> = [
+      // Week 1-2 entries
       {
         desc: "Aug sales revenue recognition (MTD)",
-        d: 17,
+        d: 10,
         lines: [
-          [ACCT.receivable, "882000", "0"],
-          [ACCT.salesRevenue, "0", "750000"],
-          [ACCT.taxLiability, "0", "132000"],
+          [ACCT.receivable, "1250000", "0"],
+          [ACCT.salesRevenue, "0", "1100000"],
+          [ACCT.taxLiability, "0", "150000"],
         ],
       },
       {
-        desc: "Aug cost of goods sold",
-        d: 17,
+        desc: "Aug cost of goods sold (W1-W2)",
+        d: 10,
         lines: [
-          [ACCT.cogs, "511560", "0"],
-          [ACCT.inventory, "0", "511560"],
+          [ACCT.cogs, "720000", "0"],
+          [ACCT.inventory, "0", "720000"],
         ],
       },
       {
-        desc: "Aug operating expenses accrual",
-        d: 17,
+        desc: "Aug operating expenses accrual (W1-W2)",
+        d: 12,
         lines: [
           [ACCT.rentExpense, "75000", "0"],
           [ACCT.utilitiesExpense, "45500", "0"],
           [ACCT.officeExpense, "12500", "0"],
           [ACCT.travelExpense, "28500", "0"],
           [ACCT.accruedLiability, "0", "161500"],
+        ],
+      },
+      // Mid-month entries
+      {
+        desc: "Aug customer collections (mid-month)",
+        d: 18,
+        lines: [
+          [ACCT.bank, "507000", "0"],
+          [ACCT.receivable, "0", "507000"],
+        ],
+      },
+      {
+        desc: "Aug supplier payments (mid-month)",
+        d: 20,
+        lines: [
+          [ACCT.payable, "864000", "0"],
+          [ACCT.bank, "0", "864000"],
+        ],
+      },
+      {
+        desc: "Aug sales revenue recognition (W3-W4)",
+        d: 25,
+        lines: [
+          [ACCT.receivable, "980000", "0"],
+          [ACCT.salesRevenue, "0", "860000"],
+          [ACCT.taxLiability, "0", "120000"],
+        ],
+      },
+      {
+        desc: "Aug cost of goods sold (W3-W4)",
+        d: 25,
+        lines: [
+          [ACCT.cogs, "560000", "0"],
+          [ACCT.inventory, "0", "560000"],
+        ],
+      },
+      // End-of-month entries
+      {
+        desc: "Aug salary expense accrual",
+        d: 30,
+        lines: [
+          [ACCT.salaryExpense, "405000", "0"],
+          [ACCT.accruedLiability, "0", "405000"],
+        ],
+      },
+      {
+        desc: "Aug customer collections (late month)",
+        d: 30,
+        lines: [
+          [ACCT.bank, "641500", "0"],
+          [ACCT.receivable, "0", "641500"],
+        ],
+      },
+      {
+        desc: "Aug mobile money collections",
+        d: 31,
+        lines: [
+          [ACCT.bank, "241000", "0"],
+          [ACCT.salesRevenue, "0", "241000"],
+        ],
+      },
+      {
+        desc: "Aug depreciation expense",
+        d: 31,
+        lines: [
+          [ACCT.officeExpense, "48000", "0"],
+          [ACCT.accruedLiability, "0", "48000"],
+        ],
+      },
+      {
+        desc: "Aug marketing expense accrual",
+        d: 31,
+        lines: [
+          [ACCT.marketingExpense, "32000", "0"],
+          [ACCT.accruedLiability, "0", "32000"],
+        ],
+      },
+      {
+        desc: "Aug insurance expense",
+        d: 31,
+        lines: [
+          [ACCT.insuranceExpense, "45000", "0"],
+          [ACCT.bank, "0", "45000"],
         ],
       },
     ];
@@ -911,42 +1269,21 @@ export async function seedCurrentMonth() {
 
   // ── 10. August notifications (unread — bell + Work feed) ────────────────
   const notifDefs = [
-    {
-      type: "ingestion_posted",
-      priority: "medium",
-      title: "4 documents auto-posted",
-      body: "OCR extraction posted 4 supplier bills from the August inbox.",
-    },
-    {
-      type: "overdue_invoice",
-      priority: "high",
-      title: "1 invoice overdue",
-      body: "SI-2026-062 is past due — the collections agent drafted a reminder.",
-    },
-    {
-      type: "budget_alert",
-      priority: "medium",
-      title: "Utilities at 91% of budget",
-      body: "August utilities spend is tracking 12% above plan.",
-    },
-    {
-      type: "payroll_processed",
-      priority: "medium",
-      title: "August payroll approved",
-      body: "The August payroll run is approved and ready for disbursement on the 28th.",
-    },
-    {
-      type: "agent_flag",
-      priority: "medium",
-      title: "Duplicate vendor flagged",
-      body: "A possible duplicate supplier was detected and moved to review.",
-    },
-    {
-      type: "estimate_converted",
-      priority: "low",
-      title: "EST-2026-007 accepted",
-      body: "Gambia Ports Authority accepted the estimate — convert it to an invoice.",
-    },
+    { type: "ingestion_posted", priority: "medium", title: "4 documents auto-posted", body: "OCR extraction posted 4 supplier bills from the August inbox.", d: 3 },
+    { type: "overdue_invoice", priority: "high", title: "2 invoices overdue", body: "SI-2026-062 and SI-2026-070 are past due — collections agent drafted reminders.", d: 5 },
+    { type: "budget_alert", priority: "medium", title: "Utilities at 91% of budget", body: "August utilities spend is tracking 12% above plan.", d: 7 },
+    { type: "agent_flag", priority: "medium", title: "Duplicate vendor flagged", body: "A possible duplicate supplier was detected and moved to review.", d: 9 },
+    { type: "ingestion_posted", priority: "low", title: "3 receipts scanned", body: "Mobile money receipts from Wave auto-categorized.", d: 11 },
+    { type: "payroll_processed", priority: "medium", title: "August payroll approved", body: "The August payroll run is approved and ready for disbursement on the 28th.", d: 14 },
+    { type: "estimate_converted", priority: "low", title: "EST-2026-007 accepted", body: "Gambia Ports Authority accepted the estimate — convert it to an invoice.", d: 16 },
+    { type: "overdue_invoice", priority: "high", title: "3 invoices overdue", body: "SI-2026-062, SI-2026-070, and SI-2026-078 are now overdue.", d: 18 },
+    { type: "agent_flag", priority: "medium", title: "Large expense flagged", body: "A payment of GMD 45,000 for insurance exceeds the GMD 40,000 threshold.", d: 20 },
+    { type: "ingestion_posted", priority: "low", title: "2 invoices received", body: "Supplier invoices from Atlantic Trading posted via email scan.", d: 22 },
+    { type: "budget_alert", priority: "high", title: "Marketing at 95% of budget", body: "August marketing spend is nearly exhausted — 5 days remaining.", d: 24 },
+    { type: "agent_flag", priority: "medium", title: "Cash flow warning", body: "Projected cash balance dips below GMD 200,000 next week.", d: 26 },
+    { type: "ingestion_posted", priority: "medium", title: "5 documents auto-posted", body: "Weekend batch: 3 supplier bills + 2 customer payments.", d: 28 },
+    { type: "overdue_invoice", priority: "urgent", title: "4 invoices overdue", body: "Total overdue balance: GMD 1,245,000 — escalate to senior collections.", d: 30 },
+    { type: "payroll_processed", priority: "medium", title: "Payroll disbursement ready", body: "GMD 368,000 ready for bank transfer — August payroll.", d: 30 },
   ];
   let nCount = 0;
   for (let n = 0; n < notifDefs.length; n++) {
@@ -961,10 +1298,10 @@ export async function seedCurrentMonth() {
         priority: nd.priority,
         title: nd.title,
         body: nd.body,
-        read: n >= 4,
-        status: n >= 4 ? "read" : "sent",
-        sentAt: new Date(`${day(16 - n)}T09:00:00Z`),
-        createdAt: new Date(`${day(16 - n)}T09:00:00Z`),
+        read: n >= 11,
+        status: n >= 11 ? "read" : "sent",
+        sentAt: new Date(`${day(nd.d)}T${String(8 + (n % 4)).padStart(2, "0")}:00:00Z`),
+        createdAt: new Date(`${day(nd.d)}T${String(8 + (n % 4)).padStart(2, "0")}:00:00Z`),
       })
       .onConflictDoNothing();
     nCount++;
@@ -974,6 +1311,9 @@ export async function seedCurrentMonth() {
   console.log("  Current-month seed complete.");
   return {
     arCount,
+    apCount,
+    arPayCount,
+    apPayCount,
     btCount,
     mmCount,
     deprCount,

@@ -403,15 +403,10 @@ export function InvoicesView() {
       </div>
 
       {/* Create Dialog */}
-      {showCreateDialog && (
-        <CreateInvoiceDialog
-          onClose={() => setShowCreateDialog(false)}
-          onCreated={() => {
-            setShowCreateDialog(false);
-            trpcUtils.invoicing.listInvoices.invalidate();
-          }}
-        />
-      )}
+      <CreateInvoiceDialog
+        open={showCreateDialog}
+        onClose={() => setShowCreateDialog(false)}
+      />
 
       {/* Payment Link Dialog */}
       {paymentLinkInvoiceId && (

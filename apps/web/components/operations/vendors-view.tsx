@@ -38,16 +38,18 @@ export function VendorsView() {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
 
   const { data, isLoading } = trpc.ap.listSuppliers.useQuery(
-    {
-      search: search || undefined,
-      limit: 50,
-      offset: 0,
-    },
+    undefined,
     { enabled: !!entityId },
   );
 
-  const vendors = (data?.suppliers ?? []) as Vendor[];
-  const totalCount = data?.totalCount ?? vendors.length;
+  // listSuppliers returns a plain array (not wrapped in { suppliers: [...] })
+  const allVendors = (Array.isArray(data) ? data : []) as Vendor[];
+  const vendors = search
+    ? allVendors.filter((v) =>
+        v.name?.toLowerCase().includes(search.toLowerCase()),
+      )
+    : allVendors;
+  const totalCount = vendors.length;
 
   const columns: Column<Vendor>[] = [
     {
@@ -235,12 +237,10 @@ export function VendorsView() {
       </div>
 
       {/* Create Dialog */}
-      {showCreateDialog && (
-        <CreateVendorDialog
-          onClose={() => setShowCreateDialog(false)}
-          onCreated={() => setShowCreateDialog(false)}
-        />
-      )}
+      <CreateVendorDialog
+        open={showCreateDialog}
+        onClose={() => setShowCreateDialog(false)}
+      />
     </>
   );
 }

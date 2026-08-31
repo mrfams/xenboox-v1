@@ -58,7 +58,7 @@ export function CustomersView() {
   const [filter, setFilter] = useState("all");
   const [showCreateDialog, setShowCreateDialog] = useState(false);
 
-  const { data, isLoading } = trpc.ar.listCustomers.useQuery(
+  const { data, isLoading } = trpc.customers.listCustomers.useQuery(
     {
       search: search || undefined,
       limit: 50,
@@ -248,12 +248,10 @@ export function CustomersView() {
       </div>
 
       {/* Create Dialog */}
-      {showCreateDialog && (
-        <CreateCustomerDialog
-          onClose={() => setShowCreateDialog(false)}
-          onCreated={() => setShowCreateDialog(false)}
-        />
-      )}
+      <CreateCustomerDialog
+        open={showCreateDialog}
+        onClose={() => setShowCreateDialog(false)}
+      />
     </>
   );
 }

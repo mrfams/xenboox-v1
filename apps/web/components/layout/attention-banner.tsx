@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
   AlertTriangle,
@@ -58,7 +58,12 @@ import { useAttentionSignals } from "@/lib/hooks/use-attention-signals";
 
 type BannerTone = "action" | "info";
 
-export function AttentionBanner() {
+export function AttentionBanner({
+  onHeightChange,
+}: {
+  onHeightChange?: (height: number) => void;
+} = {}) {
+  const bannerRef = useRef<HTMLDivElement>(null);
   const { byKey, totals } = useAttentionSignals();
   const [dismissed, setDismissed] = useState(false);
 
@@ -75,8 +80,29 @@ export function AttentionBanner() {
     }
   }, [totals.action, totals.new]);
 
+  // Report rendered height so the parent layout can offset main content
+  useEffect(() => {
+    const el = bannerRef.current;
+    if (!el || !onHeightChange) return;
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        onHeightChange(entry.borderBoxSize[0]?.blockSize ?? 0);
+      }
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [onHeightChange]);
+
   const hasAction = totals.action > 0;
   const hasNew = totals.new > 0;
+
+  // When banner disappears (dismissed or no items), report height 0
+  // so the parent can animate padding back smoothly.
+  useEffect(() => {
+    if ((!hasAction && !hasNew) || dismissed) {
+      onHeightChange?.(0);
+    }
+  }, [hasAction, hasNew, dismissed, onHeightChange]);
   if (!hasAction && !hasNew) return null;
   if (dismissed) return null;
 
@@ -154,6 +180,7 @@ export function AttentionBanner() {
           ? `${count} items need attention`
           : `${count} new updates`
       }
+      ref={bannerRef}
       className="border-b border-border/40 bg-card/80 backdrop-blur supports-[backdrop-filter]:bg-card/60"
     >
       <div className="flex items-center justify-between gap-3 px-4 py-2.5 sm:px-6">

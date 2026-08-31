@@ -144,6 +144,7 @@ export default function DashboardLayout({
   }, [chatOpen]);
   const [isDragging, setIsDragging] = useState(false);
   const [panelWidth, setPanelWidth] = useState(400);
+  const [bannerHeight, setBannerHeight] = useState(0);
 
   // Routes that need full-width padding (no card container)
   const PAGE_PADDING_ROUTES = new Set([
@@ -229,7 +230,7 @@ export default function DashboardLayout({
                 {/* Main Content */}
                 <div
                   className={cn(
-                    "flex flex-col overflow-hidden transition-all duration-300 flex-1",
+                    "flex flex-col overflow-hidden transition-all duration-300 flex-1 relative",
                     chatOpen ? "flex-1" : "flex-1",
                   )}
                 >
@@ -238,14 +239,19 @@ export default function DashboardLayout({
                     onChatToggle={() => setChatOpen(!chatOpen)}
                     chatOpen={chatOpen}
                   />
-                  <AttentionBanner />
+                  <div className="absolute top-14 left-0 right-0 z-10">
+                    <AttentionBanner onHeightChange={setBannerHeight} />
+                  </div>
                   <main
                     id="main-content"
                     tabIndex={-1}
                     className={cn(
-                      "flex-1 overflow-y-auto focus:outline-none",
+                      "flex-1 overflow-y-auto focus:outline-none transition-[padding] duration-300 ease-in-out",
                       isPaddedPage && "p-6",
                     )}
+                    style={{
+                      paddingTop: bannerHeight > 0 ? bannerHeight : undefined,
+                    }}
                   >
                     {/* Screen reader heading — ensures every page has an h1 for WCAG 1.3.1 */}
                     <h1 className="sr-only">{getPageTitle(pathname ?? "")}</h1>
