@@ -31,7 +31,7 @@ type Vendor = {
 // The /dashboard/operations/vendors route wraps this in ModulePageShell.
 
 export function VendorsView() {
-  const { entityId } = useEntity();
+  const { entityId, entityCurrency } = useEntity();
   const { openWithFocus } = useModuleAi();
   const [search] = useState("");
   const [filter, setFilter] = useState("all");
@@ -97,7 +97,7 @@ export function VendorsView() {
       align: "right",
       render: (row) => (
         <span className="text-sm font-medium tabular-nums">
-          {formatCurrency(row.totalBilled ?? 0)}
+          {formatCurrency(row.totalBilled ?? 0, entityCurrency ?? "USD")}
         </span>
       ),
     },
@@ -115,7 +115,7 @@ export function VendorsView() {
               balance > 0 ? "text-attention-amber" : "text-muted-foreground",
             )}
           >
-            {formatCurrency(balance)}
+            {formatCurrency(balance, entityCurrency ?? "USD")}
           </span>
         );
       },
@@ -163,11 +163,11 @@ export function VendorsView() {
           { label: "Phone", value: row.phone ?? "—" },
           {
             label: "Total Billed",
-            value: formatCurrency(row.totalBilled ?? 0),
+            value: formatCurrency(row.totalBilled ?? 0, entityCurrency ?? "USD"),
           },
           {
             label: "Outstanding",
-            value: formatCurrency(row.outstandingBalance ?? 0),
+            value: formatCurrency(row.outstandingBalance ?? 0, entityCurrency ?? "USD"),
           },
           { label: "1099", value: row.is1099 ? "Yes" : "No" },
         ],

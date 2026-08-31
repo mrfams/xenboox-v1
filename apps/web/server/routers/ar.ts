@@ -23,6 +23,7 @@ import {
   requirePermission,
 } from "@/lib/trpc/server";
 import { logger } from "@/lib/logger";
+import { generateInvoiceNarrative } from "./ar-invoice-narrative";
 import { db } from "@/lib/db";
 import { sendPaymentReceivedEmail } from "@/lib/email";
 import { getEnrichedEntityContext } from "@/lib/entity-context-enrichment";
@@ -147,7 +148,7 @@ export const arRouter = router({
         invoiceNumber: z.string().min(1),
         invoiceDate: z.string(),
         dueDate: z.string(),
-        currency: z.string().length(3).default("GMD"),
+        currency: z.string().length(3).default("USD"),
         notes: z.string().optional(),
         lines: z
           .array(
@@ -243,6 +244,20 @@ export const arRouter = router({
               totalAmount: totalAmount.toFixed(2),
               dueDate: input.dueDate,
             },
+          });
+
+          // Generate invoice narrative (non-blocking)
+          generateInvoiceNarrative({
+            entityId: ctx.entityId!,
+            entityName: ctx.entityName ?? "your business",
+            currency: input.currency,
+            invoiceId: invoice.id,
+            invoiceNumber: input.invoiceNumber,
+            totalAmount,
+            customerId: input.customerId,
+            dueDate: input.dueDate,
+          }).catch((err) => {
+            logger.error({ err }, "[ar] Invoice narrative generation failed");
           });
 
           return invoice;
@@ -779,5 +794,25 @@ export const arRouter = router({
         },
       },
     };
+  }),
+
+  /**
+   * Get count of overdue invoices for the approval badge.
+   * Used by the sidebar notification badge and financial pulse overview.
+   */
+  getOverdueCount: rlsProtectedProcedure.query(async ({ ctx }) => {
+    const entityId = ctx.entityId!;
+
+    const result = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(salesInvoices)
+      .where(
+        and(
+          eq(salesInvoices.entityId, entityId),
+          eq(salesInvoices.status, "overdue"),
+        ),
+      );
+
+    return { count: result[0]?.count ?? 0 };
   }),
 });

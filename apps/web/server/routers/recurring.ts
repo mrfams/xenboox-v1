@@ -221,7 +221,7 @@ export const recurringRouter = router({
         dayOfWeek: z.number().min(0).max(6).optional(),
         startDate: z.string(),
         endDate: z.string().optional(),
-        currency: z.string().default("GMD"),
+        currency: z.string().default("USD"),
         taxRate: z.number().optional(),
         discountPercent: z.number().optional(),
         paymentTerms: z.string().default("net30"),

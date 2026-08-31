@@ -1,82 +1,64 @@
-import {
-  Html,
-  Body,
-  Container,
-  Heading,
-  Text,
-  Section,
-  Tailwind,
-} from "@react-email/components"
+import { Text, Heading } from "@react-email/components";
+import { EmailLayout, DataRow, Divider, InfoBox } from "./_layout";
 
 type PaymentSentProps = {
-  supplierName: string
-  invoiceNumber: string
-  amount: string
-  currency: string
-  paymentMethod: string
-  reference?: string
-  entityName: string
-}
+  supplierName: string;
+  invoiceNumber: string;
+  amount: string;
+  currency: string;
+  paymentMethod: string;
+  reference?: string;
+  entityName: string;
+};
 
 export function PaymentSentEmail(props: PaymentSentProps) {
   return (
-    <Html>
-      <Tailwind>
-        <Body className="bg-gray-50 font-sans">
-          <Container className="mx-auto py-8 px-4 max-w-2xl">
-            <Heading className="text-2xl font-bold text-gray-900 mb-4">
-              Payment Sent
-            </Heading>
-            <Text className="text-gray-600 mb-6">
-              {props.entityName}
-            </Text>
+    <EmailLayout
+      preview={`Payment of ${props.currency} ${props.amount} sent to ${props.supplierName}`}
+    >
+      <Heading className="text-[22px] font-bold text-[#0F172A] m-0 mb-2">
+        Payment Sent ✓
+      </Heading>
 
-            <Section className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
-              <Heading as="h2" className="text-lg font-semibold text-gray-900 mb-4">
-                Payment Details
-              </Heading>
-              <div className="space-y-3">
-                <div className="flex justify-between">
-                  <Text className="text-gray-600 m-0">Supplier</Text>
-                  <Text className="font-semibold text-gray-900 m-0">{props.supplierName}</Text>
-                </div>
-                <div className="flex justify-between">
-                  <Text className="text-gray-600 m-0">Invoice</Text>
-                  <Text className="font-semibold text-gray-900 m-0">{props.invoiceNumber}</Text>
-                </div>
-                <div className="flex justify-between">
-                  <Text className="text-gray-600 m-0">Amount</Text>
-                  <Text className="font-bold text-blue-600 m-0">{props.currency} {props.amount}</Text>
-                </div>
-                <div className="flex justify-between">
-                  <Text className="text-gray-600 m-0">Method</Text>
-                  <Text className="font-semibold text-gray-900 m-0">{props.paymentMethod}</Text>
-                </div>
-                {props.reference && (
-                  <div className="flex justify-between">
-                    <Text className="text-gray-600 m-0">Reference</Text>
-                    <Text className="font-semibold text-gray-900 m-0">{props.reference}</Text>
-                  </div>
-                )}
-              </div>
-            </Section>
+      <Text className="text-[15px] text-[#64748B] m-0 mb-6">
+        {props.entityName}
+      </Text>
 
-            <Text className="text-gray-500 text-sm mt-8 text-center">
-              This notification was sent by Xenboox AI Accounting
-            </Text>
-          </Container>
-        </Body>
-      </Tailwind>
-    </Html>
-  )
+      <InfoBox variant="default">
+        <Text className="text-[15px] font-bold text-[#0F172A] m-0">
+          {props.currency} {props.amount} → {props.supplierName}
+        </Text>
+      </InfoBox>
+
+      <div className="bg-[#F8FAFC] rounded-lg p-4 mb-4">
+        <DataRow label="Supplier" value={props.supplierName} />
+        <Divider />
+        <DataRow label="Invoice" value={props.invoiceNumber} />
+        <Divider />
+        <DataRow label="Amount" value={`${props.currency} ${props.amount}`} bold />
+        <Divider />
+        <DataRow label="Method" value={props.paymentMethod} />
+        {props.reference && (
+          <>
+            <Divider />
+            <DataRow label="Reference" value={props.reference} />
+          </>
+        )}
+      </div>
+
+      <Text className="text-[13px] text-[#94A3B8] m-0 mt-4 text-center">
+        This payment has been recorded in your books automatically.
+      </Text>
+    </EmailLayout>
+  );
 }
 
 PaymentSentEmail.PreviewProps = {
   supplierName: "Global Supplies Ltd",
-  invoiceNumber: "PO-2026-001",
-  amount: "2,500.00",
-  currency: "GMD",
-  paymentMethod: "bank_transfer",
-  reference: "TXN-67890",
+  invoiceNumber: "BILL-2026-042",
+  amount: "3,200.00",
+  currency: "USD",
+  paymentMethod: "Bank Transfer",
+  reference: "PAY-98765",
   entityName: "Xenboox Demo",
-} satisfies PaymentSentProps
+} satisfies PaymentSentProps;

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useSession } from "next-auth/react";
 import {
   Card,
   CardContent,
@@ -11,6 +12,7 @@ import {
 } from "@/components/ui";
 import { Brain, Check, X, Save, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
+import { api } from "@/trpc/react";
 
 type AIPreferences = {
   autoReconcile: boolean;
@@ -42,14 +44,38 @@ function getStoredPrefs(): AIPreferences {
 }
 
 export function AIPreferencesSummary() {
+  const { data: session } = useSession();
   const [prefs, setPrefs] = useState<AIPreferences>(DEFAULT_PREFS);
   const [isLoaded, setIsLoaded] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
 
+  // Server-side settings
+  const getSettings = api.settings.get.useQuery(undefined, {
+    enabled: !!session?.user?.id,
+    staleTime: 5 * 60 * 1000,
+  });
+  const setSettingsMutation = api.settings.set.useMutation();
+
   useEffect(() => {
-    setPrefs(getStoredPrefs());
-    setIsLoaded(true);
-  }, []);
+    // Try server first (cross-device persistence)
+    if (getSettings.data) {
+      const serverSettings = getSettings.data as Record<string, unknown>;
+      const aiPrefs = serverSettings.aiPreferences as AIPreferences | undefined;
+      if (aiPrefs) {
+        setPrefs({ ...DEFAULT_PREFS, ...aiPrefs });
+        // Sync localStorage
+        localStorage.setItem(PREFS_KEY, JSON.stringify(aiPrefs));
+        setIsLoaded(true);
+        return;
+      }
+    }
+
+    // Fallback to localStorage
+    if (!getSettings.isLoading || getSettings.isError) {
+      setPrefs(getStoredPrefs());
+      setIsLoaded(true);
+    }
+  }, [getSettings.data, getSettings.isLoading, getSettings.isError]);
 
   const updatePref = (key: keyof AIPreferences, value: boolean) => {
     setPrefs((prev) => ({ ...prev, [key]: value }));
@@ -57,14 +83,24 @@ export function AIPreferencesSummary() {
   };
 
   const handleSave = () => {
+    // Save to localStorage (instant)
     localStorage.setItem(PREFS_KEY, JSON.stringify(prefs));
     setHasChanges(false);
+    // Persist to server (cross-device)
+    if (session?.user?.id) {
+      setSettingsMutation.mutate({ aiPreferences: prefs });
+    }
     toast.success("AI preferences saved");
   };
 
   const handleReset = () => {
     setPrefs(DEFAULT_PREFS);
+    // Save to localStorage (instant)
     localStorage.setItem(PREFS_KEY, JSON.stringify(DEFAULT_PREFS));
+    // Persist to server (cross-device)
+    if (session?.user?.id) {
+      setSettingsMutation.mutate({ aiPreferences: DEFAULT_PREFS });
+    }
     setHasChanges(false);
     toast.success("AI preferences reset to defaults");
   };

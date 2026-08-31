@@ -1,12 +1,17 @@
 export { cn } from "@xenboox/ui";
 
 export function formatCurrency(amount: number, currency = "USD"): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency,
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(amount);
+  try {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(amount);
+  } catch {
+    // Fallback for invalid currency codes — show raw number with code
+    return `${currency} ${amount.toFixed(2)}`;
+  }
 }
 
 export function formatDate(date: string | Date): string {
@@ -29,12 +34,12 @@ export function formatDateTime(date: string | Date): string {
   }).format(d);
 }
 
-export function formatNumber(value: number): string {
-  return new Intl.NumberFormat("en-GM").format(value);
+export function formatNumber(value: number, locale?: string): string {
+  return new Intl.NumberFormat(locale ?? "en-US").format(value);
 }
 
-export function formatPercent(value: number): string {
-  return new Intl.NumberFormat("en-GM", {
+export function formatPercent(value: number, locale?: string): string {
+  return new Intl.NumberFormat(locale ?? "en-US", {
     style: "percent",
     minimumFractionDigits: 1,
     maximumFractionDigits: 1,

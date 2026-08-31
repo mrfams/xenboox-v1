@@ -436,7 +436,7 @@ export const organizationRouter = router({
         type: z
           .enum(["company", "subsidiary", "branch", "client"])
           .default("company"),
-        currency: z.string().length(3).default("GMD"),
+        currency: z.string().length(3).default("USD"),
         country: z.string().length(2).default("GM"),
       }),
     )

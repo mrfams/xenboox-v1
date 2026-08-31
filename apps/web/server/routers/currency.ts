@@ -151,7 +151,7 @@ export const currencyRouter = router({
       ]);
 
       const result = {
-        baseCurrency: entity?.currency ?? "GMD",
+        baseCurrency: entity?.currency ?? "USD",
         rateCount: rateCount[0]?.count ?? 0,
         recentRuns,
       };
@@ -447,7 +447,7 @@ export const currencyRouter = router({
           where: eq(entities.id, entityId),
           columns: { id: true, currency: true },
         });
-        const baseCurrency = entity?.currency ?? "GMD";
+        const baseCurrency = entity?.currency ?? "USD";
 
         // Lines whose currency differs from the entity base currency.
         const [startYear, startMonth] = input.period.split("-").map(Number);

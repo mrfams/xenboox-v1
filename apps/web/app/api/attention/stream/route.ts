@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
+import { resolveEntityAccess } from "@/lib/auth/entity-access";
 import { drainSseEvents } from "@/lib/sse/broadcast";
 import {
   registerAttentionClient,
@@ -27,6 +28,12 @@ export async function GET(request: NextRequest) {
 
   if (!entityId) {
     return new Response("Missing entityId", { status: 400 });
+  }
+
+  // Verify user has access to this entity
+  const entityAccess = await resolveEntityAccess(userId, entityId);
+  if (!entityAccess) {
+    return new Response("Access denied to this entity", { status: 403 });
   }
 
   const clientId = `attention-${userId}-${entityId}-${Date.now()}`;

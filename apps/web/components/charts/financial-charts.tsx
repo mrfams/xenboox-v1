@@ -88,7 +88,7 @@ function ChartTooltip({
   active,
   payload,
   label,
-  currency = "GMD",
+  currency = "USD",
   formatter,
 }: ChartTooltipProps) {
   if (!active || !payload?.length) return null;
@@ -184,7 +184,7 @@ function ChartCard({
 
 export function RevenueTrendChart({
   data,
-  currency = "GMD",
+  currency = "USD",
   onAskAi,
 }: {
   data: Array<{ month: string; revenue: number; prior?: number }>;
@@ -351,7 +351,7 @@ export function RevenueTrendChart({
 
 export function ExpenseBreakdownChart({
   data,
-  currency = "GMD",
+  currency = "USD",
   onAskAi,
 }: {
   data: Array<{ category: string; amount: number }>;
@@ -459,7 +459,7 @@ export function ExpenseBreakdownChart({
 
 export function CashFlowChart({
   data,
-  currency = "GMD",
+  currency = "USD",
   onAskAi,
 }: {
   data: Array<{ month: string; incoming: number; outgoing: number }>;

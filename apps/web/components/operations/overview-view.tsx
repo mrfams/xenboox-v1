@@ -48,7 +48,7 @@ export type OperationsTab =
 // ─── AI Money Flow Summary ─────────────────────────────────────────────────
 
 function MoneyFlowSummary() {
-  const { entityId } = useEntity();
+  const { entityId, entityCurrency } = useEntity();
   const { openWithFocus } = useModuleAi();
 
   const {
@@ -140,10 +140,10 @@ function MoneyFlowSummary() {
               kind: "Money Flow",
               name: "Cash Position",
               fields: [
-                { label: "Cash Balance", value: formatCurrency(cashBalance) },
-                { label: "Incoming", value: formatCurrency(incoming) },
-                { label: "Outgoing", value: formatCurrency(outgoing) },
-                { label: "Net Change", value: formatCurrency(netChange) },
+                { label: "Cash Balance", value: formatCurrency(cashBalance, entityCurrency ?? "USD") },
+                { label: "Incoming", value: formatCurrency(incoming, entityCurrency ?? "USD") },
+                { label: "Outgoing", value: formatCurrency(outgoing, entityCurrency ?? "USD") },
+                { label: "Net Change", value: formatCurrency(netChange, entityCurrency ?? "USD") },
                 {
                   label: "Runway",
                   value:
@@ -165,7 +165,7 @@ function MoneyFlowSummary() {
         <div className="flex-1">
           <p className="text-xs text-foreground/80 leading-relaxed">
             {businessHealth
-              ? `Cash balance is ${formatCurrency(cashBalance)}. You have ${formatCurrency(incoming)} coming in and ${formatCurrency(outgoing)} going out this month. Net: ${formatCurrency(netChange)}.`
+              ? `Cash balance is ${formatCurrency(cashBalance, entityCurrency ?? "USD")}. You have ${formatCurrency(incoming, entityCurrency ?? "USD")} coming in and ${formatCurrency(outgoing, entityCurrency ?? "USD")} going out this month. Net: ${formatCurrency(netChange, entityCurrency ?? "USD")}.`
               : "Loading money flow summary..."}
           </p>
           <p className="mt-1 text-[10px] text-primary/70 font-medium">
@@ -180,7 +180,7 @@ function MoneyFlowSummary() {
             Cash Balance
           </p>
           <p className="mt-1 text-lg font-bold text-foreground">
-            {formatCurrency(cashBalance)}
+            {formatCurrency(cashBalance, entityCurrency ?? "USD")}
           </p>
         </div>
         <div className="rounded-lg bg-background/50 p-3">
@@ -188,7 +188,7 @@ function MoneyFlowSummary() {
             Coming In
           </p>
           <p className="mt-1 text-lg font-bold text-balanced-green">
-            {formatCurrency(incoming)}
+            {formatCurrency(incoming, entityCurrency ?? "USD")}
           </p>
         </div>
         <div className="rounded-lg bg-background/50 p-3">
@@ -196,7 +196,7 @@ function MoneyFlowSummary() {
             Going Out
           </p>
           <p className="mt-1 text-lg font-bold text-error-clay">
-            {formatCurrency(outgoing)}
+            {formatCurrency(outgoing, entityCurrency ?? "USD")}
           </p>
         </div>
         <div className="rounded-lg bg-background/50 p-3">
@@ -217,7 +217,7 @@ function MoneyFlowSummary() {
 // ─── Banking Cards ─────────────────────────────────────────────────────────
 
 function BankingCards({ onViewBanking }: { onViewBanking: () => void }) {
-  const { entityId } = useEntity();
+  const { entityId, entityCurrency } = useEntity();
   const { openWithFocus } = useModuleAi();
   const { data: bankData, isLoading } = trpc.banking.getOverview.useQuery(
     undefined,
@@ -251,7 +251,7 @@ function BankingCards({ onViewBanking }: { onViewBanking: () => void }) {
                 fields: [
                   {
                     label: "Total Balance",
-                    value: formatCurrency(bankData?.summary?.totalBalance ?? 0),
+                    value: formatCurrency(bankData?.summary?.totalBalance ?? 0, entityCurrency ?? "USD"),
                   },
                   { label: "Accounts", value: String(accounts.length) },
                   {
@@ -349,7 +349,7 @@ function RecentTransactions({
   onTransactionClick: (id: string) => void;
   onViewAll: () => void;
 }) {
-  const { entityId } = useEntity();
+  const { entityId, entityCurrency } = useEntity();
 
   const { data: txData, isLoading } = trpc.banking.listTransactions.useQuery(
     { status: "all", limit: 5 },
@@ -447,7 +447,7 @@ function RecentTransactions({
                   )}
                 >
                   {isPositive ? "+" : ""}
-                  {formatCurrency(amount)}
+                  {formatCurrency(amount, entityCurrency ?? "USD")}
                 </span>
               </button>
             );
@@ -461,7 +461,7 @@ function RecentTransactions({
 // ─── Compliance & Close ────────────────────────────────────────────────────
 
 function ComplianceClose() {
-  const { entityId } = useEntity();
+  const { entityId, entityCurrency } = useEntity();
   const { openWithFocus } = useModuleAi();
 
   const { data: closeStatus } = trpc.fiscal.getCloseStatus.useQuery(undefined, {
@@ -561,7 +561,7 @@ function PeopleGrid({
 }: {
   onNavigateTab: (tab: OperationsTab) => void;
 }) {
-  const { entityId } = useEntity();
+  const { entityId, entityCurrency } = useEntity();
 
   const { data: customers } = trpc.customers.listCustomers.useQuery(
     { status: "all", limit: 1 },
@@ -642,7 +642,7 @@ export function OverviewView({
 }: {
   onNavigateTab: (tab: OperationsTab) => void;
 }) {
-  const { entityId } = useEntity();
+  const { entityId, entityCurrency } = useEntity();
   const { openWithFocus } = useModuleAi();
   const [selectedTransactionId, setSelectedTransactionId] = useState<
     string | null
@@ -793,7 +793,7 @@ export function OverviewView({
                   </span>
                 </span>
                 <span className="text-xs font-medium tabular-nums text-muted-foreground">
-                  {formatCurrency(arOutstanding)}
+                  {formatCurrency(arOutstanding, entityCurrency ?? "USD")}
                 </span>
               </button>
               <button

@@ -13,6 +13,7 @@ import {
 } from "@xenboox/db/schema";
 import { processChatInput, type PipelineStepEvent } from "@xenboox/agents";
 import { redactPii } from "@xenboox/agents/core/security/injection-defense";
+import { resolveEntityAccess } from "@/lib/auth/entity-access";
 
 import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
@@ -106,6 +107,15 @@ export async function POST(req: NextRequest) {
         },
       },
     );
+  }
+
+  // Verify user has access to this entity — prevents cross-tenant data leakage
+  const entityAccess = await resolveEntityAccess(userId, entityId);
+  if (!entityAccess) {
+    return new Response(JSON.stringify({ error: "Access denied to this entity" }), {
+      status: 403,
+      headers: { "Content-Type": "application/json" },
+    });
   }
 
   // One-line snippet for the /chat panel, derived from this message. Computed
@@ -529,7 +539,7 @@ export async function POST(req: NextRequest) {
           orgId: entity.organizationId,
           entityId,
           entityName: entity.name,
-          currency: entity.currency || "GMD",
+          currency: entity.currency || "USD",
           message: fullMessage,
           conversationId: convId,
           channel: "web_chat",
@@ -674,7 +684,7 @@ export async function POST(req: NextRequest) {
             : generateChatArtifacts({
                 entityId,
                 entityName: entity.name,
-                currency: entity.currency || "GMD",
+                currency: entity.currency || "USD",
                 userId,
                 message,
               });

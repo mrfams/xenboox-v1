@@ -7,6 +7,7 @@ import { Button } from "@/components/ui";
 import { useEntity } from "@/lib/entity-context";
 import { cn } from "@/lib/utils";
 import { trpc } from "@/lib/trpc/client";
+import { useOtherEntityTasks, EntityTaskBadge } from "@/components/layout/entity-task-badge";
 
 type Entity = {
   id: string;
@@ -148,7 +149,7 @@ export function EntitySwitcher() {
         organizationId: orgId,
         name: newEntityName.trim(),
         type: "company",
-        currency: "GMD",
+        currency: "USD",
         country: "GM",
       });
 
@@ -189,6 +190,7 @@ export function EntitySwitcher() {
 
   const userRole = currentEntity?.role;
   const isOwnerOrAdmin = userRole === "owner" || userRole === "admin";
+  const otherCounts = useOtherEntityTasks();
 
   // Loading state
   if (!isLoaded) {
@@ -304,6 +306,7 @@ export function EntitySwitcher() {
                         )}
                       </p>
                     </div>
+                    <EntityTaskBadge entityId={entity.id} otherCounts={otherCounts} />
                   </button>
                 </div>
               ))}

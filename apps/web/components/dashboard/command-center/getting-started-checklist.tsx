@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { useActivationStatus } from "@/lib/hooks/use-activation-status";
 
 // ─── Getting-Started Checklist ────────────────────────────────────────────
 //
@@ -29,7 +30,7 @@ import { cn } from "@/lib/utils";
 // Dismissible. Progress tracked in localStorage.
 
 const DISMISSED_KEY = "xenboox_getting_started_dismissed";
-const COMPLETED_KEY = "xenboox_getting_started_completed";
+// COMPLETED_KEY removed — now tracked server-side via activation events
 
 type Step = {
   id: string;
@@ -111,53 +112,48 @@ export function GettingStartedChecklist({
 }: {
   onSendMessage: (text: string) => void;
 }) {
-  const [dismissed, setDismissed] = useState(false);
-  const [completedSteps, setCompletedSteps] = useState<Set<string>>(new Set());
+  const { completedEvents, trackEvent, isLoading, events } = useActivationStatus();
+  // Server-side: check if checklist was dismissed via activation events
+  const dismissed = events?.some((e: { event: string }) => e.event === "checklist_dismissed") ?? false;
 
-  useEffect(() => {
-    try {
-      const storedDismissed = localStorage.getItem(DISMISSED_KEY);
-      if (storedDismissed === "true") setDismissed(true);
-
-      const storedCompleted = localStorage.getItem(COMPLETED_KEY);
-      if (storedCompleted) {
-        const parsed = JSON.parse(storedCompleted);
-        if (Array.isArray(parsed)) setCompletedSteps(new Set(parsed));
-      }
-    } catch {
-      // SSR or localStorage unavailable
-    }
-  }, []);
-
-  const handleDismiss = () => {
-    setDismissed(true);
-    try {
-      localStorage.setItem(DISMISSED_KEY, "true");
-    } catch {
-      // ignore
-    }
+  // Map checklist steps to activation events
+  const STEP_TO_EVENT: Record<string, string> = {
+    "ask-question": "see_narrative",
+    "connect-bank": "import_bank",
+    "review-coa": "setup_business",
+    "first-invoice": "create_invoice",
+    // month-end maps to setup_business as a proxy since first_month_close
+    // isn't in ACTIVATION_EVENTS yet — track as setup completion
+    "month-end": "setup_business",
   };
 
-  const handleStepClick = (step: Step) => {
+  const handleDismiss = () => {
+    // Track dismissal server-side (cross-device persistence)
+    trackEvent("checklist_dismissed");
+  };
+
+  const handleStepClick = async (step: Step) => {
     if (step.action.type === "message") {
       onSendMessage(step.action.prompt);
     }
-    // Mark as completed (for link actions, they navigate away)
-    const newCompleted = new Set(completedSteps).add(step.id);
-    setCompletedSteps(newCompleted);
-    try {
-      localStorage.setItem(
-        COMPLETED_KEY,
-        JSON.stringify(Array.from(newCompleted)),
-      );
-    } catch {
-      // ignore
+    // Track activation event server-side
+    const event = STEP_TO_EVENT[step.id];
+    if (event) {
+      await trackEvent(event, { step: step.id, source: "checklist" });
     }
   };
 
   if (dismissed) return null;
 
-  const completedCount = completedSteps.size;
+  // Check which steps are completed based on server-side activation events
+  const completedStepIds = new Set(
+    STEPS.filter((step) => {
+      const event = STEP_TO_EVENT[step.id];
+      return event && completedEvents.includes(event);
+    }).map((step) => step.id),
+  );
+
+  const completedCount = completedStepIds.size;
   const progress = (completedCount / STEPS.length) * 100;
 
   return (
@@ -203,7 +199,7 @@ export function GettingStartedChecklist({
       <div className="space-y-2">
         {STEPS.map((step) => {
           const Icon = step.icon;
-          const isCompleted = completedSteps.has(step.id);
+          const isCompleted = completedStepIds.has(step.id);
 
           return (
             <button

@@ -27,10 +27,12 @@ export function verifyWebhookSignature(
     .update(rawBody, "utf-8")
     .digest("hex");
 
-  return crypto.timingSafeEqual(
-    Buffer.from(expected),
-    Buffer.from(signatureHeader),
-  );
+  // timingSafeEqual requires same-length buffers — reject mismatches first
+  const expectedBuf = Buffer.from(expected);
+  const actualBuf = Buffer.from(signatureHeader);
+  if (expectedBuf.length !== actualBuf.length) return false;
+
+  return crypto.timingSafeEqual(expectedBuf, actualBuf);
 }
 
 /**
@@ -57,8 +59,9 @@ export function verifyMonoSignature(
     .update(rawBody, "utf-8")
     .digest("hex");
 
-  return crypto.timingSafeEqual(
-    Buffer.from(expected),
-    Buffer.from(signatureHeader),
-  );
+  const expectedBuf = Buffer.from(expected);
+  const actualBuf = Buffer.from(signatureHeader);
+  if (expectedBuf.length !== actualBuf.length) return false;
+
+  return crypto.timingSafeEqual(expectedBuf, actualBuf);
 }

@@ -3,6 +3,7 @@ import { NextRequest } from "next/server";
 import { streamModel } from "@xenboox/models";
 import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
+import { resolveEntityAccess } from "@/lib/auth/entity-access";
 import { getRateLimiter } from "@/lib/security/rate-limiter";
 import { logger } from "@/lib/logger";
 
@@ -185,6 +186,15 @@ export async function POST(req: NextRequest) {
       JSON.stringify({ error: "Question is too long (max 2000 chars)" }),
       { status: 400, headers: { "Content-Type": "application/json" } },
     );
+  }
+
+  // Verify user has access to this entity
+  const entityAccess = await resolveEntityAccess(session.user.id!, entityId);
+  if (!entityAccess) {
+    return new Response(JSON.stringify({ error: "Access denied to this entity" }), {
+      status: 403,
+      headers: { "Content-Type": "application/json" },
+    });
   }
 
   const entity = await db.query.entities.findFirst({

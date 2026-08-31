@@ -32,6 +32,7 @@ import {
 
 import { trpc } from "@/lib/trpc/client";
 import { cn } from "@/lib/utils";
+import { HealthCheckWidget } from "@/components/admin/health-check-widget";
 
 // ─── KPI Card Components ────────────────────────────────────────────────────
 
@@ -626,8 +627,14 @@ export default function InfrastructureHealthPage() {
         </div>
       </div>
 
-      {/* KPI Cards Row 1 */}
-      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-7">
+      {/* Integration Health Widget */}
+      <div className="grid gap-4 grid-cols-1 lg:grid-cols-3">
+        <div className="lg:col-span-1">
+          <HealthCheckWidget />
+        </div>
+        <div className="lg:col-span-2">
+          {/* Existing KPI Cards Row 1 */}
+          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
         <OverallStatusCard
           status={overview?.kpis?.overallStatus ?? "healthy"}
         />
@@ -682,6 +689,8 @@ export default function InfrastructureHealthPage() {
           iconColor="text-error-clay"
           iconBg="bg-error-clay/10"
         />
+          </div>
+        </div>
       </div>
 
       {/* Charts Row */}

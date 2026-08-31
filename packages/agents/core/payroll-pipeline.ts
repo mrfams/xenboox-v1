@@ -1269,7 +1269,7 @@ async function loadStaffMasterData(
       employmentType: (emp.employmentType as EmploymentType) ?? "full_time",
       taxStatus: emp.taxStatus ?? "resident",
       basicSalary: contract ? Number(contract.basicSalary) : 0,
-      currency: contract?.currency ?? "GMD",
+      currency: contract?.currency ?? "USD",
       allowances: (contract as any)?.allowances ?? [],
       loanBalance: loan ? Number(loan.remainingBalance) : 0,
       monthlyLoanDeduction: loan ? Number(loan.monthlyDeduction) : 0,

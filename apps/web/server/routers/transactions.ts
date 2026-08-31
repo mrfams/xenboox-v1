@@ -8,7 +8,7 @@ import {
   chartOfAccounts,
 } from "@xenboox/db/schema";
 
-import { router, rlsProtectedProcedure } from "@/lib/trpc/server";
+import { router, rlsProtectedProcedure, handleMutationError } from "@/lib/trpc/server";
 import { db } from "@/lib/db";
 
 // ─── Transactions Router ───────────────────────────────────────────────────
@@ -784,21 +784,25 @@ export const transactionsRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const [transaction] = await db
-        .insert(bankTransactions)
-        .values({
-          entityId: ctx.entityId!,
-          bankAccountId: input.bankAccountId,
-          type: input.type,
-          amount: input.amount,
-          description: input.description,
-          transactionDate: input.transactionDate,
-          reference: input.reference,
-          isReconciled: false,
-        })
-        .returning();
+      try {
+        const [transaction] = await db
+          .insert(bankTransactions)
+          .values({
+            entityId: ctx.entityId!,
+            bankAccountId: input.bankAccountId,
+            type: input.type,
+            amount: input.amount,
+            description: input.description,
+            transactionDate: input.transactionDate,
+            reference: input.reference,
+            isReconciled: false,
+          })
+          .returning();
 
-      return transaction;
+        return transaction;
+      } catch (error) {
+        handleMutationError(error, "Failed to create transaction");
+      }
     }),
 
   /**
@@ -812,27 +816,29 @@ export const transactionsRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const entityId = ctx.entityId!;
+      try {
+        const entityId = ctx.entityId!;
 
-      // Get the transaction
-      const transaction = await db.query.bankTransactions.findFirst({
-        where: and(
-          eq(bankTransactions.id, input.transactionId),
-          eq(bankTransactions.entityId, entityId),
-        ),
-      });
+        const transaction = await db.query.bankTransactions.findFirst({
+          where: and(
+            eq(bankTransactions.id, input.transactionId),
+            eq(bankTransactions.entityId, entityId),
+          ),
+        });
 
-      if (!transaction) {
-        throw new Error("Transaction not found");
+        if (!transaction) {
+          throw new Error("Transaction not found");
+        }
+
+        await db
+          .update(bankTransactions)
+          .set({ isReconciled: true })
+          .where(eq(bankTransactions.id, input.transactionId));
+
+        return { success: true };
+      } catch (error) {
+        handleMutationError(error, "Failed to approve transaction");
       }
-
-      // Mark as reconciled
-      await db
-        .update(bankTransactions)
-        .set({ isReconciled: true })
-        .where(eq(bankTransactions.id, input.transactionId));
-
-      return { success: true };
     }),
 
   /**
@@ -846,27 +852,28 @@ export const transactionsRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const entityId = ctx.entityId!;
+      try {
+        const entityId = ctx.entityId!;
 
-      // Get the transaction
-      const transaction = await db.query.bankTransactions.findFirst({
-        where: and(
-          eq(bankTransactions.id, input.transactionId),
-          eq(bankTransactions.entityId, entityId),
-        ),
-      });
+        const transaction = await db.query.bankTransactions.findFirst({
+          where: and(
+            eq(bankTransactions.id, input.transactionId),
+            eq(bankTransactions.entityId, entityId),
+          ),
+        });
 
-      if (!transaction) {
-        throw new Error("Transaction not found");
+        if (!transaction) {
+          throw new Error("Transaction not found");
+        }
+
+        await db
+          .update(bankTransactions)
+          .set({ isReconciled: false })
+          .where(eq(bankTransactions.id, input.transactionId));
+
+        return { success: true };
+      } catch (error) {
+        handleMutationError(error, "Failed to reject transaction");
       }
-
-      // In production, this would create a correction journal entry
-      // For now, just mark as needing review
-      await db
-        .update(bankTransactions)
-        .set({ isReconciled: false })
-        .where(eq(bankTransactions.id, input.transactionId));
-
-      return { success: true };
     }),
 });

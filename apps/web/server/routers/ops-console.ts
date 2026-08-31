@@ -25,7 +25,7 @@ function getDateRange(days: number): { startDate: string; endDate: string } {
   return { startDate: start, endDate: end };
 }
 
-function formatCurrency(amount: number, currency = "GMD"): string {
+function formatCurrency(amount: number, currency = "USD"): string {
   return `${currency} ${amount.toLocaleString()}`;
 }
 
@@ -479,7 +479,7 @@ export const opsConsoleRouter = router({
         activeOrganizations: baseOrgs,
         activeOrganizationsDelta: Math.floor(Math.random() * 50) - 20,
         mrr: baseMrr.toString(),
-        mrrCurrency: "GMD",
+        mrrCurrency: "USD",
         mrrDeltaPercent: (Math.random() * 10 - 3).toFixed(2),
         aiRuns: baseAiRuns,
         aiRunsDeltaPercent: (Math.random() * 20 - 5).toFixed(2),

@@ -170,7 +170,7 @@ function AiPaymentPriority({
             </div>
             <div className="text-right shrink-0">
               <p className="text-xs font-semibold tabular-nums text-foreground">
-                {formatCurrency(bill.balance)}
+                {formatCurrency(bill.balance, entityCurrency ?? "USD")}
               </p>
             </div>
           </div>
@@ -179,7 +179,7 @@ function AiPaymentPriority({
 
       <div className="mt-3 flex items-center justify-between">
         <p className="text-[10px] text-muted-foreground">
-          Total recommended: {formatCurrency(totalDue)}
+          Total recommended: {formatCurrency(totalDue, entityCurrency ?? "USD")}
         </p>
         <button
           type="button"
@@ -211,7 +211,7 @@ function SummaryCards({
   const cards = [
     {
       label: "Outstanding",
-      value: formatCurrency(totalOutstanding),
+      value: formatCurrency(totalOutstanding, entityCurrency ?? "USD"),
       sub: "Total owed",
       icon: DollarSign,
       iconBg: "bg-attention-amber/10",
@@ -267,7 +267,7 @@ function SummaryCards({
 // ─── Component ────────────────────────────────────────────────────────────
 
 export function BillsView() {
-  const { entityId } = useEntity();
+  const { entityId, entityCurrency } = useEntity();
   const { openWithFocus } = useModuleAi();
   const [status, setStatus] = useState<BillStatus>("all");
   const [search, setSearch] = useState("");
@@ -399,7 +399,7 @@ export function BillsView() {
       align: "right",
       render: (row) => (
         <span className="text-sm font-semibold tabular-nums">
-          {formatCurrency(row.totalAmount)}
+          {formatCurrency(row.totalAmount, entityCurrency ?? "USD")}
         </span>
       ),
     },
@@ -415,7 +415,7 @@ export function BillsView() {
             row.balance > 0 ? "text-attention-amber" : "text-balanced-green",
           )}
         >
-          {formatCurrency(row.balance)}
+          {formatCurrency(row.balance, entityCurrency ?? "USD")}
         </span>
       ),
     },

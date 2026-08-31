@@ -64,14 +64,14 @@ export function CurrencySection() {
 
   // ── Conversion tool ──
   const [convertFrom, setConvertFrom] = useState("USD");
-  const [convertTo, setConvertTo] = useState(settings?.baseCurrency ?? "GMD");
+  const [convertTo, setConvertTo] = useState(settings?.baseCurrency ?? "USD");
   const [convertAmount, setConvertAmount] = useState("100");
 
   // ── Add rate dialog ──
   const [showAdd, setShowAdd] = useState(false);
   const [rateForm, setRateForm] = useState({
     fromCurrency: "USD",
-    toCurrency: settings?.baseCurrency ?? "GMD",
+    toCurrency: settings?.baseCurrency ?? "USD",
     rate: "",
     asOf: new Date().toISOString().slice(0, 10),
   });
@@ -127,7 +127,7 @@ export function CurrencySection() {
   const openAddDialog = () => {
     setRateForm({
       fromCurrency: "USD",
-      toCurrency: settings?.baseCurrency ?? "GMD",
+      toCurrency: settings?.baseCurrency ?? "USD",
       rate: "",
       asOf: new Date().toISOString().slice(0, 10),
     });
@@ -163,7 +163,7 @@ export function CurrencySection() {
         </CardHeader>
         <CardContent className="flex items-center justify-between">
           <div className="text-3xl font-bold text-slate-900 dark:text-slate-100">
-            {settings?.baseCurrency ?? "GMD"}
+            {settings?.baseCurrency ?? "USD"}
           </div>
           <Badge variant="secondary" className="text-sm">
             {settings?.rateCount ?? 0} entity rate

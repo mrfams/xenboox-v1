@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useSession } from "next-auth/react";
 import { Bot, PanelRightOpen } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
@@ -27,6 +27,7 @@ import { useActivationTracking } from "@/lib/hooks/use-activation-tracking";
 import { DataAwareContextMenu } from "@/components/shared/data-aware-context-menu";
 import { KeyboardShortcuts } from "@/components/shared/keyboard-shortcuts";
 import { AttentionBanner } from "@/components/layout/attention-banner";
+import { EntityTaskNotifier } from "@/components/layout/entity-task-badge";
 import {
   ErrorBoundary,
   SurfaceErrorBoundary,
@@ -90,6 +91,27 @@ function PermissionAwareLayout({ children }: { children: React.ReactNode }) {
       {children}
     </PermissionProvider>
   );
+}
+
+/**
+ * Invalidates ALL tRPC queries when the entity changes.
+ * This ensures no stale data from the previous entity leaks into the new one.
+ */
+function EntitySwitchInvalidator() {
+  const { entityId } = useEntity();
+  const utils = trpc.useUtils();
+  const prevEntityRef = useRef(entityId);
+
+  useEffect(() => {
+    const prev = prevEntityRef.current;
+    prevEntityRef.current = entityId;
+    if (entityId && entityId !== prev) {
+      // Invalidate everything — the new entity needs fresh data
+      utils.invalidate();
+    }
+  }, [entityId, utils]);
+
+  return null;
 }
 
 export default function DashboardLayout({
@@ -341,6 +363,10 @@ export default function DashboardLayout({
             <NpsSurvey />
             <LiveChatWidget />
             <KeyboardShortcuts />
+            <EntityTaskNotifier />
+
+            {/* Entity-switch query invalidation — ensures fresh data when switching entities */}
+            <EntitySwitchInvalidator />
 
             <Toaster position="top-right" richColors closeButton />
           </SimulationProvider>

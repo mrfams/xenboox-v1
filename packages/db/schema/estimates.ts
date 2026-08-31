@@ -50,7 +50,7 @@ export const salesEstimates = pgTable(
     totalAmount: numeric("total_amount", { precision: 15, scale: 2 })
       .notNull()
       .default("0"),
-    currency: text("currency").notNull().default("GMD"),
+    currency: text("currency").notNull().default("USD"),
     notes: text("notes"),
     terms: text("terms"),
     convertedInvoiceId: uuid("converted_invoice_id").references(

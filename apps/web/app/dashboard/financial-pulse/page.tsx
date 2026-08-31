@@ -905,12 +905,16 @@ function FinancialPulseInner() {
       staleTime: 10 * 60 * 1000, // 10 minutes — AI narratives are expensive to regenerate
     });
 
+  const { data: overdueData } = trpc.ar.getOverdueCount.useQuery(undefined, {
+    enabled: !!entityId,
+  });
+
   const overview = dashboardData
     ? {
         cashBalance: dashboardData.businessHealth.cashBalance,
         accountsReceivable: dashboardData.businessHealth.arOutstanding,
         accountsPayable: dashboardData.businessHealth.apOutstanding,
-        overdueInvoices: 0,
+        overdueInvoices: overdueData?.count ?? 0,
         runway: dashboardData.businessHealth.runwayMonths,
       }
     : undefined;

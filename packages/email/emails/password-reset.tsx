@@ -1,63 +1,43 @@
-import {
-  Html,
-  Body,
-  Container,
-  Heading,
-  Text,
-  Button,
-  Hr,
-  Tailwind,
-} from "@react-email/components"
+import { Text, Heading } from "@react-email/components";
+import { EmailLayout, CTAButton, InfoBox } from "./_layout";
 
 type PasswordResetProps = {
-  userName: string
-  resetUrl: string
-  expiryMinutes: number
-}
+  userName: string;
+  resetUrl: string;
+  expiryMinutes: number;
+};
 
 export function PasswordResetEmail(props: PasswordResetProps) {
   return (
-    <Html>
-      <Tailwind>
-        <Body className="bg-gray-50 font-sans">
-          <Container className="mx-auto py-8 px-4 max-w-2xl">
-            <Heading className="text-2xl font-bold text-gray-900 mb-4">
-              Reset Your Password
-            </Heading>
-            <Text className="text-gray-600 mb-4">
-              Hi {props.userName},
-            </Text>
-            <Text className="text-gray-600 mb-6">
-              We received a request to reset your password for your Xenboox account.
-              Click the button below to choose a new password. This link expires in {props.expiryMinutes} minutes.
-            </Text>
+    <EmailLayout preview="Reset your Xenboox password">
+      <Heading className="text-[22px] font-bold text-[#0F172A] m-0 mb-4">
+        Reset Your Password
+      </Heading>
 
-            <Button
-              href={props.resetUrl}
-              className="bg-blue-600 text-white rounded-lg px-6 py-3 font-semibold text-center block w-full"
-            >
-              Reset Password
-            </Button>
+      <Text className="text-[15px] text-[#334155] m-0 mb-2">
+        Hi {props.userName},
+      </Text>
 
-            <Hr className="border-gray-200 my-6" />
+      <Text className="text-[15px] text-[#334155] m-0 mb-6">
+        We received a request to reset your password. Click the button below to
+        choose a new one.
+      </Text>
 
-            <Text className="text-gray-500 text-sm">
-              If you did not request a password reset, you can safely ignore this email. Your
-              password will remain unchanged.
-            </Text>
+      <CTAButton href={props.resetUrl} label="Reset Password" />
 
-            <Text className="text-gray-500 text-sm mt-8 text-center">
-              This notification was sent by Xenboox AI Accounting
-            </Text>
-          </Container>
-        </Body>
-      </Tailwind>
-    </Html>
-  )
+      <InfoBox>
+        <Text className="text-[13px] text-[#64748B] m-0">
+          ⏱ This link expires in {props.expiryMinutes} minutes. If you didn't
+          request a password reset, you can safely ignore this email — your
+          password will remain unchanged.
+        </Text>
+      </InfoBox>
+    </EmailLayout>
+  );
 }
 
 PasswordResetEmail.PreviewProps = {
   userName: "Demo User",
   resetUrl: "https://app.xenboox.com/reset-password?token=abc123def456",
   expiryMinutes: 60,
-} satisfies PasswordResetProps
+} satisfies PasswordResetProps;

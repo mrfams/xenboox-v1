@@ -70,7 +70,7 @@ export const recurringSchedules = pgTable(
     nextRunDate: text("next_run_date").notNull(),
     lastRunDate: text("last_run_date"),
     // Financial
-    currency: text("currency").notNull().default("GMD"),
+    currency: text("currency").notNull().default("USD"),
     taxRate: numeric("tax_rate", { precision: 5, scale: 2 }),
     discountPercent: numeric("discount_percent", { precision: 5, scale: 2 }),
     paymentTerms: text("payment_terms").default("net30"),

@@ -77,7 +77,7 @@ export const automationStudioRouter = router({
             ? parseFloat(String(perfResult.costSavingsAmount))
             : 18450,
           costSavingsDelta: 21,
-          costSavingsCurrency: perfResult?.costSavingsCurrency ?? "GMD",
+          costSavingsCurrency: perfResult?.costSavingsCurrency ?? "USD",
         },
       };
     }),
@@ -427,7 +427,7 @@ export const automationStudioRouter = router({
       skippedTasks: 12,
       totalTimeSavedMinutes: 7620,
       costSavingsAmount: "18450",
-      costSavingsCurrency: "GMD",
+      costSavingsCurrency: "USD",
     });
 
     // Seed time savings

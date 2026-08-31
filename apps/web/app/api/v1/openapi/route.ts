@@ -5,7 +5,11 @@
 
 import { NextResponse } from "next/server";
 
+import { getAppUrl } from "@/lib/app-url";
+
 export const runtime = "nodejs";
+
+const appUrl = getAppUrl();
 
 const spec = {
   openapi: "3.1.0",
@@ -25,12 +29,8 @@ const spec = {
   },
   servers: [
     {
-      url: "https://xenboox.vercel.app",
+      url: appUrl,
       description: "Production",
-    },
-    {
-      url: "http://localhost:3000",
-      description: "Development",
     },
   ],
   security: [{ ApiKeyAuth: [] }],

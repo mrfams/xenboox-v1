@@ -476,7 +476,7 @@ export default function AutomationStudioPage() {
             />
             <KpiCard
               label="Cost Savings"
-              value={`${overview?.kpis?.costSavingsCurrency ?? "GMD"} ${(overview?.kpis?.costSavings ?? 0).toLocaleString()}`}
+              value={`${overview?.kpis?.costSavingsCurrency ?? "USD"} ${(overview?.kpis?.costSavings ?? 0).toLocaleString()}`}
               delta={overview?.kpis?.costSavingsDelta}
               deltaLabel="vs last month"
               icon={<DollarSign className="h-4 w-4" />}

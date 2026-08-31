@@ -28,7 +28,7 @@ export const mobileMoneyAccounts = pgTable("mobile_money_accounts", {
   phoneNumber: text("phone_number").notNull(),
   accountNumber: text("account_number"),
   currentBalance: numeric("current_balance", { precision: 15, scale: 2 }).default("0"),
-  currency: text("currency").notNull().default("GMD"),
+  currency: text("currency").notNull().default("USD"),
   isActive: boolean("is_active").notNull().default(true),
   webhookSecret: text("webhook_secret"),
   settings: jsonb("settings").default({}).$type<Record<string, unknown>>(),

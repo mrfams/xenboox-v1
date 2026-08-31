@@ -68,7 +68,7 @@ type DonorReportSnapshot = {
   generatedAt: string;
 };
 
-function formatCurrency(amount: number, currency: string = "GMD"): string {
+function formatCurrency(amount: number, currency: string = "USD"): string {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency,
@@ -94,7 +94,7 @@ function ProjectCard({
   const grantAmount = parseFloat(project.grantAmount);
   const disbursed = parseFloat(project.amountDisbursed);
   const remaining = parseFloat(project.amountRemaining);
-  const currency = project.currency ?? "GMD";
+  const currency = project.currency ?? "USD";
   const percentUsed = grantAmount > 0 ? (disbursed / grantAmount) * 100 : 0;
   const isLow = percentUsed > 80;
 
@@ -237,7 +237,7 @@ function ProjectCard({
                                 projectName: project.projectName,
                                 projectCode: project.projectCode,
                                 period: snapshot.period,
-                                currency: project.currency ?? "GMD",
+                                currency: project.currency ?? "USD",
                                 grantAmount: parseFloat(project.grantAmount),
                                 amountDisbursed: parseFloat(
                                   project.amountDisbursed,
@@ -440,7 +440,7 @@ export default function DonorDashboardPage() {
     (s, p) => s + parseFloat(p.amountDisbursed),
     0,
   );
-  const primaryCurrency = projects[0]?.currency ?? "GMD";
+  const primaryCurrency = projects[0]?.currency ?? "USD";
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/30">

@@ -8,6 +8,7 @@ import { SessionProvider } from "next-auth/react";
 import { ThemeProvider } from "@/components/layout/theme-provider";
 import { TRPCProvider } from "@/lib/trpc/provider";
 import { PostHogProvider } from "@/components/layout/posthog-provider";
+import { getAppUrl } from "@/lib/app-url";
 import "./globals.css";
 
 const inter = Inter({
@@ -23,33 +24,7 @@ const ibmPlexMono = IBM_Plex_Mono({
   weight: ["400", "500", "600"],
 });
 
-/**
- * Resolve the canonical app URL defensively.
- *
- * At build time Next.js may inline a redacted value (e.g. "[SENSITIVE]") for
- * NEXT_PUBLIC_* env vars, which would throw `ERR_INVALID_URL` inside
- * `new URL()` during page-data collection. Validate the candidate and fall
- * back to the canonical domain so a bad/redacted value can never crash
- * `next build` or produce broken metadata templates.
- */
-function resolveBaseUrl(): string {
-  const candidate = process.env.NEXT_PUBLIC_APP_URL;
-  if (candidate) {
-    try {
-      const parsed = new URL(candidate);
-      if (parsed.protocol === "http:" || parsed.protocol === "https:") {
-        return parsed.origin;
-      }
-    } catch {
-      // fall through to the canonical default below
-    }
-  }
-  // Live canonical domain — xenboox.com is not yet resolving; the Vercel
-  // deployment is the source of truth until a custom domain is configured.
-  return "https://xenboox.vercel.app";
-}
-
-const baseUrl = resolveBaseUrl();
+const baseUrl = getAppUrl();
 
 export const metadata: Metadata = {
   metadataBase: new URL(baseUrl),

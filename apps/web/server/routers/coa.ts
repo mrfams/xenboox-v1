@@ -159,21 +159,22 @@ export const coaRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const existing = await db.query.chartOfAccounts.findFirst({
-        where: and(
-          eq(chartOfAccounts.id, input.id),
-          eq(chartOfAccounts.entityId, ctx.entityId!),
-        ),
-      });
-      if (!existing)
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Account not found",
+      try {
+        const existing = await db.query.chartOfAccounts.findFirst({
+          where: and(
+            eq(chartOfAccounts.id, input.id),
+            eq(chartOfAccounts.entityId, ctx.entityId!),
+          ),
         });
-      const { id, ...data } = input;
-      const [updated] = await db
-        .update(chartOfAccounts)
-        .set({
+        if (!existing)
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Account not found",
+          });
+        const { id, ...data } = input;
+        const [updated] = await db
+          .update(chartOfAccounts)
+          .set({
           ...(data.name && { name: data.name }),
           ...(data.description !== undefined && {
             description: data.description,
@@ -188,8 +189,11 @@ export const coaRouter = router({
           ),
         )
         .returning();
-      await coaCache.invalidate(ctx.entityId!);
-      return updated;
+        await coaCache.invalidate(ctx.entityId!);
+        return updated;
+      } catch (error) {
+        handleMutationError(error, "Failed to update account");
+      }
     }),
 
   delete: rlsMutateProcedure

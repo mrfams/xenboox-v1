@@ -101,7 +101,7 @@ export const entities = pgTable(
       .references(() => organizations.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
     type: entityTypeEnum("type").notNull().default("company"),
-    currency: text("currency").notNull().default("GMD"),
+    currency: text("currency").notNull().default("USD"),
     country: text("country").notNull().default("GM"),
     fiscalYearEnd: text("fiscal_year_end").notNull().default("12"),
     taxId: text("tax_id"),

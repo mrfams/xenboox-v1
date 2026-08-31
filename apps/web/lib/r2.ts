@@ -8,16 +8,43 @@ import {
 
 // ─── R2 Client ──────────────────────────────────────────────────────────────
 
+function isR2Configured(): boolean {
+  return !!(
+    process.env.R2_ACCOUNT_ID &&
+    process.env.R2_ACCESS_KEY_ID &&
+    process.env.R2_SECRET_ACCESS_KEY &&
+    process.env.R2_BUCKET_NAME
+  );
+}
+
+let _r2: S3Client | null = null;
+
+export function getR2Client(): S3Client | null {
+  if (!isR2Configured()) return null;
+  if (!_r2) {
+    _r2 = new S3Client({
+      region: "auto",
+      endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+      credentials: {
+        accessKeyId: process.env.R2_ACCESS_KEY_ID!,
+        secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
+      },
+    });
+  }
+  return _r2;
+}
+
+/** @deprecated Use getR2Client() for safe access. */
 export const r2 = new S3Client({
   region: "auto",
-  endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+  endpoint: `https://${process.env.R2_ACCOUNT_ID ?? ""}.r2.cloudflarestorage.com`,
   credentials: {
-    accessKeyId: process.env.R2_ACCESS_KEY_ID!,
-    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
+    accessKeyId: process.env.R2_ACCESS_KEY_ID ?? "",
+    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY ?? "",
   },
 });
 
-export const R2_BUCKET = process.env.R2_BUCKET_NAME!;
+export const R2_BUCKET = process.env.R2_BUCKET_NAME ?? "xenboox-documents";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -67,12 +94,21 @@ export async function getObjectHead(
 }
 
 export async function deleteObject(storagePath: string): Promise<void> {
-  await r2.send(
-    new DeleteObjectCommand({
-      Bucket: R2_BUCKET,
-      Key: storagePath,
-    }),
-  );
+  const client = getR2Client();
+  if (!client) {
+    throw new Error("R2 not configured — cannot delete object");
+  }
+  try {
+    await client.send(
+      new DeleteObjectCommand({
+        Bucket: R2_BUCKET,
+        Key: storagePath,
+      }),
+    );
+  } catch (err) {
+    // R2 delete failure shouldn't crash the app — log and continue
+    console.error("[R2] deleteObject failed:", err);
+  }
 }
 
 export function getPublicUrl(storagePath: string): string {

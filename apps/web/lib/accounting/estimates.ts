@@ -180,7 +180,7 @@ export function matchCustomer(
 export function parseEstimateRequest(
   prompt: string,
   customerNames: string[],
-  currency = "GMD",
+  currency = "USD",
 ): AiEstimateDraft {
   const trimmed = prompt.trim();
 

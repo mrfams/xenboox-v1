@@ -111,7 +111,7 @@ export async function getEnrichedEntityContext(
   return {
     entityId: entity.id,
     entityName: entity.name,
-    currency: entity.currency ?? "GMD",
+    currency: entity.currency ?? "USD",
     fiscalYearEnd: fiscalYearEndStr,
     currentPeriod: currentPeriodStr,
     lastCloseDate: lastCloseDateStr,
@@ -142,7 +142,7 @@ function getDefaultContext(entityId: string): EnrichedEntityContext {
   return {
     entityId,
     entityName: "Organization",
-    currency: "GMD",
+    currency: "USD",
     fiscalYearEnd: "December",
     currentPeriod: `${monthNames[now.getMonth()]} ${now.getFullYear()}`,
     lastCloseDate: "No prior close",

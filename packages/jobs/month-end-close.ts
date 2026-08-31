@@ -145,6 +145,7 @@ export const processMonthEndClose = task({
 });
 
 async function runDepreciation(entityId: string, periodId: string) {
+  // 1. Query all fixed assets for this entity (already entity-scoped)
   const fixedAssets = await db
     .select()
     .from(chartOfAccounts)
@@ -156,15 +157,68 @@ async function runDepreciation(entityId: string, periodId: string) {
       ),
     );
 
+  if (fixedAssets.length === 0) return;
+
+  // 2. Pre-fetch accumulated depreciation and expense accounts (avoid N+1)
+  const accumAccounts = await db
+    .select()
+    .from(chartOfAccounts)
+    .where(
+      and(
+        eq(chartOfAccounts.entityId, entityId),
+        eq(chartOfAccounts.code, "1510"),
+      ),
+    );
+  const accumAccount = accumAccounts[0];
+
+  const expenseAccounts = await db
+    .select()
+    .from(chartOfAccounts)
+    .where(
+      and(
+        eq(chartOfAccounts.entityId, entityId),
+        eq(chartOfAccounts.code, "6040"),
+      ),
+    );
+  const expenseAccount = expenseAccounts[0];
+
+  if (!accumAccount || !expenseAccount) {
+    logger.warn("Missing depreciation accounts, skipping", {
+      entityId,
+      hasAccum: !!accumAccount,
+      hasExpense: !!expenseAccount,
+    });
+    return;
+  }
+
+  // 3. Get existing entry numbers to avoid collision
+  const lastEntry = await db
+    .select({ entryNumber: journalEntries.entryNumber })
+    .from(journalEntries)
+    .where(eq(journalEntries.entityId, entityId))
+    .orderBy(journalEntries.entryNumber)
+    .limit(1);
+  let nextEntryNumber = (lastEntry[0]?.entryNumber ?? 0) + 1;
+
   for (const asset of fixedAssets) {
     if (asset.name.includes("Accumulated")) continue;
 
     const jeId = crypto.randomUUID();
     const today = new Date().toISOString().split("T")[0]!;
 
+    // Calculate depreciation from asset metadata (cost, useful life, method)
+    const assetMeta = (asset.metadata ?? {}) as Record<string, unknown>;
+    const cost = Number(assetMeta.cost ?? asset.openingBalance ?? 0);
+    const usefulLifeMonths = Number(assetMeta.usefulLifeMonths ?? 60);
+    const monthlyDepreciation = cost > 0 && usefulLifeMonths > 0
+      ? cost / usefulLifeMonths
+      : 0;
+
+    if (monthlyDepreciation <= 0) continue;
+
     await db.insert(journalEntries).values({
       entityId,
-      entryNumber: 9000 + Math.floor(Math.random() * 1000),
+      entryNumber: nextEntryNumber++,
       description: `Depreciation - ${asset.name}`,
       date: today,
       periodId,
@@ -174,45 +228,21 @@ async function runDepreciation(entityId: string, periodId: string) {
       source: "depreciation",
     });
 
-    const accumAccounts = await db
-      .select()
-      .from(chartOfAccounts)
-      .where(
-        and(
-          eq(chartOfAccounts.entityId, entityId),
-          eq(chartOfAccounts.code, "1510"),
-        ),
-      );
-    const accumAccount = accumAccounts[0];
+    const amount = monthlyDepreciation.toFixed(2);
 
-    const expenseAccounts = await db
-      .select()
-      .from(chartOfAccounts)
-      .where(
-        and(
-          eq(chartOfAccounts.entityId, entityId),
-          eq(chartOfAccounts.code, "6040"),
-        ),
-      );
-    const expenseAccount = expenseAccounts[0];
-
-    if (accumAccount && expenseAccount) {
-      const depreciationAmount = "8333";
-
-      await db.insert(journalEntryLines).values({
-        journalEntryId: jeId,
-        accountId: expenseAccount.id,
-        debit: depreciationAmount,
-        credit: "0",
-        description: `Depreciation expense - ${asset.name}`,
-      });
-      await db.insert(journalEntryLines).values({
-        journalEntryId: jeId,
-        accountId: accumAccount.id,
-        debit: "0",
-        credit: depreciationAmount,
-        description: `Accumulated depreciation - ${asset.name}`,
-      });
-    }
+    await db.insert(journalEntryLines).values({
+      journalEntryId: jeId,
+      accountId: expenseAccount.id,
+      debit: amount,
+      credit: "0",
+      description: `Depreciation expense - ${asset.name}`,
+    });
+    await db.insert(journalEntryLines).values({
+      journalEntryId: jeId,
+      accountId: accumAccount.id,
+      debit: "0",
+      credit: amount,
+      description: `Accumulated depreciation - ${asset.name}`,
+    });
   }
 }

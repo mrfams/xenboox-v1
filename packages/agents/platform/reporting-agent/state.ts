@@ -91,6 +91,10 @@ export const NarrativeSchema = z.object({
   summary: z.string(),
   highlights: z.array(z.string()),
   concerns: z.array(z.string()),
+  action: z.string().optional(),
+  confidence: z.number().min(0).max(1).default(0.8),
+  generatedAt: z.string().optional(),
+  poweredBy: z.enum(["llm", "fallback"]).default("llm"),
 });
 
 export type Narrative = z.infer<typeof NarrativeSchema>;

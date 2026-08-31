@@ -24,15 +24,23 @@ export function PostHogProvider({ children }: { children: React.ReactNode }) {
 
   // Initialize PostHog on mount
   useEffect(() => {
-    getPostHog();
+    try {
+      getPostHog();
+    } catch {
+      // PostHog init failure should not crash the app
+    }
   }, []);
 
   // Track pageviews on route change
   useEffect(() => {
-    const url =
-      pathname +
-      (searchParams?.toString() ? `?${searchParams.toString()}` : "");
-    trackPageView(url);
+    try {
+      const url =
+        pathname +
+        (searchParams?.toString() ? `?${searchParams.toString()}` : "");
+      trackPageView(url);
+    } catch {
+      // Pageview tracking failure should not crash the app
+    }
   }, [pathname, searchParams]);
 
   return <>{children}</>;

@@ -11,6 +11,7 @@ import {
   chatMessages,
   auditLog,
   agentRoutingLogs,
+  entities,
 } from "@xenboox/db/schema";
 
 import { router, rlsProtectedProcedure } from "@/lib/trpc/server";
@@ -147,6 +148,13 @@ export const aiWorkspaceRouter = router({
     const entityId = ctx.entityId!;
     const now = new Date();
 
+    // Get entity currency for display
+    const entity = await db.query.entities.findFirst({
+      where: eq(entities.id, entityId),
+      columns: { baseCurrency: true },
+    });
+    const currency = entity?.baseCurrency ?? "USD";
+
     const suggestions: Array<{
       id: string;
       title: string;
@@ -216,7 +224,7 @@ export const aiWorkspaceRouter = router({
       suggestions.push({
         id: "overdue-invoices",
         title: "Invoice overdue",
-        description: `${overdueCount[0]?.count} invoices overdue totalling GMD ${parseFloat(overdueTotal[0]?.total ?? "0").toLocaleString()}`,
+        description: `${overdueCount[0]?.count} invoices overdue totalling ${currency} ${parseFloat(overdueTotal[0]?.total ?? "0").toLocaleString()}`,
         action: "Send reminders",
         type: "alert",
         icon: "alert-triangle",

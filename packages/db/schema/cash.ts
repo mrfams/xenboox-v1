@@ -16,7 +16,7 @@ export const cashAccounts = pgTable("cash_accounts", {
   id: uuidId(),
   entityId: entityId.references(() => entities.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
-  currency: text("currency").notNull().default("GMD"),
+  currency: text("currency").notNull().default("USD"),
   currentBalance: numeric("current_balance", { precision: 15, scale: 2 }).notNull().default("0"),
   glAccountId: uuid("gl_account_id").references(() => chartOfAccounts.id),
   isActive: boolean("is_active").notNull().default(true),

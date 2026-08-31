@@ -213,7 +213,7 @@ export async function runBudgetPipeline(
           name: `FY${fiscalYear} Budget`,
           fiscalYear,
           status: "draft",
-          currency: entityCtx?.currency ?? "GMD",
+          currency: entityCtx?.currency ?? "USD",
           createdById: userId,
         })
         .returning();

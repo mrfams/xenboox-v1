@@ -5,8 +5,10 @@ import { DocsPageHeader } from "../../components/docs-page-header";
 import { CodeBlock } from "../../components/code-block";
 import { InfoCallout } from "../../components/info-callout";
 import { RelatedLinks } from "../../components/related-links";
+import { getAppUrl } from "@/lib/app-url";
 
 export default function RestApiPage() {
+  const appUrl = getAppUrl();
   return (
     <>
       <DocsPageHeader
@@ -53,15 +55,15 @@ export default function RestApiPage() {
                 language="bash"
                 code={`# List journal entries
 curl -H "x-api-key: xb_your_key_here" \\
-  https://xenboox.vercel.app/api/v1/transactions
+  ${appUrl}/api/v1/transactions
 
 # List customers
 curl -H "x-api-key: xb_your_key_here" \\
-  https://xenboox.vercel.app/api/v1/customers
+  ${appUrl}/api/v1/customers
 
 # Get trial balance
 curl -H "x-api-key: xb_your_key_here" \\
-  https://xenboox.vercel.app/api/v1/reports/trial-balance`}
+  ${appUrl}/api/v1/reports/trial-balance`}
               />
             </div>
             <div className="rounded-lg bg-muted/50 p-4">
@@ -101,15 +103,15 @@ X-RateLimit-Reset: 1724006400`}
             language="bash"
             code={`# Include the key in every request
 curl -H "x-api-key: xb_a1b2c3d4e5f6..." \\
-  https://xenboox.vercel.app/api/v1/transactions
+  ${appUrl}/api/v1/transactions
 
 # Python
 import requests
 headers = {"x-api-key": "xb_a1b2c3d4e5f6..."}
-response = requests.get("https://xenboox.vercel.app/api/v1/transactions", headers=headers)
+response = requests.get("${appUrl}/api/v1/transactions", headers=headers)
 
 # JavaScript
-const response = await fetch("https://xenboox.vercel.app/api/v1/transactions", {
+const response = await fetch("${appUrl}/api/v1/transactions", {
   headers: { "x-api-key": "xb_a1b2c3d4e5f6..." }
 });`}
           />
@@ -251,11 +253,11 @@ const response = await fetch("https://xenboox.vercel.app/api/v1/transactions", {
           <CodeBlock
             language="bash"
             code={`# Fetch the OpenAPI spec
-curl https://xenboox.vercel.app/api/v1/openapi
+curl ${appUrl}/api/v1/openapi
 
 # Generate a TypeScript client
 npx @openapitools/openapi-generator-cli generate \\
-  -i https://xenboox.vercel.app/api/v1/openapi \\
+  -i ${appUrl}/api/v1/openapi \\
   -g typescript-fetch \\
   -o ./generated/xenboox-client`}
           />

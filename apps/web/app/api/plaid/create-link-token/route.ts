@@ -33,6 +33,12 @@ export async function POST(request: NextRequest) {
     }
 
     // Verify entity access
+    const { resolveEntityAccess } = await import("@/lib/auth/entity-access");
+    const access = await resolveEntityAccess(session.user.id!, entityId);
+    if (!access) {
+      return NextResponse.json({ error: "Access denied" }, { status: 403 });
+    }
+
     const entity = await db.query.entities.findFirst({
       where: eq(entities.id, entityId),
     });

@@ -24,6 +24,7 @@ import { toast } from "sonner";
 import { trpc } from "@/lib/trpc/client";
 import { showUndoToast } from "@/lib/settings-undo";
 import { BackupProgressIndicator } from "@/components/settings/backup-progress-indicator";
+import { APP_CONFIG } from "@/lib/config";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -106,7 +107,7 @@ export function ExportImportSettings({
 
   const handleExport = () => {
     const settings: ExportedSettings = {
-      version: "1.0.0",
+      version: APP_CONFIG.version,
       exportedAt: new Date().toISOString(),
       aiPreferences: readFromStorage(KEYS.aiPreferences),
       notificationPreferences: null, // Notifications are server-side, not exported

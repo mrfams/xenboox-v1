@@ -57,7 +57,7 @@ export const bankConnections = pgTable(
     accountName: text("account_name"),
     accountNumber: text("account_number"),
     accountType: text("account_type"),
-    currency: text("currency").notNull().default("GMD"),
+    currency: text("currency").notNull().default("USD"),
     accessToken: text("access_token"),
     refreshToken: text("refresh_token"),
     tokenExpiresAt: timestamp("token_expires_at"),

@@ -35,7 +35,7 @@ export const cashRouter = router({
     .input(
       z.object({
         name: z.string().min(1),
-        currency: z.string().length(3).default("GMD"),
+        currency: z.string().length(3).default("USD"),
         isActive: z.boolean().default(true),
       }),
     )

@@ -39,7 +39,7 @@ export const paymentLinks = pgTable(
     token: text("token").notNull().unique(),
     // Payment details
     amount: numeric("amount", { precision: 15, scale: 2 }).notNull(),
-    currency: text("currency").notNull().default("GMD"),
+    currency: text("currency").notNull().default("USD"),
     // Status
     status: paymentLinkStatusEnum("status").notNull().default("active"),
     // Tracking

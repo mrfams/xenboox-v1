@@ -15,6 +15,12 @@ import {
   donorProjects,
   donorReportSnapshots,
 } from "@xenboox/db/schema/donor-grant";
+import { callModel } from "@xenboox/models";
+import { langfuse } from "../../core/langfuse";
+import { redactPii, INJECTION_DEFENSE_SUFFIX } from "../../core/security/injection-defense";
+import { checkRateLimit } from "../../core/rate-limiter";
+import { getCachedNarrative, setCachedNarrative } from "../../core/narrative-cache";
+import { saveNarrativeHistory } from "@xenboox/db/schema/analytics";
 import type {
   ProfitAndLoss,
   BalanceSheet,
@@ -916,9 +922,670 @@ export async function generateTrialBalance(
   };
 }
 
-// ─── Narrative ─────────────────────────────────────────────────────────────
+// ─── Circuit Breaker for LLM API ──────────────────────────────────────────
+const circuitBreaker = {
+  failures: 0,
+  lastFailureTime: 0,
+  state: "closed" as "closed" | "open" | "half-open",
+  threshold: 5,
+  resetTimeoutMs: 60000,
+  
+  recordSuccess() {
+    this.failures = 0;
+    this.state = "closed";
+  },
+  
+  recordFailure() {
+    this.failures++;
+    this.lastFailureTime = Date.now();
+    if (this.failures >= this.threshold) {
+      this.state = "open";
+    }
+  },
+  
+  canExecute() {
+    if (this.state === "closed") return true;
+    if (this.state === "open") {
+      if (Date.now() - this.lastFailureTime > this.resetTimeoutMs) {
+        this.state = "half-open";
+        return true;
+      }
+      return false;
+    }
+    return true; // half-open allows one request
+  },
+};
 
-export function generateNarrative(
+// ─── Narrative (LLM-Powered) ───────────────────────────────────────────────
+
+// ─── Helper: Format Amount ─────────────────────────────────────────────────
+function formatAmount(amount: number, currency: string): string {
+  const absAmount = Math.abs(amount);
+  const sign = amount < 0 ? "-" : "";
+  
+  if (absAmount >= 1_000_000_000) {
+    return `${sign}${currency} ${(absAmount / 1_000_000_000).toFixed(1)}B`;
+  } else if (absAmount >= 1_000_000) {
+    return `${sign}${currency} ${(absAmount / 1_000_000).toFixed(1)}M`;
+  } else if (absAmount >= 1_000) {
+    return `${sign}${currency} ${(absAmount / 1_000).toFixed(1)}K`;
+  } else {
+    return `${sign}${currency} ${absAmount.toLocaleString()}`;
+  }
+}
+
+// ─── Helper: Build P&L Context ────────────────────────────────────────────
+function buildPnlContext(pnl: ProfitAndLoss, currency: string): string[] {
+  const parts: string[] = [];
+  parts.push("=== Profit & Loss ===");
+  
+  // Handle zero revenue
+  if (pnl.revenue === 0) {
+    parts.push(`Revenue: ${currency} 0 (no revenue recorded this period)`);
+  } else {
+    parts.push(`Revenue: ${formatAmount(pnl.revenue, currency)}`);
+  }
+  
+  // Handle zero expenses
+  if (pnl.expenses === 0) {
+    parts.push(`Expenses: ${currency} 0 (no expenses recorded this period)`);
+  } else {
+    parts.push(`Expenses: ${formatAmount(pnl.expenses, currency)}`);
+  }
+  
+  parts.push(`Net Profit: ${formatAmount(pnl.netProfit, currency)}`);
+  
+  // Handle profit margin (avoid division by zero)
+  if (pnl.revenue > 0) {
+    const margin = ((pnl.netProfit / pnl.revenue) * 100).toFixed(1);
+    parts.push(`Profit Margin: ${margin}%`);
+  } else if (pnl.revenue < 0) {
+    parts.push(`Profit Margin: N/A (negative revenue)`);
+  } else {
+    parts.push(`Profit Margin: N/A (no revenue)`);
+  }
+  parts.push("");
+  
+  // Revenue by account (handle missing names)
+  parts.push("Revenue by account:");
+  for (const acc of pnl.revenueByAccount.slice(0, 5)) {
+    const accountName = acc.accountName || "Unknown Account";
+    const safeName = sanitizeForInjection(redactPii(accountName).text);
+    parts.push(`  - ${safeName} (${acc.accountCode}): ${formatAmount(acc.amount, currency)}`);
+  }
+  parts.push("");
+  
+  // Expenses by account (handle missing names)
+  parts.push("Expenses by account:");
+  for (const acc of pnl.expensesByAccount.slice(0, 5)) {
+    const accountName = acc.accountName || "Unknown Account";
+    const safeName = sanitizeForInjection(redactPii(accountName).text);
+    parts.push(`  - ${safeName} (${acc.accountCode}): ${formatAmount(acc.amount, currency)}`);
+  }
+  parts.push("");
+  return parts;
+}
+
+// ─── Helper: Build Cash vs Non-Cash Context ───────────────────────────────
+function buildCashVsNonCashContext(pnl: ProfitAndLoss, currency: string): string[] {
+  const parts: string[] = [];
+  const depreciationExpenses = pnl.expensesByAccount.filter(acc => 
+    acc.accountName.toLowerCase().includes("depreciation") || 
+    acc.accountName.toLowerCase().includes("amortization")
+  );
+  const totalDepreciation = depreciationExpenses.reduce((sum, acc) => sum + acc.amount, 0);
+  
+  if (totalDepreciation > 0) {
+    parts.push("Cash vs Non-Cash Analysis:");
+    parts.push(`  Non-cash expenses (depreciation/amortization): ${formatAmount(totalDepreciation, currency)}`);
+    parts.push(`  Cash expenses: ${formatAmount(pnl.expenses, currency)}`);
+    parts.push(`  Operating cash flow (approx): ${formatAmount(pnl.netProfit + totalDepreciation, currency)}`);
+    parts.push("");
+  }
+  return parts;
+}
+
+// ─── Helper: Build Balance Sheet Context ───────────────────────────────────
+function buildBalanceSheetContext(bs: BalanceSheet, currency: string): string[] {
+  const parts: string[] = [];
+  parts.push("=== Balance Sheet ===");
+  parts.push(`Total Assets: ${formatAmount(bs.assets, currency)}`);
+  parts.push(`Total Liabilities: ${formatAmount(bs.liabilities, currency)}`);
+  parts.push(`Total Equity: ${formatAmount(bs.equity, currency)}`);
+  parts.push("");
+  parts.push("Assets by account:");
+  for (const acc of bs.assetsByAccount.slice(0, 5)) {
+    const accountName = acc.accountName || "Unknown Account";
+    const safeName = sanitizeForInjection(redactPii(accountName).text);
+    parts.push(`  - ${safeName} (${acc.accountCode}): ${formatAmount(acc.amount, currency)}`);
+  }
+  parts.push("");
+  return parts;
+}
+
+// ─── Helper: Build Trial Balance Context ───────────────────────────────────
+function buildTrialBalanceContext(tb: TrialBalance, currency: string): string[] {
+  const parts: string[] = [];
+  parts.push("=== Trial Balance ===");
+  parts.push(`Total Debits: ${formatAmount(tb.totalDebits, currency)}`);
+  parts.push(`Total Credits: ${formatAmount(tb.totalCredits, currency)}`);
+  parts.push(`Balanced: ${tb.balanced ? "Yes" : "No"}`);
+  parts.push("");
+  return parts;
+}
+
+// ─── Helper: Build Cash Flow Context ───────────────────────────────────────
+function buildCashFlowContext(cf: CashFlow, currency: string): string[] {
+  const parts: string[] = [];
+  parts.push("=== Cash Flow ===");
+  parts.push(`Opening Cash: ${formatAmount(cf.openingCash, currency)}`);
+  parts.push(`Closing Cash: ${formatAmount(cf.closingCash, currency)}`);
+  parts.push(`Net Cash Change: ${formatAmount(cf.netCashChange, currency)}`);
+  parts.push("");
+  return parts;
+}
+
+// ─── Helper: Build Budget vs Actual Context ────────────────────────────────
+function buildBudgetVsActualContext(bva: BudgetVsActual, currency: string): string[] {
+  const parts: string[] = [];
+  parts.push("=== Budget vs Actual ===");
+  parts.push(`Total Budgeted: ${formatAmount(bva.totalBudgeted, currency)}`);
+  parts.push(`Total Actual: ${formatAmount(bva.totalActual, currency)}`);
+  parts.push(`Variance: ${formatAmount(bva.totalVariance, currency)} (${bva.totalVariancePct}%)`);
+  parts.push("");
+  return parts;
+}
+
+// ─── Helper: Build Prior Period Context ────────────────────────────────────
+function buildPriorPeriodContext(
+  priorPeriodData: {
+    profitAndLoss?: ProfitAndLoss | null;
+    balanceSheet?: BalanceSheet | null;
+  },
+  reportData: {
+    profitAndLoss: ProfitAndLoss | null;
+    balanceSheet: BalanceSheet | null;
+  },
+  currency: string,
+): string[] {
+  const parts: string[] = [];
+  
+  if (priorPeriodData.profitAndLoss && reportData.profitAndLoss) {
+    const priorPnl = priorPeriodData.profitAndLoss;
+    parts.push("=== Period-over-Period Changes ===");
+    
+    const revenueChange = reportData.profitAndLoss.revenue - priorPnl.revenue;
+    const revenueChangePct = priorPnl.revenue !== 0 ? ((revenueChange / priorPnl.revenue) * 100).toFixed(1) : "N/A";
+    parts.push(`Revenue Change: ${formatAmount(revenueChange, currency)} (${revenueChangePct}%)`);
+    
+    const expenseChange = reportData.profitAndLoss.expenses - priorPnl.expenses;
+    const expenseChangePct = priorPnl.expenses !== 0 ? ((expenseChange / priorPnl.expenses) * 100).toFixed(1) : "N/A";
+    parts.push(`Expense Change: ${formatAmount(expenseChange, currency)} (${expenseChangePct}%)`);
+    
+    const profitChange = reportData.profitAndLoss.netProfit - priorPnl.netProfit;
+    parts.push(`Profit Change: ${formatAmount(profitChange, currency)}`);
+    
+    const priorDepreciation = priorPnl.expensesByAccount
+      .filter(acc => acc.accountName.toLowerCase().includes("depreciation") || acc.accountName.toLowerCase().includes("amortization"))
+      .reduce((sum, acc) => sum + acc.amount, 0);
+    const currentDepreciation = reportData.profitAndLoss.expensesByAccount
+      .filter(acc => acc.accountName.toLowerCase().includes("depreciation") || acc.accountName.toLowerCase().includes("amortization"))
+      .reduce((sum, acc) => sum + acc.amount, 0);
+    
+    if (priorDepreciation > 0 || currentDepreciation > 0) {
+      const depreciationChange = currentDepreciation - priorDepreciation;
+      parts.push(`Depreciation Change: ${formatAmount(depreciationChange, currency)}`);
+    }
+    parts.push("");
+  }
+
+  if (priorPeriodData.balanceSheet && reportData.balanceSheet) {
+    const priorBs = priorPeriodData.balanceSheet;
+    parts.push("=== Balance Sheet Changes ===");
+    
+    const assetChange = reportData.balanceSheet.assets - priorBs.assets;
+    parts.push(`Asset Change: ${formatAmount(assetChange, currency)}`);
+    
+    const liabilityChange = reportData.balanceSheet.liabilities - priorBs.liabilities;
+    parts.push(`Liability Change: ${formatAmount(liabilityChange, currency)}`);
+    
+    const equityChange = reportData.balanceSheet.equity - priorBs.equity;
+    parts.push(`Equity Change: ${formatAmount(equityChange, currency)}`);
+    parts.push("");
+  }
+  
+  return parts;
+}
+
+// ─── Helper: Centralized Redaction ─────────────────────────────────────────
+function redactNarrativeFields(text: string): string {
+  return redactPii(text).text;
+}
+
+function redactNarrativeArray(arr: string[]): string[] {
+  return arr.map(item => redactPii(item).text);
+}
+
+// ─── Helper: Sanitize Input Against Injection ──────────────────────────────
+function sanitizeForInjection(text: string): string {
+  // Remove common injection patterns
+  let sanitized = text
+    .replace(/ignore\s+(all\s+)?previous\s+instructions/gi, "")
+    .replace(/ignore\s+(all\s+)?prior\s+instructions/gi, "")
+    .replace(/disregard\s+(all\s+)?previous\s+instructions/gi, "")
+    .replace(/you\s+are\s+now\s+/gi, "you are ")
+    .replace(/system:\s*/gi, "")
+    .replace(/assistant:\s*/gi, "")
+    .replace(/human:\s*/gi, "")
+    .replace(/<\|im_start\|>/gi, "")
+    .replace(/<\|im_end\|>/gi, "")
+    .replace(/<\|system\|>/gi, "")
+    .replace(/<\|user\|>/gi, "")
+    .replace(/<\|assistant\|>/gi, "")
+    .replace(/```[\s\S]*?```/g, "") // Remove code blocks
+    .replace(/\n{3,}/g, "\n\n") // Limit newlines
+    .trim();
+  
+  // Limit length
+  if (sanitized.length > 200) {
+    sanitized = sanitized.substring(0, 200);
+  }
+  
+  return sanitized;
+}
+
+// ─── Helper: Validate Report Data ──────────────────────────────────────────
+function validateReportData(reportData: unknown): boolean {
+  if (!reportData || typeof reportData !== "object") return false;
+  const data = reportData as Record<string, unknown>;
+  
+  // Check for suspicious patterns in string values
+  const suspiciousPatterns = [
+    /ignore.*instructions/i,
+    /you\s+are\s+now/i,
+    /system:\s*/i,
+    /<\|.*\|>/i,
+    /```/,
+  ];
+  
+  for (const [key, value] of Object.entries(data)) {
+    if (typeof value === "string") {
+      for (const pattern of suspiciousPatterns) {
+        if (pattern.test(value)) {
+          console.error(`Suspicious pattern detected in report data field: ${key}`);
+          return false;
+        }
+      }
+    }
+  }
+  
+  return true;
+}
+
+/**
+ * Build a structured data summary for the LLM prompt.
+ * This extracts the key numbers from the report data.
+ */
+function buildNarrativeContext(
+  entityName: string,
+  reportData: {
+    profitAndLoss: ProfitAndLoss | null;
+    balanceSheet: BalanceSheet | null;
+    trialBalance: TrialBalance | null;
+    cashFlow?: CashFlow | null;
+    budgetVsActual?: BudgetVsActual | null;
+  },
+  currency: string,
+  priorPeriodData?: {
+    profitAndLoss?: ProfitAndLoss | null;
+    balanceSheet?: BalanceSheet | null;
+  },
+): string {
+  const parts: string[] = [];
+
+  parts.push(`Entity: ${sanitizeForInjection(entityName)}`);
+  parts.push(`Currency: ${currency}`);
+  parts.push("");
+
+  if (reportData.profitAndLoss) {
+    parts.push(...buildPnlContext(reportData.profitAndLoss, currency));
+    parts.push(...buildCashVsNonCashContext(reportData.profitAndLoss, currency));
+  }
+
+  if (reportData.balanceSheet) {
+    parts.push(...buildBalanceSheetContext(reportData.balanceSheet, currency));
+  }
+
+  if (reportData.trialBalance) {
+    parts.push(...buildTrialBalanceContext(reportData.trialBalance, currency));
+  }
+
+  if (reportData.cashFlow) {
+    parts.push(...buildCashFlowContext(reportData.cashFlow, currency));
+    
+    // Add cash flow analysis if we have balance sheet data
+    if (reportData.balanceSheet) {
+      const bs = reportData.balanceSheet;
+      
+      // Find AR and AP accounts
+      const arAccounts = bs.assetsByAccount.filter(acc => 
+        acc.accountName.toLowerCase().includes("receivable") ||
+        acc.accountName.toLowerCase().includes("ar")
+      );
+      const apAccounts = bs.liabilitiesByAccount.filter(acc => 
+        acc.accountName.toLowerCase().includes("payable") ||
+        acc.accountName.toLowerCase().includes("ap")
+      );
+      
+      const totalAR = arAccounts.reduce((sum, acc) => sum + acc.amount, 0);
+      const totalAP = apAccounts.reduce((sum, acc) => sum + acc.amount, 0);
+      
+      if (totalAR > 0 || totalAP > 0) {
+        parts.push("Cash Flow Analysis:");
+        if (totalAR > 0) {
+          parts.push(`  Accounts Receivable: ${formatAmount(totalAR, currency)} (customers owe you)`);
+        }
+        if (totalAP > 0) {
+          parts.push(`  Accounts Payable: ${formatAmount(totalAP, currency)} (you owe vendors)`);
+        }
+        
+        // Warn about cash flow vs profit disconnect
+        if (reportData.profitAndLoss) {
+          const profit = reportData.profitAndLoss.netProfit;
+          if (profit > 0 && reportData.cashFlow.netCashChange < 0) {
+            parts.push(`  WARNING: You made ${formatAmount(profit, currency)} profit but your cash decreased by ${formatAmount(Math.abs(reportData.cashFlow.netCashChange), currency)}`);
+            parts.push(`  This suggests customers are paying slowly (high AR) or you're paying vendors faster (low AP)`);
+          } else if (profit < 0 && reportData.cashFlow.netCashChange > 0) {
+            parts.push(`  NOTE: You had a loss of ${formatAmount(Math.abs(profit), currency)} but cash increased by ${formatAmount(reportData.cashFlow.netCashChange, currency)}`);
+            parts.push(`  This may be due to collecting on old receivables or delaying payments`);
+          }
+        }
+        parts.push("");
+      }
+    }
+  }
+
+  if (reportData.budgetVsActual) {
+    parts.push(...buildBudgetVsActualContext(reportData.budgetVsActual, currency));
+  }
+
+  if (priorPeriodData) {
+    parts.push(...buildPriorPeriodContext(priorPeriodData, reportData, currency));
+  }
+
+  return parts.join("\n");
+}
+
+/**
+ * LLM-powered narrative generation.
+ * Generates plain-English explanations of financial changes.
+ */
+export async function generateNarrativeLLM(
+  entityName: string,
+  entityId: string,
+  reportData: {
+    profitAndLoss: ProfitAndLoss | null;
+    balanceSheet: BalanceSheet | null;
+    trialBalance: TrialBalance | null;
+    cashFlow?: CashFlow | null;
+    budgetVsActual?: BudgetVsActual | null;
+  },
+  currency: string,
+  priorPeriodData?: {
+    profitAndLoss?: ProfitAndLoss | null;
+    balanceSheet?: BalanceSheet | null;
+  },
+): Promise<Narrative> {
+  try {
+  const trace = await langfuse.trace({
+    name: "narrative-llm-generation",
+    metadata: { entityId, entityName },
+  });
+
+  // Check cache first
+  const cacheKey = `${entityId}:${JSON.stringify(reportData.profitAndLoss?.revenue ?? 0)}:${JSON.stringify(reportData.balanceSheet?.assets ?? 0)}`;
+  const cached = await getCachedNarrative<{ summary: string; highlights: string[]; concerns: string[]; action?: string; confidence: number; generatedAt: string; poweredBy: "llm" | "fallback" }>(entityId, cacheKey, "narrative");
+  if (cached) {
+    langfuse.event({ name: "narrative-cache-hit", metadata: { entityId } });
+    return cached;
+  }
+
+  // Rate limit check
+  const rateLimit = await checkRateLimit(entityId);
+  if (!rateLimit.allowed) {
+    langfuse.event({
+      name: "narrative-rate-limited",
+      metadata: { entityId, retryAfterMs: rateLimit.retryAfterMs },
+    });
+    return generateNarrativeFallback(entityName, reportData, currency);
+  }
+
+  // Validate report data for injection patterns
+  if (!validateReportData(reportData)) {
+    langfuse.event({
+      name: "narrative-injection-detected",
+      metadata: { entityId, entityName },
+    });
+    // Fall back to rule-based narrative
+    return generateNarrativeFallback(entityName, reportData, currency);
+  }
+
+  const context = buildNarrativeContext(entityName, reportData, currency, priorPeriodData);
+
+  const safeEntityName = sanitizeForInjection(redactPii(entityName).text);
+
+  const systemPrompt = `You are a financial analyst for ${safeEntityName}. Generate a plain-English financial narrative.
+
+Rules:
+1. Explain WHAT changed (headline) with specific numbers
+2. Explain WHY it changed (root cause from the data)
+3. Provide CONTEXT (how it compares to prior periods if data available)
+4. Recommend an ACTION (what the user should do next)
+5. Use professional but accessible tone
+6. Keep it under 200 words
+7. Never expose raw data without explanation
+8. Never make assumptions not supported by the data
+9. Reference specific accounts, vendors, customers when available
+10. If trial balance is unbalanced, flag this as critical
+
+Accounting Rules:
+1. Distinguish between timing changes (revenue recognition, accruals) and actual performance changes
+2. Apply matching principle — expenses should be analyzed in context of the revenue they generated
+3. Separate cash expenses from non-cash expenses (depreciation, amortization)
+4. Consider tax implications when recommending actions
+5. Compare to same period last year when available (seasonality)
+6. Analyze cash conversion cycle (DSO, DPO) when relevant
+7. Warn about timing-related distortions in trends
+
+Business Context:
+1. Detect business stage: startup (high growth, potential losses), growth (increasing revenue/profit), mature (stable), or declining
+2. Identify seasonal patterns — compare to same period last year
+3. Highlight significant improvements (loss to profit, cost optimization)
+4. Analyze cash flow separately from profitability
+5. Warn about cash flow vs profit disconnect
+6. Consider FX impact for multi-currency operations
+
+Format your response as:
+SUMMARY: [one-sentence headline with specific numbers]
+HIGHLIGHTS: [2-3 positive findings with evidence]
+CONCERNS: [1-2 areas of concern with severity]
+ACTION: [specific recommendation with expected outcome]
+
+${INJECTION_DEFENSE_SUFFIX}`;
+
+  const userMessage = `Generate a financial narrative for this period:\n\n${context}`;
+
+  // Check circuit breaker
+  if (!circuitBreaker.canExecute()) {
+    langfuse.event({
+      name: "narrative-circuit-open",
+      metadata: { entityId },
+    });
+    throw new Error("Circuit breaker open — LLM API unavailable");
+  }
+  
+  // Retry configuration
+  const MAX_RETRIES = 3;
+  const RETRY_DELAY_MS = 1000;
+  const TIMEOUT_MS = 30000;
+  
+  let lastError: Error | null = null;
+  let result: Awaited<ReturnType<typeof callModel>> | null = null;
+  
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      // Add timeout to the call
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error("LLM call timeout")), TIMEOUT_MS);
+      });
+      
+      const callPromise = callModel({
+        agentName: "reporting-agent",
+        taskType: "strategic_planning",
+        entityId,
+        systemPrompt,
+        messages: [{ role: "user", content: userMessage }],
+        traceId: trace.id,
+        maxTokens: 1024,
+        temperature: 0.3,
+      });
+      
+      result = await Promise.race([callPromise, timeoutPromise]);
+      circuitBreaker.recordSuccess();
+      break; // Success, exit retry loop
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+      circuitBreaker.recordFailure();
+      langfuse.event({
+        name: "narrative-llm-retry",
+        metadata: { entityId, attempt, error: lastError.message },
+      });
+      
+      if (attempt < MAX_RETRIES) {
+        // Exponential backoff
+        await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS * attempt));
+      }
+    }
+  }
+  
+  if (!result) {
+    throw lastError || new Error("LLM call failed after retries");
+  }
+
+  let content = result.content;
+
+  // Validate response length
+  const MAX_RESPONSE_LENGTH = 2000;
+  if (content.length > MAX_RESPONSE_LENGTH) {
+    content = content.substring(0, MAX_RESPONSE_LENGTH);
+    langfuse.event({
+      name: "narrative-response-truncated",
+      metadata: { entityId, originalLength: result.content.length, truncatedLength: content.length },
+    });
+  }
+
+  // Parse the structured response
+  const summaryMatch = content.match(/SUMMARY:\s*(.+?)(?=\n|$)/i);
+  const highlightsMatch = content.match(/HIGHLIGHTS:\s*([\s\S]*?)(?=CONCERNS:|ACTION:|$)/i);
+  const concernsMatch = content.match(/CONCERNS:\s*([\s\S]*?)(?=ACTION:|$)/i);
+  const actionMatch = content.match(/ACTION:\s*(.+?)(?=\n|$)/i);
+
+  let summary = summaryMatch?.[1]?.trim() || content.split("\n")[0] || `${entityName} financial summary`;
+
+  let highlightText = highlightsMatch?.[1]?.trim() || "";
+  let highlights = highlightText
+    .split("\n")
+    .map((h) => h.replace(/^[-•*]\s*/, "").trim())
+    .filter((h) => h.length > 0);
+
+  let concernText = concernsMatch?.[1]?.trim() || "";
+  let concerns = concernText
+    .split("\n")
+    .map((c) => c.replace(/^[-•*]\s*/, "").trim())
+    .filter((c) => c.length > 0);
+
+  let action = actionMatch?.[1]?.trim() || undefined;
+
+  // Post-processing: Redact PII from LLM responses
+  summary = redactPii(summary).text;
+  highlights = highlights.map(h => redactPii(h).text);
+  concerns = concerns.map(c => redactPii(c).text);
+  if (action) action = redactPii(action).text;
+
+  await trace.update({
+    output: {
+      summary: summary.substring(0, 200),
+      highlightsCount: highlights.length,
+      concernsCount: concerns.length,
+      hasAction: !!action,
+    },
+  });
+
+  langfuse.event({
+    name: "narrative-generated",
+    metadata: {
+      entityId,
+      provider: result.providerId,
+      model: result.modelId,
+      inputTokens: result.tokensUsed.input,
+      outputTokens: result.tokensUsed.output,
+    },
+  });
+
+  const narrativeResult = {
+    summary,
+    highlights,
+    concerns,
+    action,
+    confidence: 0.88,
+    generatedAt: new Date().toISOString(),
+    poweredBy: "llm" as const,
+  };
+
+  // Cache the result (non-blocking)
+  setCachedNarrative(entityId, cacheKey, "narrative", narrativeResult).catch(() => {});
+
+  // Save to history (non-blocking)
+  saveNarrativeHistory(db, {
+    entityId,
+    narrativeType: "report",
+    summary,
+    highlights,
+    concerns,
+    action,
+    confidence: 0.88,
+    poweredBy: "llm",
+    metadata: {
+      provider: result.providerId,
+      model: result.modelId,
+      inputTokens: result.tokensUsed.input,
+      outputTokens: result.tokensUsed.output,
+    },
+  }).catch((err) => {
+    langfuse.event({
+      name: "narrative-history-save-failed",
+      metadata: { entityId, error: String(err) },
+    });
+  });
+
+  return narrativeResult;
+} catch (error) {
+  const msg = error instanceof Error ? error.message : String(error);
+  langfuse.event({
+    name: "narrative-llm-failed",
+    metadata: { entityId, error: msg },
+  });
+
+  // Fallback to rule-based narrative
+  return generateNarrativeFallback(entityName, reportData, currency);
+}
+}
+
+/**
+ * Fallback rule-based narrative when LLM fails.
+ * Kept for backward compatibility and graceful degradation.
+ */
+function generateNarrativeFallback(
   entityName: string,
   reportData: {
     profitAndLoss: ProfitAndLoss | null;
@@ -990,5 +1657,24 @@ export function generateNarrative(
         : `${entityName} — no report data available to narrate.`,
     highlights,
     concerns,
+    confidence: 0.75,
+    generatedAt: new Date().toISOString(),
+    poweredBy: "fallback",
   };
+}
+
+/**
+ * @deprecated Use generateNarrativeLLM() instead.
+ * Kept for backward compatibility.
+ */
+export function generateNarrative(
+  entityName: string,
+  reportData: {
+    profitAndLoss: ProfitAndLoss | null;
+    balanceSheet: BalanceSheet | null;
+    trialBalance: TrialBalance | null;
+  },
+  currency: string,
+): Narrative {
+  return generateNarrativeFallback(entityName, reportData, currency);
 }

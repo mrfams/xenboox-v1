@@ -10,7 +10,7 @@ import {
   cashAccounts,
 } from "@xenboox/db/schema";
 
-import { router, rlsProtectedProcedure } from "@/lib/trpc/server";
+import { router, rlsProtectedProcedure, handleMutationError } from "@/lib/trpc/server";
 import { db } from "@/lib/db";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -546,21 +546,25 @@ export const billsRouter = router({
   linkPo: rlsProtectedProcedure
     .input(z.object({ billId: z.string().uuid(), poId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
-      const entityId = ctx.entityId!;
-      const [bill] = await db
-        .update(invoicesAp)
-        .set({ purchaseOrderId: input.poId })
-        .where(
-          and(
-            eq(invoicesAp.id, input.billId),
-            eq(invoicesAp.entityId, entityId),
-          ),
-        )
-        .returning({
-          id: invoicesAp.id,
-          purchaseOrderId: invoicesAp.purchaseOrderId,
-        });
-      return bill;
+      try {
+        const entityId = ctx.entityId!;
+        const [bill] = await db
+          .update(invoicesAp)
+          .set({ purchaseOrderId: input.poId })
+          .where(
+            and(
+              eq(invoicesAp.id, input.billId),
+              eq(invoicesAp.entityId, entityId),
+            ),
+          )
+          .returning({
+            id: invoicesAp.id,
+            purchaseOrderId: invoicesAp.purchaseOrderId,
+          });
+        return bill;
+      } catch (error) {
+        handleMutationError(error, "Failed to link bill to purchase order");
+      }
     }),
 
   /**

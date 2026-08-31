@@ -18,6 +18,7 @@ import { cn } from "@/lib/utils";
 import { Logo } from "@/components/ui/logo";
 import { useWhiteLabel } from "@/components/layout/white-label-provider";
 import { useEntity } from "@/lib/entity-context";
+import { getRoleConfig } from "@/lib/role-config";
 import { trpc } from "@/lib/trpc/client";
 
 type NavItem = {
@@ -223,6 +224,9 @@ export function AISidebar({ isOpen, onClose }: SidebarProps) {
     setIsHovered(false);
   }, [pathname]);
 
+  const { entityRole } = useEntity();
+  const roleConfig = getRoleConfig(entityRole);
+
   const { stats, pendingReview, agentCount } = useApprovalCounts();
   const approvalCounts = {
     ingestion: pendingReview,
@@ -230,6 +234,21 @@ export function AISidebar({ isOpen, onClose }: SidebarProps) {
     critical: stats?.failed ?? 0,
     total: pendingReview + agentCount,
   };
+
+  // Filter nav items by role visibility
+  const visibleNavItems = primaryNavItems.filter((item) => {
+    // Map nav href to surface key
+    const surfaceMap: Record<string, string> = {
+      "/dashboard": "command-center",
+      "/dashboard/activity-hub": "activity-hub",
+      "/dashboard/financial-pulse": "financial-pulse",
+      "/dashboard/ledger": "ledger",
+      "/dashboard/operations": "operations",
+    };
+    const surface = surfaceMap[item.href];
+    if (!surface) return true;
+    return roleConfig.surfaces[surface as keyof typeof roleConfig.surfaces] !== "hidden";
+  });
 
   function isActive(item: NavItem) {
     if (item.match) return item.match.some((m) => pathname.startsWith(m));
@@ -325,7 +344,7 @@ export function AISidebar({ isOpen, onClose }: SidebarProps) {
         {/* Primary Navigation */}
         <nav className="flex-1 overflow-y-auto py-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <div className="space-y-1 px-2">
-            {primaryNavItems.map((item) => renderNavItem(item))}
+            {visibleNavItems.map((item) => renderNavItem(item))}
           </div>
         </nav>
 
@@ -334,31 +353,33 @@ export function AISidebar({ isOpen, onClose }: SidebarProps) {
 
         {/* Settings + Help */}
         <div className="border-t border-white/[0.06] p-3 space-y-1">
-          <Link
-            href="/dashboard/settings"
-            title="Settings"
-            onClick={() => setIsHovered(false)}
-            className={cn(
-              "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-150",
-              "md:flex-col md:gap-1 md:px-1 md:py-2 md:text-[10px] md:leading-tight",
-              pathname === "/dashboard/settings"
-                ? "bg-primary/15 text-primary"
-                : "text-[hsl(var(--sidebar-text-dim))] hover:bg-white/[0.06] hover:text-[hsl(var(--sidebar-text))]",
-            )}
-          >
-            <Settings className="h-5 w-5" />
-            <span
+          {roleConfig.canAccessSettings && (
+            <Link
+              href="/dashboard/settings"
+              title="Settings"
+              onClick={() => setIsHovered(false)}
               className={cn(
-                "flex-1 truncate",
-                isHovered
-                  ? "md:block md:flex-none md:w-full md:text-center"
-                  : "md:hidden",
-                "lg:block lg:flex-none lg:w-full lg:text-center",
+                "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-150",
+                "md:flex-col md:gap-1 md:px-1 md:py-2 md:text-[10px] md:leading-tight",
+                pathname === "/dashboard/settings"
+                  ? "bg-primary/15 text-primary"
+                  : "text-[hsl(var(--sidebar-text-dim))] hover:bg-white/[0.06] hover:text-[hsl(var(--sidebar-text))]",
               )}
             >
-              Settings
-            </span>
-          </Link>
+              <Settings className="h-5 w-5" />
+              <span
+                className={cn(
+                  "flex-1 truncate",
+                  isHovered
+                    ? "md:block md:flex-none md:w-full md:text-center"
+                    : "md:hidden",
+                  "lg:block lg:flex-none lg:w-full lg:text-center",
+                )}
+              >
+                Settings
+              </span>
+            </Link>
+          )}
           <Link
             href="/dashboard/help"
             title="Help & Support"

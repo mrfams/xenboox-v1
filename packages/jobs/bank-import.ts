@@ -16,7 +16,7 @@ import {
   reconciliations,
   auditLog,
 } from "@xenboox/db/schema";
-import { eq, and, sql } from "drizzle-orm";
+import { eq, and, sql, inArray } from "drizzle-orm";
 import { parseBankCSV } from "./lib/bank-csv-parser";
 import { parseBankStatementPDF } from "./lib/bank-statement-parser";
 import { extractText } from "./lib/ocr";
@@ -131,7 +131,7 @@ export const importBankStatement = task({
             name: `${parseResult.bankName ?? "Bank"} - ${parseResult.accountNumber}`,
             bankName: parseResult.bankName ?? "Unknown",
             accountNumber: parseResult.accountNumber ?? "",
-            currency: parseResult.currency ?? "GMD",
+            currency: parseResult.currency ?? "USD",
             currentBalance: String(parseResult.closingBalance ?? 0),
             openingBalance: String(parseResult.openingBalance ?? 0),
           })
@@ -147,44 +147,75 @@ export const importBankStatement = task({
       }
     }
 
-    // 4. Insert transactions (with dedup by reference + date + amount)
+    // 4. Insert transactions (with batched dedup by reference)
+    const MAX_TRANSACTIONS = 10_000;
     let insertedCount = 0;
     let skippedCount = 0;
 
-    for (const tx of parseResult.transactions) {
-      // Dedup check
-      if (tx.reference) {
-        const existing = await db.query.bankTransactions.findFirst({
+    // Cap transaction count to prevent memory/DB exhaustion
+    const transactions = parseResult.transactions.slice(0, MAX_TRANSACTIONS);
+    if (parseResult.transactions.length > MAX_TRANSACTIONS) {
+      logger.warn(
+        { documentId, total: parseResult.transactions.length, capped: MAX_TRANSACTIONS },
+        "[bank-import] Transaction count capped",
+      );
+    }
+
+    // Batch dedup: collect all references, query once
+    const references = transactions
+      .filter((tx) => tx.reference)
+      .map((tx) => tx.reference!);
+    const existingRefs = new Set<string>();
+    if (references.length > 0) {
+      // Batch query in chunks of 500 to avoid IN clause limits
+      const CHUNK_SIZE = 500;
+      for (let i = 0; i < references.length; i += CHUNK_SIZE) {
+        const chunk = references.slice(i, i + CHUNK_SIZE);
+        const existing = await db.query.bankTransactions.findMany({
           where: and(
             eq(bankTransactions.entityId, entityId),
-            eq(bankTransactions.reference, tx.reference),
+            inArray(bankTransactions.reference, chunk),
           ),
+          columns: { reference: true },
         });
-        if (existing) {
+        for (const row of existing) {
+          if (row.reference) existingRefs.add(row.reference);
+        }
+      }
+    }
+
+    // Insert non-duplicate transactions in batches
+    const BATCH_SIZE = 100;
+    for (let i = 0; i < transactions.length; i += BATCH_SIZE) {
+      const batch = transactions.slice(i, i + BATCH_SIZE);
+      const values = [];
+      for (const tx of batch) {
+        if (tx.reference && existingRefs.has(tx.reference)) {
           skippedCount++;
           continue;
         }
+        values.push({
+          entityId,
+          bankAccountId: resolvedBankAccountId!,
+          transactionDate: tx.date,
+          valueDate: tx.valueDate,
+          description: tx.description,
+          reference: tx.reference,
+          amount: String(tx.amount),
+          type: tx.type === "credit" ? "deposit" : "withdrawal",
+          balance: tx.balance ? String(tx.balance) : undefined,
+          source: "bank_statement",
+          metadata: {
+            category: tx.category,
+            confidence: "1.0",
+            documentId,
+          },
+        });
       }
-
-      await db.insert(bankTransactions).values({
-        entityId,
-        bankAccountId: resolvedBankAccountId!,
-        transactionDate: tx.date,
-        valueDate: tx.valueDate,
-        description: tx.description,
-        reference: tx.reference,
-        amount: String(tx.amount),
-        type: tx.type === "credit" ? "deposit" : "withdrawal",
-        balance: tx.balance ? String(tx.balance) : undefined,
-        source: "bank_statement",
-        metadata: {
-          category: tx.category,
-          confidence: "1.0",
-          documentId,
-        },
-      });
-
-      insertedCount++;
+      if (values.length > 0) {
+        await db.insert(bankTransactions).values(values);
+        insertedCount += values.length;
+      }
     }
 
     // 5. Create reconciliation suggestion

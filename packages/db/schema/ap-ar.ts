@@ -104,7 +104,7 @@ export const purchaseOrders = pgTable(
     totalAmount: numeric("total_amount", { precision: 15, scale: 2 })
       .notNull()
       .default("0"),
-    currency: text("currency").notNull().default("GMD"),
+    currency: text("currency").notNull().default("USD"),
     approvedBy: text("approved_by"),
     approvedAt: timestamp("approved_at"),
     notes: text("notes"),
@@ -188,7 +188,7 @@ export const invoicesAp = pgTable(
       .notNull()
       .default("0"),
     balance: numeric("balance", { precision: 15, scale: 2 }).notNull(),
-    currency: text("currency").notNull().default("GMD"),
+    currency: text("currency").notNull().default("USD"),
     journalEntryId: uuid("journal_entry_id").references(
       () => journalEntries.id,
     ),
@@ -350,7 +350,7 @@ export const salesInvoices = pgTable(
       .notNull()
       .default("0"),
     balance: numeric("balance", { precision: 15, scale: 2 }).notNull(),
-    currency: text("currency").notNull().default("GMD"),
+    currency: text("currency").notNull().default("USD"),
     journalEntryId: uuid("journal_entry_id").references(
       () => journalEntries.id,
     ),

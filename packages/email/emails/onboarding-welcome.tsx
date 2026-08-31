@@ -1,109 +1,48 @@
-import {
-  Html,
-  Body,
-  Container,
-  Heading,
-  Text,
-  Section,
-  Hr,
-  Tailwind,
-  Link,
-} from "@react-email/components";
+import { Text, Heading } from "@react-email/components";
+import { EmailLayout, CTAButton, InfoBox } from "./_layout";
 
-type WelcomeEmailProps = {
+type OnboardingWelcomeProps = {
   userName: string;
   dashboardUrl: string;
 };
 
-export function OnboardingWelcomeEmail(props: WelcomeEmailProps) {
+export function OnboardingWelcomeEmail(props: OnboardingWelcomeProps) {
   return (
-    <Html>
-      <Tailwind>
-        <Body className="bg-gray-50 font-sans">
-          <Container className="mx-auto py-8 px-4 max-w-2xl">
-            <Heading className="text-2xl font-bold text-gray-900 mb-2">
-              Welcome to Xenboox! 👋
-            </Heading>
-            <Text className="text-gray-600 mb-6">Hi {props.userName},</Text>
-            <Text className="text-gray-700 leading-relaxed mb-4">
-              You've just joined the AI-native accounting platform built for
-              businesses like yours. No more spreadsheets. No more manual data
-              entry. No more month-end stress.
-            </Text>
-            <Text className="text-gray-700 leading-relaxed mb-6">
-              <strong>19 AI agents</strong> are ready to handle your invoicing,
-              payroll, reconciliation, and month-end close. You just approve the
-              decisions that matter.
-            </Text>
+    <EmailLayout preview="Welcome to Xenboox! Let's set up your books">
+      <Heading className="text-[22px] font-bold text-[#0F172A] m-0 mb-4">
+        Welcome to Xenboox! 🎉
+      </Heading>
 
-            <Section className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
-              <Heading
-                as="h2"
-                className="text-lg font-semibold text-gray-900 mb-4"
-              >
-                Here's what to do first:
-              </Heading>
-              <Section className="mb-3">
-                <Text className="font-semibold text-gray-900 m-0">
-                  1. Set up your organization (2 min)
-                </Text>
-                <Text className="text-gray-600 text-sm m-0">
-                  Tell us about your business — name, country, currency. The AI
-                  uses this to configure your chart of accounts.
-                </Text>
-              </Section>
-              <Section className="mb-3">
-                <Text className="font-semibold text-gray-900 m-0">
-                  2. Connect your bank (1 min)
-                </Text>
-                <Text className="text-gray-600 text-sm m-0">
-                  Link your bank account or mobile money. The AI will
-                  automatically import and categorize your transactions.
-                </Text>
-              </Section>
-              <Section className="mb-3">
-                <Text className="font-semibold text-gray-900 m-0">
-                  3. See the AI in action (instant)
-                </Text>
-                <Text className="text-gray-600 text-sm m-0">
-                  Once connected, watch as your transactions are categorized
-                  automatically. Review and approve — that's it.
-                </Text>
-              </Section>
-            </Section>
+      <Text className="text-[15px] text-[#334155] m-0 mb-2">
+        Hi {props.userName},
+      </Text>
 
-            <Section className="text-center mb-6">
-              <Link
-                href={props.dashboardUrl}
-                className="inline-block bg-indigo-600 text-white font-semibold py-3 px-6 rounded-lg text-sm no-underline"
-              >
-                Go to Dashboard →
-              </Link>
-            </Section>
+      <Text className="text-[15px] text-[#334155] m-0 mb-6">
+        You've just joined the future of accounting. Xenboox uses AI to handle
+        the books so you can focus on growing your business.
+      </Text>
 
-            <Text className="text-gray-600 text-sm leading-relaxed mb-4">
-              <strong>Quick tip:</strong> The AI works best when it has data to
-              learn from. The more transactions it processes, the smarter it
-              gets at categorizing and flagging anomalies.
-            </Text>
+      <InfoBox variant="success">
+        <Text className="text-[14px] text-[#16A34A] m-0">
+          🚀 Here's what happens next:
+        </Text>
+        <Text className="text-[13px] text-[#334155] m-0 mt-2">
+          1. Connect your bank account (or upload statements)
+        </Text>
+        <Text className="text-[13px] text-[#334155] m-0">
+          2. Our AI categorizes transactions automatically
+        </Text>
+        <Text className="text-[13px] text-[#334155] m-0">
+          3. Get instant financial insights and reports
+        </Text>
+      </InfoBox>
 
-            <Hr className="border-gray-200 my-6" />
-
-            <Text className="text-gray-500 text-xs text-center">
-              Questions? Reply to this email or visit our{" "}
-              <Link href="https://xenboox.com/docs" className="text-indigo-600">
-                documentation
-              </Link>
-              . We're here to help.
-            </Text>
-          </Container>
-        </Body>
-      </Tailwind>
-    </Html>
+      <CTAButton href={props.dashboardUrl} label="Go to Dashboard" />
+    </EmailLayout>
   );
 }
 
 OnboardingWelcomeEmail.PreviewProps = {
-  userName: "Fatou",
-  dashboardUrl: "https://xenboox.com/dashboard",
-} satisfies WelcomeEmailProps;
+  userName: "Jane",
+  dashboardUrl: "https://app.xenboox.com/dashboard",
+} satisfies OnboardingWelcomeProps;

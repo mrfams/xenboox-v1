@@ -5,6 +5,7 @@ import { customers } from "@xenboox/db/schema/ap-ar";
 
 import { db } from "@/lib/db";
 import { logger } from "@/lib/logger";
+import { getAppUrl } from "@/lib/app-url";
 
 const log = logger.child({ module: "donor-portal-verify" });
 
@@ -81,7 +82,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Build redirect URL with donor context
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://xenboox.vercel.app";
+    const baseUrl = getAppUrl();
     const portalUrl = new URL("/donor-portal/dashboard", baseUrl);
     portalUrl.searchParams.set("donor", record.donorCustomerId);
     portalUrl.searchParams.set("entity", record.entityId);

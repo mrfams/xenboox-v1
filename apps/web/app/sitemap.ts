@@ -1,9 +1,8 @@
 import type { MetadataRoute } from "next";
 
-// The canonical app domain — xenboox.com is not yet registered/resolving, so
-// the live Vercel deployment is the source of truth for SEO URLs. Overridden
-// by NEXT_PUBLIC_APP_URL when a custom domain is added in Vercel.
-const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://xenboox.vercel.app";
+import { getAppUrl } from "@/lib/app-url";
+
+const baseUrl = getAppUrl();
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const marketingPages = [

@@ -40,7 +40,7 @@ export const expenseClaims = pgTable(
     totalAmount: numeric("total_amount", { precision: 15, scale: 2 })
       .notNull()
       .default("0"),
-    currency: text("currency").notNull().default("GMD"),
+    currency: text("currency").notNull().default("USD"),
     status: text("status").notNull().default("draft"),
     // status options: draft | submitted | flagged | approved | rejected | reimbursed | voided
     source: text("source").notNull().default("mobile"),
@@ -176,7 +176,7 @@ export const reimbursementRecords = pgTable(
     amount: numeric("amount", { precision: 15, scale: 2 })
       .notNull()
       .default("0"),
-    currency: text("currency").notNull().default("GMD"),
+    currency: text("currency").notNull().default("USD"),
     paymentMethod: text("payment_method").default("bank_transfer"),
     // payment_method: bank_transfer | mobile_money | cash | cheque
     scheduledDate: timestamp("scheduled_date"),

@@ -1,135 +1,47 @@
-import {
-  Html,
-  Body,
-  Container,
-  Heading,
-  Text,
-  Section,
-  Hr,
-  Tailwind,
-  Link,
-} from "@react-email/components";
+import { Text, Heading } from "@react-email/components";
+import { EmailLayout, CTAButton, InfoBox } from "./_layout";
 
-type Day1EmailProps = {
+type OnboardingDay1Props = {
   userName: string;
   dashboardUrl: string;
   hasConnectedBank: boolean;
 };
 
-export function OnboardingDay1Email(props: Day1EmailProps) {
+export function OnboardingDay1Email(props: OnboardingDay1Props) {
   return (
-    <Html>
-      <Tailwind>
-        <Body className="bg-gray-50 font-sans">
-          <Container className="mx-auto py-8 px-4 max-w-2xl">
-            <Heading className="text-2xl font-bold text-gray-900 mb-2">
-              How's your first day going?
-            </Heading>
-            <Text className="text-gray-600 mb-6">Hi {props.userName},</Text>
+    <EmailLayout preview="How's your first day going?">
+      <Heading className="text-[22px] font-bold text-[#0F172A] m-0 mb-4">
+        How's Your First Day Going?
+      </Heading>
 
-            {props.hasConnectedBank ? (
-              <>
-                <Text className="text-gray-700 leading-relaxed mb-4">
-                  Great news — you've already connected your bank account! The
-                  AI is now working through your transactions. Here's what's
-                  happening behind the scenes:
-                </Text>
-                <Section className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
-                  <Section className="mb-3">
-                    <Text className="font-semibold text-gray-900 m-0">
-                      ✓ Transactions imported
-                    </Text>
-                    <Text className="text-gray-600 text-sm m-0">
-                      Your recent bank transactions are now in Xenboox.
-                    </Text>
-                  </Section>
-                  <Section className="mb-3">
-                    <Text className="font-semibold text-gray-900 m-0">
-                      ✓ AI categorization in progress
-                    </Text>
-                    <Text className="text-gray-600 text-sm m-0">
-                      The AI is sorting transactions into your chart of
-                      accounts. Most are categorized automatically.
-                    </Text>
-                  </Section>
-                  <Section>
-                    <Text className="font-semibold text-gray-900 m-0">
-                      → Review & approve
-                    </Text>
-                    <Text className="text-gray-600 text-sm m-0">
-                      Check the Activity Hub for anything the AI isn't sure
-                      about. Your approval makes it smarter.
-                    </Text>
-                  </Section>
-                </Section>
-              </>
-            ) : (
-              <>
-                <Text className="text-gray-700 leading-relaxed mb-4">
-                  You haven't connected your bank account yet. This is the most
-                  important step — it's where the magic starts.
-                </Text>
-                <Text className="text-gray-700 leading-relaxed mb-4">
-                  Once connected, the AI will:
-                </Text>
-                <Section className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
-                  <Section className="mb-3">
-                    <Text className="font-semibold text-gray-900 m-0">
-                      → Auto-categorize transactions
-                    </Text>
-                    <Text className="text-gray-600 text-sm m-0">
-                      No more manual data entry. The AI learns your patterns.
-                    </Text>
-                  </Section>
-                  <Section className="mb-3">
-                    <Text className="font-semibold text-gray-900 m:0">
-                      → Flag unusual activity
-                    </Text>
-                    <Text className="text-gray-600 text-sm m-0">
-                      Get alerted to anomalies before they become problems.
-                    </Text>
-                  </Section>
-                  <Section>
-                    <Text className="font-semibold text-gray-900 m-0">
-                      → Generate real-time reports
-                    </Text>
-                    <Text className="text-gray-600 text-sm m-0">
-                      See your cash flow, P&L, and balance sheet updated
-                      automatically.
-                    </Text>
-                  </Section>
-                </Section>
-                <Section className="text-center mb-6">
-                  <Link
-                    href={`${props.dashboardUrl}/operations`}
-                    className="inline-block bg-indigo-600 text-white font-semibold py-3 px-6 rounded-lg text-sm no-underline"
-                  >
-                    Connect Your Bank →
-                  </Link>
-                </Section>
-              </>
-            )}
+      <Text className="text-[15px] text-[#334155] m-0 mb-2">
+        Hi {props.userName},
+      </Text>
 
-            <Text className="text-gray-600 text-sm leading-relaxed">
-              <strong>Tip:</strong> The AI categorizes transactions with a
-              confidence score. Anything below 70% confidence gets sent to your
-              Activity Hub for review. You're always in control.
-            </Text>
+      <Text className="text-[15px] text-[#334155] m-0 mb-6">
+        {props.hasConnectedBank
+          ? "Great job connecting your bank! Your transactions are being processed by our AI right now."
+          : "Have you had a chance to connect your bank account? It's the fastest way to get your books started."}
+      </Text>
 
-            <Hr className="border-gray-200 my-6" />
+      <InfoBox variant={props.hasConnectedBank ? "success" : "default"}>
+        <Text className="text-[14px] text-[#0F172A] m-0">
+          {props.hasConnectedBank
+            ? "✅ Bank connected — AI is categorizing your transactions"
+            : "💡 Tip: Connecting your bank takes 2 minutes and gives you instant insights"}
+        </Text>
+      </InfoBox>
 
-            <Text className="text-gray-500 text-xs text-center">
-              Questions? Reply to this email — we read every one.
-            </Text>
-          </Container>
-        </Body>
-      </Tailwind>
-    </Html>
+      <CTAButton
+        href={props.dashboardUrl}
+        label={props.hasConnectedBank ? "View Your Dashboard" : "Connect Bank Account"}
+      />
+    </EmailLayout>
   );
 }
 
 OnboardingDay1Email.PreviewProps = {
-  userName: "Fatou",
-  dashboardUrl: "https://xenboox.com/dashboard",
+  userName: "Jane",
+  dashboardUrl: "https://app.xenboox.com/dashboard",
   hasConnectedBank: false,
-} satisfies Day1EmailProps;
+} satisfies OnboardingDay1Props;

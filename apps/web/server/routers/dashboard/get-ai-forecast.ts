@@ -5,6 +5,7 @@ import { rlsProtectedProcedure } from "@/lib/trpc/server";
 import { db } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { safeQuery, fillMonthlyWindow } from "./_helpers";
+import { redactPii, INJECTION_DEFENSE_SUFFIX } from "@xenboox/agents/core/security/injection-defense";
 
 /**
  * Projects revenue, expenses, and cash flow for the next 3 months.
@@ -12,7 +13,8 @@ import { safeQuery, fillMonthlyWindow } from "./_helpers";
  */
 export const getAiForecast = rlsProtectedProcedure.query(async ({ ctx }) => {
   const entityId = ctx.entityId!;
-  const entityName = ctx.entityName ?? "your business";
+  const entityNameRaw = ctx.entityName ?? "your business";
+  const entityName = redactPii(entityNameRaw).text.substring(0, 100);
   const currency = ctx.entityCurrency ?? "USD";
   const now = new Date();
   const cacheKey = `forecast:${entityId}`;
@@ -157,7 +159,9 @@ Rules:
 - If expenses are rising, project continued rise
 - Be conservative — under-promise, over-deliver
 - Consider seasonality if patterns exist
-- Return ONLY valid JSON, no markdown`;
+- Return ONLY valid JSON, no markdown
+
+${INJECTION_DEFENSE_SUFFIX}`;
 
   try {
     const { getLLMRegistry } = await import(

@@ -34,7 +34,7 @@ function applyHeaderStyle(row: ExcelJS.Row, colCount: number) {
 
 function formatCurrencyCell(cell: ExcelJS.Cell, value: number) {
   cell.value = value;
-  cell.numFmt = '"GMD"#,##0.00';
+  cell.numFmt = '"$"#,##0.00';
   if (value < 0) {
     cell.font = { color: { argb: "FFCC0000" } };
   } else {

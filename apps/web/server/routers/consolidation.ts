@@ -180,7 +180,7 @@ export const consolidationRouter = router({
       z.object({
         subsidiaryEntityId: z.string().uuid(),
         ownershipPct: z.number().min(0.01).max(100),
-        currency: z.string().length(3).default("GMD"),
+        currency: z.string().length(3).default("USD"),
         consolidationMethod: z
           .enum(["full", "equity", "proportional"])
           .default("full"),
@@ -414,7 +414,7 @@ export const consolidationRouter = router({
           return {
             entityId: eid,
             entityName: entity?.name ?? "Unknown",
-            currency: entity?.currency ?? "GMD",
+            currency: entity?.currency ?? "USD",
             country: entity?.country ?? "",
             isParent: eid === ctx.entityId!,
             relationship: relationships.find(
@@ -504,7 +504,7 @@ export const consolidationRouter = router({
         parentEntity: {
           id: parentEntity.id,
           name: parentEntity.name,
-          currency: parentEntity.currency ?? "GMD",
+          currency: parentEntity.currency ?? "USD",
           country: parentEntity.country ?? "",
         },
         entities: entityFinancials,

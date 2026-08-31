@@ -1,77 +1,94 @@
-import {
-  Html,
-  Body,
-  Container,
-  Heading,
-  Text,
-  Section,
-  Hr,
-  Tailwind,
-} from "@react-email/components"
-
-type DigestItem = {
-  type: string
-  count: number
-  items: Array<{ title: string; body: string }>
-}
+import { Text, Heading } from "@react-email/components";
+import { EmailLayout, DataRow, Divider, InfoBox } from "./_layout";
 
 type DailyDigestProps = {
-  userName: string
-  items: DigestItem[]
-}
+  userName: string;
+  items: Array<{
+    type: string;
+    count: number;
+    items: Array<{ title: string; body: string }>;
+  }>;
+};
+
+const TYPE_LABELS: Record<string, string> = {
+  pending_approvals: "Pending Approvals",
+  new_transactions: "New Transactions",
+  agent_alerts: "Agent Alerts",
+  upcoming_deadlines: "Upcoming Deadlines",
+  insights: "AI Insights",
+};
 
 export function DailyDigestEmail(props: DailyDigestProps) {
+  const totalItems = props.items.reduce((sum, item) => sum + item.count, 0);
+
   return (
-    <Html>
-      <Tailwind>
-        <Body className="bg-gray-50 font-sans">
-          <Container className="mx-auto py-8 px-4 max-w-2xl">
-            <Heading className="text-2xl font-bold text-gray-900 mb-4">
-              Your Daily Digest
-            </Heading>
-            <Text className="text-gray-600 mb-6">
-              Hi {props.userName}, here's what happened yesterday:
-            </Text>
+    <EmailLayout
+      preview={`Your daily digest: ${totalItems} items need your attention`}
+    >
+      <Heading className="text-[22px] font-bold text-[#0F172A] m-0 mb-2">
+        Your Daily Digest
+      </Heading>
 
-            {props.items.map((group) => (
-              <Section key={group.type} className="bg-white rounded-lg border border-gray-200 p-6 mb-4">
-                <Heading as="h2" className="text-lg font-semibold text-gray-900 mb-4">
-                  {group.type.replace(/_/g, " ")} ({group.count})
-                </Heading>
-                {group.items.map((item, i) => (
-                  <Section key={i} className="mb-3 last:mb-0">
-                    <Text className="font-semibold text-gray-900 m-0">{item.title}</Text>
-                    <Text className="text-gray-600 text-sm m-0">{item.body}</Text>
-                  </Section>
-                ))}
-              </Section>
-            ))}
+      <Text className="text-[15px] text-[#64748B] m-0 mb-6">
+        Hi {props.userName}, here's what happened today.
+      </Text>
 
-            <Text className="text-gray-500 text-sm mt-8 text-center">
-              This digest was sent by Xenboox AI Accounting
-            </Text>
-          </Container>
-        </Body>
-      </Tailwind>
-    </Html>
-  )
+      {totalItems === 0 ? (
+        <InfoBox variant="success">
+          <Text className="text-[14px] text-[#16A34A] m-0">
+            All caught up! No items need your attention today.
+          </Text>
+        </InfoBox>
+      ) : (
+        props.items.map(
+          (group) =>
+            group.count > 0 && (
+              <div key={group.type} className="mb-4">
+                <Text className="text-[13px] text-[#64748B] uppercase tracking-wider m-0 mb-2">
+                  {TYPE_LABELS[group.type] ?? group.type} ({group.count})
+                </Text>
+                <div className="bg-[#F8FAFC] rounded-lg p-4">
+                  {group.items.slice(0, 5).map((item, i) => (
+                    <div key={i}>
+                      {i > 0 && <Divider />}
+                      <DataRow label={item.title} value={item.body} />
+                    </div>
+                  ))}
+                  {group.count > 5 && (
+                    <Text className="text-[12px] text-[#94A3B8] m-0 mt-2 text-center">
+                      + {group.count - 5} more
+                    </Text>
+                  )}
+                </div>
+              </div>
+            ),
+        )
+      )}
+    </EmailLayout>
+  );
 }
 
 DailyDigestEmail.PreviewProps = {
-  userName: "John",
+  userName: "Jane",
   items: [
     {
-      type: "overdue_invoice",
-      count: 2,
+      type: "pending_approvals",
+      count: 3,
       items: [
-        { title: "INV-2026-0042 — $12,500", body: "27 days overdue" },
-        { title: "INV-2026-0039 — $8,200", body: "14 days overdue" },
+        { title: "Invoice INV-042", body: "$2,500 — Acme Corp" },
+        { title: "Bill BILL-019", body: "$890 — Global Supplies" },
+        { title: "Expense EX-108", body: "$125 — Office supplies" },
       ],
     },
     {
-      type: "report_ready",
+      type: "agent_alerts",
       count: 1,
-      items: [{ title: "P&L Report — June 2026", body: "Your monthly P&L is ready" }],
+      items: [
+        {
+          title: "CFO Agent",
+          body: "3 transactions need review",
+        },
+      ],
     },
   ],
-} satisfies DailyDigestProps
+} satisfies DailyDigestProps;

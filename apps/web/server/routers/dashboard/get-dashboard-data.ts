@@ -27,9 +27,12 @@ import {
   complianceDeadlines,
   payrollRuns,
 } from "@xenboox/db/schema";
+import { entitySettings } from "@xenboox/db/schema/entity-settings";
+import { entities } from "@xenboox/db/schema/organization";
 
 import { rlsProtectedProcedure } from "@/lib/trpc/server";
 import { db } from "@/lib/db";
+import { getEntityLocale } from "@/lib/entity-locale";
 import {
   buildRunwayBriefing,
   computeRunwayMonths,
@@ -446,7 +449,18 @@ export const getDashboardData = rlsProtectedProcedure
       );
       const overdueAmount = parseFloat(overdueAgg.total ?? "0");
       const avgDaysOverdue = Math.round(parseFloat(overdueAgg.avgDays ?? "0"));
-      const overdueFmt = new Intl.NumberFormat("en-GM");
+      // Resolve entity locale for formatting
+      const [entityRow, settingsRow] = await Promise.all([
+        db.query.entities.findFirst({
+          where: eq(entities.id, entityId),
+          columns: { baseCurrency: true },
+        }),
+        db.query.entitySettings.findFirst({
+          where: eq(entitySettings.entityId, entityId),
+        }),
+      ]);
+      const entityLocale = getEntityLocale(settingsRow, entityRow?.baseCurrency);
+      const overdueFmt = new Intl.NumberFormat(entityLocale);
 
       briefingItems.push({
         id: "overdue",

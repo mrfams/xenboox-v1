@@ -75,7 +75,7 @@ export const statementLines = pgTable(
     providerName: text("provider_name").notNull(), // e.g. "Ecobank", "Wave"
     date: text("date").notNull(),
     amount: numeric("amount", { precision: 15, scale: 2 }).notNull(),
-    currency: text("currency").notNull().default("GMD"),
+    currency: text("currency").notNull().default("USD"),
     description: text("description").notNull(),
     reference: text("reference"),
     runningBalance: numeric("running_balance", { precision: 15, scale: 2 }),

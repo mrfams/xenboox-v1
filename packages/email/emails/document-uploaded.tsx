@@ -1,63 +1,49 @@
-import {
-  Html,
-  Body,
-  Container,
-  Heading,
-  Text,
-  Section,
-  Hr,
-  Tailwind,
-} from "@react-email/components"
+import { Text, Heading } from "@react-email/components";
+import { EmailLayout, DataRow, Divider, InfoBox } from "./_layout";
 
 type DocumentUploadedProps = {
-  entityName: string
-  documentName: string
-  documentType: string
-  uploadUrl: string
-}
+  entityName: string;
+  documentName: string;
+  documentType: string;
+  uploadUrl: string;
+};
 
 export function DocumentUploadedEmail(props: DocumentUploadedProps) {
   return (
-    <Html>
-      <Tailwind>
-        <Body className="bg-gray-50 font-sans">
-          <Container className="mx-auto py-8 px-4 max-w-2xl">
-            <Heading className="text-2xl font-bold text-gray-900 mb-4">
-              Document Uploaded
-            </Heading>
-            <Text className="text-gray-600 mb-6">
-              {props.entityName}
-            </Text>
+    <EmailLayout
+      preview={`Document uploaded: ${props.documentName}`}
+    >
+      <Heading className="text-[22px] font-bold text-[#0F172A] m-0 mb-2">
+        Document Uploaded 📄
+      </Heading>
 
-            <Section className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
-              <Heading as="h2" className="text-lg font-semibold text-gray-900 mb-4">
-                Document Details
-              </Heading>
-              <div className="space-y-3">
-                <div className="flex justify-between">
-                  <Text className="text-gray-600 m-0">Name</Text>
-                  <Text className="font-semibold text-gray-900 m-0">{props.documentName}</Text>
-                </div>
-                <div className="flex justify-between">
-                  <Text className="text-gray-600 m-0">Type</Text>
-                  <Text className="font-semibold text-gray-900 m-0">{props.documentType}</Text>
-                </div>
-              </div>
-            </Section>
+      <Text className="text-[15px] text-[#64748B] m-0 mb-6">
+        {props.entityName}
+      </Text>
 
-            <Text className="text-gray-500 text-sm mt-8 text-center">
-              This notification was sent by Xenboox AI Accounting
-            </Text>
-          </Container>
-        </Body>
-      </Tailwind>
-    </Html>
-  )
+      <InfoBox variant="default">
+        <Text className="text-[14px] text-[#0F172A] m-0">
+          Your document is being processed by our AI. You'll receive a
+          notification when it's ready.
+        </Text>
+      </InfoBox>
+
+      <div className="bg-[#F8FAFC] rounded-lg p-4 mb-4">
+        <DataRow label="Document" value={props.documentName} />
+        <Divider />
+        <DataRow label="Type" value={props.documentType} />
+      </div>
+
+      <Text className="text-[13px] text-[#94A3B8] m-0 mt-4 text-center">
+        AI processing typically takes 1-2 minutes.
+      </Text>
+    </EmailLayout>
+  );
 }
 
 DocumentUploadedEmail.PreviewProps = {
   entityName: "Acme Corp",
-  documentName: "Invoice-001.pdf",
-  documentType: "invoice",
-  uploadUrl: "https://app.xenboox.com/documents/abc123",
-} satisfies DocumentUploadedProps
+  documentName: "receipt-june-2026.pdf",
+  documentType: "Receipt",
+  uploadUrl: "https://app.xenboox.com/ingestion",
+} satisfies DocumentUploadedProps;

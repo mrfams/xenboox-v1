@@ -2,7 +2,7 @@ import { z } from "zod";
 import { eq, and, sql, desc } from "drizzle-orm";
 import { salesInvoices, customers } from "@xenboox/db/schema";
 
-import { router, rlsProtectedProcedure } from "@/lib/trpc/server";
+import { router, rlsProtectedProcedure, handleMutationError } from "@/lib/trpc/server";
 import { db } from "@/lib/db";
 import {
   runThreeWayMatching,
@@ -39,7 +39,11 @@ export const matchingRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      return confirmThreeWayMatch(ctx.entityId!, input.billId, input.poId);
+      try {
+        return confirmThreeWayMatch(ctx.entityId!, input.billId, input.poId);
+      } catch (error) {
+        handleMutationError(error, "Failed to confirm three-way match");
+      }
     }),
 
   // ── Dunning & Collections ──────────────────────────────────────────────
@@ -112,6 +116,7 @@ export const matchingRouter = router({
           customerName: customer.name,
           totalAmount: parseFloat(inv.totalAmount),
           balance: parseFloat(inv.balance),
+          currency: inv.currency ?? undefined,
           dueDate: inv.dueDate,
           daysOverdue,
           agingBucket: "",
@@ -129,10 +134,14 @@ export const matchingRouter = router({
   writeOffBadDebt: rlsProtectedProcedure
     .input(z.object({ invoiceId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
-      return writeOffBadDebt(
-        ctx.entityId!,
-        input.invoiceId,
-        ctx.session!.user!.id!,
-      );
+      try {
+        return writeOffBadDebt(
+          ctx.entityId!,
+          input.invoiceId,
+          ctx.session!.user!.id!,
+        );
+      } catch (error) {
+        handleMutationError(error, "Failed to write off bad debt");
+      }
     }),
 });

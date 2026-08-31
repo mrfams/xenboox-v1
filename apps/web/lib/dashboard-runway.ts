@@ -14,10 +14,10 @@
 export const RUNWAY_HEALTHY_MONTHS = 6;
 export const RUNWAY_CRITICAL_MONTHS = 3;
 
-// Locale-pinned so server copy, client copy and unit tests all render the
-// same grouping regardless of the runtime locale (matches the app-wide
-// en-GM convention used by formatCurrency).
-const BURN_FORMATTER = new Intl.NumberFormat("en-GM");
+import { type SupportedLocale, getEntityLocale } from "@/lib/entity-locale";
+
+// Default formatter — used when no entity locale is available (e.g., unit tests).
+const BURN_FORMATTER = new Intl.NumberFormat("en-US");
 
 export type RunwayTone = "positive" | "warning" | "negative";
 
@@ -59,8 +59,15 @@ export function runwayStatusLabel(runwayMonths: number | null): string {
   return "Critical";
 }
 
-/** Burn figure for alert copy — e.g. "5,000". Pinned locale (see above). */
-export function formatBurn(burn: number): string {
+/** Burn figure for alert copy — e.g. "5,000". Uses entity locale when available. */
+export function formatBurn(
+  burn: number,
+  settings?: { fiscalLocaleOverrides?: Record<string, unknown> | null } | null,
+  baseCurrency?: string | null,
+): string {
+  if (settings || baseCurrency) {
+    return new Intl.NumberFormat(getEntityLocale(settings, baseCurrency)).format(burn);
+  }
   return BURN_FORMATTER.format(burn);
 }
 

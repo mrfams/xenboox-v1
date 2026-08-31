@@ -336,7 +336,7 @@ export default function PayPage() {
             <div>
               <p className="text-xs text-slate-500">Amount Due</p>
               <p className="text-2xl font-bold text-slate-900">
-                {data?.currency ?? "GMD"}{" "}
+                {data?.currency ?? "USD"}{" "}
                 {totalAmount.toLocaleString("en-US", {
                   minimumFractionDigits: 2,
                 })}

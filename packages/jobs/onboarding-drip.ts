@@ -8,6 +8,7 @@ import {
   journalEntries,
 } from "@xenboox/db/schema";
 import { eq, and, gte, count } from "drizzle-orm";
+import { getJobAppUrl } from "./lib/app-url";
 
 // ─── Onboarding Drip Email Sequence ──────────────────────────────────────
 //
@@ -138,8 +139,7 @@ export const processOnboardingDrip = task({
       sendOnboardingDay30Email,
     } = await import("@/lib/email");
 
-    const dashboardUrl =
-      process.env.NEXT_PUBLIC_APP_URL ?? "https://xenboox.com";
+    const dashboardUrl = getJobAppUrl();
 
     for (const user of users) {
       const days = daysSince(user.createdAt);

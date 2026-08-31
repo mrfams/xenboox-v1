@@ -7,7 +7,7 @@ import {
   entities,
 } from "@xenboox/db/schema";
 
-import { router, rlsProtectedProcedure } from "@/lib/trpc/server";
+import { router, rlsProtectedProcedure, handleMutationError } from "@/lib/trpc/server";
 import { db } from "@/lib/db";
 import { generateSalesInvoicePdf } from "@/lib/invoice-pdf";
 import { sendInvoiceEmail } from "@/lib/email";
@@ -471,9 +471,10 @@ export const invoicingRouter = router({
   sendInvoiceEmail: rlsProtectedProcedure
     .input(z.object({ invoiceId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
-      const entityId = ctx.entityId!;
+      try {
+        const entityId = ctx.entityId!;
 
-      const invoice = await db.query.salesInvoices.findFirst({
+        const invoice = await db.query.salesInvoices.findFirst({
         where: and(
           eq(salesInvoices.id, input.invoiceId),
           eq(salesInvoices.entityId, entityId),
@@ -554,7 +555,10 @@ export const invoicingRouter = router({
         .set({ sentAt: new Date() })
         .where(eq(salesInvoices.id, invoice.id));
 
-      return { success: true, sentTo: customer.contactEmail };
+        return { success: true, sentTo: customer.contactEmail };
+      } catch (error) {
+        handleMutationError(error, "Failed to send invoice email");
+      }
     }),
 
   /**

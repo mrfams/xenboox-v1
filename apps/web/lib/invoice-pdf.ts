@@ -62,7 +62,7 @@ function formatCurrency(amount: number, currency: string): string {
   try {
     return new Intl.NumberFormat("en-US", {
       style: "currency",
-      currency: currency || "GMD",
+      currency: currency || "USD",
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     }).format(amount);

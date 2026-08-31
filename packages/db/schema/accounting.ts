@@ -201,7 +201,7 @@ export const journalEntryLines = pgTable(
     description: text("description"),
     // Multi-currency "3-value recording": original currency amount, the rate
     // used at transaction date, and the base-currency equivalent.
-    currency: text("currency").notNull().default("GMD"),
+    currency: text("currency").notNull().default("USD"),
     exchangeRate: numeric("exchange_rate", { precision: 15, scale: 6 }),
     baseCurrency: text("base_currency"),
     baseAmount: numeric("base_amount", { precision: 15, scale: 2 }),

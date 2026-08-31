@@ -823,4 +823,20 @@ describe("Phase 6: Treasury Agent → Cash/MobileMoney/Expense wiring", () => {
     const { nodeProcessExpenses } = await import("../tier2/treasury-agent/nodes");
 
     const state = {
-      
+      entityId: "test-entity",
+      entityName: "Test Entity",
+      currency: "USD",
+      currentOperation: {
+        type: "expense",
+        status: "processing",
+        input: {},
+        output: null,
+        error: null,
+      },
+    };
+
+    const result = await nodeProcessExpenses(state as any);
+    expect(mockExpenseGraph.invoke).toHaveBeenCalledTimes(1);
+    expect(result.confidence).toBeGreaterThan(0);
+  });
+});      

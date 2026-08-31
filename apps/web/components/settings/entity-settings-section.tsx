@@ -116,10 +116,10 @@ export function EntitySettingsSection() {
 
   const [form, setForm] = useState({
     approvalThresholdMinor: "50000",
-    approvalThresholdCurrency: "GMD",
+    approvalThresholdCurrency: "USD",
     alwaysRequireApproval: [] as string[],
     fiscalLocaleOverrides: {
-      locale: "en-GM",
+      locale: "en-US",
       dateFormat: "DD/MM/YYYY",
       decimalSeparator: ".",
       thousandsSeparator: ",",
@@ -132,13 +132,12 @@ export function EntitySettingsSection() {
     if (settings) {
       setForm({
         approvalThresholdMinor: settings.approvalThresholdMinor ?? "50000",
-        approvalThresholdCurrency: settings.approvalThresholdCurrency ?? "GMD",
+        approvalThresholdCurrency: settings.approvalThresholdCurrency ?? "USD",
         alwaysRequireApproval:
           (settings.alwaysRequireApproval as string[]) ?? [],
         fiscalLocaleOverrides: {
-          locale:
-            (settings.fiscalLocaleOverrides as Record<string, string>)
-              ?.locale ?? "en-GM",
+          locale:              (settings.fiscalLocaleOverrides as Record<string, string>)
+              ?.locale ?? "en-US",
           dateFormat:
             (settings.fiscalLocaleOverrides as Record<string, string>)
               ?.dateFormat ?? "DD/MM/YYYY",
@@ -231,12 +230,15 @@ export function EntitySettingsSection() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="USD">USD — Dollar</SelectItem>
+                  <SelectItem value="EUR">EUR — Euro</SelectItem>
+                  <SelectItem value="GBP">GBP — Pound</SelectItem>
                   <SelectItem value="GMD">GMD — Dalasi</SelectItem>
                   <SelectItem value="NGN">NGN — Naira</SelectItem>
                   <SelectItem value="GHS">GHS — Cedi</SelectItem>
                   <SelectItem value="XOF">XOF — CFA Franc</SelectItem>
                   <SelectItem value="KES">KES — Shilling</SelectItem>
-                  <SelectItem value="USD">USD — Dollar</SelectItem>
+                  <SelectItem value="ZAR">ZAR — Rand</SelectItem>
                 </SelectContent>
               </Select>
             </div>

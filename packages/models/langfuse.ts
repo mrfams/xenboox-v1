@@ -30,6 +30,7 @@ export function getLangfuse(): Langfuse {
         baseUrl: process.env.LANGFUSE_BASE_URL || "https://cloud.langfuse.com",
       });
     } else {
+      // Use console.warn here since logger may not be available in all contexts
       console.warn(
         "[langfuse] No LANGFUSE_PUBLIC_KEY/LANGFUSE_SECRET_KEY set — using no-op client",
       );

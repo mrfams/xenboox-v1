@@ -67,7 +67,7 @@ function JournalEntryDrawer({
   entryId: string;
   onClose: () => void;
 }) {
-  const { entityId } = useEntity();
+  const { entityId, entityCurrency } = useEntity();
   const { openWithFocus } = useModuleAi();
   const utils = trpc.useUtils();
   const [showReverseDialog, setShowReverseDialog] = useState(false);
@@ -278,7 +278,7 @@ function JournalEntryDrawer({
                                 <td className="px-3 py-1.5 text-right tabular-nums">
                                   {debit > 0 ? (
                                     <span className="text-foreground">
-                                      {formatCurrency(debit)}
+                                      {formatCurrency(debit, entityCurrency ?? "USD")}
                                     </span>
                                   ) : (
                                     ""
@@ -287,7 +287,7 @@ function JournalEntryDrawer({
                                 <td className="px-3 py-1.5 text-right tabular-nums">
                                   {credit > 0 ? (
                                     <span className="text-foreground">
-                                      {formatCurrency(credit)}
+                                      {formatCurrency(credit, entityCurrency ?? "USD")}
                                     </span>
                                   ) : (
                                     ""
@@ -370,7 +370,7 @@ function JournalEntryDrawer({
                           >
                             {isBalanced
                               ? "Debits = Credits — Balanced"
-                              : `Out of balance by ${formatCurrency(Math.abs(totalDebit - totalCredit))}`}
+                              : `Out of balance by ${formatCurrency(Math.abs(totalDebit - totalCredit), entityCurrency ?? "USD")}`}
                           </span>
                         </div>
                         <span className="text-[10px] text-muted-foreground">
@@ -550,7 +550,7 @@ function JournalEntryDrawer({
 // ─── Journal View ──────────────────────────────────────────────────────────
 
 function JournalView() {
-  const { entityId } = useEntity();
+  const { entityId, entityCurrency } = useEntity();
   const { openWithFocus } = useModuleAi();
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -867,7 +867,7 @@ function JournalView() {
 // ─── COA View ──────────────────────────────────────────────────────────────
 
 function COAView() {
-  const { entityId } = useEntity();
+  const { entityId, entityCurrency } = useEntity();
   const { openWithFocus } = useModuleAi();
 
   const { data: accounts, isLoading } = trpc.coa.listHierarchy.useQuery(
@@ -1005,7 +1005,7 @@ function COAView() {
 // ─── Trial Balance View ────────────────────────────────────────────────────
 
 function TrialBalanceView() {
-  const { entityId } = useEntity();
+  const { entityId, entityCurrency } = useEntity();
   const { openWithFocus } = useModuleAi();
 
   const { data: currentPeriod, isSuccess: periodLoaded } =
@@ -1073,8 +1073,8 @@ function TrialBalanceView() {
                   : "Trial Balance is out of balance"}
               </p>
               <p className="text-xs text-muted-foreground">
-                Total Debits: {formatCurrency(totalDebit)} · Total Credits:{" "}
-                {formatCurrency(totalCredit)}
+                Total Debits: {formatCurrency(totalDebit, entityCurrency ?? "USD")} · Total Credits:{" "}
+                {formatCurrency(totalCredit, entityCurrency ?? "USD")}
               </p>
             </div>
           </div>
@@ -1088,11 +1088,11 @@ function TrialBalanceView() {
                   fields: [
                     {
                       label: "Total Debits",
-                      value: formatCurrency(totalDebit),
+                      value: formatCurrency(totalDebit, entityCurrency ?? "USD"),
                     },
                     {
                       label: "Total Credits",
-                      value: formatCurrency(totalCredit),
+                      value: formatCurrency(totalCredit, entityCurrency ?? "USD"),
                     },
                     { label: "Balanced", value: isBalanced ? "Yes" : "No" },
                   ],
@@ -1158,8 +1158,8 @@ function TrialBalanceView() {
                 account: (
                   <span className="text-foreground">{account.name}</span>
                 ),
-                debit: balance > 0 ? formatCurrency(balance) : "",
-                credit: balance < 0 ? formatCurrency(Math.abs(balance)) : "",
+                debit: balance > 0 ? formatCurrency(balance, entityCurrency ?? "USD") : "",
+                credit: balance < 0 ? formatCurrency(Math.abs(balance), entityCurrency ?? "USD") : "",
               };
             })}
           />
@@ -1167,7 +1167,7 @@ function TrialBalanceView() {
           <div className="mt-2 flex justify-between rounded-lg border border-border/50 bg-muted/20 px-3 py-2 text-xs font-semibold">
             <span>Total</span>
             <span className="tabular-nums">
-              {formatCurrency(totalDebit)} / {formatCurrency(totalCredit)}
+              {formatCurrency(totalDebit, entityCurrency ?? "USD")} / {formatCurrency(totalCredit, entityCurrency ?? "USD")}
             </span>
           </div>
         </>
@@ -1275,7 +1275,7 @@ function LedgerTabList({
 // ─── Page ──────────────────────────────────────────────────────────────────
 
 export default function LedgerPage() {
-  const { entityId } = useEntity();
+  const { entityId, entityCurrency } = useEntity();
   const [activeTab, setActiveTab] = useState<LedgerTab>("journal");
 
   // ── Cross-surface sync ────────────────────────────────────────────────

@@ -1,4 +1,5 @@
 import { task, logger } from "@trigger.dev/sdk"
+import { dlqOnFailure } from "./lib/dlq"
 import { db } from "@xenboox/db"
 import { exchangeRates } from "@xenboox/db/schema"
 import { desc } from "drizzle-orm"
@@ -16,8 +17,15 @@ export const syncExchangeRates = task({
     concurrencyLimit: 1,
   },
 
+  onFailure: dlqOnFailure<{ baseCurrency?: string }>({
+    task: "sync-exchange-rates",
+    type: "data_validation",
+    severity: "medium",
+    title: () => "Exchange rate sync failed",
+  }),
+
   run: async (payload: { baseCurrency?: string }) => {
-    const baseCurrency = payload.baseCurrency ?? "GMD"
+    const baseCurrency = payload.baseCurrency ?? "USD"
 
     logger.info("Syncing exchange rates", { baseCurrency })
 

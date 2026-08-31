@@ -29,7 +29,7 @@ import { cn, formatCurrency } from "@/lib/utils";
 type ReconTab = "unmatched" | "ai-matches" | "history";
 
 export function ReconciliationView() {
-  const { entityId } = useEntity();
+  const { entityId, entityCurrency } = useEntity();
   const [activeTab, setActiveTab] = useState<ReconTab>("unmatched");
   const [selectedBankAccountId, setSelectedBankAccountId] = useState<
     string | undefined
@@ -211,7 +211,7 @@ export function ReconciliationView() {
             onSelectJE={setSelectedJE}
             onReconcile={handleReconcile}
             onBulkReconcile={handleBulkReconcile}
-            currency={reconData?.currency ?? "GMD"}
+            currency={reconData?.currency ?? entityCurrency ?? "USD"}
           />
         )}
 
@@ -220,14 +220,14 @@ export function ReconciliationView() {
             matches={aiMatches?.matches ?? []}
             isLoading={isMatching}
             onReconcile={handleReconcile}
-            currency={reconData?.currency ?? "GMD"}
+            currency={reconData?.currency ?? entityCurrency ?? "USD"}
           />
         )}
 
         {activeTab === "history" && (
           <HistoryView
             reconciliations={reconData?.recentReconciliations ?? []}
-            currency={reconData?.currency ?? "GMD"}
+            currency={reconData?.currency ?? entityCurrency ?? "USD"}
           />
         )}
       </div>

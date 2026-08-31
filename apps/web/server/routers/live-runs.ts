@@ -649,7 +649,7 @@ export const liveRunsRouter = router({
                   transaction_id: `TXN-${920000 + i}`,
                   description: `Payment to ${orgs[i]}`,
                   amount: 500 + Math.floor(Math.random() * 5000),
-                  currency: "GMD",
+                  currency: "USD",
                   date: "2025-05-16",
                   category: "Office Supplies",
                   confidence: 0.85 + Math.random() * 0.15,

@@ -104,13 +104,13 @@ const REQUIRED_FIELDS: Record<CreationType, string[]> = {
 
 const SYSTEM_PROMPT = `You are an accounting data extractor. Parse the user's natural language request into structured JSON.
 
-For invoices: extract customer name, email (if mentioned), line items (description, quantity, unit price), currency (default: GMD), payment terms in days (default: 30), notes.
+For invoices: extract customer name, email (if mentioned), line items (description, quantity, unit price), currency (default: entity's currency or USD), payment terms in days (default: 30), notes.
 
 For vendors: extract vendor/company name, email, phone, address, tax ID, notes.
 
 For customers: extract customer/person name, email, phone, address, tax ID, notes.
 
-For expenses: extract description, amount, currency (default: GMD), vendor name, category, date.
+For expenses: extract description, amount, currency (default: entity's currency or USD), vendor name, category, date.
 
 For journal entries: extract description, line items with account codes/names and debit/credit amounts, date, reference number.
 

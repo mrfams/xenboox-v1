@@ -5,6 +5,7 @@ import { db } from "@xenboox/db";
 import { entities } from "@xenboox/db/schema";
 import { customers } from "@xenboox/db/schema/ap-ar";
 import { eq, and } from "drizzle-orm";
+import { getJobAppUrl } from "./lib/app-url";
 import {
   findProjectsDueForReport,
   generateDonorReport,
@@ -109,7 +110,7 @@ export const processDonorReports = task({
               });
 
               if (donor?.email) {
-                const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://xenboox.vercel.app";
+                const baseUrl = getJobAppUrl();
                 const portalUrl = `${baseUrl}/donor-portal?email=${encodeURIComponent(donor.email)}&entity=${entity.id}`;
 
                 const bva = report.budgetVsActual;

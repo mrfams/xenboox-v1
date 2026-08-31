@@ -126,8 +126,8 @@ describe("Tool Registry — Enterprise", () => {
   });
 
   describe("getAllTools", () => {
-    it("returns exactly 5 tools", () => {
-      expect(mod.getAllTools()).toHaveLength(5);
+    it("returns all registered tools", () => {
+      expect(mod.getAllTools()).toHaveLength(8);
     });
 
     it("every tool has all required enterprise fields", () => {
@@ -145,10 +145,11 @@ describe("Tool Registry — Enterprise", () => {
       }
     });
 
-    it("all 5 tools are read-only (no GL writes via tools yet)", () => {
+    it("most tools are read-only; only start_batch_ingestion writes", () => {
       const readOnly = mod.getReadOnlyTools();
-      expect(readOnly).toHaveLength(5);
-      expect(mod.getWriteTools()).toHaveLength(0);
+      expect(readOnly).toHaveLength(7);
+      expect(mod.getWriteTools()).toHaveLength(1);
+      expect(mod.getWriteTools()[0].name).toBe("start_batch_ingestion");
     });
   });
 
@@ -162,6 +163,14 @@ describe("Tool Registry — Enterprise", () => {
 
     it("read category has exactly 4 tools", () => {
       expect(mod.getToolsByCategory("read")).toHaveLength(4);
+    });
+
+    it("rag category has 2 tools", () => {
+      expect(mod.getToolsByCategory("rag")).toHaveLength(2);
+    });
+
+    it("write category has 1 tool", () => {
+      expect(mod.getToolsByCategory("write")).toHaveLength(1);
     });
   });
 
@@ -259,9 +268,9 @@ describe("Tool Registry — Enterprise", () => {
   describe("getRegistryStats", () => {
     it("returns accurate counts", () => {
       const stats = mod.getRegistryStats();
-      expect(stats.totalTools).toBe(5);
-      expect(stats.readOnly).toBe(5);
-      expect(stats.writeTools).toBe(0);
+      expect(stats.totalTools).toBe(8);
+      expect(stats.readOnly).toBe(7);
+      expect(stats.writeTools).toBe(1);
       expect(stats.validationTools).toBe(1);
     });
   });
@@ -776,8 +785,8 @@ describe("Default Agent Configs — Full 19-Agent Matrix", () => {
     expect(configs.ledger.canEscalate).toBe(false);
   });
 
-  it("document agent has minimal tools (platform tier)", () => {
-    expect(configs.document.allowedTools.length).toBeLessThanOrEqual(2);
+  it("document agent has limited tools (platform tier)", () => {
+    expect(configs.document.allowedTools.length).toBeLessThanOrEqual(3);
     expect(configs.document.canEscalate).toBe(false);
   });
 });

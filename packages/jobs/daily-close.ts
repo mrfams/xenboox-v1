@@ -75,7 +75,7 @@ export const processDailyClose = task({
         const result = await runDailyClose({
           entityId: entity.id,
           entityName: entity.name,
-          currency: entity.baseCurrency ?? "GMD",
+          currency: entity.baseCurrency ?? "USD",
           closeDate,
         });
 

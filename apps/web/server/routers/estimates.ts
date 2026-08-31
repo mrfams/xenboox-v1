@@ -91,7 +91,7 @@ export const estimatesRouter = router({
         where: eq(entities.id, entityId),
         columns: { currency: true },
       });
-      const entityCurrency = entity?.currency ?? "GMD";
+      const entityCurrency = entity?.currency ?? "USD";
 
       // Try LLM structured extraction
       try {
@@ -404,7 +404,7 @@ export const estimatesRouter = router({
         estimateNumber: z.string().min(1),
         estimateDate: z.string(),
         expiryDate: z.string().optional(),
-        currency: z.string().length(3).default("GMD"),
+        currency: z.string().length(3).default("USD"),
         notes: z.string().optional(),
         terms: z.string().optional(),
         lines: z

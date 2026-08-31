@@ -27,6 +27,7 @@ import {
 import { logger } from "@/lib/logger";
 import { db } from "@/lib/db";
 import { sendPaymentSentEmail } from "@/lib/email";
+import { generateBillNarrative } from "./ap-invoice-narrative";
 import { getEnrichedEntityContext } from "@/lib/entity-context-enrichment";
 import { dispatchWebhookEvent } from "@/lib/webhooks/delivery";
 
@@ -1000,7 +1001,7 @@ export const apRouter = router({
         poNumber: z.string().min(1),
         orderDate: z.string(),
         expectedDate: z.string().optional(),
-        currency: z.string().length(3).default("GMD"),
+        currency: z.string().length(3).default("USD"),
         notes: z.string().optional(),
         lines: z
           .array(
@@ -1184,7 +1185,7 @@ export const apRouter = router({
         invoiceNumber: z.string().min(1),
         invoiceDate: z.string(),
         dueDate: z.string(),
-        currency: z.string().length(3).default("GMD"),
+        currency: z.string().length(3).default("USD"),
         notes: z.string().optional(),
         purchaseOrderId: z.string().uuid().optional(),
         lines: z
@@ -1282,6 +1283,20 @@ export const apRouter = router({
               totalAmount: totalAmount.toFixed(2),
               dueDate: input.dueDate,
             },
+          });
+
+          // Generate bill narrative (non-blocking)
+          generateBillNarrative({
+            entityId: ctx.entityId!,
+            entityName: ctx.entityName ?? "your business",
+            currency: input.currency,
+            invoiceId: invoice.id,
+            invoiceNumber: input.invoiceNumber,
+            totalAmount,
+            supplierId: input.supplierId,
+            dueDate: input.dueDate,
+          }).catch((err) => {
+            logger.error({ err }, "[ap] Bill narrative generation failed");
           });
 
           return invoice;

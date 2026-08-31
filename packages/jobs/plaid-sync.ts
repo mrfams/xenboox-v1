@@ -128,7 +128,7 @@ export const syncPlaidTransactions = task({
           name: `${connection.institutionName} - ${connection.accountName ?? connection.accountNumber ?? "Unknown"}`,
           bankName: connection.institutionName,
           accountNumber: connection.accountNumber ?? "",
-          currency: connection.currency ?? "GMD",
+          currency: connection.currency ?? "USD",
           currentBalance: "0",
         })
         .returning();
@@ -136,21 +136,27 @@ export const syncPlaidTransactions = task({
       bankAccountId = newAccount!.id;
     }
 
-    // 5. Process added transactions
+    // 5. Batch dedup — collect all Plaid IDs, query once
     let insertedCount = 0;
     let skippedCount = 0;
 
-    for (const tx of plaidData.added) {
-      // Dedup by Plaid transaction_id stored in metadata
-      const plaidTxId = tx.transaction_id;
-      const existing = await db.query.bankTransactions.findFirst({
-        where: and(
-          eq(bankTransactions.entityId, entityId),
-          eq(bankTransactions.description, tx.name),
-        ),
+    const plaidIds = plaidData.added.map((tx) => tx.transaction_id);
+    const existingPlaidIds = new Set<string>();
+    if (plaidIds.length > 0) {
+      const allTx = await db.query.bankTransactions.findMany({
+        where: and(eq(bankTransactions.entityId, entityId)),
+        columns: { metadata: true },
       });
+      for (const row of allTx) {
+        const meta = (row.metadata ?? {}) as Record<string, unknown>;
+        if (meta.plaidTransactionId && plaidIds.includes(meta.plaidTransactionId as string)) {
+          existingPlaidIds.add(meta.plaidTransactionId as string);
+        }
+      }
+    }
 
-      if (existing) {
+    for (const tx of plaidData.added) {
+      if (existingPlaidIds.has(tx.transaction_id)) {
         skippedCount++;
         continue;
       }
@@ -185,18 +191,19 @@ export const syncPlaidTransactions = task({
       insertedCount++;
     }
 
-    // 6. Process modified transactions (update existing records)
+    // 6. Process modified transactions (update existing records by Plaid ID)
     let updatedCount = 0;
     for (const tx of plaidData.modified) {
-      // Find existing transaction by Plaid ID in metadata
-      const existing = await db.query.bankTransactions.findFirst({
-        where: and(
-          eq(bankTransactions.entityId, entityId),
-          eq(bankTransactions.description, tx.name),
-        ),
+      const allTx = await db.query.bankTransactions.findMany({
+        where: and(eq(bankTransactions.entityId, entityId)),
+        columns: { id: true, metadata: true },
+      });
+      const match = allTx.find((row) => {
+        const meta = (row.metadata ?? {}) as Record<string, unknown>;
+        return meta.plaidTransactionId === tx.transaction_id;
       });
 
-      if (existing) {
+      if (match) {
         await db
           .update(bankTransactions)
           .set({
@@ -204,35 +211,39 @@ export const syncPlaidTransactions = task({
             amount: String(Math.abs(tx.amount)),
             type: tx.amount >= 0 ? "deposit" : "withdrawal",
             metadata: {
-              ...(existing.metadata as Record<string, unknown>),
+              ...(match.metadata as Record<string, unknown>),
               plaidPending: tx.pending,
               plaidMerchantName: tx.merchant_name,
             },
           })
-          .where(eq(bankTransactions.id, existing.id));
+          .where(eq(bankTransactions.id, match.id));
         updatedCount++;
       }
     }
 
-    // 7. Process removed transactions (soft-delete by marking as removed in metadata)
+    // 7. Process removed transactions (soft-delete by Plaid ID in metadata)
     let removedCount = 0;
-    for (const tx of plaidData.removed) {
-      const existing = await db.query.bankTransactions.findFirst({
+    const removedIds = new Set(plaidData.removed.map((tx) => tx.transaction_id));
+    if (removedIds.size > 0) {
+      const allTx = await db.query.bankTransactions.findMany({
         where: and(eq(bankTransactions.entityId, entityId)),
+        columns: { id: true, metadata: true },
       });
-
-      if (existing) {
-        await db
-          .update(bankTransactions)
-          .set({
-            metadata: {
-              ...(existing.metadata as Record<string, unknown>),
-              plaidRemoved: true,
-              plaidRemovedAt: new Date().toISOString(),
-            },
-          })
-          .where(eq(bankTransactions.id, existing.id));
-        removedCount++;
+      for (const row of allTx) {
+        const meta = (row.metadata ?? {}) as Record<string, unknown>;
+        if (meta.plaidTransactionId && removedIds.has(meta.plaidTransactionId as string)) {
+          await db
+            .update(bankTransactions)
+            .set({
+              metadata: {
+                ...meta,
+                plaidRemoved: true,
+                plaidRemovedAt: new Date().toISOString(),
+              },
+            })
+            .where(eq(bankTransactions.id, row.id));
+          removedCount++;
+        }
       }
     }
 

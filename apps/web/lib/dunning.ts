@@ -41,6 +41,7 @@ export type AgingInvoice = {
   customerName: string;
   totalAmount: number;
   balance: number;
+  currency?: string;
   dueDate: string;
   daysOverdue: number;
   agingBucket: string;
@@ -376,10 +377,11 @@ export function generateDunningLetter(
 ): DunningLetter {
   const totalOwed = invoices.reduce((sum, i) => sum + i.balance, 0);
   const oldestDays = Math.max(...invoices.map((i) => i.daysOverdue));
+  const currency = invoices[0]?.currency ?? "USD";
   const formatAmount = (n: number) =>
     new Intl.NumberFormat("en-US", {
       style: "currency",
-      currency: "GMD",
+      currency,
       minimumFractionDigits: 2,
     }).format(n);
 

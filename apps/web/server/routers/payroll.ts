@@ -209,7 +209,7 @@ export const payrollRouter = router({
           employeeId: emp.id,
           effectiveDate: input.hireDate,
           basicSalary,
-          currency: "GMD",
+          currency: entity?.currency ?? "USD",
           payFrequency: "monthly",
           isActive: true,
         });

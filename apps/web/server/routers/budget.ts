@@ -54,7 +54,7 @@ export const budgetRouter = router({
         const result = await runBudgetPipeline({
           entityId: ctx.entityId!,
           entityName: entityCtx.name ?? "Entity",
-          currency: entityCtx.currency ?? "GMD",
+          currency: entityCtx.currency ?? "USD",
           fiscalYear: input.fiscalYear,
           period: input.period,
           userId: ctx.session!.user!.id!,
@@ -135,7 +135,7 @@ export const budgetRouter = router({
       z.object({
         name: z.string().min(1).max(200),
         fiscalYear: z.number().int().min(2020).max(2100),
-        currency: z.string().default("GMD"),
+        currency: z.string().default("USD"),
         multiYear: z.boolean().default(false),
         multiYearEnd: z.number().int().min(2020).max(2100).optional(),
         notes: z.string().optional(),

@@ -1,3 +1,8 @@
+// ─── Layout & Shared Components ─────────────────────────────────────────────
+export { EmailLayout, DataRow, Divider, CTAButton, InfoBox, BRAND } from "./emails/_layout";
+export type { EmailLayoutProps } from "./emails/_layout";
+
+// ─── Transactional Emails ──────────────────────────────────────────────────
 export { CloseCompleteEmail } from "./emails/close-complete";
 export { InvoiceOverdueEmail } from "./emails/invoice-overdue";
 export { AgentEscalationEmail } from "./emails/agent-escalation";
@@ -18,3 +23,6 @@ export { OnboardingDay3Email } from "./emails/onboarding-day3";
 export { OnboardingDay7Email } from "./emails/onboarding-day7";
 export { OnboardingDay14Email } from "./emails/onboarding-day14";
 export { OnboardingDay30Email } from "./emails/onboarding-day30";
+
+// ─── Invoice Email (new React Email template) ──────────────────────────────
+export { InvoiceEmail } from "./emails/invoice-email";

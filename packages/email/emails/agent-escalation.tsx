@@ -1,93 +1,60 @@
-import {
-  Html,
-  Body,
-  Container,
-  Heading,
-  Text,
-  Button,
-  Section,
-  Hr,
-  Tailwind,
-} from "@react-email/components"
+import { Text, Heading } from "@react-email/components";
+import { EmailLayout, DataRow, Divider, CTAButton, InfoBox } from "./_layout";
 
 type AgentEscalationProps = {
-  agentName: string
-  entityName: string
-  taskDescription: string
-  confidence: number
-  reasoning: string
-  reviewUrl: string
-}
+  agentName: string;
+  entityName: string;
+  taskDescription: string;
+  confidence: number;
+  reasoning: string;
+  reviewUrl: string;
+};
 
 export function AgentEscalationEmail(props: AgentEscalationProps) {
+  const confidencePercent = Math.round(props.confidence * 100);
+
   return (
-    <Html>
-      <Tailwind>
-        <Body className="bg-gray-50 font-sans">
-          <Container className="mx-auto py-8 px-4 max-w-2xl">
-            <Heading className="text-2xl font-bold text-amber-600 mb-4">
-              Agent Requires Your Review
-            </Heading>
-            <Text className="text-gray-600 mb-6">
-              <strong>{props.agentName}</strong> has flagged a task requiring human review.
-            </Text>
+    <EmailLayout
+      preview={`${props.agentName} needs your review — ${confidencePercent}% confidence`}
+    >
+      <Heading className="text-[22px] font-bold text-[#0F172A] m-0 mb-2">
+        Agent Requires Review 🔍
+      </Heading>
 
-            <Section className="bg-white rounded-lg border border-amber-200 p-6 mb-6">
-              <Heading as="h2" className="text-lg font-semibold text-gray-900 mb-4">
-                Task Details
-              </Heading>
-              <div className="space-y-3">
-                <div className="flex justify-between">
-                  <Text className="text-gray-600 m-0">Agent</Text>
-                  <Text className="font-semibold text-gray-900 m-0">{props.agentName}</Text>
-                </div>
-                <Hr className="border-gray-200 my-2" />
-                <div className="flex justify-between">
-                  <Text className="text-gray-600 m-0">Entity</Text>
-                  <Text className="font-semibold text-gray-900 m-0">{props.entityName}</Text>
-                </div>
-                <Hr className="border-gray-200 my-2" />
-                <div className="flex justify-between">
-                  <Text className="text-gray-600 m-0">Confidence</Text>
-                  <Text className="font-bold text-amber-600 m-0">
-                    {(props.confidence * 100).toFixed(0)}%
-                  </Text>
-                </div>
-                <Hr className="border-gray-200 my-2" />
-                <div>
-                  <Text className="text-gray-600 m-0 mb-2">Task</Text>
-                  <Text className="font-semibold text-gray-900 m-0">{props.taskDescription}</Text>
-                </div>
-                <Hr className="border-gray-200 my-2" />
-                <div>
-                  <Text className="text-gray-600 m-0 mb-2">Reasoning</Text>
-                  <Text className="text-gray-700 m-0">{props.reasoning}</Text>
-                </div>
-              </div>
-            </Section>
+      <Text className="text-[15px] text-[#64748B] m-0 mb-6">
+        {props.agentName} — {props.entityName}
+      </Text>
 
-            <Button
-              href={props.reviewUrl}
-              className="bg-amber-600 text-white rounded-lg px-6 py-3 font-semibold text-center block w-full"
-            >
-              Review Task
-            </Button>
+      <InfoBox variant="warning">
+        <Text className="text-[14px] text-[#D97706] m-0">
+          Confidence: {confidencePercent}% — This task needs your decision.
+        </Text>
+      </InfoBox>
 
-            <Text className="text-gray-500 text-sm mt-8 text-center">
-              This notification was sent by Xenboox AI Accounting
-            </Text>
-          </Container>
-        </Body>
-      </Tailwind>
-    </Html>
-  )
+      <div className="bg-[#F8FAFC] rounded-lg p-4 mb-4">
+        <DataRow label="Task" value={props.taskDescription} />
+        <Divider />
+        <DataRow label="Confidence" value={`${confidencePercent}%`} />
+        <Divider />
+        <DataRow label="Reasoning" value={props.reasoning} />
+      </div>
+
+      <CTAButton href={props.reviewUrl} label="Review & Decide" />
+
+      <Text className="text-[13px] text-[#94A3B8] m-0 mt-4 text-center">
+        The agent flagged this because it's uncertain. Your decision will help
+        it learn.
+      </Text>
+    </EmailLayout>
+  );
 }
 
 AgentEscalationEmail.PreviewProps = {
-  agentName: "AP Agent",
+  agentName: "CFO Agent",
   entityName: "Acme Corp",
-  taskDescription: "Process invoice from Supplier XYZ for $15,000",
-  confidence: 0.65,
-  reasoning: "Invoice amount exceeds usual threshold. Vendor not in approved list.",
-  reviewUrl: "https://app.xenboox.com/agent/review/task-123",
-} satisfies AgentEscalationProps
+  taskDescription: "Review monthly expense categorization",
+  confidence: 0.62,
+  reasoning:
+    "Several transactions couldn't be confidently categorized. Manual review needed for 12 items.",
+  reviewUrl: "https://app.xenboox.com/activity-hub",
+} satisfies AgentEscalationProps;

@@ -117,7 +117,7 @@ export const employeeContracts = pgTable(
     effectiveDate: text("effective_date").notNull(),
     endDate: text("end_date"),
     basicSalary: numeric("basic_salary", { precision: 15, scale: 2 }).notNull(),
-    currency: text("currency").notNull().default("GMD"),
+    currency: text("currency").notNull().default("USD"),
     payFrequency: payFrequencyEnum("pay_frequency")
       .notNull()
       .default("monthly"),

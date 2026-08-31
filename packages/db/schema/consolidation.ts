@@ -57,7 +57,7 @@ export const entityRelationships = pgTable(
     // "active" | "divested" | "pending"
     consolidationMethod: text("consolidation_method").notNull().default("full"),
     // "full" | "equity" | "proportional"
-    currency: text("currency").notNull().default("GMD"),
+    currency: text("currency").notNull().default("USD"),
     notes: text("notes"),
     ...timestamps,
   },
@@ -103,7 +103,7 @@ export const intercompanyTags = pgTable(
       .$type<string[]>()
       .default([]),
     amount: numeric("amount", { precision: 15, scale: 2 }).notNull(),
-    currency: text("currency").notNull().default("GMD"),
+    currency: text("currency").notNull().default("USD"),
     description: text("description"),
     taggedAt: timestamp("tagged_at").notNull().defaultNow(),
     taggedById: text("tagged_by_id"),
@@ -221,7 +221,7 @@ export const eliminationEntries = pgTable(
       .$type<string[]>()
       .default([]),
     sourceTagIds: jsonb("source_tag_ids").$type<string[]>().default([]),
-    currency: text("currency").notNull().default("GMD"),
+    currency: text("currency").notNull().default("USD"),
     translatedAmount: numeric("translated_amount", { precision: 15, scale: 2 }),
     exchangeRate: numeric("exchange_rate", { precision: 10, scale: 6 }),
     parentAccountId: uuid("parent_account_id"),

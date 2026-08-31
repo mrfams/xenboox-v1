@@ -37,14 +37,15 @@ import {
 import { trpc } from "@/lib/trpc/client";
 
 const CURRENCIES = [
+  { code: "USD", name: "US Dollar" },
+  { code: "EUR", name: "Euro" },
+  { code: "GBP", name: "British Pound" },
   { code: "GMD", name: "Gambian Dalasi" },
   { code: "NGN", name: "Nigerian Naira" },
   { code: "GHS", name: "Ghanaian Cedi" },
   { code: "XOF", name: "CFA Franc" },
   { code: "KES", name: "Kenyan Shilling" },
-  { code: "USD", name: "US Dollar" },
-  { code: "EUR", name: "Euro" },
-  { code: "GBP", name: "British Pound" },
+  { code: "ZAR", name: "South African Rand" },
 ];
 
 const COUNTRIES = [
@@ -91,7 +92,7 @@ export function OrganizationSection() {
   const [entityForm, setEntityForm] = useState({
     name: "",
     type: "company" as "company" | "subsidiary" | "branch" | "client",
-    currency: "GMD",
+    currency: "USD",
     country: "GM",
     fiscalYearEnd: "12",
     taxId: "",
@@ -166,7 +167,7 @@ export function OrganizationSection() {
     setEntityForm({
       name: entity.name,
       type: entity.type,
-      currency: entity.currency ?? "GMD",
+      currency: entity.currency ?? "USD",
       country: entity.country ?? "GM",
       fiscalYearEnd: entity.fiscalYearEnd ?? "12",
       taxId: entity.taxId ?? "",

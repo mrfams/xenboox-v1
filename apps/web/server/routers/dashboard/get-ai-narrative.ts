@@ -10,7 +10,9 @@ import { rlsProtectedProcedure } from "@/lib/trpc/server";
 import { db } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { formatCurrency } from "@/lib/utils";
+import { checkNarrativeRateLimit } from "@/lib/rate-limiters/narrative-rate-limiter";
 import { MONTH_NAMES } from "./_helpers";
+import { redactPii, INJECTION_DEFENSE_SUFFIX } from "@xenboox/agents/core/security/injection-defense";
 
 /**
  * Generates a natural language narrative from real financial data.
@@ -18,9 +20,26 @@ import { MONTH_NAMES } from "./_helpers";
  */
 export const getAiNarrative = rlsProtectedProcedure.query(async ({ ctx }) => {
   const entityId = ctx.entityId!;
-  const entityName = ctx.entityName ?? "your business";
+  const entityNameRaw = ctx.entityName ?? "your business";
+  // Sanitize entity name: redact PII, limit length, prevent injection
+  const entityName = redactPii(entityNameRaw).text.substring(0, 100);
   const currency = ctx.entityCurrency ?? "USD";
   const now = new Date();
+
+  // Rate limit check (Redis-backed, distributed across instances)
+  const rateLimit = await checkNarrativeRateLimit(entityId);
+  if (!rateLimit.allowed) {
+    logger.warn({ entityId, retryAfter: rateLimit.retryAfter }, "[narrative] Rate limited");
+    // Return cached data or empty
+    return {
+      text: "Narrative generation rate limited. Please try again later.",
+      confidence: 0,
+      generatedAt: now.toISOString(),
+      highlights: [],
+      concerns: ["Rate limited — too many requests"],
+      rateLimited: true,
+    };
+  }
 
   // Check Redis cache first
   const cacheKey = `narrative:${entityId}`;
@@ -183,7 +202,9 @@ Write a 2-3 paragraph narrative that:
 3. Flags concerns or areas needing attention
 4. Ends with 1-2 actionable recommendations
 
-Keep it professional but conversational. Use specific numbers. Don't be generic.`;
+Keep it professional but conversational. Use specific numbers. Don't be generic.
+
+${INJECTION_DEFENSE_SUFFIX}`;
 
   try {
     const { getLLMRegistry } = await import(

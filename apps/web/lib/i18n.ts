@@ -442,7 +442,7 @@ export function getAvailableLocales(): Array<{
  */
 export function formatCurrencyLocale(
   amount: number,
-  currency: string = "GMD",
+  currency: string = "USD",
 ): string {
   const locale = getLocale();
   const localeMap: Record<Locale, string> = {

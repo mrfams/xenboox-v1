@@ -238,7 +238,7 @@ export const openingBalances = pgTable(
       .notNull()
       .references(() => chartOfAccounts.id),
     amount: numeric("amount", { precision: 15, scale: 2 }).notNull(),
-    currency: text("currency").notNull().default("GMD"),
+    currency: text("currency").notNull().default("USD"),
     source: openingBalanceSourceEnum("source").notNull(),
     confirmedByUserId: uuid("confirmed_by_user_id").references(() => users.id),
     confirmedAt: timestamp("confirmed_at"),

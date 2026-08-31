@@ -95,7 +95,7 @@ export const opsMetricsDaily = pgTable(
       .notNull()
       .default(0),
     mrr: numeric("mrr", { precision: 15, scale: 2 }).notNull().default("0"),
-    mrrCurrency: text("mrr_currency").notNull().default("GMD"),
+    mrrCurrency: text("mrr_currency").notNull().default("USD"),
     mrrDeltaPercent: numeric("mrr_delta_percent", { precision: 5, scale: 2 })
       .notNull()
       .default("0"),

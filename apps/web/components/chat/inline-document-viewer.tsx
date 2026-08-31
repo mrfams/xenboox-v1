@@ -46,6 +46,10 @@ export interface InlineDocumentViewerProps {
   htmlContent?: string;
   /** Whether to show by default */
   defaultExpanded?: boolean;
+  /** Entity currency code (e.g., "USD", "GMD") */
+  entityCurrency?: string;
+  /** Entity name */
+  entityName?: string;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────
@@ -57,6 +61,8 @@ export function InlineDocumentViewer({
   mimeType,
   sizeBytes,
   htmlContent,
+  entityCurrency,
+  entityName,
   defaultExpanded = false,
 }: InlineDocumentViewerProps) {
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
@@ -222,8 +228,8 @@ export function InlineDocumentViewer({
                   <DocumentDownloadButtons
                     data={{
                       title: name,
-                      entityName: "Your Business",
-                      currency: "GMD",
+                      entityName: entityName ?? "Your Business",
+                      currency: entityCurrency ?? "USD",
                       generatedAt: new Date(),
                       sections: [],
                     }}

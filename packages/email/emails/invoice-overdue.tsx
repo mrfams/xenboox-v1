@@ -1,91 +1,58 @@
-import {
-  Html,
-  Body,
-  Container,
-  Heading,
-  Text,
-  Button,
-  Section,
-  Hr,
-  Tailwind,
-} from "@react-email/components"
+import { Text, Heading } from "@react-email/components";
+import { EmailLayout, DataRow, Divider, CTAButton, InfoBox } from "./_layout";
 
 type InvoiceOverdueProps = {
-  customerName: string
-  invoiceNumber: string
-  amount: string
-  dueDate: string
-  daysOverdue: number
-  invoiceUrl: string
-}
+  customerName: string;
+  invoiceNumber: string;
+  amount: string;
+  dueDate: string;
+  daysOverdue: number;
+  invoiceUrl: string;
+};
 
 export function InvoiceOverdueEmail(props: InvoiceOverdueProps) {
   return (
-    <Html>
-      <Tailwind>
-        <Body className="bg-gray-50 font-sans">
-          <Container className="mx-auto py-8 px-4 max-w-2xl">
-            <Heading className="text-2xl font-bold text-red-600 mb-4">
-              Invoice Overdue
-            </Heading>
-            <Text className="text-gray-600 mb-6">
-              Payment for invoice <strong>{props.invoiceNumber}</strong> from {props.customerName} is overdue.
-            </Text>
+    <EmailLayout
+      preview={`Invoice ${props.invoiceNumber} is ${props.daysOverdue} days overdue`}
+    >
+      <Heading className="text-[22px] font-bold text-[#0F172A] m-0 mb-2">
+        Invoice Overdue ⚠️
+      </Heading>
 
-            <Section className="bg-white rounded-lg border border-red-200 p-6 mb-6">
-              <Heading as="h2" className="text-lg font-semibold text-gray-900 mb-4">
-                Invoice Details
-              </Heading>
-              <div className="space-y-3">
-                <div className="flex justify-between">
-                  <Text className="text-gray-600 m-0">Customer</Text>
-                  <Text className="font-semibold text-gray-900 m-0">{props.customerName}</Text>
-                </div>
-                <Hr className="border-gray-200 my-2" />
-                <div className="flex justify-between">
-                  <Text className="text-gray-600 m-0">Invoice Number</Text>
-                  <Text className="font-semibold text-gray-900 m-0">{props.invoiceNumber}</Text>
-                </div>
-                <Hr className="border-gray-200 my-2" />
-                <div className="flex justify-between">
-                  <Text className="text-gray-600 m-0">Amount Due</Text>
-                  <Text className="font-bold text-red-600 m-0">{props.amount}</Text>
-                </div>
-                <Hr className="border-gray-200 my-2" />
-                <div className="flex justify-between">
-                  <Text className="text-gray-600 m-0">Due Date</Text>
-                  <Text className="font-semibold text-gray-900 m-0">{props.dueDate}</Text>
-                </div>
-                <Hr className="border-gray-200 my-2" />
-                <div className="flex justify-between">
-                  <Text className="text-gray-600 m-0">Days Overdue</Text>
-                  <Text className="font-bold text-red-600 m-0">{props.daysOverdue} days</Text>
-                </div>
-              </div>
-            </Section>
+      <Text className="text-[15px] text-[#64748B] m-0 mb-6">
+        Payment is past due and requires attention.
+      </Text>
 
-            <Button
-              href={props.invoiceUrl}
-              className="bg-blue-600 text-white rounded-lg px-6 py-3 font-semibold text-center block w-full"
-            >
-              View Invoice & Send Reminder
-            </Button>
+      <InfoBox variant="danger">
+        <Text className="text-[14px] text-[#DC2626] m-0">
+          {props.daysOverdue} days overdue
+        </Text>
+      </InfoBox>
 
-            <Text className="text-gray-500 text-sm mt-8 text-center">
-              This notification was sent by Xenboox AI Accounting
-            </Text>
-          </Container>
-        </Body>
-      </Tailwind>
-    </Html>
-  )
+      <div className="bg-[#F8FAFC] rounded-lg p-4 mb-4">
+        <DataRow label="Customer" value={props.customerName} />
+        <Divider />
+        <DataRow label="Invoice" value={props.invoiceNumber} />
+        <Divider />
+        <DataRow label="Amount" value={props.amount} bold color="text-[#DC2626]" />
+        <Divider />
+        <DataRow label="Due Date" value={props.dueDate} />
+      </div>
+
+      <CTAButton href={props.invoiceUrl} label="View Invoice" variant="danger" />
+
+      <Text className="text-[13px] text-[#94A3B8] m-0 mt-4 text-center">
+        Consider sending a payment reminder or following up with the customer.
+      </Text>
+    </EmailLayout>
+  );
 }
 
 InvoiceOverdueEmail.PreviewProps = {
-  customerName: "Gambia Fisheries Ltd",
-  invoiceNumber: "INV-2026-0042",
-  amount: "$12,500.00",
+  customerName: "Acme Corp",
+  invoiceNumber: "INV-2026-001",
+  amount: "$2,500.00",
   dueDate: "June 15, 2026",
-  daysOverdue: 27,
-  invoiceUrl: "https://app.xenboox.com/ar/invoices/inv-042",
-} satisfies InvoiceOverdueProps
+  daysOverdue: 14,
+  invoiceUrl: "https://app.xenboox.com/invoices/inv_123",
+} satisfies InvoiceOverdueProps;

@@ -314,7 +314,7 @@ export const knowledgeGraphRouter = router({
         internalId: ba.id,
 
         label: ba.name ?? "Bank Account",
-        description: `Balance: ${ba.currentBalance ?? "0"} ${ba.currency ?? "GMD"}`,
+        description: `Balance: ${ba.currentBalance ?? "0"} ${ba.currency ?? "USD"}`,
         metadata: {
           balance: ba.currentBalance,
           currency: ba.currency,

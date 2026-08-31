@@ -1,62 +1,46 @@
-import {
-  Html,
-  Body,
-  Container,
-  Heading,
-  Text,
-  Button,
-  Hr,
-  Tailwind,
-} from "@react-email/components"
+import { Text, Heading } from "@react-email/components";
+import { EmailLayout, CTAButton, InfoBox } from "./_layout";
 
 type VerificationEmailProps = {
-  userName: string
-  verifyUrl: string
-  expiryMinutes: number
-}
+  userName: string;
+  verifyUrl: string;
+  expiryMinutes: number;
+};
 
 export function VerificationEmail(props: VerificationEmailProps) {
   return (
-    <Html>
-      <Tailwind>
-        <Body className="bg-gray-50 font-sans">
-          <Container className="mx-auto py-8 px-4 max-w-2xl">
-            <Heading className="text-2xl font-bold text-gray-900 mb-4">
-              Verify Your Email Address
-            </Heading>
-            <Text className="text-gray-600 mb-4">
-              Hi {props.userName},
-            </Text>
-            <Text className="text-gray-600 mb-6">
-              Welcome to Xenboox! Please verify your email address to activate your account.
-              This link expires in {props.expiryMinutes} minutes.
-            </Text>
+    <EmailLayout
+      preview={`Verify your email to activate your ${BRAND_NAME} account`}
+    >
+      <Heading className="text-[22px] font-bold text-[#0F172A] m-0 mb-4">
+        Verify Your Email Address
+      </Heading>
 
-            <Button
-              href={props.verifyUrl}
-              className="bg-blue-600 text-white rounded-lg px-6 py-3 font-semibold text-center block w-full"
-            >
-              Verify Email Address
-            </Button>
+      <Text className="text-[15px] text-[#334155] m-0 mb-2">
+        Hi {props.userName},
+      </Text>
 
-            <Hr className="border-gray-200 my-6" />
+      <Text className="text-[15px] text-[#334155] m-0 mb-6">
+        Welcome to Xenboox! Please verify your email address to activate your
+        account and start using AI-native accounting.
+      </Text>
 
-            <Text className="text-gray-500 text-sm">
-              If you did not create a Xenboox account, you can safely ignore this email.
-            </Text>
+      <CTAButton href={props.verifyUrl} label="Verify Email Address" />
 
-            <Text className="text-gray-500 text-sm mt-8 text-center">
-              This notification was sent by Xenboox AI Accounting
-            </Text>
-          </Container>
-        </Body>
-      </Tailwind>
-    </Html>
-  )
+      <InfoBox>
+        <Text className="text-[13px] text-[#64748B] m-0">
+          ⏱ This link expires in {props.expiryMinutes} minutes. If you didn't
+          create a Xenboox account, you can safely ignore this email.
+        </Text>
+      </InfoBox>
+    </EmailLayout>
+  );
 }
+
+const BRAND_NAME = "Xenboox";
 
 VerificationEmail.PreviewProps = {
   userName: "Demo User",
   verifyUrl: "https://app.xenboox.com/verify-email?token=abc123def456",
   expiryMinutes: 60,
-} satisfies VerificationEmailProps
+} satisfies VerificationEmailProps;

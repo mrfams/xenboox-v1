@@ -48,7 +48,7 @@ export const cashLocations = pgTable(
       .notNull()
       .references(() => entities.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
-    currency: text("currency").notNull().default("GMD"),
+    currency: text("currency").notNull().default("USD"),
     cashAccountId: uuid("cash_account_id").references(() => cashAccounts.id, {
       onDelete: "set null",
     }),

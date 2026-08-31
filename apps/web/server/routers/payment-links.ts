@@ -6,6 +6,7 @@ import {
   router,
   rlsProtectedProcedure,
   publicProcedure,
+  handleMutationError,
 } from "@/lib/trpc/server";
 import { db } from "@/lib/db";
 import { logger } from "@/lib/logger";
@@ -178,11 +179,11 @@ export const paymentLinksRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const entityId = ctx.entityId!;
-      const userId = ctx.session?.user?.id;
+      try {
+        const entityId = ctx.entityId!;
+        const userId = ctx.session?.user?.id;
 
-      // Verify invoice belongs to this entity
-      const invoice = await db.query.salesInvoices.findFirst({
+        const invoice = await db.query.salesInvoices.findFirst({
         where: and(
           eq(salesInvoices.id, input.invoiceId),
           eq(salesInvoices.entityId, entityId),
@@ -243,7 +244,10 @@ export const paymentLinksRouter = router({
         "Payment link created",
       );
 
-      return link;
+        return link;
+      } catch (error) {
+        handleMutationError(error, "Failed to create payment link");
+      }
     }),
 
   /**
@@ -252,10 +256,11 @@ export const paymentLinksRouter = router({
   cancel: rlsProtectedProcedure
     .input(z.object({ linkId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
-      const entityId = ctx.entityId!;
+      try {
+        const entityId = ctx.entityId!;
 
-      const [updated] = await db
-        .update(paymentLinks)
+        const [updated] = await db
+          .update(paymentLinks)
         .set({ status: "cancelled" })
         .where(
           and(
@@ -266,11 +271,14 @@ export const paymentLinksRouter = router({
         )
         .returning();
 
-      if (!updated) {
-        throw new Error("Payment link not found or already inactive");
-      }
+        if (!updated) {
+          throw new Error("Payment link not found or already inactive");
+        }
 
-      return updated;
+        return updated;
+      } catch (error) {
+        handleMutationError(error, "Failed to cancel payment link");
+      }
     }),
 
   /**
@@ -279,9 +287,10 @@ export const paymentLinksRouter = router({
   reactivate: rlsProtectedProcedure
     .input(z.object({ linkId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
-      const entityId = ctx.entityId!;
+      try {
+        const entityId = ctx.entityId!;
 
-      const existing = await db.query.paymentLinks.findFirst({
+        const existing = await db.query.paymentLinks.findFirst({
         where: and(
           eq(paymentLinks.id, input.linkId),
           eq(paymentLinks.entityId, entityId),
@@ -311,7 +320,10 @@ export const paymentLinksRouter = router({
         .where(eq(paymentLinks.id, input.linkId))
         .returning();
 
-      return updated;
+        return updated;
+      } catch (error) {
+        handleMutationError(error, "Failed to reactivate payment link");
+      }
     }),
 
   /**
@@ -451,9 +463,10 @@ export const paymentLinksRouter = router({
       }),
     )
     .mutation(async ({ input }) => {
-      // Rate limit: 10 payments per minute per token
-      const { getRateLimiter } = await import("@/lib/security/rate-limiter");
-      const limiter = getRateLimiter();
+      try {
+        // Rate limit: 10 payments per minute per token
+        const { getRateLimiter } = await import("@/lib/security/rate-limiter");
+        const limiter = getRateLimiter();
       const rateLimit = await limiter.checkPaymentLinkRateLimit(input.token);
       if (!rateLimit.success) {
         throw new Error("Too many payment attempts. Please try again later.");
@@ -525,6 +538,9 @@ export const paymentLinksRouter = router({
         "Payment recorded via payment link",
       );
 
-      return { success: true };
+        return { success: true };
+      } catch (error) {
+        handleMutationError(error, "Failed to process payment");
+      }
     }),
 });

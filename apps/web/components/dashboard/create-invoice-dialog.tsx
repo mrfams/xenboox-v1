@@ -13,6 +13,7 @@ import { InvoiceLinesEditor, type InvoiceLine } from "./invoice-lines-editor";
 
 import { trpc } from "@/lib/trpc/client";
 import { useEntity } from "@/lib/entity-context";
+import { SUPPORTED_CURRENCIES } from "@/lib/config";
 import { dispatchActivationEvent } from "@/lib/hooks/use-activation-tracking";
 
 interface CreateInvoiceDialogProps {
@@ -44,7 +45,7 @@ export function CreateInvoiceDialog({
   const [invoiceNumber, setInvoiceNumber] = useState(defaultInvoiceNumber());
   const [invoiceDate, setInvoiceDate] = useState(today());
   const [dueDate, setDueDate] = useState(inDays(30));
-  const [currency, setCurrency] = useState(entityCurrency ?? "GMD");
+  const [currency, setCurrency] = useState(entityCurrency ?? "USD");
   const [notes, setNotes] = useState("");
   const [lines, setLines] = useState<InvoiceLine[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -222,7 +223,7 @@ export function CreateInvoiceDialog({
               onChange={(e) => setCurrency(e.target.value)}
               className={modalSelectCls}
             >
-              {["GMD", "USD", "EUR", "GBP", "NGN"].map((c) => (
+              {SUPPORTED_CURRENCIES.map((c) => (
                 <option key={c} value={c}>
                   {c}
                 </option>

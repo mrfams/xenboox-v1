@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useSession } from "next-auth/react";
 import { Bell, BellOff, BellRing, Check, X, Settings } from "lucide-react";
 
 import {
@@ -9,6 +10,7 @@ import {
   type NotificationType,
 } from "@/lib/notifications";
 import { cn } from "@/lib/utils";
+import { api } from "@/trpc/react";
 
 // ─── Notification Settings ─────────────────────────────────────────────────
 //
@@ -69,10 +71,33 @@ export function NotificationSettings() {
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
 
+  const { data: session } = useSession();
+  const getSettings = api.settings.get.useQuery(undefined, {
+    enabled: !!session?.user?.id,
+    staleTime: 5 * 60 * 1000,
+  });
+  const setSettingsMutation = api.settings.set.useMutation();
+
   useEffect(() => {
     setPermission(getNotificationPermission());
 
-    // Load saved settings from localStorage
+    // Try server first (cross-device persistence)
+    if (getSettings.data) {
+      const serverSettings = getSettings.data as Record<string, unknown>;
+      const notifPrefs = serverSettings.notifications as Record<string, boolean> | undefined;
+      if (notifPrefs) {
+        const merged = DEFAULT_SETTINGS.map((s) => ({
+          ...s,
+          enabled: notifPrefs[s.type] ?? s.enabled,
+        }));
+        setSettings(merged);
+        // Sync localStorage
+        localStorage.setItem("xenboox-notification-settings", JSON.stringify(merged));
+        return;
+      }
+    }
+
+    // Fallback to localStorage
     try {
       const saved = localStorage.getItem("xenboox-notification-settings");
       if (saved) {
@@ -81,7 +106,7 @@ export function NotificationSettings() {
     } catch {
       // Use defaults
     }
-  }, []);
+  }, [getSettings.data]);
 
   const handleRequestPermission = async () => {
     const newPermission = await requestNotificationPermission();
@@ -100,7 +125,7 @@ export function NotificationSettings() {
     );
     setSettings(newSettings);
 
-    // Save to localStorage
+    // Save to localStorage (instant)
     try {
       localStorage.setItem(
         "xenboox-notification-settings",
@@ -108,6 +133,15 @@ export function NotificationSettings() {
       );
     } catch {
       // Storage full
+    }
+
+    // Persist to server (cross-device)
+    if (session?.user?.id) {
+      const prefs: Record<string, boolean> = {};
+      for (const s of newSettings) {
+        prefs[s.type] = s.enabled;
+      }
+      setSettingsMutation.mutate({ notifications: prefs });
     }
   };
 

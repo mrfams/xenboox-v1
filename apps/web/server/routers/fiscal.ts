@@ -429,7 +429,7 @@ export const fiscalRouter = router({
         const { closeState } = await executeClosePipeline({
           entityId: ctx.entityId!,
           entityName: entity?.name ?? "Organization",
-          currency: entity?.currency ?? "GMD",
+          currency: entity?.currency ?? "USD",
           periodId: input.periodId,
           userId: ctx.session!.user!.id!,
           triggerSource: input.triggerSource,

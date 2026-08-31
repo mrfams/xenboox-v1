@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import {
   CalendarCheck,
@@ -134,9 +134,11 @@ export default function MissionControlPage() {
     URL.revokeObjectURL(url);
   };
 
-  // Activation tracking mirrors the primary surface.
+  // Activation tracking mirrors the primary surface (once per entity).
+  const firstVisitTracked = useRef(new Set<string>());
   useEffect(() => {
-    if (entityId) {
+    if (entityId && !firstVisitTracked.current.has(entityId)) {
+      firstVisitTracked.current.add(entityId);
       activationEvents.commandCenterFirstVisit(entityId);
     }
   }, [entityId]);

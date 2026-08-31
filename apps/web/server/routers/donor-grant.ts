@@ -80,7 +80,7 @@ export const donorGrantRouter = router({
         projectName: z.string().min(1),
         projectCode: z.string().optional(),
         grantAmount: z.number().positive(),
-        currency: z.string().length(3).default("GMD"),
+        currency: z.string().length(3).default("USD"),
         reportingFormat: z
           .enum(["usaid", "eu", "world_bank", "afdb", "custom"])
           .default("custom"),

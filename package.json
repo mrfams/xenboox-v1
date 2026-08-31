@@ -22,6 +22,7 @@
     "setup": "node scripts/setup.mjs",
     "agents:eval": "pnpm --filter=@xenboox/agents eval",
     "agents:trace": "open https://langfuse.xenboox.com",
+    "email:dev": "pnpm --filter=@xenboox/email email:dev",
     "prepare": "npx husky install"
   },
   "devDependencies": {

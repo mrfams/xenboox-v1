@@ -36,7 +36,7 @@ export const mobileMoneyRouter = router({
         provider: z.enum(["modempay", "afrimoney", "qmoney", "mpesa", "wave"]),
         phoneNumber: z.string().min(1),
         accountName: z.string().min(1),
-        currency: z.string().length(3).default("GMD"),
+        currency: z.string().length(3).default("USD"),
         isActive: z.boolean().default(true),
       }),
     )

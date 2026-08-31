@@ -15,7 +15,9 @@ import {
   claimLineItems,
   approvalRecords,
   reimbursementRecords,
+  entities,
 } from "@xenboox/db/schema";
+import { eq } from "drizzle-orm";
 
 import {
   router,
@@ -47,6 +49,11 @@ export const expensesRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       try {
+        const entityId = ctx.entityId!;
+        const entity = await db.query.entities.findFirst({
+          where: eq(entities.id, entityId),
+          columns: { currency: true },
+        });
         const now = new Date();
         const stamp =
           `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}` +
@@ -58,7 +65,7 @@ export const expensesRouter = router({
         const [expense] = await db
           .insert(invoicesAp)
           .values({
-            entityId: ctx.entityId!,
+            entityId,
             supplierId: input.supplierId,
             invoiceNumber: `EXP-${stamp}`,
             invoiceDate: input.expenseDate,
@@ -66,7 +73,7 @@ export const expensesRouter = router({
             totalAmount: input.amount,
             paidAmount: "0",
             balance: input.amount,
-            currency: "GMD",
+            currency: entity?.currency ?? "USD",
             status: "pending",
             notes: input.description,
             receivedDate: input.expenseDate,
@@ -1113,7 +1120,7 @@ export const expensesRouter = router({
         entityId: ctx.entityId!,
         claimId: input.claimId,
         amount: claim.totalAmount,
-        currency: claim.currency ?? "GMD",
+        currency: claim.currency ?? "USD",
         paymentMethod: input.paymentMethod,
         paidDate: new Date(),
         paymentRef: input.paymentRef ?? `REIMB-${claim.claimNumber}`,

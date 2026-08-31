@@ -1214,6 +1214,13 @@ export async function confirmOpeningBalance(
 ): Promise<{ saved: number }> {
   if (rows.length === 0) return { saved: 0 };
 
+  // Look up entity currency for the opening balances
+  const entityRow = await db.query.entities.findFirst({
+    where: eq(entities.id, entityId),
+    columns: { currency: true },
+  });
+  const entityCurrency = entityRow?.currency ?? "USD";
+
   const codes = [...new Set(rows.map((r) => r.code))];
   const accounts = await db.query.chartOfAccounts.findMany({
     where: and(
@@ -1235,7 +1242,7 @@ export async function confirmOpeningBalance(
           entityId,
           accountId: accountByCode.get(row.code)!,
           amount: row.amount.toString(),
-          currency: "GMD",
+          currency: entityCurrency,
           source: "owner_confirmed",
           confirmedByUserId,
           confirmedAt: new Date(),

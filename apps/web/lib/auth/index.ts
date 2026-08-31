@@ -104,7 +104,7 @@ async function ensureUserEntity(userId: string, userName: string) {
       organizationId: org.id,
       name: `${userName}'s Organization`,
       type: "company",
-      currency: "GMD",
+      currency: "USD",
       country: "GM",
       fiscalYearEnd: "12",
       isActive: true,

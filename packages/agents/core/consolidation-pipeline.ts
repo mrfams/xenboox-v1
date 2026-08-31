@@ -576,7 +576,7 @@ export async function runConsolidationPipeline(
         const parentEntity = await db.query.entities.findFirst({
           where: eq(entities.id, entityId),
         });
-        const parentCurrency = parentEntity?.currency ?? "GMD";
+        const parentCurrency = parentEntity?.currency ?? "USD";
 
         const translationsArr: TranslationItem[] = [];
         for (const sub of subsidiaries) {

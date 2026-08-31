@@ -39,7 +39,7 @@ export const cfoLivenessRouter = router({
             orgId: entity.organizationId,
             entityId,
             entityName: entity.name,
-            currency: "GMD",
+            currency: entity.currency ?? "USD",
             rawContent: input.instruction,
           }),
         );

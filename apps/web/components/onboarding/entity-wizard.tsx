@@ -118,7 +118,7 @@ export function EntityWizard({
   const [entityType, setEntityType] = useState<
     "company" | "subsidiary" | "branch" | "client"
   >("subsidiary");
-  const [currency, setCurrency] = useState("GMD");
+  const [currency, setCurrency] = useState("USD");
   const [country, setCountry] = useState("GM");
   const [industry, setIndustry] = useState("general");
   const [bankName, setBankName] = useState("");
@@ -408,8 +408,8 @@ function DetailsStep({
               onChange={(e) => setCurrency(e.target.value)}
               className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
             >
-              <option value="GMD">GMD (D)</option>
               <option value="USD">USD ($)</option>
+              <option value="GMD">GMD (D)</option>
               <option value="EUR">EUR (€)</option>
               <option value="GBP">GBP (£)</option>
               <option value="NGN">NGN (₦)</option>

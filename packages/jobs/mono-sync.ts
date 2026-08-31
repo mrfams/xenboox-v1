@@ -137,7 +137,7 @@ export const syncMonoTransactions = task({
           name: `${connection.institutionName} - ${connection.accountNumber ?? "Unknown"}`,
           bankName: connection.institutionName,
           accountNumber: connection.accountNumber ?? "",
-          currency: connection.currency ?? "GMD",
+          currency: connection.currency ?? "USD",
           currentBalance: "0",
         })
         .returning();
@@ -145,20 +145,35 @@ export const syncMonoTransactions = task({
       bankAccountId = newAccount!.id;
     }
 
-    // 4. Insert transactions with dedup by Mono ID
+    // 4. Batch dedup — collect all Mono IDs, query once
     let insertedCount = 0;
     let skippedCount = 0;
 
-    for (const tx of transactions) {
-      // Dedup by Mono transaction ID stored in metadata
-      const existing = await db.query.bankTransactions.findFirst({
-        where: and(
-          eq(bankTransactions.entityId, entityId),
-          eq(bankTransactions.description, tx.narration),
-        ),
-      });
+    const monoIds = transactions.map((tx) => tx.id);
+    const existingMonoIds = new Set<string>();
+    if (monoIds.length > 0) {
+      // Query in chunks to avoid IN clause limits
+      const CHUNK = 500;
+      for (let i = 0; i < monoIds.length; i += CHUNK) {
+        const chunk = monoIds.slice(i, i + CHUNK);
+        // Check metadata->>'monoId' for dedup
+        const existing = await db.query.bankTransactions.findMany({
+          where: and(
+            eq(bankTransactions.entityId, entityId),
+          ),
+          columns: { metadata: true },
+        });
+        for (const row of existing) {
+          const meta = (row.metadata ?? {}) as Record<string, unknown>;
+          if (meta.monoId && chunk.includes(meta.monoId as string)) {
+            existingMonoIds.add(meta.monoId as string);
+          }
+        }
+      }
+    }
 
-      if (existing) {
+    for (const tx of transactions) {
+      if (existingMonoIds.has(tx.id)) {
         skippedCount++;
         continue;
       }

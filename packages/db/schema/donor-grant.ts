@@ -66,7 +66,7 @@ export const donorProjects = pgTable(
     grantAmount: numeric("grant_amount", { precision: 15, scale: 2 })
       .notNull()
       .default("0"),
-    currency: text("currency").notNull().default("GMD"),
+    currency: text("currency").notNull().default("USD"),
     amountDisbursed: numeric("amount_disbursed", { precision: 15, scale: 2 })
       .notNull()
       .default("0"),

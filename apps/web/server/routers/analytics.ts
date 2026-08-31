@@ -47,7 +47,7 @@ export const analyticsRouter = router({
         const result = await runAnalyticsPipeline({
           entityId: ctx.entityId!,
           entityName: entityCtx.name ?? "Entity",
-          currency: entityCtx.currency ?? "GMD",
+          currency: entityCtx.currency ?? "USD",
           period: input.period,
           userId: ctx.session!.user!.id!,
           triggerSource: input.triggerSource,
@@ -242,7 +242,7 @@ export const analyticsRouter = router({
         margin,
         runway,
         liquidityRatio: Number(liquidity.toFixed(2)),
-        currency: entity?.currency ?? "GMD",
+        currency: entity?.currency ?? "USD",
       },
       findings,
       healthyCount: findings.filter((f) => f.entityValue >= f.benchmarkValue)

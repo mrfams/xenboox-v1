@@ -69,7 +69,7 @@ export const bankAccounts = pgTable(
     accountNumber: text("account_number").notNull(),
     swiftCode: text("swift_code"),
     type: bankAccountTypeEnum("type").notNull().default("checking"),
-    currency: text("currency").notNull().default("GMD"),
+    currency: text("currency").notNull().default("USD"),
     openingBalance: numeric("opening_balance", { precision: 15, scale: 2 })
       .notNull()
       .default("0"),

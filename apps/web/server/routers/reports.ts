@@ -1046,7 +1046,7 @@ export const reportsRouter = router({
       return runReportingPipeline({
         entityId: ctx.entityId!,
         entityName: entity?.name ?? "Entity",
-        currency: entity?.currency ?? "GMD",
+        currency: entity?.currency ?? "USD",
         periodId: input?.periodId,
       });
     }),

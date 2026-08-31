@@ -44,7 +44,7 @@ export const entitySettings = pgTable(
     // Currency code for the approval threshold
     approvalThresholdCurrency: text("approval_threshold_currency")
       .notNull()
-      .default("GMD"),
+      .default("USD"),
     // Modules/actions that always require human approval regardless of amount
     // e.g. ["payroll_run", "month_end_close"]
     alwaysRequireApproval: jsonb("always_require_approval")

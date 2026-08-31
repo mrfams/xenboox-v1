@@ -36,7 +36,7 @@ export const expenseRouter = router({
         category: z.string().min(1),
         description: z.string().min(1),
         totalAmount: z.number().min(0),
-        currency: z.string().default("GMD"),
+        currency: z.string().default("USD"),
         source: z.enum(["mobile", "web", "agent"]).default("web"),
         lineItems: z
           .array(

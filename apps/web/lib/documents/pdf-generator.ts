@@ -208,7 +208,7 @@ function renderSection(
         // Right-align numeric columns (heuristic: contains currency symbol or number)
         if (hookData.section === "body") {
           const cellValue = String(hookData.cell.raw);
-          if (/^[\d,.\s]/.test(cellValue) || cellValue.startsWith("GMD")) {
+          if (/^[\d,.\s]/.test(cellValue) || cellValue.startsWith("$")) {
             hookData.cell.styles.halign = "right";
           }
         }

@@ -23,6 +23,7 @@ import {
 import { db } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { sendInvitationEmail } from "@/lib/email";
+import { getServerAppUrl } from "@/lib/app-url";
 
 const INVITE_EXPIRY_DAYS = 7;
 
@@ -147,7 +148,7 @@ export const invitationsRouter = router({
         }
 
         // Send invitation email (fire-and-forget)
-        const inviteUrl = `${process.env.NEXTAUTH_URL || "https://xenboox.vercel.app"}/invite/${token}`;
+        const inviteUrl = `${getServerAppUrl()}/invite/${token}`;
         const expiresAtFormatted = expiresAt.toLocaleDateString("en-US", {
           year: "numeric",
           month: "long",
@@ -433,7 +434,7 @@ export const invitationsRouter = router({
           .where(eq(pendingInvites.id, input.inviteId));
 
         // Send invitation email (fire-and-forget)
-        const inviteUrl = `${process.env.NEXTAUTH_URL || "https://xenboox.vercel.app"}/invite/${token}`;
+        const inviteUrl = `${getServerAppUrl()}/invite/${token}`;
         const expiresAtFormatted = expiresAt.toLocaleDateString("en-US", {
           year: "numeric",
           month: "long",

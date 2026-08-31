@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { X, Star } from "lucide-react";
+import { useActivationStatus } from "@/lib/hooks/use-activation-status";
 
 const NPS_STORAGE_KEY = "xenboox-nps-last-shown";
 const NPS_DISMISSED_KEY = "xenboox-nps-dismissed";
@@ -42,8 +43,15 @@ export function NpsSurvey() {
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
+  const { events, trackEvent } = useActivationStatus();
+  // Server-side: check if NPS was submitted or dismissed
+  const npsSubmitted = events?.some((e: { event: string }) => e.event === "nps_submitted") ?? false;
+  const npsDismissed = events?.some((e: { event: string }) => e.event === "nps_dismissed") ?? false;
+
   useEffect(() => {
-    // Check if we should show the survey
+    if (npsSubmitted || npsDismissed) return;
+
+    // Check localStorage for instant UI (cross-device will be synced from server)
     const lastShown = localStorage.getItem(NPS_STORAGE_KEY);
     const dismissed = localStorage.getItem(NPS_DISMISSED_KEY);
 
@@ -62,11 +70,13 @@ export function NpsSurvey() {
     }, 30_000);
 
     return () => clearTimeout(timer);
-  }, []);
+  }, [npsSubmitted, npsDismissed]);
 
   const dismiss = () => {
     setOpen(false);
     localStorage.setItem(NPS_DISMISSED_KEY, "true");
+    // Track server-side (cross-device persistence)
+    trackEvent("nps_dismissed");
   };
 
   const submit = async () => {
@@ -84,10 +94,12 @@ export function NpsSurvey() {
         }),
       });
       setSubmitted(true);
+      // Track server-side (cross-device persistence)
+      trackEvent("nps_submitted", { score: selectedScore, category: getScoreCategory(selectedScore) });
       // Auto-close after 2 seconds
       setTimeout(() => setOpen(false), 2000);
     } catch {
-      // Silently fail — don't annoy the user
+      // Silently fail - don't annoy the user
       setOpen(false);
     } finally {
       setSubmitting(false);

@@ -121,19 +121,25 @@ export class ErrorBoundary extends Component<Props, State> {
     // Log to Sentry in production (if configured)
     if (typeof window !== "undefined") {
       try {
-        // @ts-expect-error — Sentry is optional
-        window.Sentry?.captureException(error, {
-          extra: {
-            componentStack: errorInfo.componentStack,
-            surface: this.props.surface,
-            action: this.props.action,
-            retryCount: this.state.retryCount,
-          },
-          tags: {
-            surface: this.props.surface || "unknown",
-            errorCategory: getErrorCategory(error),
-          },
-        });
+        // Dynamic import to avoid SSR issues — Sentry is optional
+        import("@sentry/nextjs")
+          .then(({ captureException }) => {
+            captureException(error, {
+              extra: {
+                componentStack: errorInfo.componentStack,
+                surface: this.props.surface,
+                action: this.props.action,
+                retryCount: this.state.retryCount,
+              },
+              tags: {
+                surface: this.props.surface || "unknown",
+                errorCategory: getErrorCategory(error),
+              },
+            });
+          })
+          .catch(() => {
+            // @sentry/nextjs not installed — silent fail
+          });
       } catch {
         // Sentry not available — silent fail
       }

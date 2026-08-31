@@ -1,3 +1,6 @@
+import { db } from "@xenboox/db";
+import { eq } from "drizzle-orm";
+import { fiscalPeriods } from "@xenboox/db/schema/accounting";
 import { langfuse } from "../../core/langfuse";
 import { createAuditEntry } from "../../core/state";
 import {
@@ -6,11 +9,13 @@ import {
   generateTrialBalance,
   generateCashFlow,
   generateBudgetVsActual,
+  generateNarrativeLLM,
   generateNarrative,
   generateDonorReport,
   findProjectsDueForReport,
 } from "./tools";
 import type { ReportingStateType } from "./state";
+import type { ProfitAndLoss, BalanceSheet } from "./state";
 
 // ─── Node: Parse Input ─────────────────────────────────────────────────────
 
@@ -374,37 +379,122 @@ export async function nodeGenerateNarrative(state: ReportingStateType) {
     };
   }
 
-  const narrative = generateNarrative(
-    state.entityName,
-    reportData,
-    state.currency,
-  );
+  try {
+    // Fetch prior period data for comparison
+    let priorPeriodData: {
+      profitAndLoss?: ProfitAndLoss | null;
+      balanceSheet?: BalanceSheet | null;
+    } | undefined;
 
-  const audit = createAuditEntry({
-    agentId: "reporting-agent",
-    action: "narrative_generated",
-    details: {
-      highlightsCount: narrative.highlights.length,
-      concernsCount: narrative.concerns.length,
-      summaryLength: narrative.summary.length,
-    },
-    confidence: 0.88,
-  });
+    if (state.currentRequest?.period) {
+      try {
+        const currentPeriodId = state.currentRequest.period;
+        // Try to find the prior period (one month before)
+        const periods = await db.query.fiscalPeriods.findMany({
+          where: eq(fiscalPeriods.entityId, state.entityId),
+          orderBy: (fiscalPeriods: any, { desc }: any) => [
+            desc(fiscalPeriods.year),
+            desc(fiscalPeriods.month),
+          ],
+        });
 
-  await span.update({
-    output: {
-      summaryLength: narrative.summary.length,
-      highlights: narrative.highlights.length,
-      concerns: narrative.concerns.length,
-    },
-  });
+        const currentIdx = periods.findIndex((p) => p.id === currentPeriodId);
+        if (currentIdx >= 0 && currentIdx < periods.length - 1) {
+          const priorPeriod = periods[currentIdx + 1];
+          const [priorPnl, priorBs] = await Promise.all([
+            generateProfitLoss(state.entityId, priorPeriod.id),
+            generateBalanceSheet(state.entityId),
+          ]);
+          priorPeriodData = {
+            profitAndLoss: priorPnl,
+            balanceSheet: priorBs,
+          };
+        }
+      } catch {
+        // Prior period data not available — continue without it
+      }
+    }
 
-  return {
-    narrative,
-    confidence: 0.88,
-    reasoning: `Narrative generated: ${narrative.highlights.length} highlights, ${narrative.concerns.length} concerns`,
-    auditTrail: [audit],
-  };
+    // Use LLM-powered narrative generation with prior period data
+    const narrative = await generateNarrativeLLM(
+      state.entityName,
+      state.entityId,
+      reportData,
+      state.currency,
+      priorPeriodData,
+    );
+
+    const audit = createAuditEntry({
+      agentId: "reporting-agent",
+      action: "narrative_generated",
+      details: {
+        highlightsCount: narrative.highlights.length,
+        concernsCount: narrative.concerns.length,
+        summaryLength: narrative.summary.length,
+        hasAction: !!narrative.action,
+        poweredBy: "llm",
+      },
+      confidence: 0.88,
+    });
+
+    await span.update({
+      output: {
+        summaryLength: narrative.summary.length,
+        highlights: narrative.highlights.length,
+        concerns: narrative.concerns.length,
+        hasAction: !!narrative.action,
+      },
+    });
+
+    return {
+      narrative,
+      confidence: 0.88,
+      reasoning: `LLM narrative generated: ${narrative.highlights.length} highlights, ${narrative.concerns.length} concerns, action: ${narrative.action ? "yes" : "no"}`,
+      auditTrail: [audit],
+    };
+  } catch (error) {
+    // Fallback to rule-based narrative if LLM fails
+    const msg = error instanceof Error ? error.message : String(error);
+    langfuse.event({
+      name: "narrative-llm-fallback",
+      metadata: { entityId: state.entityId, error: msg },
+    });
+
+    const narrative = generateNarrative(
+      state.entityName,
+      reportData,
+      state.currency,
+    );
+
+    const audit = createAuditEntry({
+      agentId: "reporting-agent",
+      action: "narrative_generated",
+      details: {
+        highlightsCount: narrative.highlights.length,
+        concernsCount: narrative.concerns.length,
+        summaryLength: narrative.summary.length,
+        poweredBy: "fallback",
+        error: msg,
+      },
+      confidence: 0.75,
+    });
+
+    await span.update({
+      output: {
+        summaryLength: narrative.summary.length,
+        highlights: narrative.highlights.length,
+        concerns: narrative.concerns.length,
+        fallback: true,
+      },
+    });
+
+    return {
+      narrative,
+      confidence: 0.75,
+      reasoning: `Fallback narrative generated (LLM failed: ${msg}): ${narrative.highlights.length} highlights, ${narrative.concerns.length} concerns`,
+      auditTrail: [audit],
+    };
+  }
 }
 
 // ─── Node: Escalate ────────────────────────────────────────────────────────

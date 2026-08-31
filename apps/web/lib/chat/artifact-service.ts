@@ -602,7 +602,7 @@ async function persistArtifact(params: {
         source: "chat",
         content: params.content,
         docType: params.docType,
-        formatCurrency: params.formatCurrency ?? "GMD",
+        formatCurrency: params.formatCurrency ?? "USD",
         generatedAt: new Date().toISOString(),
       },
     })

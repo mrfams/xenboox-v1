@@ -131,8 +131,16 @@ export const activationEvents = {
     trackFunnel("first_payment", { entityId, type });
   },
 
-  /** User visits the Command Center for the first time */
+  /** User visits the Command Center for the first time (once per session per entity) */
   commandCenterFirstVisit: (entityId: string) => {
+    // Session-level dedup: prevents firing on every mount/re-render
+    const dedupKey = `cmd_center_first_visit:${entityId}`;
+    try {
+      if (sessionStorage.getItem(dedupKey)) return;
+      sessionStorage.setItem(dedupKey, "1");
+    } catch {
+      // sessionStorage unavailable (SSR/incognito) — allow the event
+    }
     trackFunnel("command_center_first_visit", { entityId });
   },
 
@@ -140,5 +148,67 @@ export const activationEvents = {
   financialNarrativeViewed: (entityId: string, surface: string) => {
     track("ai_narrative_generated", { entityId, surface });
     trackFunnel("narrative_viewed", { entityId, surface });
+  },
+
+  // ── Checklist & Onboarding Funnel ───────────────────────────────────
+
+  /** User views a checklist step */
+  checklistStepViewed: (entityId: string, stepId: string) => {
+    trackFunnel("checklist_step_viewed", { entityId, stepId });
+  },
+
+  /** User completes a checklist step */
+  checklistStepCompleted: (entityId: string, stepId: string) => {
+    trackFunnel("checklist_step_completed", { entityId, stepId });
+  },
+
+  /** User dismisses the getting-started checklist */
+  checklistDismissed: (entityId: string, completedSteps: number) => {
+    trackFunnel("checklist_dismissed", { entityId, completedSteps });
+  },
+
+  // ── AI Interaction Funnel ───────────────────────────────────────────
+
+  /** User clicks a suggestion chip */
+  suggestionChipClicked: (entityId: string, chipText: string) => {
+    track("suggestion_chip_clicked", { entityId, chipText });
+    trackFunnel("suggestion_chip_click", { entityId });
+  },
+
+  /** User approves an AI suggestion */
+  aiSuggestionApproved: (entityId: string, suggestionType: string) => {
+    track("ai_suggestion_approved", { entityId, suggestionType });
+    trackFunnel("ai_suggestion_approved", { entityId, suggestionType });
+  },
+
+  /** User rejects an AI suggestion */
+  aiSuggestionRejected: (entityId: string, suggestionType: string) => {
+    track("ai_suggestion_rejected", { entityId, suggestionType });
+    trackFunnel("ai_suggestion_rejected", { entityId, suggestionType });
+  },
+
+  // ── Content Actions ─────────────────────────────────────────────────
+
+  /** User regenerates AI content */
+  contentRegenerated: (entityId: string, contentType: string) => {
+    track("content_regenerated", { entityId, contentType });
+  },
+
+  /** User pins content */
+  contentPinned: (entityId: string, contentType: string) => {
+    track("content_pinned", { entityId, contentType });
+  },
+
+  /** User copies content */
+  contentCopied: (entityId: string, contentType: string) => {
+    track("content_copied", { entityId, contentType });
+  },
+
+  // ── Export Actions ──────────────────────────────────────────────────
+
+  /** User exports data */
+  dataExported: (entityId: string, format: string, dataType: string) => {
+    track("data_exported", { entityId, format, dataType });
+    trackFunnel("data_exported", { entityId, format });
   },
 };

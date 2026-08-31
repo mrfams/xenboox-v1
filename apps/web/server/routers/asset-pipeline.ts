@@ -51,7 +51,7 @@ export const assetPipelineRouter = router({
         const result = await runAssetPipeline({
           entityId: ctx.entityId!,
           entityName: entityCtx.name ?? "Entity",
-          currency: entityCtx.currency ?? "GMD",
+          currency: entityCtx.currency ?? "USD",
           period: input.period,
           userId: ctx.session!.user!.id!,
           triggerSource: input.triggerSource,

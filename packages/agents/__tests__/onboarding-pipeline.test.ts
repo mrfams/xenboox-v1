@@ -208,7 +208,7 @@ describe("confirmOpeningBalance — owner-confirmed, idempotent, atomic", () => 
     expect(valuesCall1.source).toBe("owner_confirmed");
     expect(valuesCall1.confirmedByUserId).toBe("user-1");
     expect(valuesCall1.amount).toBe("15000");
-    expect(valuesCall1.currency).toBe("GMD");
+    expect(valuesCall1.currency).toBe("USD");
 
     const valuesCall2 = mocks.txValues.mock.calls[1]![0] as Record<
       string,

@@ -8,6 +8,7 @@ import { entities } from "@xenboox/db/schema/organization";
 import { db } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { resend, EMAIL_FROM } from "@/lib/resend";
+import { getAppUrl } from "@/lib/app-url";
 
 const log = logger.child({ module: "donor-portal-request" });
 
@@ -150,8 +151,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Build magic link URL
-    const baseUrl =
-      process.env.NEXT_PUBLIC_APP_URL || "https://xenboox.vercel.app";
+    const baseUrl = getAppUrl();
     const magicLinkUrl = `${baseUrl}/donor-portal/auth?token=${token}`;
 
     // Send email

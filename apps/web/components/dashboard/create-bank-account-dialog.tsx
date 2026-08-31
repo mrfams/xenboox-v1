@@ -12,6 +12,7 @@ import {
 
 import { trpc } from "@/lib/trpc/client";
 import { useEntity } from "@/lib/entity-context";
+import { SUPPORTED_CURRENCIES } from "@/lib/config";
 
 interface CreateBankAccountDialogProps {
   open: boolean;
@@ -30,7 +31,7 @@ export function CreateBankAccountDialog({
   const [name, setName] = useState("");
   const [bankName, setBankName] = useState("");
   const [accountNumber, setAccountNumber] = useState("");
-  const [currency, setCurrency] = useState(entityCurrency ?? "GMD");
+  const [currency, setCurrency] = useState(entityCurrency ?? "USD");
   const [type, setType] = useState<(typeof ACCOUNT_TYPES)[number]>("checking");
   const [openingBalance, setOpeningBalance] = useState("0");
   const [notes, setNotes] = useState("");
@@ -171,7 +172,7 @@ export function CreateBankAccountDialog({
               onChange={(e) => setCurrency(e.target.value)}
               className={modalSelectCls}
             >
-              {["GMD", "USD", "EUR", "GBP", "NGN"].map((c) => (
+              {SUPPORTED_CURRENCIES.map((c) => (
                 <option key={c} value={c}>
                   {c}
                 </option>

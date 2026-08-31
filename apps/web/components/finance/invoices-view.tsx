@@ -90,7 +90,7 @@ function exportCsv(invoices: Invoice[]) {
 }
 
 export function InvoicesView() {
-  const { entityId } = useEntity();
+  const { entityId, entityCurrency } = useEntity();
   const [status, setStatus] = useState<InvoiceStatus>("all");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
@@ -448,7 +448,7 @@ function InvoiceRow({
         <CreatePaymentLinkDialog
           invoiceId={invoice.id}
           balance={invoice.balance}
-          currency="GMD"
+          currency={entityCurrency ?? "USD"}
           onClose={() => setShowPaymentLink(false)}
         />
       )}

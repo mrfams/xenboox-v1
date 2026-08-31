@@ -1,80 +1,61 @@
-import {
-  Html,
-  Body,
-  Container,
-  Heading,
-  Text,
-  Section,
-  Tailwind,
-} from "@react-email/components"
+import { Text, Heading } from "@react-email/components";
+import { EmailLayout, DataRow, Divider } from "./_layout";
 
 type AssetCreatedProps = {
-  assetName: string
-  assetClass: string
-  cost: string
-  currency: string
-  usefulLifeMonths: number
-  depreciationMethod: string
-  entityName: string
-}
+  assetName: string;
+  assetClass: string;
+  cost: string;
+  currency: string;
+  usefulLifeMonths: number;
+  depreciationMethod: string;
+  entityName: string;
+};
 
 export function AssetCreatedEmail(props: AssetCreatedProps) {
   return (
-    <Html>
-      <Tailwind>
-        <Body className="bg-gray-50 font-sans">
-          <Container className="mx-auto py-8 px-4 max-w-2xl">
-            <Heading className="text-2xl font-bold text-gray-900 mb-4">
-              New Fixed Asset Added
-            </Heading>
-            <Text className="text-gray-600 mb-6">
-              {props.entityName}
-            </Text>
+    <EmailLayout
+      preview={`New fixed asset added: ${props.assetName}`}
+    >
+      <Heading className="text-[22px] font-bold text-[#0F172A] m-0 mb-2">
+        New Fixed Asset Added 🏢
+      </Heading>
 
-            <Section className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
-              <Heading as="h2" className="text-lg font-semibold text-gray-900 mb-4">
-                Asset Details
-              </Heading>
-              <div className="space-y-3">
-                <div className="flex justify-between">
-                  <Text className="text-gray-600 m-0">Name</Text>
-                  <Text className="font-semibold text-gray-900 m-0">{props.assetName}</Text>
-                </div>
-                <div className="flex justify-between">
-                  <Text className="text-gray-600 m-0">Class</Text>
-                  <Text className="font-semibold text-gray-900 m-0">{props.assetClass}</Text>
-                </div>
-                <div className="flex justify-between">
-                  <Text className="text-gray-600 m-0">Cost</Text>
-                  <Text className="font-bold text-blue-600 m-0">{props.currency} {props.cost}</Text>
-                </div>
-                <div className="flex justify-between">
-                  <Text className="text-gray-600 m-0">Useful Life</Text>
-                  <Text className="font-semibold text-gray-900 m-0">{props.usefulLifeMonths} months</Text>
-                </div>
-                <div className="flex justify-between">
-                  <Text className="text-gray-600 m-0">Depreciation Method</Text>
-                  <Text className="font-semibold text-gray-900 m-0">{props.depreciationMethod}</Text>
-                </div>
-              </div>
-            </Section>
+      <Text className="text-[15px] text-[#64748B] m-0 mb-6">
+        {props.entityName}
+      </Text>
 
-            <Text className="text-gray-500 text-sm mt-8 text-center">
-              This notification was sent by Xenboox AI Accounting
-            </Text>
-          </Container>
-        </Body>
-      </Tailwind>
-    </Html>
-  )
+      <div className="bg-[#F8FAFC] rounded-lg p-4 mb-4">
+        <DataRow label="Asset" value={props.assetName} bold />
+        <Divider />
+        <DataRow label="Class" value={props.assetClass} />
+        <Divider />
+        <DataRow
+          label="Cost"
+          value={`${props.currency} ${props.cost}`}
+          bold
+        />
+        <Divider />
+        <DataRow
+          label="Useful Life"
+          value={`${props.usefulLifeMonths} months`}
+        />
+        <Divider />
+        <DataRow label="Depreciation" value={props.depreciationMethod} />
+      </div>
+
+      <Text className="text-[13px] text-[#94A3B8] m-0 mt-4 text-center">
+        Depreciation will be calculated automatically each month.
+      </Text>
+    </EmailLayout>
+  );
 }
 
 AssetCreatedEmail.PreviewProps = {
-  assetName: "Company Vehicle",
-  assetClass: "Vehicles",
-  cost: "150,000",
-  currency: "GMD",
-  usefulLifeMonths: 60,
-  depreciationMethod: "straight_line",
-  entityName: "Xenboox Demo",
-} satisfies AssetCreatedProps
+  assetName: "Office Laptop — MacBook Pro",
+  assetClass: "Computer Equipment",
+  cost: "2,499.00",
+  currency: "USD",
+  usefulLifeMonths: 36,
+  depreciationMethod: "Straight-Line",
+  entityName: "Acme Corp",
+} satisfies AssetCreatedProps;

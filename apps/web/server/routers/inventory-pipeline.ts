@@ -49,7 +49,7 @@ export const inventoryPipelineRouter = router({
         const result = await runInventoryPipeline({
           entityId: ctx.entityId!,
           entityName: entityCtx.name ?? "Entity",
-          currency: entityCtx.currency ?? "GMD",
+          currency: entityCtx.currency ?? "USD",
           period: input.period,
           userId: ctx.session!.user!.id!,
         });

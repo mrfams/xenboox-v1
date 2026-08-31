@@ -21,6 +21,7 @@ import {
   type UploadedFile,
 } from "@/components/chat/chat-file-upload";
 import type { useDashboardChat } from "@/lib/hooks/use-dashboard-chat";
+import { trpc } from "@/lib/trpc/client";
 
 // ─── AiInput ───────────────────────────────────────────────────────────────
 //
@@ -77,17 +78,37 @@ export function AiInput({
     }
   };
 
-  const suggestions = [
-    { label: "Cash position", icon: Wallet, color: "text-balanced-green" },
-    { label: "Show P&L", icon: TrendingUp, color: "text-primary" },
-    {
-      label: "What's overdue?",
-      icon: AlertTriangle,
-      color: "text-attention-amber",
-    },
-    { label: "Run payroll", icon: Calendar, color: "text-signal-indigo" },
-    { label: "Close books", icon: FileText, color: "text-signal-indigo" },
-  ];
+  // Dynamic suggestions from the backend — entity-state-aware
+  const { data: dynamicSuggestions } =
+    trpc.dashboard.getDashboardSuggestions.useQuery(undefined, {
+      enabled: !!entityId,
+    });
+
+  // Icon/color mapping for suggestion IDs
+  const suggestionMeta: Record<
+    string,
+    { icon: typeof Wallet; color: string }
+  > = {
+    overdue_invoices: { icon: AlertTriangle, color: "text-attention-amber" },
+    pending_journals: { icon: FileText, color: "text-signal-indigo" },
+    payroll: { icon: Calendar, color: "text-signal-indigo" },
+    close_books: { icon: FileText, color: "text-signal-indigo" },
+    cash_position: { icon: Wallet, color: "text-balanced-green" },
+    forecast: { icon: TrendingUp, color: "text-primary" },
+  };
+
+  const defaultIcon = { icon: Sparkles, color: "text-primary" };
+
+  const suggestions = (
+    dynamicSuggestions ?? [
+      { id: "cash_position", label: "Cash position", prompt: "Explain my current cash position" },
+      { id: "forecast", label: "Show P&L", prompt: "Forecast cash flow for next month" },
+      { id: "close_books", label: "Close books", prompt: "Close the books for this month" },
+    ]
+  ).map((s) => {
+    const meta = suggestionMeta[s.id] ?? defaultIcon;
+    return { ...s, ...meta };
+  });
 
   const handleRemoveFile = (index: number) => {
     if (onRemoveFile) onRemoveFile(index);
@@ -105,9 +126,9 @@ export function AiInput({
           const Icon = suggestion.icon;
           return (
             <button
-              key={suggestion.label}
+              key={suggestion.id}
               type="button"
-              onClick={() => handleSubmit(suggestion.label)}
+              onClick={() => handleSubmit(suggestion.prompt ?? suggestion.label)}
               disabled={isResponding}
               className={cn(
                 "inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border/40 bg-background/50",

@@ -7,18 +7,6 @@ import { orgRoles } from "@xenboox/db/schema/org-roles";
 import { pendingInvites } from "@xenboox/db/schema/invitations";
 import { auditLog } from "@xenboox/db/schema/documents";
 
-function getAppUrl(): string {
-  const url = process.env.NEXT_PUBLIC_APP_URL;
-  if (!url) {
-    if (process.env.NODE_ENV === "production") {
-      throw new Error(
-        "NEXT_PUBLIC_APP_URL must be set in production — auth emails require a public URL.",
-      );
-    }
-    return "http://localhost:3000";
-  }
-  return url;
-}
 import bcrypt from "bcryptjs";
 import { nanoid } from "nanoid";
 import { SignJWT, jwtVerify } from "jose";
@@ -49,6 +37,7 @@ import {
   meetsPasswordPolicy,
 } from "@/lib/security/password-policy";
 import { revokeUserSessions } from "@/lib/auth/session-revocation";
+import { getAppUrl } from "@/lib/app-url";
 
 const LOCKOUT_THRESHOLD = 5;
 const LOCKOUT_DURATION_MS = 30 * 60 * 1000; // 30 minutes

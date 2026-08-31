@@ -5,8 +5,8 @@ import {
   seedDefaultThresholds,
   runCFOPipeline,
   createInputEvent,
-} from "@xenboox/agents/core/pipeline";
-import type { AgentTaskType } from "@xenboox/agents/core/orchestrator";
+} from "@xenboox/agents/core/pipeline";import type { AgentTaskType } from "@xenboox/agents/core/orchestrator";
+import { APP_CONFIG } from "@/lib/config";
 
 import {
   handleMutationError,
@@ -48,7 +48,7 @@ export const agentRouter = router({
       z.object({
         message: z.string().min(1).max(10000),
         entityName: z.string().default("Organization"),
-        currency: z.string().default("GMD"),
+        currency: z.string().default("USD"),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -100,7 +100,7 @@ export const agentRouter = router({
         taskType: agentTaskTypeSchema,
         input: z.record(z.unknown()).default({}),
         entityName: z.string().default("Organization"),
-        currency: z.string().default("GMD"),
+        currency: z.string().default("USD"),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -169,7 +169,7 @@ export const agentRouter = router({
     return {
       entityId: ctx.entityId,
       agentsAvailable,
-      version: "0.1.0",
+      version: APP_CONFIG.version,
     };
   }),
 });

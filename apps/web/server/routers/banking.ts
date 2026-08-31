@@ -84,7 +84,7 @@ export const bankingRouter = router({
     // Balance by currency
     const balanceByCurrency: Record<string, number> = {};
     for (const account of accounts) {
-      const currency = account.currency ?? "GMD";
+      const currency = account.currency ?? "USD";
       balanceByCurrency[currency] =
         (balanceByCurrency[currency] ?? 0) +
         parseFloat(account.currentBalance ?? "0");
@@ -529,7 +529,7 @@ export const bankingRouter = router({
           isReconciled: tx.isReconciled,
           accountName: tx.bankAccount?.name ?? "Unknown Account",
           bankName: tx.bankAccount?.bankName ?? "",
-          currency: tx.bankAccount?.currency ?? "GMD",
+          currency: tx.bankAccount?.currency ?? "USD",
         })),
         totalCount,
         totalPages: Math.ceil(totalCount / input.limit),

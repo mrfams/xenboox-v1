@@ -127,7 +127,7 @@ export const automationPerformance = pgTable("automation_performance", {
     scale: 2,
   }),
   costSavingsCurrency: varchar("cost_savings_currency", { length: 10 }).default(
-    "GMD",
+    "USD",
   ),
 });
 
