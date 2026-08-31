@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useMemo } from "react";
-import { api } from "@xenboox/web/trpc/react";
+import { trpc } from "@/lib/trpc/client";
 import {
   ACTIVATION_EVENTS,
   calculateActivationScore,
@@ -13,7 +13,7 @@ import {
 // ─── Track Activation Event ────────────────────────────────────────────────
 
 export function useTrackActivation() {
-  const utils = api.useUtils();
+  const utils = trpc.useUtils();
 
   const trackEvent = useCallback(
     async (
@@ -39,7 +39,7 @@ export function useTrackActivation() {
 // ─── Get Activation Status ─────────────────────────────────────────────────
 
 export function useActivationStatus() {
-  const { data: events } = api.analytics.getActivationEvents.useQuery();
+  const { data: events } = trpc.analytics.getActivationEvents.useQuery();
 
   const completedEvents = useMemo(
     () => (events ?? []).map((e) => e.event),

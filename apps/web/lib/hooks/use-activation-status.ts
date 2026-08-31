@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useMemo } from "react";
-import { api } from "@/trpc/react";
+import { trpc } from "@/lib/trpc/client";
 
 /**
  * Server-side activation status hook.
@@ -9,10 +9,10 @@ import { api } from "@/trpc/react";
  * Uses tRPC for all mutations and queries.
  */
 export function useActivationStatus() {
-  const utils = api.useUtils();
+  const utils = trpc.useUtils();
 
   // Get activation status from server
-  const { data: status, isLoading } = api.activation.getStatus.useQuery();
+  const { data: status, isLoading } = trpc.activation.getStatus.useQuery();
 
   // Track activation event
   const trackEvent = useCallback(
@@ -33,7 +33,7 @@ export function useActivationStatus() {
   );
 
   // Get funnel metrics (admin only)
-  const { data: funnelMetrics } = api.activation.getFunnelMetrics.useQuery();
+  const { data: funnelMetrics } = trpc.activation.getFunnelMetrics.useQuery();
 
   return {
     score: status?.score ?? 0,

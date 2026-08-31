@@ -17,7 +17,6 @@ import {
   reimbursementRecords,
   entities,
 } from "@xenboox/db/schema";
-import { eq } from "drizzle-orm";
 
 import {
   router,

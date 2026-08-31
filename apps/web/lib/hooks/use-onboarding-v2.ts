@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { api } from "@/trpc/react";
+import { trpc } from "@/lib/trpc/client";
 
 export type OnboardingStep =
   | "welcome"
@@ -28,10 +28,10 @@ const STEPS: OnboardingStep[] = [
  * Shared across all onboarding surfaces (wizard, checklist, tour).
  */
 export function useOnboardingV2() {
-  const utils = api.useUtils();
+  const utils = trpc.useUtils();
 
   // Get onboarding status from server
-  const { data: status, isLoading } = api.activation.getStatus.useQuery();
+  const { data: status, isLoading } = trpc.activation.getStatus.useQuery();
 
   // Derive onboarding state from activation events
   const isFirstTime = !status?.isFullyActivated && (status?.progress.completed ?? 0) < 3;

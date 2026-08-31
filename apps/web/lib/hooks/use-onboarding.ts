@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
-import { api } from "@/trpc/react";
+import { trpc } from "@/lib/trpc/client";
 
 const ONBOARDING_KEY = "xenboox_onboarding_completed";
 const ONBOARDING_STEP_KEY = "xenboox_onboarding_step";
@@ -39,13 +39,13 @@ export function useOnboarding() {
   const [isLoaded, setIsLoaded] = useState(false);
 
   // Server-side settings query (onboarding state)
-  const getSettings = api.settings.get.useQuery(undefined, {
+  const getSettings = trpc.settings.get.useQuery(undefined, {
     enabled: !!session?.user?.id,
     staleTime: 5 * 60 * 1000,
   });
 
   // Server-side settings mutation
-  const setSettings = api.settings.set.useMutation();
+  const setSettings = trpc.settings.set.useMutation();
 
   useEffect(() => {
     if (isLoaded) return;

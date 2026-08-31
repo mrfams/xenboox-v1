@@ -12,7 +12,7 @@ import {
 } from "@/components/ui";
 import { Brain, Check, X, Save, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
-import { api } from "@/trpc/react";
+import { trpc } from "@/lib/trpc/client";
 
 type AIPreferences = {
   autoReconcile: boolean;
@@ -50,11 +50,11 @@ export function AIPreferencesSummary() {
   const [hasChanges, setHasChanges] = useState(false);
 
   // Server-side settings
-  const getSettings = api.settings.get.useQuery(undefined, {
+  const getSettings = trpc.settings.get.useQuery(undefined, {
     enabled: !!session?.user?.id,
     staleTime: 5 * 60 * 1000,
   });
-  const setSettingsMutation = api.settings.set.useMutation();
+  const setSettingsMutation = trpc.settings.set.useMutation();
 
   useEffect(() => {
     // Try server first (cross-device persistence)

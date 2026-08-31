@@ -10,7 +10,7 @@ import {
   type NotificationType,
 } from "@/lib/notifications";
 import { cn } from "@/lib/utils";
-import { api } from "@/trpc/react";
+import { trpc } from "@/lib/trpc/client";
 
 // ─── Notification Settings ─────────────────────────────────────────────────
 //
@@ -72,11 +72,11 @@ export function NotificationSettings() {
   const [toastMessage, setToastMessage] = useState("");
 
   const { data: session } = useSession();
-  const getSettings = api.settings.get.useQuery(undefined, {
+  const getSettings = trpc.settings.get.useQuery(undefined, {
     enabled: !!session?.user?.id,
     staleTime: 5 * 60 * 1000,
   });
-  const setSettingsMutation = api.settings.set.useMutation();
+  const setSettingsMutation = trpc.settings.set.useMutation();
 
   useEffect(() => {
     setPermission(getNotificationPermission());
