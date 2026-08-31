@@ -65,7 +65,8 @@ export type TaxStepStatus =
   | "skipped"
   | "escalated";
 
-export type Jurisdiction = "GM" | "SN" | "GH" | "NG" | "KE" | "US";
+/** Any ISO 3166-1 alpha-2 country code. Previously hardcoded to 6 seeded countries. */
+export type Jurisdiction = string;
 
 export type TaxRuleType = "vat" | "paye" | "withholding" | "corporate";
 
@@ -215,6 +216,28 @@ export interface TaxComplianceResult {
   auditTrail: AuditEntry[];
   durationMs: number;
   completedAt: string;
+}
+
+// ─── Dynamic Jurisdiction Discovery ─────────────────────────────────────────
+//
+// Instead of hardcoding which countries are supported, query the database
+// for any entity's active tax rules and derive jurisdictions from them.
+// This lets users in ANY country create taxes and have the pipeline pick
+// them up automatically.
+
+async function getActiveJurisdictions(
+  entityId: string,
+): Promise<Jurisdiction[]> {
+  const rows = await db.query.jurisdictionTaxRules.findMany({
+    where: and(
+      eq(jurisdictionTaxRules.entityId, entityId),
+      eq(jurisdictionTaxRules.status, "active"),
+    ),
+    columns: { country: true },
+  });
+  const codes = [...new Set(rows.map((r) => r.country).filter(Boolean))];
+  // Fallback: if no rules exist yet, don't run any jurisdiction steps
+  return codes as Jurisdiction[];
 }
 
 // ─── Jurisdiction Configurations ────────────────────────────────────────────
@@ -622,7 +645,7 @@ export async function executeTaxCompliancePipeline(params: {
       triggerSource: params.triggerSource ?? "manual",
       jurisdictions:
         params.jurisdictions ??
-        (["GM", "SN", "GH", "NG", "KE", "US"] as Jurisdiction[]),
+        (await getActiveJurisdictions(params.entityId)),
     },
   });
 
@@ -651,7 +674,7 @@ export async function executeTaxCompliancePipeline(params: {
 
   const activeJurisdictions =
     params.jurisdictions ??
-    (["GM", "SN", "GH", "NG", "KE", "US"] as Jurisdiction[]);
+    (await getActiveJurisdictions(params.entityId));
 
   try {
     // ── Step 1: Jurisdiction Rule Registry ──────────────────────────────────
@@ -2008,6 +2031,6 @@ export async function getTaxComplianceStatus(params: {
     vatSummary,
     upcomingDeadlines: deadlineItems.filter((d) => d.status === "pending"),
     overdueDeadlines: deadlineItems.filter((d) => d.status === "overdue"),
-    activeJurisdictions: ["GM", "SN", "GH", "NG", "KE", "US"] as Jurisdiction[],
+    activeJurisdictions: await getActiveJurisdictions(params.entityId),
   };
 }

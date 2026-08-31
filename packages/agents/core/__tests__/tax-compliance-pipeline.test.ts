@@ -280,8 +280,15 @@ const db = dbTyped as any;
 describe("Tax & Compliance Pipeline — Phase 2", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    // Default: no persisted rules
-    db.query.jurisdictionTaxRules.findMany.mockResolvedValue([]);
+    // Default: entity has active tax rules for GM and US
+    db.query.jurisdictionTaxRules.findMany.mockResolvedValue([
+      { country: "GM", ruleType: "vat", name: "GRA VAT", status: "active", version: 1, rateOrBands: { type: "rate", rate: 0.15 }, effectiveFrom: "2025-01-01", effectiveTo: null },
+      { country: "GM", ruleType: "paye", name: "GRA PAYE", status: "active", version: 1, rateOrBands: { type: "bands", bands: [{ from: 0, to: 3000, rate: 0 }, { from: 3001, to: 6000, rate: 0.1 }, { from: 6001, to: 12000, rate: 0.15 }, { from: 12001, to: 30000, rate: 0.2 }, { from: 30001, to: null, rate: 0.3 }] }, effectiveFrom: "2025-01-01", effectiveTo: null },
+      { country: "GM", ruleType: "social_security", name: "SSHFC", status: "active", version: 1, rateOrBands: { type: "rate", employeeRate: 0.05, employerRate: 0.1, ceiling: 30000 }, effectiveFrom: "2025-01-01", effectiveTo: null },
+      { country: "GM", ruleType: "withholding", name: "GRA WHT", status: "active", version: 1, rateOrBands: { type: "rate", rate: 0.1 }, effectiveFrom: "2025-01-01", effectiveTo: null },
+      { country: "GM", ruleType: "corporate", name: "Gambia CIT", status: "active", version: 1, rateOrBands: { type: "rate", rate: 0.27 }, effectiveFrom: "2025-01-01", effectiveTo: null },
+      { country: "US", ruleType: "sales_tax", name: "US Sales Tax NY", status: "active", version: 1, rateOrBands: { type: "rate", rate: 0.04 }, effectiveFrom: "2025-01-01", effectiveTo: null },
+    ]);
 
     // Default: AP invoices exist for the period
     db.query.invoicesAp.findMany.mockResolvedValue([
@@ -377,7 +384,14 @@ describe("Tax & Compliance Pipeline — Phase 2", () => {
   // ── Step 1: Jurisdiction Rule Registry ────────────────────────────────────
 
   describe("Step 1: Jurisdiction Rule Registry", () => {
-    it("should load built-in jurisdiction configs when no persisted rules exist", async () => {
+    it("should discover jurisdictions from active tax rules in DB", async () => {
+      // Mock: entity has active rules for GM and US
+      db.query.jurisdictionTaxRules.findMany.mockResolvedValue([
+        { country: "GM" },
+        { country: "US" },
+        { country: "GM" }, // duplicate should be deduped
+      ]);
+
       const { runTaxCompliancePipeline } = await import(
         "../tax-compliance-pipeline"
       );
@@ -394,14 +408,7 @@ describe("Tax & Compliance Pipeline — Phase 2", () => {
       );
       expect(step1).toBeDefined();
       expect(step1!.status).toBe("completed");
-      expect(step1!.details.jurisdictionsLoaded).toEqual([
-        "GM",
-        "SN",
-        "GH",
-        "NG",
-        "KE",
-        "US",
-      ]);
+      expect(step1!.details.jurisdictionsLoaded).toEqual(["GM", "US"]);
     });
 
     it("should load persisted jurisdiction rules when they exist", async () => {
@@ -440,6 +447,9 @@ describe("Tax & Compliance Pipeline — Phase 2", () => {
     });
 
     it("should handle entity with no tax rules gracefully", async () => {
+      // Mock: no active rules for this entity
+      db.query.jurisdictionTaxRules.findMany.mockResolvedValue([]);
+
       const { runTaxCompliancePipeline } = await import(
         "../tax-compliance-pipeline"
       );
@@ -818,17 +828,12 @@ describe("Tax & Compliance Pipeline — Phase 2", () => {
       });
 
       expect(result.filingDeadlines.length).toBeGreaterThan(0);
+      // Jurisdictions are dynamically discovered from active tax rules
       const jurisdictions = [
         ...new Set(result.filingDeadlines.map((d) => d.jurisdiction)),
       ];
-      expect(jurisdictions.sort()).toEqual([
-        "GH",
-        "GM",
-        "KE",
-        "NG",
-        "SN",
-        "US",
-      ]);
+      expect(jurisdictions).toContain("GM");
+      expect(jurisdictions).toContain("US");
     });
 
     it("should mark overdue deadlines correctly", async () => {

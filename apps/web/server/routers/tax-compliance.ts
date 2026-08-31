@@ -33,7 +33,7 @@ export const taxComplianceRouter = router({
           .enum(["manual", "scheduled", "agent"])
           .default("manual"),
         jurisdictions: z
-          .array(z.enum(["GM", "SN", "GH", "NG", "KE", "US"]))
+          .array(z.string().length(2).toUpperCase())
           .optional(),
         includeCorporateTax: z.boolean().optional(),
         simulateRules: z.boolean().optional(),
@@ -175,7 +175,7 @@ export const taxComplianceRouter = router({
       z
         .object({
           status: z.enum(["pending", "filed", "overdue", "waived"]).optional(),
-          jurisdiction: z.enum(["GM", "SN", "GH", "NG", "KE", "US"]).optional(),
+          jurisdiction: z.string().length(2).toUpperCase().optional(),
         })
         .optional(),
     )
@@ -198,7 +198,7 @@ export const taxComplianceRouter = router({
     .input(
       z
         .object({
-          country: z.enum(["GM", "SN", "GH", "NG", "KE", "US"]).optional(),
+          country: z.string().length(2).toUpperCase().optional(),
           ruleType: z
             .enum(["vat", "paye", "withholding", "corporate"])
             .optional(),

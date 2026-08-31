@@ -78,7 +78,8 @@ export type PayrollStepStatus =
   | "failed"
   | "skipped";
 
-export type Jurisdiction = "GM" | "SN" | "GH" | "NG" | "KE" | "US";
+/** Any ISO 3166-1 alpha-2 country code. Previously hardcoded to 6 seeded countries. */
+export type Jurisdiction = string;
 
 export type EmploymentType =
   | "full_time"
