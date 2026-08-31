@@ -2,19 +2,21 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Card, CardContent, CardHeader, CardTitle } from "@xenboox/ui/card";
-import { Button } from "@xenboox/ui/button";
-import { Input } from "@xenboox/ui/input";
-import { Label } from "@xenboox/ui/label";
 import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Button,
+  Input,
+  Label,
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@xenboox/ui/select";
-import { Progress } from "@xenboox/ui/progress";
-import { Badge } from "@xenboox/ui/badge";
+} from "@xenboox/ui";
+import { Progress, Badge } from "@xenboox/ui";
 import {
   ArrowLeft,
   ArrowRight,

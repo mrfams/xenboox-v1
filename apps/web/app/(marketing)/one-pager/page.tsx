@@ -1,5 +1,3 @@
-"use client";
-
 import Link from "next/link";
 import {
   ArrowRight,
@@ -9,12 +7,12 @@ import {
   Shield,
   Zap,
   Users,
-  Download,
 } from "lucide-react";
 
 import { FadeInUp } from "@/components/marketing/reveal";
 import { BreadcrumbJsonLd } from "@/components/marketing/json-ld";
 import { LogoCloud } from "@/components/marketing/logo-cloud";
+import { PrintButton } from "@/components/marketing/print-button";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -298,15 +296,7 @@ export default function OnePagerPage() {
               >
                 See How We Compare
               </Link>
-              <button
-                type="button"
-                aria-label="Download one-pager"
-                onClick={() => window.print()}
-                className="inline-flex h-12 items-center rounded-full border border-border bg-card px-8 text-sm font-medium text-foreground hover:bg-accent/50 transition-colors"
-              >
-                <Download className="mr-2 h-4 w-4" aria-hidden="true" />
-                Download one-pager
-              </button>
+              <PrintButton />
             </div>
           </FadeInUp>
         </div>

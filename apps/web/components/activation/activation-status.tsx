@@ -1,9 +1,14 @@
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@xenboox/ui/card";
-import { Button } from "@xenboox/ui/button";
-import { Badge } from "@xenboox/ui/badge";
-import { Progress } from "@xenboox/ui/progress";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Button,
+  Badge,
+  Progress,
+} from "@xenboox/ui";
 import {
   CheckCircle2,
   Circle,

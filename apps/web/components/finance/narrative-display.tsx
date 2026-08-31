@@ -1,9 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@xenboox/ui/card";
-import { Badge } from "@xenboox/ui/badge";
-import { Button } from "@xenboox/ui/button";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Badge,
+  Button,
+} from "@xenboox/ui";
 import {
   ChevronDown,
   ChevronUp,
