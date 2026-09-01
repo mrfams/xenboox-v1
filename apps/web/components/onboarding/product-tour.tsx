@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui";
 import { cn } from "@/lib/utils";
-import { useActivationStatus } from "@/lib/hooks/use-activation-status";
 import {
   MessageSquare,
   Bell,
@@ -253,18 +252,11 @@ export function ProductTour() {
   const [isActive, setIsActive] = useState(false);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [isLoaded, setIsLoaded] = useState(false);
-  const { events } = useActivationStatus();
-  // Server-side: check if tour was completed via activation events
-  const tourCompleted = events?.some((e: { event: string }) => e.event === "product_tour_completed" || e.event === "product_tour_skipped") ?? false;
 
   useEffect(() => {
-    if (tourCompleted) {
-      setIsLoaded(true);
-      return;
-    }
-    // Also check localStorage for instant UI
     const completed = localStorage.getItem(TOUR_KEY);
     if (completed !== "true") {
+      // Delay tour start to let dashboard render
       const timer = setTimeout(() => {
         setIsActive(true);
       }, 1500);
@@ -272,7 +264,7 @@ export function ProductTour() {
       return () => clearTimeout(timer);
     }
     setIsLoaded(true);
-  }, [tourCompleted]);
+  }, []);
 
   const handleNext = useCallback(() => {
     if (currentStepIndex < TOUR_STEPS.length - 1) {
@@ -289,20 +281,35 @@ export function ProductTour() {
   }, [currentStepIndex]);
 
   const handleComplete = useCallback(() => {
-    // Track completion server-side (cross-device persistence)
-    trackEvent("product_tour_completed");
+    // Analytics: track tour completion
+    try {
+      const { track } = require("@/lib/analytics/events");
+      track("product_tour_completed", {
+        entityId: localStorage.getItem("currentEntityId") ?? "",
+      });
+    } catch {
+      // Non-blocking
+    }
     localStorage.setItem(TOUR_KEY, "true");
     localStorage.removeItem(TOUR_STEP_KEY);
     setIsActive(false);
-  }, [trackEvent]);
+  }, []);
 
   const handleSkip = useCallback(() => {
-    // Track skip server-side (cross-device persistence)
-    trackEvent("product_tour_skipped");
+    // Analytics: track tour skip
+    try {
+      const { track } = require("@/lib/analytics/events");
+      track("product_tour_skipped", {
+        entityId: localStorage.getItem("currentEntityId") ?? "",
+        step: currentStepIndex,
+      });
+    } catch {
+      // Non-blocking
+    }
     localStorage.setItem(TOUR_KEY, "true");
     localStorage.removeItem(TOUR_STEP_KEY);
     setIsActive(false);
-  }, [trackEvent]);
+  }, [currentStepIndex]);
 
   if (!isLoaded || !isActive) return null;
 
