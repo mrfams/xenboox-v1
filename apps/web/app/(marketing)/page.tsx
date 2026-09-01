@@ -5,10 +5,7 @@ import { Cta } from "@/components/marketing/cta";
 import { DemoVideo } from "@/components/marketing/demo-video";
 import { Features } from "@/components/marketing/features";
 import { Hero } from "@/components/marketing/hero-home";
-import {
-  HowItWorks,
-  type HowItWorksStep,
-} from "@/components/marketing/how-it-works";
+import { HowItWorks } from "@/components/marketing/how-it-works";
 import {
   OrganizationJsonLd,
   SoftwareAppJsonLd,
@@ -16,38 +13,6 @@ import {
 import { Security } from "@/components/marketing/security";
 // import { StatBar } from "@/components/marketing/stat-bar";
 import { Testimonials } from "@/components/marketing/testimonials";
-import {
-  Bot,
-  FileText,
-  Banknote,
-  ShieldCheck,
-  PieChart,
-  BarChart3,
-} from "lucide-react";
-
-const howItWorksSteps: HowItWorksStep[] = [
-  {
-    step: "1",
-    title: "Connect & configure",
-    description:
-      "Link your bank, import your chart of accounts, and set up your entity in minutes.",
-    icon: Banknote,
-  },
-  {
-    step: "2",
-    title: "AI agents take over",
-    description:
-      "Specialized agents handle invoicing, payroll, compliance, and reconciliations — all automatically.",
-    icon: Bot,
-  },
-  {
-    step: "3",
-    title: "Review & approve",
-    description:
-      "AI confidence-scores every decision. You review what matters and approve with one click.",
-    icon: ShieldCheck,
-  },
-];
 
 export const metadata: Metadata = {
   title: "AI-Native Accounting Platform — AI Agents, Zero Data Entry",
@@ -69,11 +34,7 @@ export default function HomePage() {
       <Hero />
       <Testimonials />
       {/* <StatBar /> */}
-      <HowItWorks
-        steps={howItWorksSteps}
-        title="From signup to autonomous accounting in 3 steps"
-        subtitle="No data entry. No spreadsheets. No month-end panic."
-      />
+      <HowItWorks />
       <Features />
       <DemoVideo />
       <Security />

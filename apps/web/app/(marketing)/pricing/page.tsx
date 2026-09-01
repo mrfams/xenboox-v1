@@ -6,6 +6,7 @@ import {
   CheckCircle2,
   ArrowRight,
   Shield,
+  ShieldCheck,
   CreditCard,
   RotateCcw,
   ArrowUpRight,
@@ -13,6 +14,11 @@ import {
   Users,
   Building2,
   Headphones,
+  Clock,
+  Upload,
+  ScanSearch,
+  Sparkles,
+  Check,
 } from "lucide-react";
 
 import { Section } from "@/components/marketing/section";
@@ -23,8 +29,6 @@ import {
   ProductJsonLd,
 } from "@/components/marketing/json-ld";
 import { RoiCalculator } from "@/components/marketing/roi-calculator";
-import { TestimonialCard } from "@/components/marketing/testimonial-card";
-import { LogoCloud } from "@/components/marketing/logo-cloud";
 import { FeatureComparison } from "@/components/marketing/feature-comparison";
 
 // ─── Tiers ───────────────────────────────────────────────────────────────────
@@ -364,40 +368,6 @@ const comparisonCategories = [
   },
 ];
 
-// ─── Testimonials (pricing-specific) ─────────────────────────────────────────
-
-const customerLogos = [
-  { name: "Seagull Logistics" },
-  { name: "SunuFresh Foods" },
-  { name: "Atlantic Traders" },
-  { name: "Kaira Clinics" },
-  { name: "LS Consulting" },
-];
-
-const pricingTestimonials = [
-  {
-    quote:
-      "We closed our first month in four days. Previously it took three weeks and two accountants.",
-    name: "Fatoumata Ceesay",
-    role: "CFO, Seagull Logistics",
-    plan: "Business",
-  },
-  {
-    quote:
-      "The agents chased down GMD 1.8M in overdue invoices while we slept. I just reviewed and approved over breakfast.",
-    name: "Musa Jallow",
-    role: "Founder, SunuFresh Foods",
-    plan: "Starter",
-  },
-  {
-    quote:
-      "Multi-currency used to eat hours every week. Now the AI reconciles USD, EUR, and GMD automatically.",
-    name: "Omar Darboe",
-    role: "Finance Director, Atlantic Traders",
-    plan: "Business",
-  },
-];
-
 // ─── FAQs ────────────────────────────────────────────────────────────────────
 
 const faqs = [
@@ -670,61 +640,7 @@ export default function PricingPage() {
           })),
         }))}
       />
-      {/* ── Social Proof ──────────────────────────────────────────────── */}
-      <section className="border-t border-border bg-paper-2/60 py-16 sm:py-20">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-          <FadeInUp>
-            <div className="mx-auto max-w-2xl text-center mb-12">
-              <h2 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
-                Teams that chose Xenboox
-              </h2>
-              <p className="mt-3 text-muted-foreground">
-                Finance leads and founders on what changed after AI took the
-                busywork.
-              </p>
-            </div>
-          </FadeInUp>
-
-          <div className="grid gap-6 md:grid-cols-3">
-            {pricingTestimonials.map((t, i) => (
-              <FadeInUp key={t.name} delay={i * 0.1}>
-                <TestimonialCard
-                  testimonial={{ ...t, rating: 5 }}
-                  showRating
-                  showPlan
-                />
-              </FadeInUp>
-            ))}
-          </div>
-
-          {/* Trust Stats */}
-          <FadeInUp delay={0.3}>
-            <div className="mt-12">
-              <div className="flex items-center justify-center gap-8 mb-8">
-                <div className="text-center">
-                  <p className="text-2xl font-bold text-foreground">500+</p>
-                  <p className="text-xs text-muted-foreground">Businesses</p>
-                </div>
-                <div className="h-8 w-px bg-border" />
-                <div className="text-center">
-                  <p className="text-2xl font-bold text-foreground">20+</p>
-                  <p className="text-xs text-muted-foreground">AI Agents</p>
-                </div>
-                <div className="h-8 w-px bg-border" />
-                <div className="text-center">
-                  <p className="text-2xl font-bold text-foreground">99.9%</p>
-                  <p className="text-xs text-muted-foreground">Uptime SLA</p>
-                </div>
-              </div>
-              <LogoCloud
-                title="Trusted by finance teams across industries"
-                logos={customerLogos}
-              />
-            </div>
-          </FadeInUp>
-        </div>
-      </section>
-      {/* ── ROI Calculator ────────────────────────────────────────────── */}
+      {/* ── ROI Calculator ──────────────────────────────────────────────
       <section className="border-t border-border bg-background py-12 sm:py-16">
         <div className="mx-auto max-w-3xl px-4 sm:px-6">
           <FadeInUp>
@@ -742,83 +658,340 @@ export default function PricingPage() {
           </FadeInUp>
         </div>
       </section>
-      {/* ── Migration Messaging ───────────────────────────────────────── */}
-      <section className="border-t border-border bg-paper-2/60 py-16 sm:py-20">
-        <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
-          <FadeInUp>
-            <div className="mx-auto max-w-2xl text-center mb-10">
-              <h2 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
-                Switching is easy
-              </h2>
-              <p className="mt-3 text-muted-foreground">
-                Migrate from QuickBooks, Xero, or any accounting software. The
-                AI handles the heavy lifting.
-              </p>
-            </div>
-          </FadeInUp>
+      ── */}
+      {/* ── Migration — Editorial Split · Production Grade ──────────────── */}
+      <section className="relative overflow-hidden border-t border-border/60 bg-paper-2/40 py-24 sm:py-28 lg:py-32">
+        {/* subtle grid texture */}
+        <div
+          className="pointer-events-none absolute inset-0 opacity-[0.45]"
+          aria-hidden="true"
+          style={{
+            backgroundImage:
+              "radial-gradient(rgba(20,33,61,0.07) 1px, transparent 1px)",
+            backgroundSize: "24px 24px",
+            maskImage:
+              "radial-gradient(ellipse at 30% 20%, black 25%, transparent 70%)",
+            WebkitMaskImage:
+              "radial-gradient(ellipse at 30% 20%, black 25%, transparent 70%)",
+          }}
+        />
+        {/* soft ambient highlight */}
+        <div
+          className="pointer-events-none absolute -top-32 right-0 h-[420px] w-[680px] rounded-full opacity-20 blur-3xl"
+          aria-hidden="true"
+          style={{
+            background:
+              "radial-gradient(ellipse at center, rgba(20,33,61,0.08), transparent 65%)",
+          }}
+        />
 
-          <div className="grid gap-6 sm:grid-cols-3">
-            {[
-              {
-                step: "1",
-                title: "Export your data",
-                description:
-                  "Download your chart of accounts, transactions, and reports from your current software.",
-              },
-              {
-                step: "2",
-                title: "Import to Xenboox",
-                description:
-                  "Upload your data. The migration agent maps accounts, validates entries, and flags issues.",
-              },
-              {
-                step: "3",
-                title: "AI picks up where you left off",
-                description:
-                  "Your AI agents start working immediately. Most teams are fully operational within 48 hours.",
-              },
-            ].map((item, i) => (
-              <FadeInUp key={item.step} delay={i * 0.1}>
-                <div className="relative rounded-2xl border border-border/60 bg-card p-6 sm:p-8 transition-all duration-300 hover:shadow-lg hover:-translate-y-1">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-sm font-bold text-primary">
-                    {item.step}
+        <div className="relative mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+          <div className="grid gap-12 lg:grid-cols-12 lg:gap-10 xl:gap-16 items-start">
+            {/* Left — Editorial */}
+            <div className="lg:col-span-5 lg:sticky lg:top-24">
+              <FadeInUp>
+                <div className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-card/80 px-3 py-1.5 backdrop-blur-sm">
+                  <span
+                    className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500"
+                    aria-hidden="true"
+                  />
+                  <span className="text-[10.5px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+                    Migration
+                  </span>
+                  <span className="hidden sm:inline text-[10px] text-muted-foreground/60">
+                    · Zero downtime
+                  </span>
+                </div>
+
+                <h2 className="mt-6 text-[1.9rem] font-semibold leading-[0.95] tracking-[-0.03em] text-foreground sm:text-[2.35rem] lg:text-[2.55rem]">
+                  Switching is
+                  <br />
+                  <span className="text-primary">easy.</span> The AI
+                  <br />
+                  does the work.
+                </h2>
+
+                <p className="mt-5 max-w-[38ch] text-[15px] leading-relaxed text-muted-foreground">
+                  Export from QuickBooks, Xero, or any ledger. Our migration
+                  agent maps your chart, validates every entry, and flags only
+                  what needs you — nothing more.
+                </p>
+
+                {/* proof row — monospace, editorial */}
+                <div className="mt-7 flex flex-wrap items-center gap-x-5 gap-y-3 border-y border-border/40 py-4">
+                  <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-card border border-border/60">
+                      <Clock className="h-3 w-3" />
+                    </span>
+                    <span className="font-mono text-[11px] tracking-wide text-foreground font-medium">
+                      48h
+                    </span>
+                    avg. migration
+                  </span>
+                  <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-card border border-border/60">
+                      <ShieldCheck className="h-3 w-3" />
+                    </span>
+                    No data loss
+                  </span>
+                  <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-card border border-border/60">
+                      <Check className="h-3 w-3" />
+                    </span>
+                    Guided
+                  </span>
+                </div>
+
+                {/* CTA — primary with button-in-button, secondary links */}
+                <div className="mt-7 flex flex-col gap-4">
+                  <Link
+                    href="/register"
+                    className="group inline-flex w-fit items-center gap-3 rounded-full bg-foreground px-1.5 py-1.5 pr-1.5 text-sm font-medium text-background shadow-[0_8px_24px_-12px_rgba(0,0,0,0.3)] transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:scale-[1.01] active:scale-[0.98]"
+                  >
+                    <span className="pl-4 pr-1">Start migration</span>
+                    <span className="flex h-8 w-8 items-center justify-center rounded-full bg-background/10 ring-1 ring-background/10 transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] group-hover:translate-x-0.5 group-hover:-translate-y-0.5">
+                      <ArrowRight className="h-3.5 w-3.5" />
+                    </span>
+                  </Link>
+
+                  <div className="flex flex-wrap items-center gap-2.5 text-xs">
+                    <Link
+                      href="/compare/quickbooks"
+                      className="inline-flex min-h-[40px] items-center gap-1.5 rounded-full border border-border/60 bg-card px-4 py-2.5 font-medium text-foreground transition-all duration-300 hover:bg-accent/50 hover:border-border"
+                    >
+                      Switch from QuickBooks
+                      <ArrowUpRight
+                        className="h-3 w-3 opacity-60"
+                        aria-hidden="true"
+                      />
+                    </Link>
+                    <Link
+                      href="/compare/xero"
+                      className="inline-flex min-h-[40px] items-center gap-1.5 rounded-full border border-border/60 bg-card px-4 py-2.5 font-medium text-foreground transition-all duration-300 hover:bg-accent/50 hover:border-border"
+                    >
+                      Switch from Xero
+                      <ArrowUpRight
+                        className="h-3 w-3 opacity-60"
+                        aria-hidden="true"
+                      />
+                    </Link>
+                    <Link
+                      href="/compare"
+                      className="inline-flex min-h-[40px] items-center gap-1 rounded-full px-3 py-2 text-muted-foreground transition-colors hover:text-foreground hover:bg-muted/40"
+                    >
+                      View all
+                      <ArrowRight className="h-3 w-3" aria-hidden="true" />
+                    </Link>
                   </div>
-                  <h3 className="mt-4 text-lg font-semibold text-foreground">
-                    {item.title}
-                  </h3>
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    {item.description}
+                  <p className="text-[11px] leading-relaxed text-muted-foreground/70">
+                    Free migration help for Business &amp; Enterprise · Your
+                    data stays yours.
                   </p>
                 </div>
               </FadeInUp>
-            ))}
-          </div>
-
-          <FadeInUp delay={0.3}>
-            <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
-              <Link
-                href="/compare/quickbooks"
-                className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-4 py-2 text-sm font-medium text-foreground transition-all hover:bg-accent/50 hover:scale-[1.02]"
-              >
-                Switch from QuickBooks
-                <ArrowUpRight className="h-3.5 w-3.5" />
-              </Link>
-              <Link
-                href="/compare/xero"
-                className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-4 py-2 text-sm font-medium text-foreground transition-all hover:bg-accent/50 hover:scale-[1.02]"
-              >
-                Switch from Xero
-                <ArrowUpRight className="h-3.5 w-3.5" />
-              </Link>
-              <Link
-                href="/compare"
-                className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-4 py-2 text-sm font-medium text-muted-foreground transition-all hover:bg-accent/50 hover:text-foreground hover:scale-[1.02]"
-              >
-                View all comparisons
-                <ArrowRight className="h-3.5 w-3.5" />
-              </Link>
             </div>
-          </FadeInUp>
+
+            {/* Right — Timeline with Double-Bezel cards */}
+            <div className="lg:col-span-7">
+              <div className="relative">
+                {/* vertical hairline */}
+                <div
+                  className="pointer-events-none absolute left-[19px] top-6 bottom-6 hidden w-px bg-gradient-to-b from-border via-border/60 to-transparent sm:block"
+                  aria-hidden="true"
+                />
+
+                <div className="flex flex-col gap-6">
+                  {/* Step 01 */}
+                  <FadeInUp delay={0.05}>
+                    <div className="flex gap-4 sm:gap-5">
+                      <div className="hidden shrink-0 flex-col items-center sm:flex">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-full border border-border/60 bg-card shadow-[0_4px_16px_-8px_rgba(20,33,61,0.15)]">
+                          <Upload className="h-4 w-4 text-foreground/70" />
+                        </div>
+                        <div className="mt-3 h-14 w-px bg-border/40" />
+                      </div>
+                      <div className="flex-1">
+                        <div className="group rounded-[24px] border border-border/40 bg-white/60 p-[7px] shadow-[0_8px_32px_-16px_rgba(20,33,61,0.12)] backdrop-blur-sm transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:shadow-[0_16px_40px_-16px_rgba(20,33,61,0.16)] hover:-translate-y-0.5">
+                          <div className="rounded-[17px] border border-border/40 bg-card p-6 sm:p-7">
+                            <div className="flex items-start justify-between gap-4">
+                              <div className="min-w-0">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <span className="font-mono text-[11px] font-medium tracking-[0.14em] text-muted-foreground">
+                                    01 — EXPORT
+                                  </span>
+                                  <span className="hidden h-1 w-1 rounded-full bg-border sm:inline-block" />
+                                  <span className="text-xs text-muted-foreground/60">
+                                    2 min
+                                  </span>
+                                </div>
+                                <h3 className="mt-2 text-[17px] font-semibold tracking-tight text-foreground">
+                                  Export your data
+                                </h3>
+                                <p className="mt-2 max-w-[36ch] text-[13.5px] leading-relaxed text-muted-foreground">
+                                  Download your chart of accounts, transactions,
+                                  and reports. CSV or XLSX — the agent accepts
+                                  both.
+                                </p>
+                              </div>
+                              <span className="hidden sm:inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border/50 bg-muted/50 text-muted-foreground">
+                                <Upload className="h-4 w-4" />
+                              </span>
+                            </div>
+                            {/* micro file chips */}
+                            <div className="mt-5 flex flex-wrap gap-2">
+                              <span className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-muted/40 px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
+                                <span className="h-1.5 w-1.5 rounded-full bg-amber-500/70" />
+                                CoA.csv
+                              </span>
+                              <span className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-muted/40 px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
+                                <span className="h-1.5 w-1.5 rounded-full bg-sky-500/70" />
+                                Transactions.xlsx
+                              </span>
+                              <span className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-muted/40 px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
+                                <span className="h-1.5 w-1.5 rounded-full bg-zinc-400" />
+                                Reports.pdf
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </FadeInUp>
+
+                  {/* Step 02 */}
+                  <FadeInUp delay={0.12}>
+                    <div className="flex gap-4 sm:gap-5">
+                      <div className="hidden shrink-0 flex-col items-center sm:flex">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-full border border-primary/20 bg-primary/10 shadow-[0_4px_16px_-8px_rgba(20,33,61,0.15)]">
+                          <ScanSearch className="h-4 w-4 text-primary" />
+                        </div>
+                        <div className="mt-3 h-14 w-px bg-border/40" />
+                      </div>
+                      <div className="flex-1">
+                        <div className="group rounded-[24px] border border-primary/15 bg-primary/[0.04] p-[7px] shadow-[0_8px_32px_-16px_rgba(20,33,61,0.12)] backdrop-blur-sm transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:shadow-[0_16px_40px_-16px_rgba(20,33,61,0.16)] hover:-translate-y-0.5">
+                          <div className="rounded-[17px] border border-primary/10 bg-card p-6 sm:p-7">
+                            <div className="flex items-start justify-between gap-4">
+                              <div className="min-w-0">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <span className="font-mono text-[11px] font-medium tracking-[0.14em] text-primary">
+                                    02 — IMPORT &amp; MAP
+                                  </span>
+                                  <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-700 border border-amber-500/15">
+                                    AI does this
+                                  </span>
+                                </div>
+                                <h3 className="mt-2 text-[17px] font-semibold tracking-tight text-foreground">
+                                  Import to Xenboox
+                                </h3>
+                                <p className="mt-2 max-w-[36ch] text-[13.5px] leading-relaxed text-muted-foreground">
+                                  The migration agent maps accounts, validates
+                                  entries, and surfaces only conflicts for you.
+                                </p>
+                              </div>
+                              <span className="hidden sm:inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-primary/15 bg-primary/10 text-primary">
+                                <ScanSearch className="h-4 w-4" />
+                              </span>
+                            </div>
+                            {/* mapping preview */}
+                            <div className="mt-5 rounded-xl border border-border/50 bg-muted/30 p-3">
+                              <div className="space-y-2 font-mono text-[11px]">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-muted-foreground">
+                                    1200 · Sales
+                                  </span>
+                                  <span className="inline-flex items-center gap-1 text-emerald-600">
+                                    <Check className="h-3 w-3" /> Mapped
+                                  </span>
+                                </div>
+                                <div className="h-px bg-border/50" />
+                                <div className="flex items-center justify-between">
+                                  <span className="text-muted-foreground">
+                                    2100 · Accounts Payable
+                                  </span>
+                                  <span className="inline-flex items-center gap-1 text-emerald-600">
+                                    <Check className="h-3 w-3" /> Mapped
+                                  </span>
+                                </div>
+                                <div className="h-px bg-border/50" />
+                                <div className="flex items-center justify-between">
+                                  <span className="text-muted-foreground">
+                                    5300 · VAT Control
+                                  </span>
+                                  <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-1.5 py-0.5 text-amber-700 border border-amber-500/15">
+                                    Review
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </FadeInUp>
+
+                  {/* Step 03 */}
+                  <FadeInUp delay={0.2}>
+                    <div className="flex gap-4 sm:gap-5">
+                      <div className="hidden shrink-0 flex-col items-center sm:flex">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-full border border-emerald-500/20 bg-emerald-500/10 shadow-[0_4px_16px_-8px_rgba(20,33,61,0.15)]">
+                          <Sparkles className="h-4 w-4 text-emerald-600" />
+                        </div>
+                      </div>
+                      <div className="flex-1">
+                        <div className="group rounded-[24px] border border-border/40 bg-white/60 p-[7px] shadow-[0_8px_32px_-16px_rgba(20,33,61,0.12)] backdrop-blur-sm transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] hover:shadow-[0_16px_40px_-16px_rgba(20,33,61,0.16)] hover:-translate-y-0.5">
+                          <div className="rounded-[17px] border border-border/40 bg-card p-6 sm:p-7">
+                            <div className="flex items-start justify-between gap-4">
+                              <div className="min-w-0">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <span className="font-mono text-[11px] font-medium tracking-[0.14em] text-muted-foreground">
+                                    03 — LIVE
+                                  </span>
+                                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-700 border border-emerald-500/15">
+                                    <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
+                                    48h to live
+                                  </span>
+                                </div>
+                                <h3 className="mt-2 text-[17px] font-semibold tracking-tight text-foreground">
+                                  AI picks up where you left off
+                                </h3>
+                                <p className="mt-2 max-w-[36ch] text-[13.5px] leading-relaxed text-muted-foreground">
+                                  Agents start posting, reconciling, and
+                                  closing. Most teams are operational within two
+                                  days.
+                                </p>
+                              </div>
+                              <span className="hidden sm:inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-emerald-500/15 bg-emerald-500/10 text-emerald-600">
+                                <Sparkles className="h-4 w-4" />
+                              </span>
+                            </div>
+                            <div className="mt-5 flex items-center gap-3 rounded-xl border border-emerald-500/15 bg-emerald-500/[0.06] px-3 py-2.5">
+                              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-500 text-white">
+                                <Check className="h-3.5 w-3.5" />
+                              </span>
+                              <div className="min-w-0">
+                                <p className="text-xs font-medium text-foreground">
+                                  Migration verified
+                                </p>
+                                <p className="text-[11px] text-muted-foreground">
+                                  1,247 entries · 0 conflicts · Ready to close
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </FadeInUp>
+                </div>
+
+                {/* bottom helper */}
+                <p className="mt-6 pl-0 sm:pl-[60px] text-center text-[11px] text-muted-foreground/60 sm:text-left">
+                  Need help? We migrate for you — free on Business &amp;
+                  Enterprise.
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
       {/* ── FAQ ───────────────────────────────────────────────────────── */}
