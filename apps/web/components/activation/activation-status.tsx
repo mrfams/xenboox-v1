@@ -16,7 +16,7 @@ import {
   ArrowRight,
   PartyPopper,
 } from "lucide-react";
-import { useActivationStatus } from "@xenboox/web/lib/hooks/use-activation";
+import { useActivationStatus } from "@/lib/hooks/use-activation-status";
 import { ACTIVATION_EVENTS } from "@xenboox/db/schema/analytics";
 
 // ─── Activation Steps ──────────────────────────────────────────────────────

@@ -26,7 +26,7 @@ import {
   Sparkles,
   CheckCircle2,
 } from "lucide-react";
-import { useTrackActivation } from "@xenboox/web/lib/hooks/use-activation";
+import { useTrackActivation } from "@/lib/hooks/use-activation";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
