@@ -36,27 +36,14 @@ import {
 
 import { trpc } from "@/lib/trpc/client";
 
-const CURRENCIES = [
-  { code: "USD", name: "US Dollar" },
-  { code: "EUR", name: "Euro" },
-  { code: "GBP", name: "British Pound" },
-  { code: "GMD", name: "Gambian Dalasi" },
-  { code: "NGN", name: "Nigerian Naira" },
-  { code: "GHS", name: "Ghanaian Cedi" },
-  { code: "XOF", name: "CFA Franc" },
-  { code: "KES", name: "Kenyan Shilling" },
-  { code: "ZAR", name: "South African Rand" },
-];
+import { COUNTRIES as FULL_COUNTRIES } from "@/lib/accounting/countries";
 
-const COUNTRIES = [
-  { code: "GM", name: "Gambia" },
-  { code: "NG", name: "Nigeria" },
-  { code: "GH", name: "Ghana" },
-  { code: "SN", name: "Senegal" },
-  { code: "KE", name: "Kenya" },
-  { code: "US", name: "United States" },
-  { code: "GB", name: "United Kingdom" },
-];
+const CURRENCIES = FULL_COUNTRIES.map((c) => ({
+  code: c.currency,
+  name: `${c.name} (${c.currency})`,
+})).filter((v, i, a) => a.findIndex((x) => x.code === v.code) === i);
+
+const COUNTRIES = FULL_COUNTRIES.map((c) => ({ code: c.code, name: c.name }));
 
 const ORG_TYPES = [
   { value: "business", label: "Business" },
@@ -149,10 +136,7 @@ export function OrganizationSection() {
       id: org.id,
       name: orgName.trim(),
       type: orgType as
-        | "business"
-        | "nonprofit"
-        | "government"
-        | "accounting_firm",
+        "business" | "nonprofit" | "government" | "accounting_firm",
       website: orgWebsite.trim() || undefined,
       phone: orgPhone.trim() || undefined,
       address: orgAddress.trim() || undefined,

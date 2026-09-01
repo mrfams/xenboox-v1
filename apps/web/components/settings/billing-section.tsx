@@ -120,6 +120,8 @@ export function BillingSection() {
   const org = orgs?.[0];
   const plan = billing?.plan ?? org?.plan ?? "free";
   const planInfo = PLAN_DETAILS[plan] ?? PLAN_DETAILS.free;
+  const billingCurrency =
+    (entities?.[0] as { currency?: string } | undefined)?.currency ?? "USD";
 
   const usage = {
     users: members?.length ?? 0,
@@ -172,7 +174,17 @@ export function BillingSection() {
                     {planInfo.name}
                   </span>
                   <div className="flex items-baseline gap-1">
-                    <span className="text-2xl font-bold">{planInfo.price}</span>
+                    <span className="text-2xl font-bold">
+                      {planInfo.price === "$0" || planInfo.price === "Custom"
+                        ? planInfo.price
+                        : new Intl.NumberFormat(undefined, {
+                            style: "currency",
+                            currency: billingCurrency,
+                            maximumFractionDigits: 0,
+                          }).format(
+                            Number(planInfo.price.replace(/[^0-9.]/g, "")) || 0,
+                          )}
+                    </span>
                     {planInfo.period && (
                       <span className="text-sm text-muted-foreground">
                         {planInfo.period}
@@ -217,7 +229,10 @@ export function BillingSection() {
                 },
                 {
                   label: "Cash Balance",
-                  value: `$${usage.cashBalance.toLocaleString()}`,
+                  value: new Intl.NumberFormat(undefined, {
+                    style: "currency",
+                    currency: billingCurrency,
+                  }).format(usage.cashBalance),
                   limit: "",
                 },
               ].map((item) => (
@@ -314,7 +329,10 @@ export function BillingSection() {
                   Cash Balance
                 </div>
                 <span className="text-xs text-muted-foreground">
-                  ${usage.cashBalance.toLocaleString()}
+                  {new Intl.NumberFormat(undefined, {
+                    style: "currency",
+                    currency: billingCurrency,
+                  }).format(usage.cashBalance)}
                 </span>
               </div>
               <div className="h-2 rounded-full bg-emerald-100 dark:bg-emerald-950 overflow-hidden">
