@@ -7,7 +7,6 @@ import { Suspense } from "react";
 import { MessageSquare, X, Download } from "lucide-react";
 
 import { useEntity } from "@/lib/entity-context";
-import { RoleBasedWelcome } from "@/components/role-based-welcome";
 import { activationEvents } from "@/lib/analytics/feature-tracking";
 import { DashboardSkeleton } from "@/components/shared/skeletons";
 import { dashboardQueryOptions } from "@/lib/trpc/query-options";
@@ -61,11 +60,9 @@ function CommandCenterInner() {
   const router = useRouter();
   const promptSentRef = useRef(false);
 
-  // ── Track first Command Center visit (once per entity) ───────────────
-  const firstVisitTracked = useRef(new Set<string>());
+  // ── Track first Command Center visit ─────────────────────────────────
   useEffect(() => {
-    if (entityId && !firstVisitTracked.current.has(entityId)) {
-      firstVisitTracked.current.add(entityId);
+    if (entityId) {
       activationEvents.commandCenterFirstVisit(entityId);
     }
   }, [entityId]);
@@ -253,7 +250,6 @@ function CommandCenterInner() {
             </div>
           ) : (
             <div className="flex-1 space-y-4 px-4 pt-4 sm:px-6 overflow-y-auto">
-              <RoleBasedWelcome />
               <ProactiveBriefing />
               <GettingStartedChecklist onSendMessage={sendMessage} />
             </div>
