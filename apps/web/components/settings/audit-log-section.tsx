@@ -77,10 +77,11 @@ export function AuditLogSection() {
   const [limit, setLimit] = useState(25);
   const [offset, setOffset] = useState(0);
 
-  const { data, isLoading } = trpc.settings.getAuditLogs.useQuery({
-    limit,
-    offset,
-  });
+  const { data, isLoading, isError, error, refetch } =
+    trpc.settings.getAuditLogs.useQuery({
+      limit,
+      offset,
+    });
 
   const logs = data?.logs ?? [];
   const total = data?.total ?? 0;
@@ -91,6 +92,27 @@ export function AuditLogSection() {
         {[1, 2, 3].map((i) => (
           <div key={i} className="h-20 rounded-lg bg-muted animate-pulse" />
         ))}
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="rounded-lg border border-destructive/50 bg-destructive/5 p-4">
+        <p className="text-sm font-medium text-destructive">
+          Failed to load audit log
+        </p>
+        <p className="text-xs text-muted-foreground mt-1">
+          {String((error as Error)?.message ?? error)}
+        </p>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => refetch()}
+          className="mt-3"
+        >
+          Retry
+        </Button>
       </div>
     );
   }
@@ -157,16 +179,22 @@ export function AuditLogSection() {
                     <div className="flex items-center gap-4 mt-1 text-xs text-muted-foreground">
                       <span className="flex items-center gap-1">
                         <User className="h-3 w-3" />
-                        {log.userId?.substring(0, 8)}...
+                        {log.userName ??
+                          log.userEmail ??
+                          log.userId ??
+                          "System"}
                       </span>
                       <span className="flex items-center gap-1">
                         <Clock className="h-3 w-3" />
-                        {new Date(log.createdAt).toLocaleString()}
+                        {new Date(log.createdAt).toLocaleString(undefined, {
+                          dateStyle: "medium",
+                          timeStyle: "short",
+                        })}
                       </span>
                     </div>
                     {log.newValues && (
-                      <div className="mt-2 rounded bg-muted p-2 text-xs font-mono">
-                        {JSON.stringify(log.newValues, null, 2)}
+                      <div className="mt-2 rounded bg-muted p-2 text-xs font-mono max-h-32 overflow-auto">
+                        {JSON.stringify(log.newValues, null, 2).slice(0, 2000)}
                       </div>
                     )}
                   </div>
