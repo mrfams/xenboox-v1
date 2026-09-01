@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui";
+import { trpc } from "@/lib/trpc/client";
 import {
   BarChart3,
   Brain,
@@ -31,10 +31,6 @@ type UsageFeature = {
   icon: React.ElementType;
   color: string;
 };
-
-// ─── localStorage Key ─────────────────────────────────────────────────────────
-
-const USAGE_KEY = "xenboox_ai_usage_stats";
 
 // ─── Default Stats ────────────────────────────────────────────────────────────
 
@@ -82,51 +78,91 @@ const FEATURES: UsageFeature[] = [
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function getStoredStats(): UsageStats {
-  if (typeof window === "undefined") return DEFAULT_STATS;
-  try {
-    const stored = localStorage.getItem(USAGE_KEY);
-    if (stored) {
-      return { ...DEFAULT_STATS, ...JSON.parse(stored) };
-    }
-  } catch {
-    // Fall through to defaults
-  }
-  return DEFAULT_STATS;
-}
-
 function formatNumber(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
-  return String(n);
+  try {
+    return new Intl.NumberFormat(undefined, {
+      notation: "compact",
+      maximumFractionDigits: 1,
+    }).format(n);
+  } catch {
+    return String(n);
+  }
 }
 
 function timeAgo(dateStr: string | null): string {
   if (!dateStr) return "Never";
-  const now = Date.now();
-  const then = new Date(dateStr).getTime();
-  const diff = now - then;
-  const minutes = Math.floor(diff / 60_000);
-  const hours = Math.floor(diff / 3_600_000);
-  const days = Math.floor(diff / 86_400_000);
-  if (minutes < 1) return "Just now";
-  if (minutes < 60) return `${minutes}m ago`;
-  if (hours < 24) return `${hours}h ago`;
-  return `${days}d ago`;
+  try {
+    const then = new Date(dateStr).getTime();
+    if (Number.isNaN(then)) return "—";
+    const diffMs = Date.now() - then;
+    const locale =
+      typeof navigator !== "undefined" ? navigator.language : "en-US";
+    const rtf = new Intl.RelativeTimeFormat(locale, { numeric: "auto" });
+    const minutes = Math.floor(diffMs / 60_000);
+    const hours = Math.floor(diffMs / 3_600_000);
+    const days = Math.floor(diffMs / 86_400_000);
+    if (minutes < 1) return rtf.format(0, "second");
+    if (minutes < 60) return rtf.format(-minutes, "minute");
+    if (hours < 24) return rtf.format(-hours, "hour");
+    return rtf.format(-days, "day");
+  } catch {
+    return "—";
+  }
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export function AIUsageStats() {
-  const [stats, setStats] = useState<UsageStats>(DEFAULT_STATS);
-  const [isLoaded, setIsLoaded] = useState(false);
+  const {
+    data: serverStats,
+    isLoading,
+    isError,
+  } = (
+    trpc as unknown as {
+      settings: {
+        get: {
+          useQuery: (a?: unknown) => {
+            data?: unknown;
+            isLoading: boolean;
+            isError: boolean;
+          };
+        };
+      };
+    }
+  ).settings.get.useQuery(undefined as never) as unknown as {
+    data?: { usage?: UsageStats };
+    isLoading: boolean;
+    isError: boolean;
+  };
+  const stats: UsageStats =
+    (serverStats as { usage?: UsageStats } | undefined)?.usage ?? DEFAULT_STATS;
 
-  useEffect(() => {
-    setStats(getStoredStats());
-    setIsLoaded(true);
-  }, []);
+  if (isLoading) {
+    return (
+      <Card>
+        <CardHeader>
+          <div className="h-5 w-32 animate-pulse rounded bg-muted" />
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-12 animate-pulse rounded bg-muted/50" />
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
-  if (!isLoaded) return null;
+  if (isError) {
+    return (
+      <Card className="border-destructive/50">
+        <CardContent className="p-4">
+          <p className="text-sm text-destructive">Failed to load usage stats</p>
+        </CardContent>
+      </Card>
+    );
+  }
 
   const maxUsage = Math.max(...FEATURES.map((f) => stats[f.key]), 1);
 
@@ -195,8 +231,8 @@ export function AIUsageStats() {
         {/* Usage tip */}
         <div className="rounded-lg border bg-muted/30 p-3">
           <p className="text-xs text-muted-foreground">
-            💡 <span className="font-medium">Tip:</span> Usage stats are stored
-            locally on this device. Reset All Settings to clear these counters.
+            💡 <span className="font-medium">Tip:</span> Usage stats are
+            securely stored and synced across your devices.
           </p>
         </div>
       </CardContent>
