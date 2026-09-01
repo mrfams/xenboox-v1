@@ -141,18 +141,12 @@ export default auth(async (req) => {
 
       let result: Awaited<ReturnType<typeof limiter.checkApiRateLimit>>;
 
-      if (isCredentialsCallback || pathname === "/login") {
+      if (isCredentialsCallback) {
+        // Production-grade brute-force protection: ONLY the credentials POST
+        // is rate limited at the edge. GET /login (and other auth pages) must
+        // never count — otherwise 6 page refreshes = 429 for legit users.
         result = await limiter.checkAuthLoginRateLimit(identifier);
         response.headers.set("X-RateLimit-Category", "auth-login");
-      } else if (pathname === "/register") {
-        result = await limiter.checkAuthRegisterRateLimit(identifier);
-        response.headers.set("X-RateLimit-Category", "auth-register");
-      } else if (
-        pathname === "/forgot-password" ||
-        pathname === "/reset-password"
-      ) {
-        result = await limiter.checkAuthPasswordRateLimit(identifier);
-        response.headers.set("X-RateLimit-Category", "auth-password");
       } else if (pathname.startsWith("/api/webhooks/")) {
         result = await limiter.checkWebhookRateLimit(identifier);
         response.headers.set("X-RateLimit-Category", "webhook");

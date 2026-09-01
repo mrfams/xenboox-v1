@@ -57,12 +57,20 @@ function getRedis(): Redis | null {
   return redisClient;
 }
 
-function createRatelimit(prefix: string, requests: number, window: Duration) {
+function createRatelimit(
+  prefix: string,
+  requests: number,
+  window: Duration,
+  mode: "sliding" | "fixed" = "sliding",
+) {
   const client = getRedis();
   if (!client) return null;
   return new Ratelimit({
     redis: client,
-    limiter: Ratelimit.fixedWindow(requests, window),
+    limiter:
+      mode === "sliding"
+        ? Ratelimit.slidingWindow(requests, window)
+        : Ratelimit.fixedWindow(requests, window),
     prefix,
   });
 }
@@ -136,15 +144,20 @@ const apiReadLimiter = hasRedis()
 const agentLimiter = hasRedis() ? createRatelimit("agent", 10, "60 s") : null;
 
 const authLoginLimiter = hasRedis()
-  ? createRatelimit("auth:login", 5, "60 s")
+  ? createRatelimit("auth:login", 10, "60 s", "sliding")
+  : null;
+
+// Sustained window for login — 30 attempts per 15 min per IP (catches slow brute force)
+const authLoginSustainedLimiter = hasRedis()
+  ? createRatelimit("auth:login:sustained", 30, "15 m", "sliding")
   : null;
 
 const authRegisterLimiter = hasRedis()
-  ? createRatelimit("auth:register", 3, "300 s")
+  ? createRatelimit("auth:register", 5, "15 m", "sliding")
   : null;
 
 const authPasswordLimiter = hasRedis()
-  ? createRatelimit("auth:password", 3, "300 s")
+  ? createRatelimit("auth:password", 5, "15 m", "sliding")
   : null;
 
 const webhookLimiter = hasRedis()
@@ -170,19 +183,30 @@ export class RateLimiter {
   }
 
   async checkAuthLoginRateLimit(identifier: string): Promise<RateLimitResult> {
-    return tryUpstash(authLoginLimiter, identifier, 5, 60);
+    // Two-window check: burst (10/min) AND sustained (30/15m). Must pass both.
+    const burst = await tryUpstash(authLoginLimiter, identifier, 10, 60);
+    if (!burst.success) return burst;
+    const sustained = await tryUpstash(
+      authLoginSustainedLimiter,
+      `sustained:${identifier}`,
+      30,
+      900,
+    );
+    // Return the tighter window's remaining/reset when sustained is the limiter
+    if (!sustained.success) return sustained;
+    return burst.remaining < sustained.remaining ? burst : sustained;
   }
 
   async checkAuthRegisterRateLimit(
     identifier: string,
   ): Promise<RateLimitResult> {
-    return tryUpstash(authRegisterLimiter, identifier, 3, 300);
+    return tryUpstash(authRegisterLimiter, identifier, 5, 900);
   }
 
   async checkAuthPasswordRateLimit(
     identifier: string,
   ): Promise<RateLimitResult> {
-    return tryUpstash(authPasswordLimiter, identifier, 3, 300);
+    return tryUpstash(authPasswordLimiter, identifier, 5, 900);
   }
 
   async checkWebhookRateLimit(identifier: string): Promise<RateLimitResult> {
