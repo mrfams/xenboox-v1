@@ -654,6 +654,198 @@ const queryKnowledgeGraphTool: ToolDefinition = {
   category: "rag",
 };
 
+/**
+ * create_tax_rule — Create a tax rule for any country.
+ * WRITE: inserts into jurisdiction_tax_rules table.
+ * The user says "add 15% VAT for Nigeria" and the agent creates it.
+ */
+const createTaxRuleTool: ToolDefinition = {
+  name: "create_tax_rule",
+  description:
+    "Create a tax rule for a specific country. Use this when the user wants to add, create, or set up a tax (VAT, sales tax, PAYE, withholding, corporate, social security, etc.). Supports any country via 2-letter ISO code. The rule starts as 'active' immediately.",
+  inputSchema: z.object({
+    country: z
+      .string()
+      .length(2)
+      .toUpperCase()
+      .describe("ISO 3166-1 alpha-2 country code (e.g. 'NG', 'US', 'GB')"),
+    ruleType: z
+      .enum([
+        "vat", "sales_tax", "paye", "withholding", "corporate",
+        "social_security", "excise", "property", "capital_gains",
+        "customs", "digital_services", "payroll_tax", "wealth",
+        "environmental", "health", "unemployment", "tourist",
+        "stamp_duty", "gift", "inheritance", "license_fee", "other",
+      ])
+      .describe("Type of tax rule"),
+    name: z.string().min(2).max(120).describe("Name of the tax (e.g. 'NG VAT 7.5%')"),
+    rate: z.number().min(0).max(1).describe("Tax rate as decimal (e.g. 0.075 for 7.5%)"),
+    appliesTo: z
+      .enum(["sales", "purchases", "payroll", "income", "other"])
+      .default("sales")
+      .describe("What this tax applies to"),
+    description: z.string().max(500).optional().describe("Description of the tax rule"),
+    effectiveFrom: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/)
+      .optional()
+      .describe("Effective from date (YYYY-MM-DD). Defaults to today."),
+  }),
+  execute: async (input, ctx) => {
+    try {
+      const { jurisdictionTaxRules } = await import("@xenboox/db/schema/tax-compliance");
+      const { and: drizzleAnd, eq: drizzleEq, desc: drizzleDesc } = await import("drizzle-orm");
+
+      // Check for existing active rule with same identity
+      const existing = await db.query.jurisdictionTaxRules.findFirst({
+        where: drizzleAnd(
+          drizzleEq(jurisdictionTaxRules.entityId, ctx.entityId),
+          drizzleEq(jurisdictionTaxRules.country, input.country),
+          drizzleEq(jurisdictionTaxRules.ruleType, input.ruleType),
+          drizzleEq(jurisdictionTaxRules.name, input.name),
+          drizzleEq(jurisdictionTaxRules.status, "active"),
+        ),
+        orderBy: [drizzleDesc(jurisdictionTaxRules.version)],
+      });
+
+      if (existing) {
+        return {
+          success: false,
+          error: `A tax rule named "${input.name}" already exists for ${input.country} (v${existing.version}). Edit the existing rule or use a different name.`,
+          confidence: 0.9,
+        };
+      }
+
+      // Determine version (continue sequence if previously superseded)
+      const latest = await db.query.jurisdictionTaxRules.findFirst({
+        where: drizzleAnd(
+          drizzleEq(jurisdictionTaxRules.entityId, ctx.entityId),
+          drizzleEq(jurisdictionTaxRules.country, input.country),
+          drizzleEq(jurisdictionTaxRules.ruleType, input.ruleType),
+          drizzleEq(jurisdictionTaxRules.name, input.name),
+        ),
+        orderBy: [drizzleDesc(jurisdictionTaxRules.version)],
+      });
+      const version = latest ? latest.version + 1 : 1;
+
+      const today = new Date().toISOString().slice(0, 10);
+
+      const [rule] = await db
+        .insert(jurisdictionTaxRules)
+        .values({
+          entityId: ctx.entityId,
+          country: input.country,
+          ruleType: input.ruleType,
+          version,
+          name: input.name,
+          description: input.description ?? null,
+          appliesTo: input.appliesTo,
+          rateOrBands: { type: "rate", rate: input.rate },
+          effectiveFrom: input.effectiveFrom ?? today,
+          effectiveTo: null,
+          status: "active",
+          proposedBy: ctx.actorId ?? null,
+          approvedBy: ctx.actorId ?? null,
+          approvedAt: new Date(),
+          notes: `Created by AI agent`,
+        })
+        .returning();
+
+      return {
+        success: true,
+        data: {
+          ruleId: rule.id,
+          country: input.country,
+          ruleType: input.ruleType,
+          name: input.name,
+          rate: `${(input.rate * 100).toFixed(1)}%`,
+          appliesTo: input.appliesTo,
+          effectiveFrom: input.effectiveFrom ?? today,
+          version,
+          status: "active",
+        },
+        confidence: 1.0,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: `Failed to create tax rule: ${error instanceof Error ? error.message : String(error)}`,
+        confidence: 0,
+      };
+    }
+  },
+  readOnly: false,
+  writes: true,
+  idempotencyKey: false,
+  category: "write",
+};
+
+/**
+ * install_tax_presets — Install a country's preset tax pack.
+ * WRITE: inserts multiple rules from the preset catalog.
+ * The user says "install Nigerian taxes" and the agent installs VAT, PAYE, WHT, corporate.
+ */
+const installTaxPresetsTool: ToolDefinition = {
+  name: "install_tax_presets",
+  description:
+    "Install a country's preset tax rules. Use this when the user wants to set up taxes for a new country using pre-built statutory rates. Supported countries: GM (Gambia), SN (Senegal), US (United States), NG (Nigeria), KE (Kenya), GH (Ghana), GB (United Kingdom), ZA (South Africa). Each country has VAT, PAYE, withholding, corporate, and social security presets.",
+  inputSchema: z.object({
+    country: z
+      .string()
+      .length(2)
+      .toUpperCase()
+      .describe("ISO 3166-1 alpha-2 country code"),
+  }),
+  execute: async (input, ctx) => {
+    try {
+      const { getTaxPresetsForCountry } = await import("./tax-presets");
+      const { installPresetsForEntity } = await import("@/server/lib/tax-install");
+
+      const catalog = getTaxPresetsForCountry(input.country);
+      if (catalog.length === 0) {
+        return {
+          success: false,
+          error: `No preset tax rules available for ${input.country}. You can create custom rules with the create_tax_rule tool.`,
+          confidence: 0.9,
+        };
+      }
+
+      const { installed, skipped, installedNames } = await installPresetsForEntity({
+        entityId: ctx.entityId,
+        country: input.country,
+        presets: catalog,
+        actorId: ctx.actorId ?? "ai-agent",
+      });
+
+      return {
+        success: true,
+        data: {
+          country: input.country,
+          totalPresets: catalog.length,
+          installed,
+          skipped,
+          installedNames,
+          message:
+            skipped > 0
+              ? `Installed ${installed} tax rules for ${input.country}. ${skipped} were already configured.`
+              : `Installed ${installed} tax rules for ${input.country}.`,
+        },
+        confidence: installed > 0 ? 1.0 : 0.5,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: `Failed to install tax presets: ${error instanceof Error ? error.message : String(error)}`,
+        confidence: 0,
+      };
+    }
+  },
+  readOnly: false,
+  writes: true,
+  idempotencyKey: true,
+  category: "write",
+};
+
 // ─── Registry ──────────────────────────────────────────────────────────────
 
 /**
@@ -668,6 +860,8 @@ const REGISTERED_TOOLS: ToolDefinition[] = [
   searchKnowledgeBaseTool,
   startBatchIngestionTool,
   queryKnowledgeGraphTool,
+  createTaxRuleTool,
+  installTaxPresetsTool,
 ];
 
 /**

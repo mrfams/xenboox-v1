@@ -127,7 +127,7 @@ describe("Tool Registry — Enterprise", () => {
 
   describe("getAllTools", () => {
     it("returns all registered tools", () => {
-      expect(mod.getAllTools()).toHaveLength(8);
+      expect(mod.getAllTools()).toHaveLength(10);
     });
 
     it("every tool has all required enterprise fields", () => {
@@ -145,11 +145,14 @@ describe("Tool Registry — Enterprise", () => {
       }
     });
 
-    it("most tools are read-only; only start_batch_ingestion writes", () => {
+    it("most tools are read-only; write tools include batch ingestion and tax creation", () => {
       const readOnly = mod.getReadOnlyTools();
       expect(readOnly).toHaveLength(7);
-      expect(mod.getWriteTools()).toHaveLength(1);
-      expect(mod.getWriteTools()[0].name).toBe("start_batch_ingestion");
+      expect(mod.getWriteTools()).toHaveLength(3);
+      const writeNames = mod.getWriteTools().map((t) => t.name);
+      expect(writeNames).toContain("start_batch_ingestion");
+      expect(writeNames).toContain("create_tax_rule");
+      expect(writeNames).toContain("install_tax_presets");
     });
   });
 
@@ -169,8 +172,8 @@ describe("Tool Registry — Enterprise", () => {
       expect(mod.getToolsByCategory("rag")).toHaveLength(2);
     });
 
-    it("write category has 1 tool", () => {
-      expect(mod.getToolsByCategory("write")).toHaveLength(1);
+    it("write category has 3 tools", () => {
+      expect(mod.getToolsByCategory("write")).toHaveLength(3);
     });
   });
 
@@ -268,9 +271,9 @@ describe("Tool Registry — Enterprise", () => {
   describe("getRegistryStats", () => {
     it("returns accurate counts", () => {
       const stats = mod.getRegistryStats();
-      expect(stats.totalTools).toBe(8);
+      expect(stats.totalTools).toBe(10);
       expect(stats.readOnly).toBe(7);
-      expect(stats.writeTools).toBe(1);
+      expect(stats.writeTools).toBe(3);
       expect(stats.validationTools).toBe(1);
     });
   });

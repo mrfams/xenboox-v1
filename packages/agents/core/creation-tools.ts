@@ -13,7 +13,8 @@ export type CreationType =
   | "create_vendor"
   | "create_customer"
   | "create_expense"
-  | "create_journal_entry";
+  | "create_journal_entry"
+  | "create_tax_rule";
 
 export interface ParsedInvoice {
   type: "create_invoice";
@@ -68,12 +69,24 @@ export interface ParsedJournalEntry {
   reference?: string;
 }
 
+export interface ParsedTaxRule {
+  type: "create_tax_rule";
+  country: string;
+  ruleType: string;
+  name: string;
+  rate: number;
+  appliesTo: string;
+  description?: string;
+  effectiveFrom?: string;
+}
+
 export type ParsedCreation =
   | ParsedInvoice
   | ParsedVendor
   | ParsedCustomer
   | ParsedExpense
-  | ParsedJournalEntry;
+  | ParsedJournalEntry
+  | ParsedTaxRule;
 
 export interface CreationParseResult {
   parsed: ParsedCreation | null;
@@ -90,6 +103,7 @@ const SCHEMA_MAP: Record<CreationType, string> = {
   create_customer: `{ "type": "create_customer", "name": string, "email"?: string, "phone"?: string, "address"?: string, "taxId"?: string, "notes"?: string }`,
   create_expense: `{ "type": "create_expense", "description": string, "amount": number, "currency": string, "vendorName"?: string, "category"?: string, "date"?: string }`,
   create_journal_entry: `{ "type": "create_journal_entry", "description": string, "lines": [{ "accountCode": string, "accountName"?: string, "debit": number, "credit": number }], "date"?: string, "reference"?: string }`,
+  create_tax_rule: `{ "type": "create_tax_rule", "country": string (2-letter ISO), "ruleType": string (vat|sales_tax|paye|withholding|corporate|social_security), "name": string, "rate": number (0.0-1.0), "appliesTo": string (sales|purchases|payroll|income), "description"?: string, "effectiveFrom"?: string (YYYY-MM-DD) }`,
 };
 
 const REQUIRED_FIELDS: Record<CreationType, string[]> = {
@@ -98,6 +112,7 @@ const REQUIRED_FIELDS: Record<CreationType, string[]> = {
   create_customer: ["name"],
   create_expense: ["description", "amount"],
   create_journal_entry: ["description", "lines"],
+  create_tax_rule: ["country", "ruleType", "name", "rate"],
 };
 
 // ─── Parsing ───────────────────────────────────────────────────────────────
@@ -113,6 +128,8 @@ For customers: extract customer/person name, email, phone, address, tax ID, note
 For expenses: extract description, amount, currency (default: entity's currency or USD), vendor name, category, date.
 
 For journal entries: extract description, line items with account codes/names and debit/credit amounts, date, reference number.
+
+For tax rules: extract country (2-letter ISO code like NG, US, GB), rule type (vat, sales_tax, paye, withholding, corporate, social_security, excise, etc.), name (descriptive name like "Nigeria VAT 7.5%"), rate (as decimal like 0.075 for 7.5%), applies to (sales, purchases, payroll, income), description, effective date.
 
 Return ONLY valid JSON. Include "confidence" (0-1) based on how complete the data is, and "missingFields" (string[]) listing any required fields that are missing or ambiguous.`;
 
@@ -215,5 +232,7 @@ export function formatConfirmationText(parsed: ParsedCreation): string {
         .join("\n");
       return `**New Journal Entry**\nDescription: ${parsed.description}\n\n${lines}${parsed.date ? `\nDate: ${parsed.date}` : ""}${parsed.reference ? `\nReference: ${parsed.reference}` : ""}`;
     }
+    case "create_tax_rule":
+      return `**New Tax Rule**\nCountry: ${parsed.country}\nType: ${parsed.ruleType.toUpperCase()}\nName: ${parsed.name}\nRate: ${(parsed.rate * 100).toFixed(1)}%\nApplies to: ${parsed.appliesTo}${parsed.description ? `\nDescription: ${parsed.description}` : ""}${parsed.effectiveFrom ? `\nEffective: ${parsed.effectiveFrom}` : ""}`;
   }
 }
