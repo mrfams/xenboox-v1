@@ -38,17 +38,26 @@ const LANGUAGES = [
   { code: "ar", label: "العربية" },
 ];
 
-const TIMEZONES = [
-  { value: "UTC", label: "UTC (Coordinated Universal Time)" },
-  { value: "Africa/Banjul", label: "GMT (Banjul, Gambia)" },
-  { value: "Africa/Lagos", label: "WAT (Lagos, Nigeria)" },
-  { value: "Africa/Accra", label: "GMT (Accra, Ghana)" },
-  { value: "Africa/Dakar", label: "GMT (Dakar, Senegal)" },
-  { value: "Africa/Nairobi", label: "EAT (Nairobi, Kenya)" },
-  { value: "America/New_York", label: "EST (New York, US)" },
-  { value: "Europe/London", label: "GMT (London, UK)" },
-  { value: "Europe/Paris", label: "CET (Paris, France)" },
-];
+const TIMEZONES = (() => {
+  try {
+    const all = Intl.supportedValuesOf("timeZone");
+    return all
+      .slice(0, 60)
+      .map((tz) => ({ value: tz, label: tz.replace(/_/g, " ") }));
+  } catch {
+    return [
+      { value: "UTC", label: "UTC (Coordinated Universal Time)" },
+      { value: "Africa/Banjul", label: "GMT (Banjul, Gambia)" },
+      { value: "Africa/Lagos", label: "WAT (Lagos, Nigeria)" },
+      { value: "Africa/Accra", label: "GMT (Accra, Ghana)" },
+      { value: "Africa/Dakar", label: "GMT (Dakar, Senegal)" },
+      { value: "Africa/Nairobi", label: "EAT (Nairobi, Kenya)" },
+      { value: "America/New_York", label: "EST (New York, US)" },
+      { value: "Europe/London", label: "GMT (London, UK)" },
+      { value: "Europe/Paris", label: "CET (Paris, France)" },
+    ];
+  }
+})();
 
 const DATE_FORMATS = [
   { value: "YYYY-MM-DD", label: "YYYY-MM-DD (ISO)" },
@@ -65,8 +74,13 @@ export function AppearanceSection() {
     dateFormat: "YYYY-MM-DD",
   });
 
-  const { data: prefs, isLoading } =
-    trpc.settings.getAppearancePrefs.useQuery();
+  const {
+    data: prefs,
+    isLoading,
+    isError,
+    error,
+    refetch,
+  } = trpc.settings.getAppearancePrefs.useQuery();
   const updatePrefs = trpc.settings.updateAppearancePrefs.useMutation({
     onSuccess: () => {
       toast.success("Appearance preferences saved");
@@ -97,6 +111,27 @@ export function AppearanceSection() {
         {[1, 2, 3].map((i) => (
           <div key={i} className="h-40 rounded-lg bg-muted animate-pulse" />
         ))}
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="rounded-lg border border-destructive/50 bg-destructive/5 p-4">
+        <p className="text-sm font-medium text-destructive">
+          Failed to load appearance settings
+        </p>
+        <p className="text-xs text-muted-foreground mt-1">
+          {String((error as Error)?.message ?? error)}
+        </p>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => refetch()}
+          className="mt-3"
+        >
+          Retry
+        </Button>
       </div>
     );
   }
