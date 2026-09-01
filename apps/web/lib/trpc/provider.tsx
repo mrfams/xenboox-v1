@@ -2,9 +2,69 @@
 
 import { useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { httpBatchLink } from "@trpc/client";
+import { httpBatchLink, TRPCLink } from "@trpc/client";
+import { observable } from "@trpc/server/observable";
 
 import { trpc } from "@/lib/trpc/client";
+import type { AppRouter } from "@/server/routers/_app";
+
+const sessionExpiryLink: TRPCLink<AppRouter> = () => {
+  return ({ next, op }) =>
+    observable((observer) => {
+      const unsubscribe = next(op).subscribe({
+        next(value) {
+          // tRPC errors come via `result.error` in the next payload, not via observer.error
+          const maybeError =
+            (
+              value as unknown as {
+                result?: { error?: unknown };
+                error?: unknown;
+              }
+            )?.result?.error ??
+            (value as unknown as { error?: unknown })?.error;
+          const code =
+            (
+              maybeError as
+                { data?: { code?: string }; code?: string } | undefined
+            )?.data?.code ??
+            (maybeError as { code?: string } | undefined)?.code;
+          const message =
+            (maybeError as { message?: string } | undefined)?.message ?? "";
+          if (
+            code === "UNAUTHORIZED" ||
+            message.includes("UNAUTHORIZED") ||
+            message.includes("Not authenticated")
+          ) {
+            if (typeof window !== "undefined") {
+              window.dispatchEvent(new CustomEvent("xenboox:session-expired"));
+            }
+          }
+          observer.next(value as never);
+        },
+        error(err) {
+          // Network / batch errors come here
+          const code =
+            (err as unknown as { data?: { code?: string } })?.data?.code ??
+            (err as unknown as { code?: string })?.code;
+          const message = (err as Error)?.message ?? "";
+          if (
+            code === "UNAUTHORIZED" ||
+            message.includes("UNAUTHORIZED") ||
+            message.includes("Not authenticated")
+          ) {
+            if (typeof window !== "undefined") {
+              window.dispatchEvent(new CustomEvent("xenboox:session-expired"));
+            }
+          }
+          observer.error(err as never);
+        },
+        complete() {
+          observer.complete();
+        },
+      });
+      return unsubscribe;
+    });
+};
 
 /**
  * Resolve the API base URL for server-side tRPC calls.
@@ -50,6 +110,7 @@ export function TRPCProvider({ children }: { children: React.ReactNode }) {
   const [trpcClient] = useState(() =>
     trpc.createClient({
       links: [
+        sessionExpiryLink,
         httpBatchLink({
           url: `${getBaseUrl()}/api/trpc`,
           headers() {
