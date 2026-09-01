@@ -1386,7 +1386,19 @@ function TaskDetail({ task }: { task: UnifiedTask }) {
         <div className="mx-5 sm:mx-6 mb-4">
           <div className="flex flex-wrap gap-2">
             {Object.entries(task.metadata)
-              .filter(([, v]) => v !== null && v !== undefined)
+              .filter(
+                ([k, v]) =>
+                  v !== null &&
+                  v !== undefined &&
+                  ![
+                    "model",
+                    "costUsd",
+                    "inputTokens",
+                    "outputTokens",
+                    "runId",
+                    "steps",
+                  ].includes(k),
+              )
               .slice(0, 6)
               .map(([k, v]) => (
                 <span
