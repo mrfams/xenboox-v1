@@ -24,6 +24,9 @@ import {
   RotateCcw,
   SkipForward,
   XCircle,
+  Square,
+  CheckSquare,
+  ChevronDown,
   type LucideIcon,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -290,6 +293,8 @@ export default function DecisionsPage() {
   const [cursor, setCursor] = useState(0);
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
   const [pendingIds, setPendingIds] = useState<Set<string>>(new Set());
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [completedExpanded, setCompletedExpanded] = useState(false);
   const [noteFor, setNoteFor] = useState<string | null>(null);
   const [note, setNote] = useState("");
   const listRef = useRef<HTMLDivElement>(null);
@@ -400,11 +405,114 @@ export default function DecisionsPage() {
     setDismissed((p) => new Set(p).add(id));
   }, []);
 
+  // ── Batch actions ──────────────────────────────────────────────────────
+  const toggleSelect = useCallback((id: string) => {
+    setSelectedIds((p) => {
+      const n = new Set(p);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n;
+    });
+  }, []);
+
+  const selectAll = useCallback(() => {
+    const decisionItems = visible.filter(
+      (i) => i.itemType === "decision" && !pendingIds.has(i.id),
+    );
+    setSelectedIds(new Set(decisionItems.map((i) => i.id)));
+  }, [visible, pendingIds]);
+
+  const clearSelection = useCallback(() => {
+    setSelectedIds(new Set());
+  }, []);
+
+  const batchDecide = useCallback(
+    async (action: "approve" | "reject") => {
+      const ids = Array.from(selectedIds);
+      if (ids.length === 0) return;
+      const items = visible.filter((i) => ids.includes(i.id));
+      setPendingIds((p) => {
+        const n = new Set(p);
+        ids.forEach((id) => n.add(id));
+        return n;
+      });
+      let succeeded = 0;
+      for (const item of items) {
+        try {
+          if (item.category === "agent_activity") {
+            await resolveApproval.mutateAsync({
+              itemId: item.id,
+              itemType: "agent_escalation",
+              action: action === "approve" ? "approved" : "rejected",
+              reason: `Batch ${action}`,
+            });
+            succeeded++;
+          } else if (item.category === "ingestion") {
+            await rejectIngestion.mutateAsync({
+              documentId: item.id,
+              reason: `Batch ${action}`,
+            });
+            succeeded++;
+          }
+        } catch {}
+      }
+      setDismissed((p) => {
+        const n = new Set(p);
+        ids.forEach((id) => n.add(id));
+        return n;
+      });
+      setSelectedIds(new Set());
+      setPendingIds((p) => {
+        const n = new Set(p);
+        ids.forEach((id) => n.delete(id));
+        return n;
+      });
+      toast.success(
+        `${succeeded} item${succeeded !== 1 ? "s" : ""} ${action}d`,
+        {
+          action: {
+            label: "Undo",
+            onClick: () =>
+              setDismissed((p) => {
+                const n = new Set(p);
+                ids.forEach((id) => n.delete(id));
+                return n;
+              }),
+          },
+        },
+      );
+      if (entityId) {
+        emitDataChanged("activity-hub", `batch_${action}`, entityId);
+      }
+    },
+    [selectedIds, visible, resolveApproval, rejectIngestion, entityId],
+  );
+
   // ── Keyboard triage ──────────────────────────────────────────────────
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.target as HTMLElement)?.tagName.match(/INPUT|TEXTAREA|SELECT/))
         return;
+
+      // Shift+A = select all visible decisions
+      if (e.shiftKey && e.key === "A") {
+        e.preventDefault();
+        selectAll();
+        return;
+      }
+      // Shift+X = batch approve selected
+      if (e.shiftKey && e.key === "X") {
+        e.preventDefault();
+        if (selectedIds.size > 0) void batchDecide("approve");
+        return;
+      }
+      // Shift+Z = clear selection
+      if (e.shiftKey && e.key === "Z") {
+        e.preventDefault();
+        clearSelection();
+        return;
+      }
+
       if (e.metaKey || e.ctrlKey || e.altKey) return;
 
       switch (e.key) {
@@ -459,7 +567,16 @@ export default function DecisionsPage() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [visible.length, selected, decide, snooze]);
+  }, [
+    visible.length,
+    selected,
+    decide,
+    snooze,
+    selectAll,
+    batchDecide,
+    clearSelection,
+    selectedIds,
+  ]);
 
   // Announce triage movement for screen readers.
   useEffect(() => {
@@ -621,12 +738,34 @@ export default function DecisionsPage() {
                   role="option"
                   aria-selected={isSelected}
                   disabled={pendingIds.has(item.id)}
-                  onClick={() => setCursor(idx)}
+                  onClick={(e) => {
+                    if (e.shiftKey) {
+                      toggleSelect(item.id);
+                    } else {
+                      setCursor(idx);
+                    }
+                  }}
                   className={cn(
                     "flex w-full items-start gap-2.5 border-b border-border/30 px-4 py-3 text-left transition-colors last:border-0",
                     isSelected ? "bg-primary/[0.06]" : "hover:bg-accent/40",
+                    selectedIds.has(item.id) && "bg-primary/[0.04]",
                   )}
                 >
+                  {/* Checkbox (for batch selection) */}
+                  <span
+                    className="mt-0.5 shrink-0"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleSelect(item.id);
+                    }}
+                  >
+                    {selectedIds.has(item.id) ? (
+                      <CheckSquare className="h-3.5 w-3.5 text-primary" />
+                    ) : (
+                      <Square className="h-3.5 w-3.5 text-muted-foreground/30" />
+                    )}
+                  </span>
+
                   {/* Icon */}
                   {isActivity && ActivityIcon ? (
                     <span
@@ -707,6 +846,32 @@ export default function DecisionsPage() {
             })}
           </div>
 
+          {/* Floating batch action bar */}
+          {selectedIds.size > 0 && (
+            <div className="sticky bottom-0 z-20 flex items-center justify-between border-t border-border/40 bg-background/95 px-4 py-2 backdrop-blur-sm">
+              <span className="text-xs text-muted-foreground">
+                {selectedIds.size} selected
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => void batchDecide("approve")}
+                  className="inline-flex items-center gap-1 rounded-lg bg-balanced-green/10 px-3 py-1.5 text-xs font-medium text-balanced-green hover:bg-balanced-green/20 transition-colors"
+                >
+                  <ThumbsUp className="h-3 w-3" />
+                  Approve all
+                </button>
+                <button
+                  type="button"
+                  onClick={clearSelection}
+                  className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Clear
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* ── Brief pane ─────────────────────────────────────────────── */}
           <div className="min-h-0 overflow-y-auto">
             {selected ? (
@@ -733,6 +898,36 @@ export default function DecisionsPage() {
               </div>
             )}
           </div>
+        </div>
+      )}
+
+      {/* Completed section */}
+      {filter !== "tasks" && dismissed.size > 0 && (
+        <div className="border-t border-border/30">
+          <button
+            type="button"
+            onClick={() => setCompletedExpanded((v) => !v)}
+            className="flex w-full items-center justify-between px-4 py-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <span className="flex items-center gap-2">
+              <CheckCircle2 className="h-3.5 w-3.5 text-balanced-green" />
+              Completed today
+              <span className="font-mono tabular-nums text-muted-foreground/60">
+                {dismissed.size}
+              </span>
+            </span>
+            <ChevronDown
+              className={cn(
+                "h-3.5 w-3.5 transition-transform",
+                completedExpanded && "rotate-180",
+              )}
+            />
+          </button>
+          {completedExpanded && (
+            <div className="px-4 pb-3 text-[11px] text-muted-foreground/60">
+              Items you approved, rejected, or snoozed will appear here.
+            </div>
+          )}
         </div>
       )}
     </div>
