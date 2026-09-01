@@ -17,6 +17,7 @@ import {
   SelectContent,
   SelectItem,
   Textarea,
+  Switch,
 } from "@xenboox/ui";
 import {
   Plus,
@@ -466,6 +467,7 @@ export function TaxesSection() {
   const createMutation = trpc.taxConfig.createRule.useMutation();
   const updateMutation = trpc.taxConfig.updateRule.useMutation();
   const deactivateMutation = trpc.taxConfig.deactivateRule.useMutation();
+  const reactivateMutation = trpc.taxConfig.reactivateRule.useMutation();
   const [previewArgs, setPreviewArgs] = useState<{
     rateConfig: ReturnType<typeof parseForm>;
     amount: number;
@@ -608,6 +610,24 @@ export function TaxesSection() {
     }
   };
 
+  const reactivate = async (rule: (typeof rules)[number]) => {
+    try {
+      await reactivateMutation.mutateAsync({ ruleId: rule.id });
+      toast.success(`"${rule.name}" reactivated`);
+      await utils.taxConfig.listRules.invalidate({ country });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to reactivate");
+    }
+  };
+
+  const toggleActive = async (rule: (typeof rules)[number]) => {
+    if (rule.status === "active") {
+      await deactivate(rule);
+    } else {
+      await reactivate(rule);
+    }
+  };
+
   const setBand = (
     i: number,
     field: "from" | "to" | "rate" | "cumulative",
@@ -679,7 +699,11 @@ export function TaxesSection() {
       components: (f.components ?? []).filter((_, idx) => idx !== i),
     }));
 
-  const isSaving = createMutation.isPending || updateMutation.isPending;
+  const isSaving =
+    createMutation.isPending ||
+    updateMutation.isPending ||
+    deactivateMutation.isPending ||
+    reactivateMutation.isPending;
 
   return (
     <div className="space-y-6">
@@ -815,7 +839,22 @@ export function TaxesSection() {
                         </span>
                       </td>
                       <td className="px-4 py-3">
-                        <div className="flex items-center justify-end gap-1">
+                        <div className="flex items-center justify-end gap-2">
+                          <div className="flex items-center gap-1.5">
+                            <Switch
+                              checked={rule.status === "active"}
+                              onCheckedChange={() => toggleActive(rule)}
+                              disabled={isSaving}
+                              aria-label={
+                                rule.status === "active"
+                                  ? `Deactivate ${rule.name}`
+                                  : `Reactivate ${rule.name}`
+                              }
+                            />
+                            <span className="hidden text-[10px] font-medium text-muted-foreground sm:inline">
+                              {rule.status === "active" ? "On" : "Off"}
+                            </span>
+                          </div>
                           <Button
                             variant="ghost"
                             size="sm"
@@ -825,16 +864,28 @@ export function TaxesSection() {
                             <Pencil className="h-3.5 w-3.5" />
                             <span className="sr-only">Edit</span>
                           </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => deactivate(rule)}
-                            disabled={rule.status !== "active"}
-                            title="Deactivate"
-                          >
-                            <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
-                            <span className="sr-only">Deactivate</span>
-                          </Button>
+                          {rule.status === "active" ? (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => deactivate(rule)}
+                              title="Deactivate"
+                            >
+                              <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
+                              <span className="sr-only">Deactivate</span>
+                            </Button>
+                          ) : (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => reactivate(rule)}
+                              title="Reactivate"
+                              className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+                            >
+                              <BadgeCheck className="h-3.5 w-3.5" />
+                              <span className="sr-only">Reactivate</span>
+                            </Button>
+                          )}
                         </div>
                       </td>
                     </tr>

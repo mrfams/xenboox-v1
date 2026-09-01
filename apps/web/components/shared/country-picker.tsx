@@ -64,7 +64,7 @@ export function CountryPicker({
         </Button>
       </PopoverTrigger>
       <PopoverContent align="start" className="w-[320px] p-0">
-        <Command>
+        <Command shouldFilter={false}>
           <CommandInput
             placeholder="Search 190+ countries…"
             value={query}
