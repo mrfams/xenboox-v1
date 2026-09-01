@@ -8,6 +8,7 @@ import { SessionProvider } from "next-auth/react";
 import { ThemeProvider } from "@/components/layout/theme-provider";
 import { TRPCProvider } from "@/lib/trpc/provider";
 import { PostHogProvider } from "@/components/layout/posthog-provider";
+import { SessionExpiryProvider } from "@/components/auth/session-expiry-provider";
 import { getAppUrl } from "@/lib/app-url";
 import "./globals.css";
 
@@ -106,7 +107,9 @@ export default async function RootLayout({
         <ThemeProvider nonce={nonce}>
           <SessionProvider>
             <TRPCProvider>
-              <PostHogProvider>{children}</PostHogProvider>
+              <SessionExpiryProvider>
+                <PostHogProvider>{children}</PostHogProvider>
+              </SessionExpiryProvider>
             </TRPCProvider>
           </SessionProvider>
         </ThemeProvider>

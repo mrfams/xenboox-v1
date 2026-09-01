@@ -1,12 +1,44 @@
 "use client";
 
-import { createTRPCReact, httpBatchLink } from "@trpc/react-query";
+import { createTRPCReact, httpBatchLink, TRPCLink } from "@trpc/react-query";
+import { observable } from "@trpc/server/observable";
 
 import type { AppRouter } from "@/server/routers/_app";
 import {
   deriveIdempotencyKey,
   idempotencySourceForBatch,
 } from "@/lib/trpc/idempotency-key";
+
+const sessionExpiryLink: TRPCLink<AppRouter> = () => {
+  return ({ next, op }) =>
+    observable((observer) => {
+      const unsubscribe = next(op).subscribe({
+        next(value) {
+          observer.next(value);
+        },
+        error(err) {
+          const code =
+            (err as unknown as { data?: { code?: string } })?.data?.code ||
+            (err as unknown as { code?: string })?.code;
+          const message = (err as Error)?.message || "";
+          if (
+            code === "UNAUTHORIZED" ||
+            message.includes("UNAUTHORIZED") ||
+            message.includes("Not authenticated")
+          ) {
+            if (typeof window !== "undefined") {
+              window.dispatchEvent(new CustomEvent("xenboox:session-expired"));
+            }
+          }
+          observer.error(err as never);
+        },
+        complete() {
+          observer.complete();
+        },
+      });
+      return unsubscribe;
+    });
+};
 
 export const trpc = createTRPCReact<AppRouter>();
 
@@ -36,6 +68,7 @@ function getBaseUrl() {
 export function createTRPCClient() {
   return trpc.createClient({
     links: [
+      sessionExpiryLink,
       httpBatchLink({
         url: `${getBaseUrl()}/api/trpc`,
         maxURLLength: 2048,

@@ -1,0 +1,184 @@
+"use client";
+
+import * as React from "react";
+import { useSession } from "next-auth/react";
+import { usePathname, useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
+
+import { SessionExpiryModal } from "./session-expiry-modal";
+
+const EXEMPT_PREFIXES = [
+  "/login",
+  "/register",
+  "/forgot-password",
+  "/reset-password",
+  "/verify-email",
+  "/mfa-challenge",
+  "/admin-login",
+  "/api/auth",
+];
+const COUNTDOWN_SECONDS = 10;
+const STORAGE_KEY = "xenboox:session-expired-at";
+
+function isExempt(pathname: string | null): boolean {
+  if (!pathname) return false;
+  return EXEMPT_PREFIXES.some(
+    (p) =>
+      pathname === p || pathname.startsWith(p + "/") || pathname.startsWith(p),
+  );
+}
+
+export function SessionExpiryProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const { status } = useSession();
+  const pathname = usePathname();
+  const router = useRouter();
+  const queryClient = useQueryClient();
+  const [open, setOpen] = React.useState(false);
+  const [countdown, setCountdown] = React.useState(COUNTDOWN_SECONDS);
+  const wasAuthenticatedRef = React.useRef(false);
+  const hasSignaledRef = React.useRef(false);
+
+  const callbackUrl = React.useMemo(() => {
+    if (typeof window === "undefined") return "/dashboard";
+    return window.location.pathname + window.location.search;
+  }, [open, pathname]);
+
+  const trigger = React.useCallback(() => {
+    if (hasSignaledRef.current) return;
+    if (isExempt(pathname)) return;
+    hasSignaledRef.current = true;
+    setOpen(true);
+    try {
+      localStorage.setItem(STORAGE_KEY, String(Date.now()));
+    } catch {}
+    // Notify other tabs
+    try {
+      const bc = new BroadcastChannel("xenboox:auth");
+      bc.postMessage({ type: "session-expired" });
+      bc.close();
+    } catch {}
+  }, [pathname]);
+
+  // 1) Session status → idle timeout invalidated JWT (server returns null → unauthenticated)
+  React.useEffect(() => {
+    if (status === "authenticated") {
+      wasAuthenticatedRef.current = true;
+      hasSignaledRef.current = false;
+    }
+    if (status === "unauthenticated" && wasAuthenticatedRef.current) {
+      trigger();
+    }
+  }, [status, trigger]);
+
+  // 2) tRPC / fetch 401 → dispatch from trpc provider or direct fetch
+  React.useEffect(() => {
+    const handler = () => trigger();
+    window.addEventListener(
+      "xenboox:session-expired",
+      handler as EventListener,
+    );
+    return () =>
+      window.removeEventListener(
+        "xenboox:session-expired",
+        handler as EventListener,
+      );
+  }, [trigger]);
+
+  // 3) Cross-tab sync
+  React.useEffect(() => {
+    let bc: BroadcastChannel | null = null;
+    try {
+      bc = new BroadcastChannel("xenboox:auth");
+      bc.onmessage = (e) => {
+        if (e.data?.type === "session-expired") trigger();
+      };
+    } catch {}
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === STORAGE_KEY && e.newValue) trigger();
+    };
+    window.addEventListener("storage", onStorage);
+    return () => {
+      window.removeEventListener("storage", onStorage);
+      try {
+        bc?.close();
+      } catch {}
+    };
+  }, [trigger]);
+
+  // 4) QueryCache UNAUTHORIZED → immediate modal (covers tRPC without wait for session poll)
+  React.useEffect(() => {
+    const unsub = queryClient.getQueryCache().subscribe((event) => {
+      const error = event?.query?.state?.error as unknown as
+        | { data?: { code?: string }; code?: string; message?: string }
+        | undefined;
+      if (!error) return;
+      const code = error.data?.code || error.code;
+      const msg = error.message || "";
+      if (
+        code === "UNAUTHORIZED" ||
+        msg.includes("UNAUTHORIZED") ||
+        msg.includes("Not authenticated")
+      ) {
+        trigger();
+      }
+    });
+    return () => unsub();
+  }, [queryClient, trigger]);
+
+  // 5) Re-check when tab becomes visible — session may have expired while hidden
+  React.useEffect(() => {
+    const onVisible = () => {
+      if (
+        document.visibilityState === "visible" &&
+        wasAuthenticatedRef.current &&
+        status === "unauthenticated"
+      ) {
+        trigger();
+      }
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [status, trigger]);
+
+  // Countdown + auto-redirect
+  React.useEffect(() => {
+    if (!open) return;
+    setCountdown(COUNTDOWN_SECONDS);
+    const id = window.setInterval(() => {
+      setCountdown((c) => {
+        if (c <= 1) {
+          window.clearInterval(id);
+          router.push(`/login?callbackUrl=${encodeURIComponent(callbackUrl)}`);
+          return 0;
+        }
+        return c - 1;
+      });
+    }, 1000);
+    return () => window.clearInterval(id);
+  }, [open, callbackUrl, router]);
+
+  const handleOpenChange = React.useCallback((next: boolean) => {
+    setOpen(next);
+    if (!next) {
+      // Dismiss keeps user on page but next data fetch will still 401 → modal again.
+      // We do NOT auto-redirect on dismiss, but clear the signal so a future 401 can re-trigger.
+      hasSignaledRef.current = false;
+    }
+  }, []);
+
+  return (
+    <>
+      {children}
+      <SessionExpiryModal
+        open={open}
+        onOpenChange={handleOpenChange}
+        countdown={countdown}
+        callbackUrl={callbackUrl}
+      />
+    </>
+  );
+}
