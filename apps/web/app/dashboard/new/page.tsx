@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useSession } from "next-auth/react";
+import Link from "next/link";
 import {
   CalendarCheck,
   HandCoins,
@@ -16,18 +17,29 @@ import {
   Loader2,
   AlertTriangle,
   Pause,
+  Sparkles,
+  TrendingUp,
+  TrendingDown,
+  ArrowUpRight,
+  FileText,
+  Rocket,
+  Check,
+  ChevronRight,
+  History,
   type LucideIcon,
 } from "lucide-react";
 
 import { useEntity } from "@/lib/entity-context";
 import { trpc } from "@/lib/trpc/client";
-import { cn } from "@/lib/utils";
+import { cn, formatCurrency } from "@/lib/utils";
 import { useDashboardChat } from "@/lib/hooks/use-dashboard-chat";
 import { activationEvents } from "@/lib/analytics/feature-tracking";
 import { ErrorBoundary } from "@/components/shared/error-boundary";
 import { ConversationThread } from "@/components/dashboard/command-center";
 import { AgentStream } from "@/components/ai-native-v2/stream-feed";
 import { CommandBar } from "@/components/ai-native-v2/command-bar";
+import { ConversationSidebar } from "@/components/chat/conversation-sidebar";
+import { getRoleConfig } from "@/lib/role-config";
 
 // ─── Mission Control (/dashboard/new) ─────────────────────────────────────
 //
@@ -121,6 +133,7 @@ export default function MissionControlPage() {
   const [uploadedFiles, setUploadedFiles] = useState<
     import("@/components/chat/chat-file-upload").UploadedFile[]
   >([]);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // ── Context strip data ────────────────────────────────────────────────
   const { data: closeStatus } = trpc.fiscal.getCurrent.useQuery(undefined, {
@@ -181,6 +194,16 @@ export default function MissionControlPage() {
               <div className="flex shrink-0 items-center gap-1.5">
                 <button
                   type="button"
+                  onClick={() => setSidebarOpen(true)}
+                  className="inline-flex items-center gap-1 rounded-lg border border-border/50 bg-background/50 p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors sm:px-2.5 sm:py-1.5 sm:text-[10px] sm:font-medium"
+                  aria-label="Conversation history"
+                  title="History (Ctrl+H)"
+                >
+                  <History className="h-4 w-4 sm:h-3 sm:w-3" />
+                  <span className="hidden sm:inline">History</span>
+                </button>
+                <button
+                  type="button"
                   onClick={handleExport}
                   className="inline-flex items-center gap-1 rounded-lg border border-border/50 bg-background/50 p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors sm:px-2.5 sm:py-1.5 sm:text-[10px] sm:font-medium"
                   aria-label="Export chat"
@@ -226,10 +249,15 @@ export default function MissionControlPage() {
                 onSendMessage={sendMessage}
               />
             ) : (
-              <MissionsBoard
-                greeting={getGreeting()}
-                onLaunch={(brief) => sendMessage(brief)}
-              />
+              <div className="mx-auto w-full max-w-2xl space-y-5 px-4 pb-8">
+                <RoleWelcome firstName={firstName} entityId={entityId} />
+                <ProactiveBriefing entityId={entityId} />
+                <GettingStartedChecklist onSendMessage={sendMessage} />
+                <MissionsBoard
+                  greeting={getGreeting()}
+                  onLaunch={(brief) => sendMessage(brief)}
+                />
+              </div>
             )}
           </div>
 
@@ -287,6 +315,25 @@ export default function MissionControlPage() {
           />
         </aside>
       </div>
+
+      {/* Conversation sidebar */}
+      <ConversationSidebar
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+        currentConversationId={conversationId ?? null}
+        onSelectConversation={(id) => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (loadConversation as any)?.(id);
+          setSidebarOpen(false);
+        }}
+        onNewChat={() => {
+          (newChat as () => void)?.();
+          setSidebarOpen(false);
+        }}
+      />
+
+      {/* Keyboard shortcut: Ctrl+H for history */}
+      <KeyboardShortcuts onToggleSidebar={() => setSidebarOpen((o) => !o)} />
     </ErrorBoundary>
   );
 }
@@ -685,7 +732,7 @@ function TaskRailItem({ task }: { task: TaskItem }) {
 
   return (
     <a
-      href="/dashboard/activity-hub/new"
+      href="/dashboard/activity-hub"
       className="flex items-start gap-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-accent/50 group"
     >
       <span className="mt-0.5 shrink-0">{statusIcon()}</span>
@@ -725,5 +772,396 @@ function TaskRailItem({ task }: { task: TaskItem }) {
         )}
       </span>
     </a>
+  );
+}
+
+// ─── Keyboard Shortcuts ──────────────────────────────────────────────────
+
+function KeyboardShortcuts({
+  onToggleSidebar,
+}: {
+  onToggleSidebar: () => void;
+}) {
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key === "h") {
+        e.preventDefault();
+        onToggleSidebar();
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onToggleSidebar]);
+
+  return null;
+}
+
+// ─── Role-Based Welcome ──────────────────────────────────────────────────
+// AI-native: personalized greeting based on role, compact text strip.
+
+function RoleWelcome({
+  firstName,
+  entityId,
+}: {
+  firstName?: string;
+  entityId: string | null;
+}) {
+  const { entityRole } = useEntity();
+  const config = entityRole ? getRoleConfig(entityRole) : null;
+
+  if (!config) return null;
+
+  const hour = new Date().getHours();
+  const greeting =
+    hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+  const name = firstName ?? "";
+
+  return (
+    <section className="text-center">
+      <h1 className="text-lg font-bold tracking-tight text-foreground">
+        {name ? `${greeting}, ${name}` : greeting}
+      </h1>
+      <p className="mt-1 text-xs text-muted-foreground">
+        {config.welcomeSubtitle}
+      </p>
+      {config.quickActions && config.quickActions.length > 0 && (
+        <div className="mt-3 flex flex-wrap justify-center gap-2">
+          {config.quickActions.slice(0, 4).map((action) => (
+            <Link
+              key={action.href}
+              href={action.href}
+              className="inline-flex items-center gap-1 rounded-full border border-border/50 bg-background/50 px-3 py-1 text-[11px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+            >
+              {action.label}
+              <ArrowUpRight className="h-3 w-3" />
+            </Link>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+// ─── Proactive Briefing (AI-Native) ─────────────────────────────────────
+// AI tells you what matters. Purple card with AI text + action buttons.
+
+function ProactiveBriefing({ entityId }: { entityId: string | null }) {
+  const [briefingText, setBriefingText] = useState<string | null>(null);
+  const [briefingActions, setBriefingActions] = useState<
+    Array<{ label: string; href: string }>
+  >([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const { data: aiBriefing, isError } = trpc.dashboard.getAiBriefing.useQuery(
+    undefined,
+    { enabled: !!entityId, staleTime: 5 * 60 * 1000 },
+  ) as {
+    data:
+      | { text: string; actions?: Array<{ label: string; href: string }> }
+      | null
+      | undefined;
+    isError: boolean;
+  };
+
+  const { data: dashboardData, isLoading: isDashboardLoading } =
+    trpc.dashboard.getDashboardData.useQuery({}, { enabled: !!entityId });
+  const { data: ingestionStats, isLoading: isIngestionLoading } =
+    trpc.ingestion.getStats.useQuery(undefined, { enabled: !!entityId });
+
+  useEffect(() => {
+    if (aiBriefing) {
+      setBriefingText(aiBriefing.text);
+      setBriefingActions(aiBriefing.actions ?? []);
+      setIsLoading(false);
+    } else if (isError || (!entityId && !aiBriefing)) {
+      setIsLoading(false);
+    }
+  }, [aiBriefing, isError, entityId]);
+
+  // Loading
+  if (isLoading) {
+    return (
+      <div className="rounded-xl border border-border/40 bg-card/30 px-4 py-3">
+        <div className="flex items-center gap-2.5">
+          <Sparkles className="h-4 w-4 text-primary animate-pulse" />
+          <span className="text-xs text-muted-foreground">
+            Generating your briefing...
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  // AI briefing available
+  if (briefingText) {
+    return (
+      <div className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-3">
+        <div className="flex items-start gap-2.5">
+          <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm leading-relaxed text-foreground">
+              {briefingText}
+            </p>
+            {briefingActions.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {briefingActions.map((action) => (
+                  <Link
+                    key={action.href}
+                    href={action.href}
+                    className="inline-flex items-center gap-1 rounded-lg bg-primary/10 px-2.5 py-1 text-[11px] font-medium text-primary hover:bg-primary/20 transition-colors"
+                  >
+                    {action.label}
+                    <ArrowUpRight className="h-3 w-3" />
+                  </Link>
+                ))}
+              </div>
+            )}
+            <p className="mt-1.5 text-[10px] text-muted-foreground/50">
+              AI-generated
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Fallback: count-based briefing
+  const items: Array<{
+    id: string;
+    type: "negative" | "warning" | "positive";
+    title: string;
+    value: string;
+    href: string;
+  }> = [];
+
+  if (dashboardData) {
+    const { businessHealth, pendingApprovalsCount, deadlines } = dashboardData;
+    if (deadlines.length > 0) {
+      items.push({
+        id: "deadlines",
+        type: "warning",
+        title: `${deadlines.length} deadline${deadlines.length > 1 ? "s" : ""} upcoming`,
+        value: deadlines[0]?.label ?? "",
+        href: "/dashboard/operations",
+      });
+    }
+    if (pendingApprovalsCount > 0) {
+      items.push({
+        id: "approvals",
+        type: "warning",
+        title: `${pendingApprovalsCount} item${pendingApprovalsCount > 1 ? "s" : ""} awaiting approval`,
+        value: "Review needed",
+        href: "/dashboard/activity-hub",
+      });
+    }
+    if (businessHealth.cashBalance !== undefined) {
+      const cashType =
+        businessHealth.cashBalance < 0
+          ? "negative"
+          : (businessHealth.runwayMonths ?? 99) < 3
+            ? "warning"
+            : "positive";
+      items.push({
+        id: "cash",
+        type: cashType,
+        title: "Cash position",
+        value: formatCurrency(businessHealth.cashBalance),
+        href: "/dashboard/operations",
+      });
+    }
+  }
+
+  if (ingestionStats && ingestionStats.pendingReview > 0) {
+    items.push({
+      id: "review",
+      type: "warning",
+      title: `${ingestionStats.pendingReview} document${ingestionStats.pendingReview > 1 ? "s" : ""} need review`,
+      value: "Verify",
+      href: "/dashboard/activity-hub",
+    });
+  }
+
+  if (items.length === 0 && !isDashboardLoading && !isIngestionLoading) {
+    return (
+      <div className="rounded-xl border border-balanced-green/20 bg-balanced-green/[0.03] px-4 py-3">
+        <div className="flex items-center gap-2.5">
+          <CheckCircle2 className="h-4 w-4 text-balanced-green" />
+          <span className="text-sm text-foreground">
+            All clear — nothing needs your attention right now.
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  if (items.length === 0) return null;
+
+  const sorted = [...items].sort((a, b) => {
+    const order = { negative: 0, warning: 1, positive: 2 };
+    return (order[a.type] ?? 2) - (order[b.type] ?? 2);
+  });
+
+  return (
+    <div className="space-y-2">
+      {sorted.map((item) => (
+        <Link
+          key={item.id}
+          href={item.href}
+          className="flex items-center gap-3 rounded-xl border border-border/50 bg-card/60 px-4 py-2.5 transition-all hover:border-border/80 hover:shadow-md group"
+        >
+          <span
+            className={cn(
+              "h-2 w-2 shrink-0 rounded-full",
+              item.type === "negative"
+                ? "bg-error-clay"
+                : item.type === "warning"
+                  ? "bg-attention-amber"
+                  : "bg-balanced-green",
+            )}
+          />
+          <span className="flex-1 min-w-0">
+            <span className="text-sm font-medium text-foreground group-hover:text-primary">
+              {item.title}
+            </span>
+            {item.value && (
+              <span className="ml-2 text-xs text-muted-foreground">
+                {item.value}
+              </span>
+            )}
+          </span>
+          <ArrowUpRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground/40 group-hover:text-primary" />
+        </Link>
+      ))}
+    </div>
+  );
+}
+
+// ─── Getting Started Checklist (AI-Native) ──────────────────────────────
+// Compact onboarding pills for first-time users. Dismissible.
+
+const ONBOARDING_STEPS = [
+  {
+    id: "ask",
+    label: "Ask a question",
+    prompt: "Show me my financial overview",
+  },
+  {
+    id: "bank",
+    label: "Connect a bank account",
+    href: "/dashboard/operations/banking",
+  },
+  {
+    id: "accounts",
+    label: "Review your accounts",
+    prompt: "Show me my chart of accounts",
+  },
+  {
+    id: "invoice",
+    label: "Create your first invoice",
+    prompt: "Help me create an invoice",
+  },
+  {
+    id: "close",
+    label: "Close your first month",
+    prompt: "Walk me through month-end close",
+  },
+] as const;
+
+const DISMISSED_KEY = "xenboox_getting_started_dismissed";
+const COMPLETED_KEY = "xenboox_getting_started_completed";
+
+function GettingStartedChecklist({
+  onSendMessage,
+}: {
+  onSendMessage: (text: string) => void;
+}) {
+  const [dismissed, setDismissed] = useState(false);
+  const [completed, setCompleted] = useState<string[]>([]);
+
+  useEffect(() => {
+    try {
+      setDismissed(localStorage.getItem(DISMISSED_KEY) === "true");
+      const stored = localStorage.getItem(COMPLETED_KEY);
+      if (stored) setCompleted(JSON.parse(stored));
+    } catch {}
+  }, []);
+
+  if (dismissed) return null;
+
+  const progress = completed.length;
+  const total = ONBOARDING_STEPS.length;
+
+  function toggleComplete(id: string) {
+    const next = completed.includes(id)
+      ? completed.filter((c) => c !== id)
+      : [...completed, id];
+    setCompleted(next);
+    try {
+      localStorage.setItem(COMPLETED_KEY, JSON.stringify(next));
+    } catch {}
+  }
+
+  function dismiss() {
+    setDismissed(true);
+    try {
+      localStorage.setItem(DISMISSED_KEY, "true");
+    } catch {}
+  }
+
+  return (
+    <div className="rounded-xl border border-border/40 bg-card/30 px-4 py-3">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Rocket className="h-4 w-4 text-primary" />
+          <span className="text-xs font-medium text-foreground">
+            Getting started
+          </span>
+          <span className="text-[10px] text-muted-foreground">
+            {progress}/{total}
+          </span>
+        </div>
+        <button
+          type="button"
+          onClick={dismiss}
+          className="text-muted-foreground/50 hover:text-foreground transition-colors"
+        >
+          <X className="h-3.5 w-3.5" />
+        </button>
+      </div>
+      <div className="mt-2 flex flex-wrap gap-1.5">
+        {ONBOARDING_STEPS.map((step) => {
+          const done = completed.includes(step.id);
+          return (
+            <button
+              key={step.id}
+              type="button"
+              onClick={() => {
+                if (done) {
+                  toggleComplete(step.id);
+                } else if ("prompt" in step) {
+                  onSendMessage(step.prompt);
+                  toggleComplete(step.id);
+                } else {
+                  toggleComplete(step.id);
+                }
+              }}
+              className={cn(
+                "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium transition-all",
+                done
+                  ? "bg-balanced-green/10 text-balanced-green line-through"
+                  : "border border-border/50 bg-background/50 text-muted-foreground hover:text-foreground hover:bg-muted/50",
+              )}
+            >
+              {done ? (
+                <Check className="h-3 w-3" />
+              ) : (
+                <ChevronRight className="h-3 w-3" />
+              )}
+              {step.label}
+            </button>
+          );
+        })}
+      </div>
+    </div>
   );
 }
