@@ -14,6 +14,9 @@ import {
   Search,
   Sparkles,
   X,
+  Plus,
+  Download,
+  Upload,
 } from "lucide-react";
 
 import { useEntity } from "@/lib/entity-context";
@@ -21,6 +24,10 @@ import { trpc } from "@/lib/trpc/client";
 import { cn, formatCurrency } from "@/lib/utils";
 import { ProvenanceDot } from "@/components/ai-native-v2/provenance";
 import { useModuleAi } from "@/components/module/module-ai-context";
+import { usePermission } from "@/lib/permissions";
+import { CreateJournalEntryForm } from "@/components/ledger/create-journal-entry-form";
+import { CoaImportWizard } from "@/components/ledger/coa-import-wizard";
+import { BulkExportButton } from "@/components/shared/bulk-csv";
 
 // ─── The Book — AI-Native Ledger (/ledger/new) ─────────────────────────────
 //
@@ -73,9 +80,15 @@ export default function TheBookPage() {
   const [drawerAccountName, setDrawerAccountName] = useState<string | null>(
     null,
   );
+  const [showJournalForm, setShowJournalForm] = useState(false);
   const listRef = useRef<HTMLUListElement>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { openWithFocus } = useModuleAi();
+
+  const canCreateEntry = usePermission("ledger.journal.create");
+  const canImportCoa = usePermission("ledger.coa.import");
+  const canExport = usePermission("ledger.export");
+  const utils = trpc.useUtils();
 
   // Debounced search
   const onQuery = useCallback((v: string) => {
@@ -183,7 +196,7 @@ export default function TheBookPage() {
           )}
         </div>
 
-        {/* Tab bar + keyboard hint */}
+        {/* Tab bar + actions */}
         <div className="mt-3 flex items-center justify-between">
           <div
             className="flex items-center gap-1"
@@ -213,11 +226,47 @@ export default function TheBookPage() {
               );
             })}
           </div>
-          <span className="hidden text-[10px] text-muted-foreground/50 sm:inline">
-            1/2/3 tabs · j/k navigate · Enter open · / search
-          </span>
+          <div className="flex items-center gap-2">
+            {/* Action buttons per tab */}
+            {tab === "journal" && canCreateEntry && (
+              <button
+                type="button"
+                onClick={() => setShowJournalForm(true)}
+                className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-1 text-[11px] font-medium text-primary hover:bg-primary/20 transition-colors"
+              >
+                <Plus className="h-3 w-3" />
+                New Entry
+              </button>
+            )}
+            {tab === "coa" && canImportCoa && <CoaImportWizard />}
+            {canExport && tab === "journal" && (
+              <BulkExportButton
+                rows={[]}
+                filename={`journal-${new Date().toISOString().split("T")[0]}.csv`}
+                label="Export"
+              />
+            )}
+            <span className="hidden text-[10px] text-muted-foreground/50 sm:inline">
+              1/2/3 tabs · j/k navigate · Enter open · / search
+            </span>
+          </div>
         </div>
       </header>
+
+      {/* Journal Entry Form Modal */}
+      {showJournalForm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
+          <div className="w-full max-w-lg rounded-xl border border-border bg-card shadow-xl">
+            <CreateJournalEntryForm
+              onClose={() => setShowJournalForm(false)}
+              onCreated={() => {
+                setShowJournalForm(false);
+                utils.journal.list.invalidate();
+              }}
+            />
+          </div>
+        </div>
+      )}
 
       {/* ── Tab Panels ──────────────────────────────────────────────── */}
       <div className="flex-1 min-h-0 overflow-y-auto">
