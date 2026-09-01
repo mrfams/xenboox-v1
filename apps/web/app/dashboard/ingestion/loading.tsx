@@ -2,7 +2,7 @@
  * Batch Ingestion Loading State
  */
 
-import { Skeleton } from "@xenboox/ui";
+import { Skeleton } from "@/components/ui";
 
 export default function IngestionLoading() {
   return (

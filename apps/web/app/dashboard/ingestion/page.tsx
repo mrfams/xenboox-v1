@@ -13,9 +13,9 @@
 import { useState, useCallback } from "react";
 import { trpc } from "@/lib/trpc/client";
 import { useEntity } from "@/lib/entity-context";
-import { Card, CardContent, CardHeader, CardTitle } from "@xenboox/ui";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@xenboox/ui";
-import { Badge } from "@xenboox/ui";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui";
+import { Badge } from "@/components/ui";
 import { BatchUpload } from "@/components/ingestion/batch-upload";
 import { BatchProgress } from "@/components/ingestion/batch-progress";
 import { Dropzone } from "@/components/shared/dropzone";

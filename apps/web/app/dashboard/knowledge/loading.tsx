@@ -2,7 +2,7 @@
  * Knowledge Base Loading State
  */
 
-import { Skeleton } from "@xenboox/ui";
+import { Skeleton } from "@/components/ui";
 
 export default function KnowledgeBaseLoading() {
   return (
