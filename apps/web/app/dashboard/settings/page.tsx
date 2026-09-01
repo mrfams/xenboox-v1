@@ -392,6 +392,15 @@ export default function SettingsPage() {
     }),
   })).filter((group) => group.tabs.length > 0);
 
+  // Redirect to first available tab if current tab is not accessible
+  const allAvailableTabIds = filteredGroups.flatMap((g) =>
+    g.tabs.map((t) => t.id),
+  );
+  const currentTabAvailable = allAvailableTabIds.includes(activeTab);
+  const displayTab = currentTabAvailable
+    ? activeTab
+    : (allAvailableTabIds[0] as TabId);
+
   const ActiveComponent = SECTION_COMPONENTS[displayTab];
   const activeTabInfo = TABS.find((t) => t.id === displayTab);
 
@@ -401,15 +410,6 @@ export default function SettingsPage() {
     ? filteredGroups
     : filteredGroups.filter((g) => !ADVANCED_GROUP_LABELS.has(g.label));
   const hiddenGroupCount = filteredGroups.length - visibleGroups.length;
-
-  // Redirect to first available tab if current tab is not accessible
-  const allAvailableTabIds = filteredGroups.flatMap((g) =>
-    g.tabs.map((t) => t.id),
-  );
-  const currentTabAvailable = allAvailableTabIds.includes(activeTab);
-  const displayTab = currentTabAvailable
-    ? activeTab
-    : (allAvailableTabIds[0] as TabId);
 
   return (
     <div className="flex h-[calc(100vh-4rem)] flex-col">
