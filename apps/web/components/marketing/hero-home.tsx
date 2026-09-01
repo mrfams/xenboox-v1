@@ -24,6 +24,8 @@ import {
   Zap,
 } from "lucide-react";
 
+import { motion, useReducedMotion } from "motion/react";
+
 import { Button } from "@/components/ui";
 
 // ─── Surface Definitions ─────────────────────────────────────────────────────
@@ -278,6 +280,7 @@ function HeroNumbersField({
 
 export function Hero() {
   const heroRef = React.useRef<HTMLElement>(null);
+  const shouldReduceMotion = useReducedMotion();
 
   // Production-grade spotlight: CSS vars + rAF, no React re-render per move
   // Visible by design: outer 800px at 0.09 + inner 420px at 0.15, grid masked
@@ -432,73 +435,128 @@ export function Hero() {
       />
 
       <div className="relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        {/* ── Compact Text Zone ── */}
+        {/* ── Text Zone — word-stagger, CTA under subline (Stripe/Linear) ── */}
         <div className="flex flex-col items-center gap-4 pt-10 text-center sm:pt-14 md:pt-16 lg:pt-20">
-          {/* Headline */}
-          <h1 className="hero-fade-up max-w-4xl text-4xl font-semibold leading-[1.08] tracking-tight text-foreground sm:text-5xl lg:text-[3.5rem]">
-            <span className="whitespace-nowrap">
-              Your entire accounting department,
-            </span>{" "}
-            <span className="bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent whitespace-nowrap">
-              running autonomously
-            </span>
-            .
+          {/* Headline — word stagger, blur+translate, gradient stays static (Anthropic restraint) */}
+          <h1 className="max-w-4xl text-4xl font-semibold leading-[1.08] tracking-tight text-foreground sm:text-5xl lg:text-[3.5rem]">
+            {[
+              "Your",
+              "entire",
+              "accounting",
+              "department,",
+              "running",
+              "autonomously",
+            ].map((word, i) => {
+              const isGradient = word === "running" || word === "autonomously";
+              return (
+                <motion.span
+                  key={word}
+                  initial={
+                    shouldReduceMotion
+                      ? false
+                      : { opacity: 0, y: 16, filter: "blur(6px)" }
+                  }
+                  animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+                  transition={{
+                    duration: 0.7,
+                    delay: shouldReduceMotion ? 0 : i * 0.06,
+                    ease: [0.32, 0.72, 0, 1],
+                  }}
+                  className={
+                    isGradient
+                      ? "inline-block bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent"
+                      : "inline-block"
+                  }
+                  style={{ willChange: "transform, opacity, filter" }}
+                >
+                  {word}
+                  {i < 5 ? "\u00A0" : "."}
+                </motion.span>
+              );
+            })}
           </h1>
 
-          {/* Subline */}
-          <p className="hero-fade-up max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg">
+          {/* Subline — line stagger */}
+          <motion.p
+            initial={
+              shouldReduceMotion
+                ? false
+                : { opacity: 0, y: 12, filter: "blur(4px)" }
+            }
+            animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+            transition={{
+              duration: 0.7,
+              delay: shouldReduceMotion ? 0 : 0.42,
+              ease: [0.32, 0.72, 0, 1],
+            }}
+            className="max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg"
+            style={{ willChange: "transform, opacity, filter" }}
+          >
             AI agents handle invoicing, payroll, compliance, and month-end
             close. Every decision confidence-scored, every action audit-trailed.
             You approve what matters.
-          </p>
-        </div>
+          </motion.p>
 
-        {/* ── Interactive Platform Demo — full bleed ── */}
-        <div
-          data-hero-demo
-          className="hero-fade-up mt-8 sm:mt-10 md:mt-12 lg:mt-14"
-        >
-          <InteractiveDemo />
-        </div>
-
-        {/* CTAs — moved below visual, magnetic islands (Zamp) */}
-        <div className="hero-fade-up mt-10 flex flex-col items-center gap-3 sm:mt-12 sm:flex-row sm:justify-center">
-          <Button
-            asChild
-            size="lg"
-            data-magnetic
-            className="gap-2 rounded-full shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/25 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] will-change-transform"
-            style={{ willChange: "transform" } as React.CSSProperties}
+          {/* CTAs — directly under subline, magnetic */}
+          <motion.div
+            initial={shouldReduceMotion ? false : { opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{
+              duration: 0.6,
+              delay: shouldReduceMotion ? 0 : 0.56,
+              ease: [0.32, 0.72, 0, 1],
+            }}
+            className="mt-2 flex flex-col items-center gap-3 sm:mt-3 sm:flex-row sm:justify-center"
+            style={{ willChange: "transform, opacity" }}
           >
-            <Link href="/onboarding">
-              Start free
-              <ArrowRight className="h-4 w-4" aria-hidden="true" />
-            </Link>
-          </Button>
-          <Button
-            asChild
-            variant="outline"
-            size="lg"
-            data-magnetic
-            className="group gap-2 rounded-full border-border/80 bg-background/50 px-6 text-foreground/80 shadow-sm backdrop-blur-sm transition-all duration-300 hover:border-primary/40 hover:bg-primary/5 hover:text-foreground hover:shadow-md hover:shadow-primary/10 hover:ring-1 hover:ring-primary/20 active:scale-[0.98] will-change-transform"
-            style={{ willChange: "transform" } as React.CSSProperties}
-          >
-            <Link href="#demo">
-              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 transition-colors duration-300 group-hover:bg-primary/15">
-                <Play
-                  className="h-3 w-3 fill-primary text-primary"
-                  aria-hidden="true"
-                />
-              </span>
-              See it in action
-            </Link>
-          </Button>
-        </div>
+            <Button
+              asChild
+              size="lg"
+              data-magnetic
+              className="gap-2 rounded-full shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/25 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] will-change-transform"
+              style={{ willChange: "transform" } as React.CSSProperties}
+            >
+              <Link href="/onboarding">
+                Start free
+                <ArrowRight className="h-4 w-4" aria-hidden="true" />
+              </Link>
+            </Button>
+            <Button
+              asChild
+              variant="outline"
+              size="lg"
+              data-magnetic
+              className="group gap-2 rounded-full border-border/80 bg-background/50 px-6 text-foreground/80 shadow-sm backdrop-blur-sm transition-all duration-300 hover:border-primary/40 hover:bg-primary/5 hover:text-foreground hover:shadow-md hover:shadow-primary/10 hover:ring-1 hover:ring-primary/20 active:scale-[0.98] will-change-transform"
+              style={{ willChange: "transform" } as React.CSSProperties}
+            >
+              <Link href="#demo">
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 transition-colors duration-300 group-hover:bg-primary/15">
+                  <Play
+                    className="h-3 w-3 fill-primary text-primary"
+                    aria-hidden="true"
+                  />
+                </span>
+                See it in action
+              </Link>
+            </Button>
+          </motion.div>
 
-        {/* Trust badges — below CTAs, each badge magnetic */}
-        <ul className="hero-fade-up mt-6 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-sm text-muted-foreground">
-          {["No credit card required", "Human approval on every decision"].map(
-            (item) => (
+          {/* Trust badges — tight to CTA, magnetic */}
+          <motion.ul
+            initial={shouldReduceMotion ? false : { opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{
+              duration: 0.6,
+              delay: shouldReduceMotion ? 0 : 0.68,
+              ease: [0.32, 0.72, 0, 1],
+            }}
+            className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-sm text-muted-foreground"
+            style={{ willChange: "opacity" }}
+          >
+            {[
+              "No credit card required",
+              "Human approval on every decision",
+            ].map((item) => (
               <li
                 key={item}
                 data-magnetic
@@ -510,9 +568,29 @@ export function Hero() {
                 </span>
                 {item}
               </li>
-            ),
-          )}
-        </ul>
+            ))}
+          </motion.ul>
+        </div>
+
+        {/* ── Interactive Platform Demo — full bleed ── */}
+        <motion.div
+          data-hero-demo
+          initial={
+            shouldReduceMotion
+              ? false
+              : { opacity: 0, y: 24, filter: "blur(8px)" }
+          }
+          animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+          transition={{
+            duration: 0.8,
+            delay: shouldReduceMotion ? 0 : 0.78,
+            ease: [0.32, 0.72, 0, 1],
+          }}
+          className="mt-8 sm:mt-10 md:mt-12 lg:mt-14"
+          style={{ willChange: "transform, opacity, filter" }}
+        >
+          <InteractiveDemo />
+        </motion.div>
       </div>
 
       {/* Bottom fade — disabled since CTAs are now below visual */}
