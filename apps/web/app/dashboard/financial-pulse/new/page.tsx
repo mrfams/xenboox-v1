@@ -15,6 +15,11 @@ import {
   LineChart,
   Target,
   BookOpen,
+  Globe,
+  CheckCircle2,
+  Clock,
+  ArrowUpRight,
+  ChevronDown,
 } from "lucide-react";
 
 import { useEntity } from "@/lib/entity-context";
@@ -329,8 +334,7 @@ function OverviewPanel({
       }
     | undefined;
   anomalyData:
-    | { anomalies: Array<{ message: string; aiInsight?: string }> }
-    | undefined;
+    { anomalies: Array<{ message: string; aiInsight?: string }> } | undefined;
   ask: (prompt: string) => void;
 }) {
   return (
@@ -522,6 +526,12 @@ function OverviewPanel({
           />
         </div>
       </section>
+
+      {/* Exchange rates + Daily close status strip */}
+      <div className="grid gap-3 sm:grid-cols-2">
+        <ExchangeRatesStrip />
+        <DailyCloseStrip ask={ask} />
+      </div>
 
       {/* Anomalies */}
       {anomalyData?.anomalies && anomalyData.anomalies.length > 0 && (
@@ -1133,5 +1143,98 @@ function ReportLibrary({
         })}
       </div>
     </section>
+  );
+}
+
+// ─── Exchange Rates Strip ────────────────────────────────────────────────
+// Compact live exchange rates from ECB-synced data.
+
+function ExchangeRatesStrip() {
+  const { data: rates } = trpc.currency.listGlobalRates.useQuery(
+    {
+      pairs: [
+        { from: "USD", to: "EUR" },
+        { from: "USD", to: "GBP" },
+        { from: "USD", to: "KES" },
+      ],
+    },
+    { staleTime: 60_000 },
+  );
+
+  if (!rates || rates.length === 0) return null;
+
+  return (
+    <div className="rounded-xl border border-border/50 bg-card px-4 py-3">
+      <div className="flex items-center gap-2 mb-2">
+        <Globe className="h-3.5 w-3.5 text-muted-foreground" />
+        <span className="text-[11px] font-medium text-muted-foreground">
+          Live rates
+        </span>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {rates.map((r) => (
+          <span
+            key={`${r.fromCurrency}-${r.toCurrency}`}
+            className="inline-flex items-center gap-1 rounded-md bg-muted/50 px-2 py-1 text-[11px]"
+          >
+            <span className="text-muted-foreground">
+              {r.fromCurrency}/{r.toCurrency}
+            </span>
+            <span className="font-mono font-semibold text-foreground tabular-nums">
+              {Number(r.rate).toFixed(4)}
+            </span>
+          </span>
+        ))}
+      </div>
+      <p className="mt-1.5 text-[10px] text-muted-foreground/50">Source: ECB</p>
+    </div>
+  );
+}
+
+// ─── Daily Close Status Strip ────────────────────────────────────────────
+// AI-narrated status of today's reconciliation.
+
+function DailyCloseStrip({ ask }: { ask: (q: string) => void }) {
+  const { data: closeStatus } = trpc.dailyClose.getStatus.useQuery(undefined, {
+    staleTime: 60_000,
+  });
+
+  if (!closeStatus) return null;
+
+  const status = closeStatus.status ?? "unknown";
+  const isComplete = status === "completed";
+  const isFailed = status === "failed";
+
+  return (
+    <div className="rounded-xl border border-border/50 bg-card px-4 py-3">
+      <div className="flex items-center gap-2 mb-2">
+        {isComplete ? (
+          <CheckCircle2 className="h-3.5 w-3.5 text-balanced-green" />
+        ) : isFailed ? (
+          <AlertTriangle className="h-3.5 w-3.5 text-error-clay" />
+        ) : (
+          <Clock className="h-3.5 w-3.5 text-muted-foreground animate-pulse" />
+        )}
+        <span className="text-[11px] font-medium text-muted-foreground">
+          Daily close
+        </span>
+      </div>
+      <p className="text-xs text-foreground">
+        {isComplete
+          ? `Reconciliation completed — ${closeStatus.matchedCount ?? 0} of ${closeStatus.totalCount ?? 0} transactions matched`
+          : isFailed
+            ? "Reconciliation failed — needs attention"
+            : "In progress..."}
+      </p>
+      <button
+        type="button"
+        onClick={() =>
+          ask("Show me the daily reconciliation status and any exceptions")
+        }
+        className="mt-1.5 text-[11px] font-medium text-primary hover:text-primary/80"
+      >
+        Ask why →
+      </button>
+    </div>
   );
 }
