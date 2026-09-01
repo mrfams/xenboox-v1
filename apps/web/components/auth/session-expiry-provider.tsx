@@ -18,7 +18,6 @@ const EXEMPT_PREFIXES = [
   "/api/auth",
 ];
 const COUNTDOWN_SECONDS = 10;
-const STORAGE_KEY = "xenboox:session-expired-at";
 
 function isExempt(pathname: string | null): boolean {
   if (!pathname) return false;
@@ -52,10 +51,7 @@ export function SessionExpiryProvider({
     if (isExempt(pathname)) return;
     hasSignaledRef.current = true;
     setOpen(true);
-    try {
-      localStorage.setItem(STORAGE_KEY, String(Date.now()));
-    } catch {}
-    // Notify other tabs
+    // Cross-tab notify — cloud is still source of truth, this is only UX sync
     try {
       const bc = new BroadcastChannel("xenboox:auth");
       bc.postMessage({ type: "session-expired" });
@@ -88,7 +84,7 @@ export function SessionExpiryProvider({
       );
   }, [trigger]);
 
-  // 3) Cross-tab sync
+  // 3) Cross-tab sync — BroadcastChannel only (no localStorage, cloud is authority)
   React.useEffect(() => {
     let bc: BroadcastChannel | null = null;
     try {
@@ -97,12 +93,7 @@ export function SessionExpiryProvider({
         if (e.data?.type === "session-expired") trigger();
       };
     } catch {}
-    const onStorage = (e: StorageEvent) => {
-      if (e.key === STORAGE_KEY && e.newValue) trigger();
-    };
-    window.addEventListener("storage", onStorage);
     return () => {
-      window.removeEventListener("storage", onStorage);
       try {
         bc?.close();
       } catch {}
