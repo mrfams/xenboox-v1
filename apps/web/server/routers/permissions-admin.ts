@@ -306,31 +306,44 @@ export const permissionsAdminRouter = router({
       where: and(
         eq(userPermissionOverrides.userId, ctx.session!.user!.id!),
         eq(userPermissionOverrides.entityId, ctx.entityId!),
-        eq(userPermissionOverrides.grant, false),
       ),
       columns: {
         module: true,
         action: true,
         grant: true,
+        expiresAt: true,
       },
     });
 
-    // Apply overrides (revocations) to the permission list
+    // Apply overrides — filter out expired ones
+    const now = new Date();
     const overrideMap = new Map(
-      overrides.map((o) => [`${o.module}:${o.action}`, o]),
+      overrides
+        .filter((o) => !o.expiresAt || o.expiresAt > now)
+        .map((o) => [`${o.module}:${o.action}`, o]),
     );
 
-    const result = perms
-      .filter((p) => {
-        const key = `${p.module}:${p.action}`;
-        const override = overrideMap.get(key);
-        return !override || override.grant !== false;
-      })
-      .map((p) => ({
-        module: p.module,
-        action: p.action,
-        scope: p.scope,
-      }));
+    const result: Array<{ module: string; action: string; scope: string }> = [];
+
+    for (const p of perms) {
+      const key = `${p.module}:${p.action}`;
+      const override = overrideMap.get(key);
+
+      if (override) {
+        if (override.grant === false) {
+          // Revocation — remove from list
+          continue;
+        }
+        if (override.grant === true) {
+          // Grant override — add with full scope
+          result.push({ module: p.module, action: p.action, scope: "full" });
+          continue;
+        }
+      }
+
+      // No override — use role default
+      result.push({ module: p.module, action: p.action, scope: p.scope });
+    }
 
     return result;
   }),

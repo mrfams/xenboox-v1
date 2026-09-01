@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { usePermission } from "@/lib/permissions";
 
 // ─── Quick Actions ─────────────────────────────────────────────────────────
 //
@@ -28,6 +29,7 @@ type QuickAction = {
   onClick?: () => void;
   color: string;
   shortcut?: string;
+  permission?: { module: string; action: string };
 };
 
 const DEFAULT_ACTIONS: QuickAction[] = [
@@ -38,6 +40,7 @@ const DEFAULT_ACTIONS: QuickAction[] = [
     href: "/dashboard/operations/invoices",
     color: "text-emerald-500",
     shortcut: "Ctrl+I",
+    permission: { module: "accounts_receivable", action: "create" },
   },
   {
     id: "upload-document",
@@ -46,6 +49,7 @@ const DEFAULT_ACTIONS: QuickAction[] = [
     href: "/dashboard/ingestion",
     color: "text-blue-500",
     shortcut: "Ctrl+U",
+    permission: { module: "document_management", action: "create" },
   },
   {
     id: "ask-ai",
@@ -67,6 +71,14 @@ const DEFAULT_ACTIONS: QuickAction[] = [
 
 export function QuickActions() {
   const [isExpanded, setIsExpanded] = useState(false);
+  const { hasPermission } = usePermission();
+
+  const visibleActions = DEFAULT_ACTIONS.filter((action) => {
+    if (!action.permission) return true;
+    return hasPermission(action.permission.module, action.permission.action);
+  });
+
+  if (visibleActions.length === 0) return null;
 
   return (
     <div className="relative">
@@ -95,7 +107,7 @@ export function QuickActions() {
       {/* Expanded actions */}
       {isExpanded && (
         <div className="mt-1 space-y-1 pl-2">
-          {DEFAULT_ACTIONS.map((action) => {
+          {visibleActions.map((action) => {
             const Icon = action.icon;
             return (
               <a

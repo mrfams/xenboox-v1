@@ -229,12 +229,7 @@ const ROLE_CONFIGS: Record<UserRole, RoleConfig> = {
         description: "Generate financial statements",
       },
     ],
-    onboardingSteps: [
-      "welcome",
-      "role-intro",
-      "chart-of-accounts",
-      "complete",
-    ],
+    onboardingSteps: ["welcome", "role-intro", "chart-of-accounts", "complete"],
     canAccessSettings: false,
     canAccessAdmin: false,
     showAiChat: true,
@@ -372,7 +367,7 @@ const ROLE_CONFIGS: Record<UserRole, RoleConfig> = {
     onboardingSteps: ["welcome", "role-intro", "complete"],
     canAccessSettings: false,
     canAccessAdmin: false,
-    showAiChat: false,
+    showAiChat: true,
     showCreateButtons: false,
   },
 
@@ -413,7 +408,7 @@ const ROLE_CONFIGS: Record<UserRole, RoleConfig> = {
     onboardingSteps: ["welcome", "role-intro", "complete"],
     canAccessSettings: false,
     canAccessAdmin: false,
-    showAiChat: false,
+    showAiChat: true,
     showCreateButtons: true,
   },
 
@@ -448,7 +443,7 @@ const ROLE_CONFIGS: Record<UserRole, RoleConfig> = {
     onboardingSteps: ["welcome", "role-intro", "complete"],
     canAccessSettings: false,
     canAccessAdmin: false,
-    showAiChat: false,
+    showAiChat: true,
     showCreateButtons: true,
   },
 
@@ -530,7 +525,7 @@ const ROLE_CONFIGS: Record<UserRole, RoleConfig> = {
     onboardingSteps: ["welcome", "role-intro", "complete"],
     canAccessSettings: false,
     canAccessAdmin: false,
-    showAiChat: false,
+    showAiChat: true,
     showCreateButtons: false,
   },
 
@@ -571,7 +566,7 @@ const ROLE_CONFIGS: Record<UserRole, RoleConfig> = {
     onboardingSteps: ["welcome", "role-intro", "complete"],
     canAccessSettings: false,
     canAccessAdmin: false,
-    showAiChat: false,
+    showAiChat: true,
     showCreateButtons: false,
   },
 };

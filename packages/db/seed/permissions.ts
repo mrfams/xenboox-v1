@@ -80,8 +80,11 @@ const PERMISSIONS: PermEntry[] = [
   // ═══════════════════════════════════════════════════════════════
   // GENERAL LEDGER / CHART OF ACCOUNTS (module: general_ledger)
   // ═══════════════════════════════════════════════════════════════
-  // Org Owner
+  // Org Owner — FULL ACCESS to all modules
   { role: "owner", module: "general_ledger", action: "view", scope: "full" },
+  { role: "owner", module: "general_ledger", action: "create", scope: "full" },
+  { role: "owner", module: "general_ledger", action: "edit", scope: "full" },
+  { role: "owner", module: "general_ledger", action: "post", scope: "full" },
   { role: "owner", module: "general_ledger", action: "approve", scope: "full" },
   { role: "owner", module: "general_ledger", action: "export", scope: "full" },
   {
@@ -227,6 +230,13 @@ const PERMISSIONS: PermEntry[] = [
   {
     role: "owner",
     module: "chart_of_accounts",
+    action: "create",
+    scope: "full",
+  },
+  { role: "owner", module: "chart_of_accounts", action: "edit", scope: "full" },
+  {
+    role: "owner",
+    module: "chart_of_accounts",
     action: "approve",
     scope: "full",
   },
@@ -356,8 +366,15 @@ const PERMISSIONS: PermEntry[] = [
   // ═══════════════════════════════════════════════════════════════
   // AP / AR (modules: accounts_payable, accounts_receivable)
   // ═══════════════════════════════════════════════════════════════
-  // Owner
+  // Owner — FULL ACCESS
   { role: "owner", module: "accounts_payable", action: "view", scope: "full" },
+  {
+    role: "owner",
+    module: "accounts_payable",
+    action: "create",
+    scope: "full",
+  },
+  { role: "owner", module: "accounts_payable", action: "edit", scope: "full" },
   {
     role: "owner",
     module: "accounts_payable",
@@ -374,6 +391,18 @@ const PERMISSIONS: PermEntry[] = [
     role: "owner",
     module: "accounts_receivable",
     action: "view",
+    scope: "full",
+  },
+  {
+    role: "owner",
+    module: "accounts_receivable",
+    action: "create",
+    scope: "full",
+  },
+  {
+    role: "owner",
+    module: "accounts_receivable",
+    action: "edit",
     scope: "full",
   },
   {
@@ -675,9 +704,23 @@ const PERMISSIONS: PermEntry[] = [
   },
 
   // ═══════════════════════════════════════════════════════════════
+  // INVOICING
+  // ═══════════════════════════════════════════════════════════════
+  { role: "owner", module: "invoicing", action: "view", scope: "full" },
+  { role: "owner", module: "invoicing", action: "create", scope: "full" },
+  { role: "owner", module: "invoicing", action: "edit", scope: "full" },
+  { role: "owner", module: "invoicing", action: "approve", scope: "full" },
+  { role: "owner", module: "invoicing", action: "delete", scope: "full" },
+  { role: "owner", module: "invoicing", action: "export", scope: "full" },
+  { role: "owner", module: "invoicing", action: "configure", scope: "full" },
+
+  // ═══════════════════════════════════════════════════════════════
   // CASH & IMPREST / MOBILE MONEY
   // ═══════════════════════════════════════════════════════════════
+  // Owner — FULL ACCESS
   { role: "owner", module: "cash_imprest", action: "view", scope: "full" },
+  { role: "owner", module: "cash_imprest", action: "create", scope: "full" },
+  { role: "owner", module: "cash_imprest", action: "edit", scope: "full" },
   { role: "owner", module: "cash_imprest", action: "approve", scope: "full" },
   { role: "owner", module: "cash_imprest", action: "export", scope: "full" },
   {
@@ -794,8 +837,10 @@ const PERMISSIONS: PermEntry[] = [
     action: "export",
     scope: "full",
   },
-  // Mobile Money mirrors Cash & Imprest
+  // Owner — FULL ACCESS
   { role: "owner", module: "mobile_money", action: "view", scope: "full" },
+  { role: "owner", module: "mobile_money", action: "create", scope: "full" },
+  { role: "owner", module: "mobile_money", action: "edit", scope: "full" },
   { role: "owner", module: "mobile_money", action: "approve", scope: "full" },
   { role: "owner", module: "mobile_money", action: "export", scope: "full" },
   {
@@ -903,20 +948,21 @@ const PERMISSIONS: PermEntry[] = [
   // ═══════════════════════════════════════════════════════════════
   // PAYROLL — Strictest scoping in the system
   // ═══════════════════════════════════════════════════════════════
+  // Owner — FULL ACCESS (not summary-only)
   {
     role: "owner",
     module: "payroll",
     action: "view",
-    scope: "scoped",
-    description: "Summary only, not individual salaries",
+    scope: "full",
   },
+  { role: "owner", module: "payroll", action: "create", scope: "full" },
+  { role: "owner", module: "payroll", action: "edit", scope: "full" },
   { role: "owner", module: "payroll", action: "approve", scope: "full" },
   {
     role: "owner",
     module: "payroll",
     action: "export",
-    scope: "scoped",
-    description: "Summary only",
+    scope: "full",
   },
   {
     role: "finance_director",
@@ -1032,10 +1078,23 @@ const PERMISSIONS: PermEntry[] = [
   // ═══════════════════════════════════════════════════════════════
   // EXPENSE MANAGEMENT
   // ═══════════════════════════════════════════════════════════════
+  // Owner — FULL ACCESS
   {
     role: "owner",
     module: "expense_management",
     action: "view",
+    scope: "full",
+  },
+  {
+    role: "owner",
+    module: "expense_management",
+    action: "create",
+    scope: "full",
+  },
+  {
+    role: "owner",
+    module: "expense_management",
+    action: "edit",
     scope: "full",
   },
   {
@@ -1812,10 +1871,23 @@ const PERMISSIONS: PermEntry[] = [
   // ═══════════════════════════════════════════════════════════════
   // BANK RECONCILIATION
   // ═══════════════════════════════════════════════════════════════
+  // Owner — FULL ACCESS
   {
     role: "owner",
     module: "bank_reconciliation",
     action: "view",
+    scope: "full",
+  },
+  {
+    role: "owner",
+    module: "bank_reconciliation",
+    action: "create",
+    scope: "full",
+  },
+  {
+    role: "owner",
+    module: "bank_reconciliation",
+    action: "edit",
     scope: "full",
   },
   {

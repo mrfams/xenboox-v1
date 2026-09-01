@@ -11,6 +11,12 @@ import {
   MessageSquare,
   X,
   Download,
+  CheckCircle2,
+  Clock,
+  Loader2,
+  AlertTriangle,
+  Pause,
+  type LucideIcon,
 } from "lucide-react";
 
 import { useEntity } from "@/lib/entity-context";
@@ -67,6 +73,22 @@ const MISSIONS = [
     tag: "Treasury",
   },
 ] as const;
+
+function timeAgo(d: string | Date | undefined): string {
+  if (!d) return "";
+  const mins = Math.floor((Date.now() - new Date(d).getTime()) / 60000);
+  if (mins < 1) return "now";
+  if (mins < 60) return `${mins}m`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h`;
+  const days = Math.floor(hrs / 24);
+  return days < 7
+    ? `${days}d`
+    : new Date(d).toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+      });
+}
 
 export default function MissionControlPage() {
   const { entityId } = useEntity();
@@ -284,63 +306,94 @@ function AgentConversationsRail({
   currentConversationId: string | null;
   onSelectConversation: (id: string) => void;
 }) {
-  const [active, setActive] = useState<"agents" | "conversations">("agents");
+  const [active, setActive] = useState<"agents" | "conversations" | "tasks">(
+    "agents",
+  );
 
   const { data: conversations } = trpc.chat.listConversations.useQuery(
     undefined,
     { enabled: active === "conversations" },
   );
 
+  const { data: tasksData } = trpc.tasks.list.useQuery(
+    { limit: 30 },
+    { enabled: active === "tasks", refetchInterval: 10_000 },
+  );
+
+  const runningTasks =
+    tasksData?.tasks?.filter(
+      (t) =>
+        t.status === "in_progress" ||
+        t.status === "queued" ||
+        t.status === "waiting",
+    ) ?? [];
+
   return (
     <div className="flex h-full min-h-0 w-full flex-col bg-card">
       {/* Tabs — fixed header, never scrolls, full bleed */}
       <div
         role="tablist"
-        aria-label="Agents and conversations"
-        className="sticky top-0 z-10 flex w-full shrink-0 items-center justify-center gap-1.5 border-b border-border/30 bg-background px-3 py-2.5"
+        aria-label="Agents, conversations, and tasks"
+        className="sticky top-0 z-10 flex w-full shrink-0 items-center justify-center gap-1 border-b border-border/30 bg-background px-2 py-2"
       >
-        <button
-          type="button"
-          role="tab"
-          aria-selected={active === "agents"}
-          onClick={() => setActive("agents")}
-          className={cn(
-            "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all duration-200",
-            active === "agents"
-              ? "bg-primary/10 text-primary"
-              : "text-muted-foreground hover:bg-muted/50 hover:text-foreground",
-          )}
-        >
-          <Bot className="h-3.5 w-3.5" />
-          Agents
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={active === "conversations"}
-          onClick={() => setActive("conversations")}
-          className={cn(
-            "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all duration-200",
-            active === "conversations"
-              ? "bg-primary/10 text-primary"
-              : "text-muted-foreground hover:bg-muted/50 hover:text-foreground",
-          )}
-        >
-          <MessageSquare className="h-3.5 w-3.5" />
-          Conversations
-        </button>
+        {(
+          [
+            { key: "agents" as const, label: "Agents", icon: Bot },
+            {
+              key: "tasks" as const,
+              label: "Tasks",
+              icon: CheckCircle2,
+              count: runningTasks.length,
+            },
+            {
+              key: "conversations" as const,
+              label: "Chat",
+              icon: MessageSquare,
+            },
+          ] as const
+        ).map((tab) => (
+          <button
+            key={tab.key}
+            type="button"
+            role="tab"
+            aria-selected={active === tab.key}
+            onClick={() => setActive(tab.key)}
+            className={cn(
+              "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium transition-all duration-200",
+              active === tab.key
+                ? "bg-primary/10 text-primary"
+                : "text-muted-foreground hover:bg-muted/50 hover:text-foreground",
+            )}
+          >
+            <tab.icon className="h-3 w-3" />
+            {tab.label}
+            {"count" in tab && tab.count > 0 && (
+              <span className="ml-0.5 inline-flex h-4 min-w-[16px] items-center justify-center rounded-full bg-primary/20 px-1 text-[9px] font-bold tabular-nums text-primary">
+                {tab.count}
+              </span>
+            )}
+          </button>
+        ))}
       </div>
 
       {/* Content — each tab is its own scroll plane */}
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-card">
-        {active === "agents" ? (
+        {active === "agents" && (
           <div className="min-h-0 flex-1 overflow-hidden">
             <AgentStream
               entityId={entityId}
               className="h-full w-full rounded-none border-0 bg-card"
             />
           </div>
-        ) : (
+        )}
+
+        {active === "tasks" && (
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+            <TasksRail tasks={tasksData?.tasks ?? []} />
+          </div>
+        )}
+
+        {active === "conversations" && (
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
             {!conversations || conversations.length === 0 ? (
               <div className="flex h-full min-h-[200px] flex-col items-center justify-center p-4 text-center">
@@ -471,5 +524,218 @@ function MissionsBoard({
         ))}
       </div>
     </section>
+  );
+}
+
+// ─── Tasks Rail ────────────────────────────────────────────────────────────
+//
+// Compact task list for the right rail. Shows running tasks with progress,
+// completed tasks, and failed tasks. Clicking a task navigates to the
+// activity hub tasks tab.
+
+type TaskItem = {
+  id: string;
+  source: "close_task" | "live_run" | "daily_close";
+  title: string;
+  description: string | null;
+  status:
+    | "queued"
+    | "in_progress"
+    | "waiting"
+    | "completed"
+    | "failed"
+    | "blocked"
+    | "skipped";
+  progress: number;
+  agentName: string | null;
+  agentInitials: string | null;
+  agentColor: string | null;
+  confidence: number | null;
+  startedAt: Date | null;
+  completedAt: Date | null;
+  currentStep: string | null;
+  error: string | null;
+  createdAt: Date;
+};
+
+function TasksRail({ tasks }: { tasks: TaskItem[] }) {
+  const running = tasks.filter(
+    (t) =>
+      t.status === "in_progress" ||
+      t.status === "queued" ||
+      t.status === "waiting",
+  );
+  const completed = tasks.filter((t) => t.status === "completed");
+  const failed = tasks.filter(
+    (t) => t.status === "failed" || t.status === "blocked",
+  );
+
+  if (tasks.length === 0) {
+    return (
+      <div className="flex h-full min-h-[200px] flex-col items-center justify-center p-4 text-center">
+        <CheckCircle2 className="h-6 w-6 text-balanced-green/30 mb-2" />
+        <p className="text-xs text-muted-foreground">No tasks running</p>
+        <p className="text-[10px] text-muted-foreground/60 mt-1">
+          AI agents will start tasks automatically
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3 p-2">
+      {/* Running */}
+      {running.length > 0 && (
+        <TaskGroup label="Running" count={running.length}>
+          {running.map((task) => (
+            <TaskRailItem key={task.id} task={task} />
+          ))}
+        </TaskGroup>
+      )}
+
+      {/* Failed */}
+      {failed.length > 0 && (
+        <TaskGroup label="Failed" count={failed.length} tone="error">
+          {failed.map((task) => (
+            <TaskRailItem key={task.id} task={task} />
+          ))}
+        </TaskGroup>
+      )}
+
+      {/* Completed (show last 5) */}
+      {completed.length > 0 && (
+        <TaskGroup label="Completed" count={completed.length} tone="success">
+          {completed.slice(0, 5).map((task) => (
+            <TaskRailItem key={task.id} task={task} />
+          ))}
+          {completed.length > 5 && (
+            <p className="text-[10px] text-muted-foreground/60 px-2 py-1">
+              +{completed.length - 5} more
+            </p>
+          )}
+        </TaskGroup>
+      )}
+    </div>
+  );
+}
+
+function TaskGroup({
+  label,
+  count,
+  tone = "default",
+  children,
+}: {
+  label: string;
+  count: number;
+  tone?: "default" | "error" | "success";
+  children: React.ReactNode;
+}) {
+  const dotColor = {
+    default: "bg-primary",
+    error: "bg-error-clay",
+    success: "bg-balanced-green",
+  }[tone];
+
+  return (
+    <div>
+      <div className="flex items-center gap-1.5 px-2 py-1">
+        <span
+          className={cn(
+            "h-1.5 w-1.5 rounded-full",
+            dotColor,
+            tone === "default" && "animate-pulse",
+          )}
+        />
+        <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+          {label}
+        </span>
+        <span className="text-[10px] font-mono tabular-nums text-muted-foreground/60">
+          {count}
+        </span>
+      </div>
+      <div className="space-y-0.5">{children}</div>
+    </div>
+  );
+}
+
+function TaskRailItem({ task }: { task: TaskItem }) {
+  const statusIcon = () => {
+    switch (task.status) {
+      case "in_progress":
+        return <Loader2 className="h-3 w-3 text-primary animate-spin" />;
+      case "queued":
+        return <Clock className="h-3 w-3 text-muted-foreground" />;
+      case "waiting":
+        return <Pause className="h-3 w-3 text-attention-amber" />;
+      case "completed":
+        return <CheckCircle2 className="h-3 w-3 text-balanced-green" />;
+      case "failed":
+      case "blocked":
+        return <AlertTriangle className="h-3 w-3 text-error-clay" />;
+      default:
+        return <Clock className="h-3 w-3 text-muted-foreground" />;
+    }
+  };
+
+  const sourceLabel = {
+    close_task: "Close",
+    live_run: "Agent",
+    daily_close: "Daily",
+  }[task.source];
+
+  return (
+    <a
+      href="/dashboard/activity-hub/new"
+      className="flex items-start gap-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-accent/50 group"
+    >
+      <span className="mt-0.5 shrink-0">{statusIcon()}</span>
+      <span className="min-w-0 flex-1">
+        <span className="flex items-center gap-1">
+          <span className="block truncate text-[11px] font-medium text-foreground group-hover:text-primary">
+            {task.title}
+          </span>
+          <span className="shrink-0 rounded-full bg-muted/50 px-1 py-0.5 text-[7px] font-bold uppercase text-muted-foreground">
+            {sourceLabel}
+          </span>
+        </span>
+        {/* Progress bar for running tasks */}
+        {(task.status === "in_progress" || task.status === "queued") &&
+          task.progress > 0 && (
+            <div className="mt-1 flex items-center gap-1.5">
+              <div className="h-0.5 flex-1 overflow-hidden rounded-full bg-muted">
+                <div
+                  className="h-full rounded-full bg-primary transition-all duration-500"
+                  style={{ width: `${task.progress}%` }}
+                />
+              </div>
+              <span className="font-mono text-[8px] tabular-nums text-muted-foreground/60">
+                {task.progress}%
+              </span>
+            </div>
+          )}
+        {/* Agent + time */}
+        <span className="mt-0.5 flex items-center gap-1 text-[9px] text-muted-foreground/60">
+          {task.agentInitials && (
+            <span
+              className="inline-flex h-3 w-3 items-center justify-center rounded-full text-[6px] font-bold text-white"
+              style={{
+                backgroundColor: task.agentColor ?? "hsl(var(--primary))",
+              }}
+            >
+              {task.agentInitials}
+            </span>
+          )}
+          <span>{task.agentName ?? "Agent"}</span>
+          <span aria-hidden="true">·</span>
+          <span>{timeAgo(task.startedAt ?? task.createdAt)}</span>
+        </span>
+        {/* Error */}
+        {task.error && (
+          <span className="mt-0.5 block text-[9px] text-error-clay truncate">
+            {task.error}
+          </span>
+        )}
+      </span>
+    </a>
   );
 }

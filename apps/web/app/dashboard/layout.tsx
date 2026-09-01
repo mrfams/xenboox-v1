@@ -73,21 +73,22 @@ function PermissionAwareLayout({ children }: { children: React.ReactNode }) {
         // Analytics not loaded — silent fail, non-critical
       });
   }, [pathname, entityId]);
-  const { data: perms } = trpc.permissionsAdmin.myPermissions.useQuery(
-    undefined,
-    {
+  const { data: perms, refetch: refetchPerms } =
+    trpc.permissionsAdmin.myPermissions.useQuery(undefined, {
       enabled: !!entityRole,
-      staleTime: 5 * 60_000, // 5 minutes - permissions don't change often
+      staleTime: 0, // Always refetch when invalidated
       refetchOnWindowFocus: false,
-      refetchOnMount: false,
       retry: false,
-    },
-  );
+    });
 
   const permMap = perms ? serializePermissions(perms) : null;
 
   return (
-    <PermissionProvider permissions={permMap} role={entityRole}>
+    <PermissionProvider
+      permissions={permMap}
+      role={entityRole}
+      refetchPermissions={() => refetchPerms()}
+    >
       {children}
     </PermissionProvider>
   );

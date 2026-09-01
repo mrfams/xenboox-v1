@@ -35,6 +35,7 @@ import {
   type AttentionTotals,
   type NavKey,
 } from "@/lib/hooks/use-attention-signals";
+import { usePermission } from "@/lib/permissions";
 
 // ─── AI-Native Sidebar ─────────────────────────────────────────────────────
 //
@@ -53,6 +54,7 @@ type NavItem = {
   match?: string[];
   shortcut?: string;
   tourId?: string;
+  permission?: { module: string; action: string };
 };
 
 // ─── AI-Native 5-Surface Navigation ───────────────────────────────────────
@@ -87,6 +89,7 @@ const primaryNavItems: NavItem[] = [
     match: ["/dashboard/financial-pulse"],
     shortcut: "3",
     tourId: "financial-pulse",
+    permission: { module: "financial_reporting", action: "view" },
   },
   {
     label: "Ledger",
@@ -96,6 +99,7 @@ const primaryNavItems: NavItem[] = [
     match: ["/dashboard/ledger"],
     shortcut: "4",
     tourId: "ledger",
+    permission: { module: "general_ledger", action: "view" },
   },
   {
     label: "Operations",
@@ -115,29 +119,38 @@ const operationsSubNavItems: NavItem[] = [
     href: "/dashboard/operations/customers",
     icon: Users,
     match: ["/dashboard/operations/customers"],
+    permission: { module: "accounts_receivable", action: "view" },
   },
   {
     label: "Invoices",
     href: "/dashboard/operations/invoices",
     icon: FileText,
     match: ["/dashboard/operations/invoices"],
+    permission: { module: "accounts_receivable", action: "view" },
   },
   {
     label: "Vendors",
     href: "/dashboard/operations/vendors",
     icon: CreditCard,
     match: ["/dashboard/operations/vendors"],
+    permission: { module: "accounts_payable", action: "view" },
   },
   {
     label: "Donor Reporting",
     href: "/dashboard/donor-reporting",
     icon: HandCoins,
     match: ["/dashboard/donor-reporting"],
+    permission: { module: "donor_grant", action: "view" },
   },
 ];
 
 const bottomNavItems: NavItem[] = [
-  { label: "Audit Trail", href: "/dashboard/audit-trail", icon: History },
+  {
+    label: "Audit Trail",
+    href: "/dashboard/audit-trail",
+    icon: History,
+    permission: { module: "audit_preparation", action: "view" },
+  },
   { label: "Settings", href: "/dashboard/settings", icon: Settings },
 ];
 
@@ -268,6 +281,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const pathname = usePathname() ?? "/";
   const [isHovered, setIsHovered] = useState(false);
   const { data: session } = useSession();
+  const { hasPermission } = usePermission();
 
   useEffect(() => {
     document.documentElement.style.setProperty(
@@ -283,6 +297,15 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
     if (item.href === "/dashboard") return pathname === item.href;
     return pathname.startsWith(item.href);
   }
+
+  function canSee(item: NavItem) {
+    if (!item.permission) return true;
+    return hasPermission(item.permission.module, item.permission.action);
+  }
+
+  const visiblePrimaryNav = primaryNavItems.filter(canSee);
+  const visibleOperationsSubNav = operationsSubNavItems.filter(canSee);
+  const visibleBottomNav = bottomNavItems.filter(canSee);
 
   const router = useRouter();
 
@@ -388,17 +411,18 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         {/* Primary Navigation — 5 AI-native surfaces */}
         <nav className="flex-1 overflow-y-auto py-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <div className="space-y-0.5 px-2">
-            {primaryNavItems.map((item) => renderNavItem(item))}
+            {visiblePrimaryNav.map((item) => renderNavItem(item))}
           </div>
 
           {/* Sub-navigation for Operations surface */}
-          {isActive(primaryNavItems[4]) && (
-            <div className="mt-2 px-2">
-              <div className="ml-4 border-l border-white/[0.06] pl-3 space-y-0.5">
-                {operationsSubNavItems.map((item) => renderNavItem(item))}
+          {isActive(primaryNavItems[4]) &&
+            visibleOperationsSubNav.length > 0 && (
+              <div className="mt-2 px-2">
+                <div className="ml-4 border-l border-white/[0.06] pl-3 space-y-0.5">
+                  {visibleOperationsSubNav.map((item) => renderNavItem(item))}
+                </div>
               </div>
-            </div>
-          )}
+            )}
         </nav>
 
         {/* Bottom Nav + Attention Strip */}
@@ -411,7 +435,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
             />
           </div>
           <div className="space-y-0.5">
-            {bottomNavItems.map((item) => renderNavItem(item))}
+            {visibleBottomNav.map((item) => renderNavItem(item))}
           </div>
         </div>
 

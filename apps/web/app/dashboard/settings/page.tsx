@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import dynamic from "next/dynamic";
 import {
   User,
@@ -26,6 +26,7 @@ import {
 import { cn } from "@/lib/utils";
 import { AiSimulationTrigger } from "@/components/ai-ux/simulation-trigger";
 import { ErrorBoundary } from "@/components/shared/error-boundary";
+import { usePermission } from "@/lib/permissions";
 
 // §4.4 — every section is a lazy chunk: only the ACTIVE tab's component is
 // ever downloaded. The settings shell (nav + header) stays in the initial
@@ -117,6 +118,13 @@ const SECTION_COMPONENTS: Record<string, React.ComponentType> = {
     () =>
       import("@/components/settings/audit-log-section").then(
         (m) => m.AuditLogSection,
+      ),
+    { ssr: false },
+  ),
+  "permission-overrides": dynamic(
+    () =>
+      import("@/components/settings/permission-overrides").then(
+        (m) => m.PermissionOverrides,
       ),
     { ssr: false },
   ),
@@ -248,6 +256,12 @@ const TAB_GROUPS: TabGroup[] = [
         icon: History,
         description: "Track all account activity",
       },
+      {
+        id: "permission-overrides",
+        label: "Permissions",
+        icon: Shield,
+        description: "Override permissions for individual users",
+      },
     ],
   },
   {
@@ -338,19 +352,64 @@ const TABS = TAB_GROUPS.flatMap((g) => g.tabs) as readonly {
 
 type TabId = (typeof TABS)[number]["id"];
 
+const TAB_PERMISSIONS: Record<
+  string,
+  { module: string; action: string } | null
+> = {
+  profile: null, // everyone sees profile
+  team: { module: "settings_users", action: "view" },
+  permissions: { module: "settings_users", action: "configure" },
+  "invite-member": { module: "settings_users", action: "create" },
+  entity: { module: "settings_entities", action: "view" },
+  security: null, // everyone sees security
+  sso: { module: "settings_users", action: "configure" },
+  apiKeys: { module: "settings_users", action: "configure" },
+  webhooks: { module: "settings_users", action: "configure" },
+  integrations: { module: "settings_users", action: "configure" },
+  billing: { module: "settings_billing", action: "configure" },
+  audit: { module: "audit_preparation", action: "view" },
+  currency: { module: "settings_entities", action: "configure" },
+  taxes: { module: "settings_entities", action: "configure" },
+  privacy: null, // owner check handled in component
+  backup: { module: "settings_entities", action: "configure" },
+  "conflict-resolution": { module: "settings_entities", action: "configure" },
+  sync: { module: "settings_entities", action: "configure" },
+  "ai-data": { module: "settings_entities", action: "configure" },
+};
+
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<TabId>("profile");
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const { hasPermission } = usePermission();
 
-  const ActiveComponent = SECTION_COMPONENTS[activeTab];
-  const activeTabInfo = TABS.find((t) => t.id === activeTab);
+  // Filter tabs by permission
+  const filteredGroups = TAB_GROUPS.map((group) => ({
+    ...group,
+    tabs: group.tabs.filter((tab) => {
+      const required = TAB_PERMISSIONS[tab.id];
+      if (!required) return true; // no permission required
+      return hasPermission(required.module, required.action);
+    }),
+  })).filter((group) => group.tabs.length > 0);
+
+  const ActiveComponent = SECTION_COMPONENTS[displayTab];
+  const activeTabInfo = TABS.find((t) => t.id === displayTab);
 
   // Progressive disclosure: hide advanced groups until user opts in
   const ADVANCED_GROUP_LABELS = new Set(["Data & Sync", "Data & Privacy"]);
   const visibleGroups = showAdvanced
-    ? TAB_GROUPS
-    : TAB_GROUPS.filter((g) => !ADVANCED_GROUP_LABELS.has(g.label));
-  const hiddenGroupCount = TAB_GROUPS.length - visibleGroups.length;
+    ? filteredGroups
+    : filteredGroups.filter((g) => !ADVANCED_GROUP_LABELS.has(g.label));
+  const hiddenGroupCount = filteredGroups.length - visibleGroups.length;
+
+  // Redirect to first available tab if current tab is not accessible
+  const allAvailableTabIds = filteredGroups.flatMap((g) =>
+    g.tabs.map((t) => t.id),
+  );
+  const currentTabAvailable = allAvailableTabIds.includes(activeTab);
+  const displayTab = currentTabAvailable
+    ? activeTab
+    : (allAvailableTabIds[0] as TabId);
 
   return (
     <div className="flex h-[calc(100vh-4rem)] flex-col">

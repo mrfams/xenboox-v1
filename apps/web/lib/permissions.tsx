@@ -53,6 +53,7 @@ type PermissionContextValue = {
   getScope: (module: RbacModule, action: RbacAction) => RbacScope;
   role: string | null;
   permissionsLoaded: boolean;
+  refetchPermissions: () => void;
 };
 
 const PermissionContext = createContext<PermissionContextValue>({
@@ -60,6 +61,7 @@ const PermissionContext = createContext<PermissionContextValue>({
   getScope: () => "none",
   role: null,
   permissionsLoaded: false,
+  refetchPermissions: () => {},
 });
 
 export function usePermission() {
@@ -76,10 +78,12 @@ export function PermissionProvider({
   children,
   permissions,
   role,
+  refetchPermissions,
 }: {
   children: ReactNode;
   permissions: PermissionMap | null;
   role: string | null;
+  refetchPermissions?: () => void;
 }) {
   const value: PermissionContextValue = {
     hasPermission: (module: RbacModule, action: RbacAction): boolean => {
@@ -98,6 +102,7 @@ export function PermissionProvider({
     },
     role,
     permissionsLoaded: !!permissions,
+    refetchPermissions: refetchPermissions ?? (() => {}),
   };
 
   return (

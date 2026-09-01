@@ -10,7 +10,10 @@ import { sessions, users } from "@xenboox/db/schema/auth";
 import { adminUsers, adminSessions } from "@xenboox/db/schema";
 import { idempotencyKeys } from "@xenboox/db/schema";
 import { z } from "zod";
-import { rolePermissions } from "@xenboox/db/schema/permissions";
+import {
+  rolePermissions,
+  userPermissionOverrides,
+} from "@xenboox/db/schema/permissions";
 
 import { logger } from "@/lib/logger";
 import { db } from "@/lib/db";
@@ -430,46 +433,78 @@ export async function checkPermission(
   action: PermissionAction,
 ): Promise<{ allowed: boolean; scope: string }> {
   const role = ctx.entityRole;
+  const userId = ctx.session?.user?.id;
+  const entityId = ctx.entityId;
 
   if (!role) {
     return { allowed: false, scope: "none" };
   }
 
+  // Step 1: Check role-based permission (cached)
   const cacheKey = `${role}:${module}:${action}`;
   const cached = permissionCache.get(cacheKey);
 
+  let roleScope: string;
   if (cached !== undefined) {
-    return {
-      allowed: cached !== null && cached.scope !== "none",
-      scope: cached?.scope ?? "none",
-    };
-  }
+    roleScope = cached?.scope ?? "none";
+  } else {
+    try {
+      const perm = await db.query.rolePermissions.findFirst({
+        where: and(
+          eq(rolePermissions.role, role as any),
+          eq(rolePermissions.module, module as any),
+          eq(rolePermissions.action, action as any),
+        ),
+        columns: { scope: true, scopeCondition: true },
+      });
 
-  try {
-    const perm = await db.query.rolePermissions.findFirst({
-      where: and(
-        eq(rolePermissions.role, role as any),
-        eq(rolePermissions.module, module as any),
-        eq(rolePermissions.action, action as any),
-      ),
-      columns: { scope: true, scopeCondition: true },
-    });
-
-    if (!perm || perm.scope === "none") {
-      permissionCache.set(cacheKey, null);
+      roleScope = perm?.scope ?? "none";
+      permissionCache.set(cacheKey, perm ? { scope: perm.scope } : null);
+    } catch (error) {
+      logger.error({ error, role, module, action }, "Permission check failed");
       return { allowed: false, scope: "none" };
     }
-
-    const result = { scope: perm.scope };
-    permissionCache.set(cacheKey, result);
-    return {
-      allowed: perm.scope === "full" || perm.scope === "scoped",
-      scope: perm.scope,
-    };
-  } catch (error) {
-    logger.error({ error, role, module, action }, "Permission check failed");
-    return { allowed: false, scope: "none" };
   }
+
+  // Step 2: Check user-specific overrides (not cached — per-user)
+  if (userId && entityId) {
+    try {
+      const override = await db.query.userPermissionOverrides.findFirst({
+        where: and(
+          eq(userPermissionOverrides.userId, userId),
+          eq(userPermissionOverrides.entityId, entityId),
+          eq(userPermissionOverrides.module, module as any),
+          eq(userPermissionOverrides.action, action as any),
+        ),
+        columns: { grant: true, expiresAt: true },
+      });
+
+      if (override) {
+        // Check if override has expired
+        const notExpired =
+          !override.expiresAt || override.expiresAt > new Date();
+        if (notExpired) {
+          if (override.grant === false) {
+            // Revocation override — deny even if role allows
+            return { allowed: false, scope: "none" };
+          }
+          if (override.grant === true) {
+            // Grant override — allow even if role denies, use "full" scope
+            return { allowed: true, scope: "full" };
+          }
+        }
+      }
+    } catch (error) {
+      logger.error({ error, userId, module, action }, "Override check failed");
+      // Fall through to role-based result
+    }
+  }
+
+  // Step 3: Return role-based result
+  return {
+    allowed: roleScope === "full" || roleScope === "scoped",
+    scope: roleScope,
+  };
 }
 
 /**

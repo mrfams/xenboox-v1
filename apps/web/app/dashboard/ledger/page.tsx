@@ -25,6 +25,7 @@ import {
 import { useEntity } from "@/lib/entity-context";
 import { trpc } from "@/lib/trpc/client";
 import { cn, formatCurrency } from "@/lib/utils";
+import { usePermission } from "@/lib/permissions";
 import { CreateJournalEntryForm } from "@/components/ledger/create-journal-entry-form";
 import { FixedAssetsView } from "@/components/finance/fixed-assets-view";
 import { ReconciliationView } from "@/components/finance/reconciliation-view";
@@ -443,7 +444,7 @@ function JournalEntryDrawer({
                 </a>
 
                 {/* Reverse Entry Button — only for posted entries */}
-                {entry.status === "posted" && (
+                {entry.status === "posted" && canDeleteJournal && (
                   <button
                     type="button"
                     onClick={() => setShowReverseDialog(true)}
@@ -554,9 +555,12 @@ function JournalEntryDrawer({
 function JournalView() {
   const { entityId, entityCurrency } = useEntity();
   const { openWithFocus } = useModuleAi();
+  const { hasPermission } = usePermission();
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const canCreateJournal = hasPermission("general_ledger", "create");
+  const canDeleteJournal = hasPermission("general_ledger", "delete");
 
   // Debounce search input (300ms)
   const handleSearchChange = useCallback((value: string) => {
@@ -628,14 +632,16 @@ function JournalView() {
             filename={`journal-${new Date().toISOString().slice(0, 10)}.csv`}
             label="Export"
           />
-          <button
-            type="button"
-            onClick={() => setShowCreateForm(true)}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            Create Entry
-          </button>
+          {canCreateJournal && (
+            <button
+              type="button"
+              onClick={() => setShowCreateForm(true)}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Create Entry
+            </button>
+          )}
         </div>
       </div>
 

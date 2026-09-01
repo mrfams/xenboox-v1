@@ -16,6 +16,12 @@ import {
   CalendarCheck,
   TrendingUp,
   CreditCard,
+  Loader2,
+  Bot,
+  Play,
+  Pause,
+  RotateCcw,
+  XCircle,
   type LucideIcon,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -59,7 +65,34 @@ type DecisionItem = {
   actionHref?: string;
 };
 
-type FilterTab = "all" | "decisions" | "activity";
+type FilterTab = "all" | "decisions" | "activity" | "tasks";
+
+type UnifiedTask = {
+  id: string;
+  source: "close_task" | "live_run" | "daily_close";
+  title: string;
+  description: string | null;
+  status:
+    | "queued"
+    | "in_progress"
+    | "waiting"
+    | "completed"
+    | "failed"
+    | "blocked"
+    | "skipped";
+  progress: number;
+  agentName: string | null;
+  agentInitials: string | null;
+  agentColor: string | null;
+  confidence: number | null;
+  startedAt: Date | null;
+  completedAt: Date | null;
+  durationMs: number | null;
+  currentStep: string | null;
+  error: string | null;
+  metadata: Record<string, unknown> | null;
+  createdAt: Date;
+};
 
 const SEVERITY_META = {
   urgent: { icon: AlertTriangle, tone: "text-error-clay", label: "Urgent" },
@@ -119,6 +152,10 @@ export default function DecisionsPage() {
   const { data: allNotifications } = trpc.notifications.list.useQuery(
     { limit: 30, onlyUnread: false },
     { enabled: !!entityId, refetchInterval: 30_000 },
+  );
+  const { data: tasksData, isLoading: tasksLoading } = trpc.tasks.list.useQuery(
+    { limit: 50 },
+    { enabled: !!entityId, refetchInterval: 10_000 },
   );
 
   const resolveApproval = trpc.approvals.resolve.useMutation();
@@ -260,6 +297,7 @@ export default function DecisionsPage() {
       return items.filter((i) => i.itemType === "decision");
     if (filter === "activity")
       return items.filter((i) => i.itemType === "activity");
+    if (filter === "tasks") return []; // Tasks are rendered separately
     return items;
   }, [items, filter]);
 
@@ -273,6 +311,8 @@ export default function DecisionsPage() {
   const activityCount = items.filter(
     (i) => i.itemType === "activity" && !dismissed.has(i.id),
   ).length;
+  const taskCount = tasksData?.counts?.running ?? 0;
+  const taskTotalCount = tasksData?.counts?.total ?? 0;
 
   const decide = useCallback(
     async (item: DecisionItem, action: "approve" | "reject") => {
@@ -381,6 +421,11 @@ export default function DecisionsPage() {
           setFilter("activity");
           setCursor(0);
           break;
+        case "4":
+          e.preventDefault();
+          setFilter("tasks");
+          setCursor(0);
+          break;
         case "j":
         case "ArrowDown":
           e.preventDefault();
@@ -442,7 +487,7 @@ export default function DecisionsPage() {
             )}
           </div>
           <p className="hidden font-mono text-[10px] text-muted-foreground/60 sm:block">
-            1/2/3 filter · j/k move · a/r decide
+            1/2/3/4 filter · j/k move · a/r decide
           </p>
         </div>
 
@@ -454,7 +499,11 @@ export default function DecisionsPage() {
         >
           {(
             [
-              { key: "all" as const, label: "All", count: visible.length },
+              {
+                key: "all" as const,
+                label: "All",
+                count: visible.length + taskCount,
+              },
               {
                 key: "decisions" as const,
                 label: "Decisions",
@@ -464,6 +513,12 @@ export default function DecisionsPage() {
                 key: "activity" as const,
                 label: "Activity",
                 count: activityCount,
+              },
+              {
+                key: "tasks" as const,
+                label: "Tasks",
+                count: taskCount,
+                total: taskTotalCount,
               },
             ] as const
           ).map((tab) => (
@@ -484,7 +539,18 @@ export default function DecisionsPage() {
               )}
             >
               {tab.label}
-              {tab.count > 0 && (
+              {"total" in tab && tab.total > 0 ? (
+                <span
+                  className={cn(
+                    "inline-flex min-w-[18px] items-center justify-center rounded-full px-1 py-0.5 text-[9px] font-bold tabular-nums",
+                    filter === tab.key
+                      ? "bg-primary/20 text-primary"
+                      : "bg-muted text-muted-foreground",
+                  )}
+                >
+                  {tab.count}/{tab.total}
+                </span>
+              ) : tab.count > 0 ? (
                 <span
                   className={cn(
                     "inline-flex min-w-[18px] items-center justify-center rounded-full px-1 py-0.5 text-[9px] font-bold tabular-nums",
@@ -495,13 +561,19 @@ export default function DecisionsPage() {
                 >
                   {tab.count}
                 </span>
-              )}
+              ) : null}
             </button>
           ))}
         </div>
       </header>
 
-      {visible.length === 0 ? (
+      {filter === "tasks" ? (
+        <TasksView
+          tasks={tasksData?.tasks ?? []}
+          isLoading={tasksLoading}
+          counts={tasksData?.counts}
+        />
+      ) : visible.length === 0 ? (
         <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-2 p-8 text-center">
           <CheckCircle2
             className="mb-1 h-8 w-8 text-balanced-green"
@@ -906,4 +978,499 @@ function Section({
       {children}
     </section>
   );
+}
+
+// ─── Tasks View ────────────────────────────────────────────────────────────
+//
+// AI-native running tasks view. Shows what the AI is working on right now.
+// Tasks are grouped by status: running, queued, completed, failed.
+
+function TasksView({
+  tasks,
+  isLoading,
+  counts,
+}: {
+  tasks: UnifiedTask[];
+  isLoading: boolean;
+  counts?: {
+    total: number;
+    running: number;
+    completed: number;
+    failed: number;
+  };
+}) {
+  const [selectedTask, setSelectedTask] = useState<UnifiedTask | null>(null);
+  const [statusFilter, setStatusFilter] = useState<
+    "all" | "running" | "completed" | "failed"
+  >("all");
+
+  const filteredTasks = useMemo(() => {
+    if (statusFilter === "all") return tasks;
+    if (statusFilter === "running")
+      return tasks.filter(
+        (t) =>
+          t.status === "in_progress" ||
+          t.status === "queued" ||
+          t.status === "waiting",
+      );
+    if (statusFilter === "completed")
+      return tasks.filter((t) => t.status === "completed");
+    if (statusFilter === "failed")
+      return tasks.filter(
+        (t) => t.status === "failed" || t.status === "blocked",
+      );
+    return tasks;
+  }, [tasks, statusFilter]);
+
+  if (isLoading) {
+    return (
+      <div className="flex min-h-0 flex-1 items-center justify-center p-8">
+        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (tasks.length === 0) {
+    return (
+      <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-2 p-8 text-center">
+        <CheckCircle2
+          className="mb-1 h-8 w-8 text-balanced-green"
+          aria-hidden="true"
+        />
+        <p className="text-sm font-medium text-foreground">No tasks running</p>
+        <p className="max-w-xs text-xs text-muted-foreground">
+          AI agents will start tasks automatically. They&apos;ll appear here as
+          they run.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid min-h-0 flex-1 lg:grid-cols-[380px_1fr]">
+      {/* Task list */}
+      <div className="min-h-0 overflow-y-auto border-b border-border/40 lg:border-b-0 lg:border-r">
+        {/* Status filter chips */}
+        <div className="flex items-center gap-1.5 border-b border-border/30 px-4 py-2">
+          {(
+            [
+              { key: "all" as const, label: "All", count: counts?.total ?? 0 },
+              {
+                key: "running" as const,
+                label: "Running",
+                count: counts?.running ?? 0,
+                color: "text-primary",
+              },
+              {
+                key: "completed" as const,
+                label: "Done",
+                count: counts?.completed ?? 0,
+                color: "text-balanced-green",
+              },
+              {
+                key: "failed" as const,
+                label: "Failed",
+                count: counts?.failed ?? 0,
+                color: "text-error-clay",
+              },
+            ] as const
+          ).map((chip) => (
+            <button
+              key={chip.key}
+              type="button"
+              onClick={() => setStatusFilter(chip.key)}
+              className={cn(
+                "flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium transition-all",
+                statusFilter === chip.key
+                  ? "bg-primary/10 text-primary"
+                  : "text-muted-foreground hover:bg-accent/50",
+              )}
+            >
+              {chip.key === "running" && (
+                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary" />
+              )}
+              {chip.label}
+              {chip.count > 0 && (
+                <span className={cn("font-mono tabular-nums", chip.color)}>
+                  {chip.count}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+
+        {/* Task items */}
+        {filteredTasks.length === 0 ? (
+          <div className="flex items-center justify-center p-8 text-xs text-muted-foreground">
+            No tasks in this category
+          </div>
+        ) : (
+          filteredTasks.map((task) => (
+            <button
+              key={task.id}
+              type="button"
+              onClick={() => setSelectedTask(task)}
+              className={cn(
+                "flex w-full items-start gap-3 border-b border-border/30 px-4 py-3 text-left transition-colors last:border-0",
+                selectedTask?.id === task.id
+                  ? "bg-primary/[0.06]"
+                  : "hover:bg-accent/40",
+              )}
+            >
+              {/* Status icon */}
+              <TaskStatusIcon status={task.status} />
+
+              <span className="min-w-0 flex-1">
+                <span className="flex items-center gap-2">
+                  <span className="block truncate text-xs font-medium text-foreground">
+                    {task.title}
+                  </span>
+                  <TaskSourceBadge source={task.source} />
+                </span>
+
+                {/* Progress bar for running tasks */}
+                {(task.status === "in_progress" ||
+                  task.status === "queued") && (
+                  <div className="mt-1.5 flex items-center gap-2">
+                    <div className="h-1 flex-1 overflow-hidden rounded-full bg-muted">
+                      <div
+                        className="h-full rounded-full bg-primary transition-all duration-500"
+                        style={{ width: `${task.progress}%` }}
+                      />
+                    </div>
+                    <span className="font-mono text-[9px] tabular-nums text-muted-foreground">
+                      {task.progress}%
+                    </span>
+                  </div>
+                )}
+
+                {/* Agent + time info */}
+                <span className="mt-1 flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                  {task.agentInitials && (
+                    <span
+                      className="inline-flex h-4 w-4 items-center justify-center rounded-full text-[8px] font-bold text-white"
+                      style={{
+                        backgroundColor:
+                          task.agentColor ?? "hsl(var(--primary))",
+                      }}
+                    >
+                      {task.agentInitials}
+                    </span>
+                  )}
+                  <span className="truncate">{task.agentName ?? "Agent"}</span>
+                  {task.confidence !== null && (
+                    <span
+                      className={cn(
+                        "font-mono font-semibold tabular-nums",
+                        task.confidence >= 0.8
+                          ? "text-balanced-green"
+                          : "text-attention-amber",
+                      )}
+                    >
+                      {Math.round(task.confidence * 100)}%
+                    </span>
+                  )}
+                  <span aria-hidden="true">·</span>
+                  <span className="shrink-0">
+                    {timeAgo(task.startedAt ?? task.createdAt)}
+                  </span>
+                  {task.durationMs !== null && (
+                    <span className="text-muted-foreground/60">
+                      ({formatDuration(task.durationMs)})
+                    </span>
+                  )}
+                </span>
+              </span>
+            </button>
+          ))
+        )}
+      </div>
+
+      {/* Task detail pane */}
+      <div className="min-h-0 overflow-y-auto">
+        {selectedTask ? (
+          <TaskDetail task={selectedTask} />
+        ) : (
+          <div className="flex h-full items-center justify-center p-8 text-sm text-muted-foreground">
+            Select a task to see details
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Task Sub-Components ──────────────────────────────────────────────────
+
+function TaskStatusIcon({ status }: { status: UnifiedTask["status"] }) {
+  const iconClass = "h-3.5 w-3.5 shrink-0";
+
+  switch (status) {
+    case "in_progress":
+      return (
+        <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-primary/10">
+          <Loader2 className={cn(iconClass, "text-primary animate-spin")} />
+        </span>
+      );
+    case "queued":
+      return (
+        <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-muted">
+          <Clock className={cn(iconClass, "text-muted-foreground")} />
+        </span>
+      );
+    case "waiting":
+      return (
+        <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-attention-amber/10">
+          <Pause className={cn(iconClass, "text-attention-amber")} />
+        </span>
+      );
+    case "completed":
+      return (
+        <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-balanced-green/10">
+          <CheckCircle2 className={cn(iconClass, "text-balanced-green")} />
+        </span>
+      );
+    case "failed":
+    case "blocked":
+      return (
+        <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-error-clay/10">
+          <XCircle className={cn(iconClass, "text-error-clay")} />
+        </span>
+      );
+    case "skipped":
+      return (
+        <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-muted">
+          <RotateCcw className={cn(iconClass, "text-muted-foreground")} />
+        </span>
+      );
+    default:
+      return (
+        <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-muted">
+          <Bot className={cn(iconClass, "text-muted-foreground")} />
+        </span>
+      );
+  }
+}
+
+function TaskSourceBadge({ source }: { source: UnifiedTask["source"] }) {
+  const meta = {
+    close_task: {
+      label: "Close",
+      color: "bg-attention-amber/10 text-attention-amber",
+    },
+    live_run: { label: "Agent", color: "bg-primary/10 text-primary" },
+    daily_close: {
+      label: "Daily",
+      color: "bg-balanced-green/10 text-balanced-green",
+    },
+  }[source];
+
+  return (
+    <span
+      className={cn(
+        "shrink-0 rounded-full px-1.5 py-0.5 text-[8px] font-bold uppercase",
+        meta.color,
+      )}
+    >
+      {meta.label}
+    </span>
+  );
+}
+
+function TaskDetail({ task }: { task: UnifiedTask }) {
+  return (
+    <article className="mx-auto max-w-2xl space-y-5 p-5 sm:p-6">
+      {/* Title */}
+      <div>
+        <div className="flex items-center gap-2">
+          <TaskStatusIcon status={task.status} />
+          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+            {task.source === "close_task"
+              ? "Month-End Close Task"
+              : task.source === "live_run"
+                ? "Agent Run"
+                : "Daily Close"}
+          </span>
+          <TaskSourceBadge source={task.source} />
+        </div>
+        <h2 className="mt-1.5 text-base font-semibold leading-snug text-foreground">
+          {task.title}
+        </h2>
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          {task.agentInitials && (
+            <span
+              className="inline-flex h-5 w-5 items-center justify-center rounded-full text-[9px] font-bold text-white"
+              style={{
+                backgroundColor: task.agentColor ?? "hsl(var(--primary))",
+              }}
+            >
+              {task.agentInitials}
+            </span>
+          )}
+          <span className="text-xs text-muted-foreground">
+            {task.agentName ?? "Agent"}
+          </span>
+          {task.confidence !== null && (
+            <span
+              className={cn(
+                "rounded-full px-2 py-0.5 text-[10px] font-semibold tabular-nums",
+                task.confidence >= 0.8
+                  ? "bg-balanced-green/10 text-balanced-green"
+                  : "bg-attention-amber/10 text-attention-amber",
+              )}
+            >
+              {Math.round(task.confidence * 100)}% confidence
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Status + Progress */}
+      <Section title="Status">
+        <div className="space-y-3">
+          <div className="flex items-center gap-3">
+            <StatusBadge status={task.status} />
+            {task.durationMs !== null && (
+              <span className="text-xs text-muted-foreground">
+                Duration: {formatDuration(task.durationMs)}
+              </span>
+            )}
+          </div>
+          {(task.status === "in_progress" || task.status === "queued") && (
+            <div className="space-y-1">
+              <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                <span>{task.currentStep ?? "Processing..."}</span>
+                <span className="font-mono tabular-nums">{task.progress}%</span>
+              </div>
+              <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+                <div
+                  className="h-full rounded-full bg-primary transition-all duration-500"
+                  style={{ width: `${task.progress}%` }}
+                />
+              </div>
+            </div>
+          )}
+        </div>
+      </Section>
+
+      {/* Description */}
+      {task.description && (
+        <Section title="Details">
+          <p className="text-sm leading-relaxed text-foreground/85">
+            {task.description}
+          </p>
+        </Section>
+      )}
+
+      {/* Error */}
+      {task.error && (
+        <Section title="Error">
+          <div className="rounded-lg border border-destructive/20 bg-destructive/5 px-3 py-2.5 text-sm text-destructive">
+            {task.error}
+          </div>
+        </Section>
+      )}
+
+      {/* Metadata */}
+      {task.metadata && Object.keys(task.metadata).length > 0 && (
+        <Section title="Metadata">
+          <dl className="divide-y divide-border/30 overflow-hidden rounded-lg border border-border/50">
+            {Object.entries(task.metadata)
+              .filter(([, v]) => v !== null && v !== undefined)
+              .slice(0, 8)
+              .map(([k, v]) => (
+                <div
+                  key={k}
+                  className="flex items-start justify-between gap-4 px-3 py-2"
+                >
+                  <dt className="shrink-0 text-[11px] capitalize text-muted-foreground">
+                    {k.replace(/([A-Z])/g, " $1").replace(/_/g, " ")}
+                  </dt>
+                  <dd className="break-words text-right text-xs text-foreground">
+                    {typeof v === "object"
+                      ? JSON.stringify(v)
+                      : String(v ?? "—")}
+                  </dd>
+                </div>
+              ))}
+          </dl>
+        </Section>
+      )}
+
+      {/* Timeline */}
+      <Section title="Timeline">
+        <div className="space-y-2 text-xs">
+          {task.startedAt && (
+            <div className="flex items-center gap-2">
+              <Play className="h-3 w-3 text-primary" />
+              <span className="text-muted-foreground">Started</span>
+              <span className="font-mono tabular-nums">
+                {timeAgo(task.startedAt)}
+              </span>
+            </div>
+          )}
+          {task.completedAt && (
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="h-3 w-3 text-balanced-green" />
+              <span className="text-muted-foreground">Completed</span>
+              <span className="font-mono tabular-nums">
+                {timeAgo(task.completedAt)}
+              </span>
+            </div>
+          )}
+          {!task.startedAt && (
+            <div className="flex items-center gap-2">
+              <Clock className="h-3 w-3 text-muted-foreground" />
+              <span className="text-muted-foreground">Created</span>
+              <span className="font-mono tabular-nums">
+                {timeAgo(task.createdAt)}
+              </span>
+            </div>
+          )}
+        </div>
+      </Section>
+    </article>
+  );
+}
+
+function StatusBadge({ status }: { status: UnifiedTask["status"] }) {
+  const meta = {
+    in_progress: { label: "Running", color: "bg-primary/10 text-primary" },
+    queued: { label: "Queued", color: "bg-muted text-muted-foreground" },
+    waiting: {
+      label: "Waiting",
+      color: "bg-attention-amber/10 text-attention-amber",
+    },
+    completed: {
+      label: "Completed",
+      color: "bg-balanced-green/10 text-balanced-green",
+    },
+    failed: { label: "Failed", color: "bg-error-clay/10 text-error-clay" },
+    blocked: { label: "Blocked", color: "bg-error-clay/10 text-error-clay" },
+    skipped: { label: "Skipped", color: "bg-muted text-muted-foreground" },
+  }[status];
+
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold",
+        meta.color,
+      )}
+    >
+      {status === "in_progress" && (
+        <span className="mr-1 h-1.5 w-1.5 animate-pulse rounded-full bg-primary" />
+      )}
+      {meta.label}
+    </span>
+  );
+}
+
+function formatDuration(ms: number): string {
+  if (ms < 60_000) return `${Math.round(ms / 1000)}s`;
+  const mins = Math.floor(ms / 60_000);
+  const secs = Math.round((ms % 60_000) / 1000);
+  if (mins < 60) return `${mins}m ${secs}s`;
+  const hrs = Math.floor(mins / 60);
+  const remMins = mins % 60;
+  return `${hrs}h ${remMins}m`;
 }
