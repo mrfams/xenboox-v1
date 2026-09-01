@@ -1,60 +1,69 @@
 "use client";
 
-import { Suspense, useState, useRef, useEffect, useCallback } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   Activity,
-  TrendingUp,
-  TrendingDown,
-  Wallet,
-  BarChart3,
-  FileText,
-  ArrowUpRight,
-  Bot,
+  AlertTriangle,
   Sparkles,
-  ChevronRight,
-  RefreshCw,
-  ArrowRightLeft,
-  Calendar,
-  X,
-  ChevronDown,
-  ChevronUp,
-  Globe,
-  Loader2,
+  TrendingUp,
+  Wallet,
+  FileText,
+  BarChart3,
+  Download,
+  LayoutGrid,
   LineChart,
   Target,
-  FileBarChart,
-  type LucideIcon,
+  BookOpen,
+  Globe,
+  CheckCircle2,
+  Clock,
+  ArrowUpRight,
+  ChevronDown,
 } from "lucide-react";
 
 import { useEntity } from "@/lib/entity-context";
 import { trpc } from "@/lib/trpc/client";
 import { cn, formatCurrency } from "@/lib/utils";
-import { ModulePageShell } from "@/components/module/module-page-shell";
 import { useSurfaceSync } from "@/lib/hooks/use-surface-sync";
-import { AiNarrativeHeader } from "@/components/shared/ai-native";
-import { useModuleAi } from "@/components/module/module-ai-context";
+import { ProvenanceBadge } from "@/components/ai-native-v2/provenance";
+import { MetricNarrative } from "@/components/ai-native-v2/metric-narrative";
+import { CommandBar } from "@/components/ai-native-v2/command-bar";
 import {
   RevenueTrendChart,
   ExpenseBreakdownChart,
   CashFlowChart,
   MarginTrendChart,
 } from "@/components/charts/financial-charts";
-import { LiveExchangeRates } from "@/components/financial/live-exchange-rates";
-import { DailyCloseStatus } from "@/components/financial/daily-close-status";
-import {
-  AnomalyAlerts,
-  type Anomaly,
-} from "@/components/financial/anomaly-alerts";
-import { DocumentDownloadButtons } from "@/components/documents/document-download-buttons";
 import { ForecastView } from "@/components/finance/forecast-view";
+import { AnomalyAlerts } from "@/components/financial/anomaly-alerts";
+import { DocumentDownloadButtons } from "@/components/documents/document-download-buttons";
 import {
   buildPnlReport,
-  buildTrialBalanceReport,
   buildCashFlowReport,
 } from "@/lib/documents/report-templates";
 
-// ─── Helpers ─────────────────────────────────────────────────────────────
+// ─── Pulse v2 — AI-Native Financial Pulse (/financial-pulse/new) ──────────
+//
+// Tabs absorb navigation:
+//   1. Overview — AI narrative, KPIs, anomaly alerts
+//   2. Performance — revenue/cash/margin/expense charts
+//   3. Planning — forecast, budget vs actual, scenario planner
+//   4. Reports — report library, downloads
+//
+// The period selector (This Month / Last Month / This Quarter) sits above
+// all tabs since it applies to every view.
+//
+// Keyboard: 1-4 switch tabs
+
+type Tab = "overview" | "performance" | "planning" | "reports";
+
+const TABS: { key: Tab; label: string; icon: typeof LayoutGrid }[] = [
+  { key: "overview", label: "Overview", icon: LayoutGrid },
+  { key: "performance", label: "Performance", icon: LineChart },
+  { key: "planning", label: "Planning", icon: Target },
+  { key: "reports", label: "Reports", icon: BookOpen },
+];
 
 const MONTH_NAMES = [
   "Jan",
@@ -71,7 +80,6 @@ const MONTH_NAMES = [
   "Dec",
 ];
 
-/** Convert a sparkline index to a month label (e.g., 0 → "Mar" for 3 months of data ending in May) */
 function getMonthLabel(index: number, totalBars: number): string {
   const now = new Date();
   const currentMonth = now.getMonth();
@@ -79,842 +87,40 @@ function getMonthLabel(index: number, totalBars: number): string {
   return MONTH_NAMES[monthIndex];
 }
 
-// ─── Financial Pulse ──────────────────────────────────────────────────────
-//
-// AI-narrated financial health. Not raw data tables.
-// The AI explains what the numbers mean. Every chart has a narrative.
-//
-// Replaces: reports, insights, trial-balance (as a view)
-
-// ─── Mini Sparkline ────────────────────────────────────────────────────────
-
-function MiniSparkline({
-  data,
-  color = "text-balanced-green",
-}: {
-  data: number[];
-  color?: string;
-}) {
-  if (data.length < 2) return null;
-
-  const max = Math.max(...data);
-  const min = Math.min(...data);
-  const range = max - min || 1;
-
-  const points = data
-    .map((v, i) => {
-      const x = (i / (data.length - 1)) * 100;
-      const y = 100 - ((v - min) / range) * 80 - 10;
-      return `${x},${y}`;
-    })
-    .join(" ");
-
-  return (
-    <svg
-      viewBox="0 0 100 100"
-      className="h-8 w-16"
-      preserveAspectRatio="none"
-      role="img"
-      aria-label="Trend sparkline"
-    >
-      <polyline
-        points={points}
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        className={color}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-// ─── KPI Cards ─────────────────────────────────────────────────────────────
-
-function KPICard({
-  label,
-  value,
-  previousValue,
-  change,
-  icon: Icon,
-  color,
-  sparkline,
-  onAskAi,
-  aiPrompt,
-  onDrillDown,
-}: {
-  label: string;
-  value: string;
-  previousValue?: string;
-  change?: string;
-  icon: typeof TrendingUp;
-  color: string;
-  sparkline?: number[];
-  onAskAi?: () => void;
-  aiPrompt?: string;
-  onDrillDown?: () => void;
-}) {
-  const isPositive = change?.startsWith("+");
-  const isNegative = change?.startsWith("-");
-
-  return (
-    <div
-      className={cn(
-        "group relative text-left rounded-xl border border-border/50 bg-card/60 p-4 transition-all duration-200 hover:border-border/80 hover:shadow-md w-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
-        onDrillDown && "cursor-pointer",
-      )}
-      onClick={onDrillDown}
-      role={onDrillDown ? "button" : undefined}
-      tabIndex={onDrillDown ? 0 : undefined}
-      onKeyDown={
-        onDrillDown
-          ? (e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault();
-                onDrillDown();
-              }
-            }
-          : undefined
-      }
-    >
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Icon className={cn("h-4 w-4", color)} aria-hidden="true" />
-          <p className="text-xs font-medium text-muted-foreground">{label}</p>
-        </div>
-        {sparkline && (
-          <MiniSparkline
-            data={sparkline}
-            color={
-              isNegative
-                ? "text-error-clay"
-                : isPositive
-                  ? "text-balanced-green"
-                  : color
-            }
-          />
-        )}
-      </div>
-      <div className="mt-2 flex items-baseline gap-2">
-        <p className="text-xl font-bold tracking-tight text-foreground">
-          {value}
-        </p>
-        {change && (
-          <span
-            className={cn(
-              "inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-bold",
-              isPositive
-                ? "bg-balanced-green/10 text-balanced-green"
-                : isNegative
-                  ? "bg-error-clay/10 text-error-clay"
-                  : "bg-muted text-muted-foreground",
-            )}
-          >
-            {change}
-          </span>
-        )}
-      </div>
-      {/* Prior period comparison */}
-      {previousValue && (
-        <p className="mt-1 text-[10px] text-muted-foreground/60">
-          Previous period: {previousValue}
-        </p>
-      )}
-      {/* Ask AI — appears on hover */}
-      {onAskAi && aiPrompt && (
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onAskAi();
-          }}
-          className="absolute bottom-2 right-2 flex items-center gap-1 rounded-md border border-primary/20 bg-primary/5 px-2 py-1 text-[10px] font-medium text-primary opacity-0 transition-all hover:bg-primary/10 group-hover:opacity-100"
-          title={`Ask AI about ${label.toLowerCase()}`}
-        >
-          <Sparkles className="h-2.5 w-2.5" />
-          Ask AI
-        </button>
-      )}
-    </div>
-  );
-}
-
-// ─── AI Narrative ──────────────────────────────────────────────────────────
-//
-// Now uses real LLM-generated narrative instead of assembled text.
-// Falls back to assembled text if AI is unavailable.
-
-function AiFinancialNarrative({
-  aiNarrative,
-  overview,
-  pnl,
-  isError,
-}: {
-  aiNarrative?: {
-    text: string;
-    confidence: number;
-    generatedAt: string;
-    highlights: string[];
-    concerns: string[];
-  };
-  overview?: {
-    cashBalance: number;
-    accountsReceivable: number;
-    accountsPayable: number;
-    overdueInvoices: number;
-    runway?: number | null;
-  };
-  pnl?: {
-    revenue: number;
-    expenses: number;
-    revenueChange?: number;
-    expensesChange?: number;
-  };
-  isError?: boolean;
-}) {
-  // Show error state when AI narrative fails
-  if (isError && !aiNarrative) {
-    return (
-      <AiNarrativeHeader title="AI Financial Narrative">
-        <p className="text-sm text-muted-foreground">
-          AI narrative unavailable. Showing key figures below.
-        </p>
-      </AiNarrativeHeader>
-    );
-  }
-
-  // Show loading state while AI narrative is being generated
-  if (!aiNarrative && (!overview || !pnl)) {
-    return (
-      <AiNarrativeHeader title="AI Financial Narrative">
-        <p className="text-muted-foreground animate-pulse">
-          Generating your financial narrative...
-        </p>
-      </AiNarrativeHeader>
-    );
-  }
-
-  // Use AI-generated narrative if available
-  const narrativeText = aiNarrative?.text;
-
-  // Fallback to assembled text if AI is unavailable
-  if (!narrativeText) {
-    const netProfit = (pnl?.revenue ?? 0) - (pnl?.expenses ?? 0);
-    const margin =
-      pnl && pnl.revenue > 0 ? Math.round((netProfit / pnl.revenue) * 100) : 0;
-    const parts: string[] = [];
-    if (pnl && pnl.revenue > 0)
-      parts.push(
-        `Revenue is ${formatCurrency(pnl.revenue)}${pnl.revenueChange ? ` (${pnl.revenueChange > 0 ? "+" : ""}${pnl.revenueChange.toFixed(1)}% vs prior)` : ""}.`,
-      );
-    if (pnl && pnl.expenses > 0)
-      parts.push(
-        `Expenses are ${formatCurrency(pnl.expenses)}${pnl.expensesChange ? ` (${pnl.expensesChange > 0 ? "+" : ""}${pnl.expensesChange.toFixed(1)}%)` : ""}.`,
-      );
-    if (netProfit !== 0)
-      parts.push(
-        `Net ${netProfit >= 0 ? "profit" : "loss"} is ${formatCurrency(Math.abs(netProfit))} (${margin}% margin).`,
-      );
-    return (
-      <AiNarrativeHeader title="AI Financial Narrative">
-        <p className="text-xs text-muted-foreground/60 mb-1">
-          Key figures (AI narrative unavailable)
-        </p>
-        <p>{parts.join(" ") || "Financial data is being compiled..."}</p>
-      </AiNarrativeHeader>
-    );
-  }
-
-  return (
-    <AiNarrativeHeader title="AI Financial Narrative">
-      {/* AI-generated narrative text */}
-      <div className="whitespace-pre-wrap">{narrativeText}</div>
-
-      {/* Highlights and concerns */}
-      {(aiNarrative.highlights.length > 0 ||
-        aiNarrative.concerns.length > 0) && (
-        <div className="mt-3 flex flex-wrap gap-2">
-          {aiNarrative.highlights.map((h, i) => (
-            <span
-              key={`h-${i}`}
-              className="inline-flex items-center gap-1 rounded-full bg-balanced-green/10 px-2 py-0.5 text-[10px] font-medium text-balanced-green"
-            >
-              ✅ {h}
-            </span>
-          ))}
-          {aiNarrative.concerns.map((c, i) => (
-            <span
-              key={`c-${i}`}
-              className="inline-flex items-center gap-1 rounded-full bg-attention-amber/10 px-2 py-0.5 text-[10px] font-medium text-attention-amber"
-            >
-              ⚠️ {c}
-            </span>
-          ))}
-        </div>
-      )}
-
-      {/* Confidence and timestamp */}
-      <div className="mt-2 flex items-center gap-3 text-[10px] text-muted-foreground/60">
-        <span>
-          Confidence: {Math.round(aiNarrative.confidence * 100)}%
-          {aiNarrative.confidence >= 0.7
-            ? " (High)"
-            : aiNarrative.confidence >= 0.4
-              ? " (Medium)"
-              : " (Low)"}
-        </span>
-        <span>•</span>
-        <span>
-          Generated: {new Date(aiNarrative.generatedAt).toLocaleTimeString()}
-        </span>
-      </div>
-    </AiNarrativeHeader>
-  );
-}
-
-// ─── Scenario Planner ──────────────────────────────────────────────────────
-
-function ScenarioPlanner({ onAskAi }: { onAskAi: (prompt: string) => void }) {
-  const [query, setQuery] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    return () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
-    };
-  }, []);
-
-  const handleSubmit = () => {
-    if (!query.trim() || isSubmitting) return;
-    setIsSubmitting(true);
-    onAskAi(`Model this scenario: ${query}`);
-    setQuery("");
-    // Reset after a brief delay since the AI processes asynchronously
-    timerRef.current = setTimeout(() => setIsSubmitting(false), 2000);
-  };
-
-  return (
-    <div className="rounded-xl border border-border/50 bg-card p-4">
-      <div className="flex items-center gap-2 mb-3">
-        <Sparkles className="h-4 w-4 text-primary" aria-hidden="true" />
-        <h3 className="text-sm font-semibold text-foreground">
-          AI Scenario Planner
-        </h3>
-      </div>
-      <p className="text-xs text-muted-foreground mb-3">
-        Ask the AI to model financial scenarios. Try: &quot;What if revenue
-        grows 20% and we hire 3 more staff?&quot;
-      </p>
-      <div className="flex gap-2">
-        <label htmlFor="scenario-input" className="sr-only">
-          Describe a financial scenario
-        </label>
-        <input
-          id="scenario-input"
-          type="text"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
-          placeholder="Describe a scenario..."
-          className="flex-1 rounded-lg border border-border/50 bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/50 focus:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/10"
-        />
-        <button
-          type="button"
-          onClick={handleSubmit}
-          disabled={!query.trim() || isSubmitting}
-          className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-40"
-        >
-          {isSubmitting ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          ) : (
-            <Sparkles className="h-3.5 w-3.5" />
-          )}
-          {isSubmitting ? "Processing..." : "Run scenario"}
-        </button>
-      </div>
-    </div>
-  );
-}
-
-// ─── KPI Drill-Down Drawer ────────────────────────────────────────────────
-
-type DrillDownItem = {
-  label: string;
-  value: string;
-  percentage?: string;
-  color?: string;
-};
-
-type DrillDownData = {
-  title: string;
-  total: string;
-  items: DrillDownItem[];
-  insight?: string;
-};
-
-function KpiDrillDownDrawer({
-  data,
-  onClose,
-}: {
-  data: DrillDownData | null;
-  onClose: () => void;
-}) {
-  if (!data) return null;
-
-  return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="drilldown-title"
-      className="fixed inset-0 z-50 flex items-center justify-end bg-black/50 backdrop-blur-sm"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-      onKeyDown={(e) => {
-        if (e.key === "Escape") onClose();
-      }}
-    >
-      <div className="h-full w-full max-w-md bg-card border-l border-border shadow-2xl overflow-y-auto">
-        {/* Header */}
-        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-card/95 backdrop-blur-sm px-6 py-4">
-          <h2
-            id="drilldown-title"
-            className="text-sm font-semibold text-foreground"
-          >
-            {data.title}
-          </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-lg p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
-            aria-label="Close"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-
-        <div className="px-6 py-5 space-y-4">
-          {/* Total */}
-          <div className="rounded-lg border border-border/50 bg-background p-4">
-            <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
-              Total
-            </p>
-            <p className="mt-1 text-2xl font-bold text-foreground">
-              {data.total}
-            </p>
-          </div>
-
-          {/* Items */}
-          <div className="space-y-2">
-            {data.items.map((item, i) => (
-              <div
-                key={i}
-                className="flex items-center justify-between rounded-lg border border-border/30 bg-background/50 px-3 py-2.5"
-              >
-                <div className="flex items-center gap-2">
-                  <div
-                    className={cn(
-                      "h-2 w-2 rounded-full",
-                      item.color ?? "bg-primary",
-                    )}
-                  />
-                  <span className="text-sm text-foreground">{item.label}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  {item.percentage && (
-                    <span className="text-[10px] text-muted-foreground">
-                      {item.percentage}
-                    </span>
-                  )}
-                  <span className="text-sm font-semibold text-foreground">
-                    {item.value}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* AI Insight */}
-          {data.insight && (
-            <div className="rounded-lg border border-primary/10 bg-primary/[0.03] p-3">
-              <div className="flex items-center gap-1.5 mb-1">
-                <Sparkles className="h-3 w-3 text-primary" aria-hidden="true" />
-                <span className="text-[10px] font-semibold text-primary uppercase tracking-wider">
-                  AI Insight
-                </span>
-              </div>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                {data.insight}
-              </p>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─── Budget vs Actual ────────────────────────────────────────────────────
-
-function BudgetVsActualSection({
-  entityId,
-  askAiAbout,
-}: {
-  entityId: string;
-  askAiAbout: (prompt: string) => void;
-}) {
-  const { data: currentPeriod } = trpc.fiscal.getCurrent.useQuery(undefined, {
-    enabled: !!entityId,
-  });
-
-  const { data: budgetData, isLoading } =
-    trpc.reports.getBudgetVsActual.useQuery(
-      { periodId: currentPeriod?.id ?? "" },
-      { enabled: !!entityId && !!currentPeriod?.id },
-    );
-
-  if (isLoading || !budgetData) return null;
-
-  const items = (budgetData.lines ?? []).map((line) => ({
-    category: line.accountName,
-    budget: line.budgetedAmount,
-    actual: line.actualAmount,
-    variance: line.variance,
-    variancePercent: line.variancePct,
-    status: line.status,
-  }));
-  if (items.length === 0) return null;
-
-  return (
-    <section>
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-semibold tracking-tight text-foreground">
-          Budget vs Actual
-        </h3>
-        <button
-          type="button"
-          onClick={() =>
-            askAiAbout(
-              "Analyze my budget vs actual performance. Where are the biggest variances and what should I do about them?",
-            )
-          }
-          className="text-[10px] text-primary hover:underline"
-        >
-          Ask AI
-        </button>
-      </div>
-      <div className="rounded-xl border border-border/50 overflow-hidden">
-        <table className="w-full text-xs">
-          <thead>
-            <tr className="border-b bg-muted/50">
-              <th className="px-3 py-2 text-left font-medium text-muted-foreground">
-                Category
-              </th>
-              <th className="px-3 py-2 text-right font-medium text-muted-foreground">
-                Budget
-              </th>
-              <th className="px-3 py-2 text-right font-medium text-muted-foreground">
-                Actual
-              </th>
-              <th className="px-3 py-2 text-right font-medium text-muted-foreground">
-                Variance
-              </th>
-              <th className="px-3 py-2 text-right font-medium text-muted-foreground">
-                Status
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {items.slice(0, 8).map(
-              (
-                item: {
-                  category: string;
-                  budget: number;
-                  actual: number;
-                  variance: number;
-                  variancePercent: number;
-                },
-                i: number,
-              ) => {
-                const isOver = item.variance > 0;
-                const isUnder = item.variance < 0;
-                return (
-                  <tr
-                    key={i}
-                    className="border-b last:border-0 hover:bg-muted/20"
-                  >
-                    <td className="px-3 py-2 font-medium text-foreground">
-                      {item.category}
-                    </td>
-                    <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">
-                      {formatCurrency(item.budget)}
-                    </td>
-                    <td className="px-3 py-2 text-right tabular-nums text-foreground">
-                      {formatCurrency(item.actual)}
-                    </td>
-                    <td
-                      className={cn(
-                        "px-3 py-2 text-right tabular-nums font-medium",
-                        isOver
-                          ? "text-error-clay"
-                          : isUnder
-                            ? "text-balanced-green"
-                            : "text-muted-foreground",
-                      )}
-                    >
-                      {isOver ? "+" : ""}
-                      {formatCurrency(item.variance)}
-                    </td>
-                    <td className="px-3 py-2 text-right">
-                      <span
-                        className={cn(
-                          "inline-flex items-center rounded-full px-1.5 py-0.5 text-[9px] font-bold",
-                          isOver
-                            ? "bg-error-clay/10 text-error-clay"
-                            : isUnder
-                              ? "bg-balanced-green/10 text-balanced-green"
-                              : "bg-muted text-muted-foreground",
-                        )}
-                      >
-                        {isOver ? "Over" : isUnder ? "Under" : "On Track"}
-                      </span>
-                    </td>
-                  </tr>
-                );
-              },
-            )}
-          </tbody>
-        </table>
-        {items.length > 8 && (
-          <div className="border-t border-border/50 px-3 py-2 text-center">
-            <span className="text-xs text-muted-foreground">
-              Showing 8 of {items.length} categories
-            </span>
-          </div>
-        )}
-      </div>
-    </section>
-  );
-}
-
-// ─── Report Library ────────────────────────────────────────────────────────
-
-const REPORTS = [
-  {
-    id: "pnl",
-    label: "Profit & Loss",
-    description: "Revenue, expenses, and net income",
-    aiPrompt: "Show me my profit and loss statement",
-    icon: TrendingUp,
-    color: "bg-primary/10 text-primary",
-  },
-  {
-    id: "cash-flow",
-    label: "Cash Flow",
-    description: "Cash in, cash out, net movement",
-    aiPrompt: "Show me my cash flow statement",
-    icon: Wallet,
-    color: "bg-signal-indigo/10 text-signal-indigo",
-  },
-  // Balance Sheet and Trial Balance hidden until real report builders exist
-  // (were generating empty documents — users downloading blank PDFs)
-  // TODO: Wire real builders and re-enable
-  // {
-  //   id: "balance-sheet",
-  //   label: "Balance Sheet",
-  //   description: "Assets, liabilities, and equity",
-  //   aiPrompt: "Show me my balance sheet",
-  //   icon: BarChart3,
-  //   color: "bg-emerald-500/10 text-emerald-500",
-  // },
-  // {
-  //   id: "trial-balance",
-  //   label: "Trial Balance",
-  //   description: "Debits equal credits verification",
-  //   aiPrompt: "Show me my trial balance",
-  //   icon: FileText,
-  //   color: "bg-amber-500/10 text-amber-500",
-  // },
-];
-
-// ─── Tabs ──────────────────────────────────────────────────────────────────
-
-type PulseTab = "overview" | "performance" | "planning" | "reports";
-
-const TABS: { key: PulseTab; label: string; icon: LucideIcon }[] = [
-  { key: "overview", label: "Overview", icon: Activity },
-  { key: "performance", label: "Performance", icon: LineChart },
-  { key: "planning", label: "Planning", icon: Target },
-  { key: "reports", label: "Reports", icon: FileBarChart },
-];
-
-function isPulseTab(v: string | null | undefined): v is PulseTab {
-  return TABS.some((t) => t.key === v);
-}
-
-// ─── Keyboard-Navigable Tab List ──────────────────────────────────────────
-
-function PulseTabList({
-  activeTab,
-  onTabChange,
-}: {
-  activeTab: PulseTab;
-  onTabChange: (key: PulseTab) => void;
-}) {
-  const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
-  const tabIndex = TABS.findIndex((t) => t.key === activeTab);
-
-  const focusTab = useCallback((index: number) => {
-    const clamped = Math.max(0, Math.min(index, TABS.length - 1));
-    tabRefs.current[clamped]?.focus();
-  }, []);
-
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      switch (e.key) {
-        case "ArrowRight":
-          e.preventDefault();
-          focusTab(tabIndex + 1);
-          break;
-        case "ArrowLeft":
-          e.preventDefault();
-          focusTab(tabIndex - 1);
-          break;
-        case "Home":
-          e.preventDefault();
-          focusTab(0);
-          break;
-        case "End":
-          e.preventDefault();
-          focusTab(TABS.length - 1);
-          break;
-      }
-    },
-    [tabIndex, focusTab],
-  );
-
-  return (
-    <div
-      role="tablist"
-      aria-label="Financial Pulse sections"
-      className="flex items-center gap-1 overflow-x-auto border-b border-border/50 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-    >
-      {TABS.map((tab, i) => {
-        const Icon = tab.icon;
-        const isActive = activeTab === tab.key;
-
-        return (
-          <button
-            key={tab.key}
-            ref={(el) => {
-              tabRefs.current[i] = el;
-            }}
-            type="button"
-            role="tab"
-            id={`pulse-tab-${tab.key}`}
-            aria-selected={isActive}
-            aria-controls={`pulse-panel-${tab.key}`}
-            tabIndex={isActive ? 0 : -1}
-            onClick={() => onTabChange(tab.key)}
-            onKeyDown={handleKeyDown}
-            className={cn(
-              "flex items-center gap-1.5 border-b-2 -mb-px px-3 py-2.5 text-xs font-medium transition-colors whitespace-nowrap",
-              isActive
-                ? "border-primary text-primary"
-                : "border-transparent text-muted-foreground hover:text-foreground hover:border-border",
-            )}
-          >
-            <Icon className="h-3.5 w-3.5" aria-hidden="true" />
-            {tab.label}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-// ─── Page ──────────────────────────────────────────────────────────────────
-
-export default function FinancialPulsePage() {
-  return (
-    <Suspense>
-      <FinancialPulseInner />
-    </Suspense>
-  );
-}
-
-function FinancialPulseInner() {
+export default function FinancialPulseV2Page() {
   const { entityId, entityCurrency } = useEntity();
-  const { openWithFocus } = useModuleAi();
-
-  const { data: entities } = trpc.organization.listUserEntities.useQuery();
-  const entity = entities?.find((e) => e.id === entityId);
-
-  // Display currency: entity context is authoritative. Never hardcode a
-  // region-specific currency code as a fallback (engreview FP PM#1 / Eng#4).
-  const displayCurrency = entityCurrency || "USD";
-
-  // ── Cross-surface sync ────────────────────────────────────────────────
-  // Listen for data_changed events from other surfaces and refetch
-  useSurfaceSync({ entityId, surfaces: ["financial-pulse"] });
-
-  const searchParams = useSearchParams();
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<PulseTab>(
-    isPulseTab(searchParams.get("tab")) ? searchParams.get("tab")! : "overview",
-  );
+  const displayCurrency = entityCurrency || "USD";
+  const [tab, setTab] = useState<Tab>("overview");
 
-  const handleTabChange = useCallback(
-    (key: PulseTab) => {
-      setActiveTab(key);
-      const params = new URLSearchParams(searchParams.toString());
-      params.set("tab", key);
-      router.replace(`?${params.toString()}`, { scroll: false });
-    },
-    [router, searchParams],
-  );
+  useSurfaceSync({ entityId, surfaces: ["financial-pulse"] });
 
   const [selectedPeriod, setSelectedPeriod] = useState<
     "this_month" | "last_month" | "this_quarter"
   >("this_month");
 
-  const [drillDown, setDrillDown] = useState<DrillDownData | null>(null);
-
   const { data: dashboardData } = trpc.dashboard.getDashboardData.useQuery(
     { period: selectedPeriod },
     { enabled: !!entityId },
   );
-
   const { data: pnlData } = trpc.reports.getPnlOverview.useQuery(undefined, {
     enabled: !!entityId,
   });
-
-  const { data: anomalyData } = trpc.dashboard.detectAnomalies.useQuery(
-    undefined,
-    {
-      enabled: !!entityId,
-      staleTime: 5 * 60 * 1000, // 5 minutes
-    },
-  );
-
   const { data: aiNarrative, isError: isNarrativeError } =
     trpc.dashboard.getAiNarrative.useQuery(undefined, {
       enabled: !!entityId,
-      staleTime: 10 * 60 * 1000, // 10 minutes — AI narratives are expensive to regenerate
+      staleTime: 10 * 60 * 1000,
     });
-
-  const { data: overdueData } = trpc.ar.getOverdueCount.useQuery(undefined, {
-    enabled: !!entityId,
-  });
+  const { data: anomalyData } = trpc.dashboard.detectAnomalies.useQuery(
+    undefined,
+    { enabled: !!entityId, staleTime: 5 * 60 * 1000 },
+  );
 
   const overview = dashboardData
     ? {
         cashBalance: dashboardData.businessHealth.cashBalance,
-        accountsReceivable: dashboardData.businessHealth.arOutstanding,
-        accountsPayable: dashboardData.businessHealth.apOutstanding,
-        overdueInvoices: overdueData?.count ?? 0,
+        ar: dashboardData.businessHealth.arOutstanding,
+        ap: dashboardData.businessHealth.apOutstanding,
         runway: dashboardData.businessHealth.runwayMonths,
       }
     : undefined;
@@ -923,670 +129,1112 @@ function FinancialPulseInner() {
     ? {
         revenue: pnlData.current.revenue,
         expenses: pnlData.current.opExpenses,
+        netProfit: pnlData.current.netProfit,
         revenueChange: dashboardData?.businessHealth.revenueChange,
         expensesChange: dashboardData?.businessHealth.expensesChange,
       }
     : undefined;
 
-  // Real sparkline data from the backend (monthly totals)
   const revenueSparkline = dashboardData?.businessHealth.revenueSparkline ?? [];
   const expenseSparkline =
     dashboardData?.businessHealth.expensesSparkline ?? [];
-  const cashSparkline = dashboardData?.businessHealth.cashSparkline ?? [];
 
-  // Build expense breakdown from P&L data
   const expenseBreakdownData =
     pnlData?.current.expensesByAccount?.slice(0, 8).map((a) => ({
       category:
         a.accountName.length > 12
-          ? a.accountName.slice(0, 12) + "…"
+          ? `${a.accountName.slice(0, 12)}…`
           : a.accountName,
       amount: Math.abs(a.amount),
     })) ?? [];
 
-  // Helper to open copilot with a financial question
-  const askAiAbout = (prompt: string) => {
-    openWithFocus(
-      {
-        kind: "Financial Pulse",
-        name: "Financial Overview",
-        fields: [
-          {
-            label: "Revenue",
-            value: formatCurrency(pnl?.revenue ?? 0),
-          },
-          {
-            label: "Expenses",
-            value: formatCurrency(pnl?.expenses ?? 0),
-          },
-          {
-            label: "Net Profit",
-            value: formatCurrency(pnlData?.current.netProfit ?? 0),
-          },
-          {
-            label: "Cash Balance",
-            value: formatCurrency(overview?.cashBalance ?? 0),
-          },
-          {
-            label: "Revenue Change",
-            value: pnl?.revenueChange
-              ? `${pnl.revenueChange > 0 ? "+" : ""}${pnl.revenueChange.toFixed(1)}%`
-              : "N/A",
-          },
-          {
-            label: "Expenses Change",
-            value: pnl?.expensesChange
-              ? `${pnl.expensesChange > 0 ? "+" : ""}${pnl.expensesChange.toFixed(1)}%`
-              : "N/A",
-          },
-        ],
-      },
-      prompt,
-    );
-  };
+  const ask = (prompt: string) =>
+    router.push(`/dashboard?prompt=${encodeURIComponent(prompt)}`);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag?.match(/INPUT|TEXTAREA|SELECT/)) return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+
+      switch (e.key) {
+        case "1":
+          e.preventDefault();
+          setTab("overview");
+          break;
+        case "2":
+          e.preventDefault();
+          setTab("performance");
+          break;
+        case "3":
+          e.preventDefault();
+          setTab("planning");
+          break;
+        case "4":
+          e.preventDefault();
+          setTab("reports");
+          break;
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   return (
-    <ModulePageShell
-      title="Financial Pulse"
-      description="AI-narrated financial health. Visual, not tabular."
-      icon={Activity}
-      aiSuggestions={[
-        {
-          label: "Explain my cash position",
-          prompt: "Explain my cash position",
-        },
-        {
-          label: "What's driving expenses?",
-          prompt: "What's driving expenses?",
-        },
-        { label: "Model next quarter", prompt: "Model next quarter" },
-      ]}
-    >
-      <div
-        className="flex flex-col flex-1 gap-6 p-3 pb-20 sm:p-6 md:pb-6 min-h-0"
-        aria-busy={!dashboardData && !pnlData}
-      >
-        {/* Period Selector */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Calendar
-              className="h-4 w-4 text-muted-foreground"
-              aria-hidden="true"
-            />
-            <span className="text-xs font-medium text-muted-foreground">
-              Period:
+    <div className="flex h-full flex-col p-4 pb-6 sm:p-6">
+      {/* ── Header + Period + Tabs ─────────────────────────────────── */}
+      <header className="mb-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <Activity className="h-4 w-4 text-primary" aria-hidden="true" />
+            <h1 className="text-sm font-semibold tracking-tight text-foreground">
+              Financial Health
+            </h1>
+            <span className="hidden font-mono text-[11px] tabular-nums text-muted-foreground sm:inline">
+              AI-narrated · live
             </span>
           </div>
+
+          {/* Period selector */}
           <div
             role="tablist"
             aria-label="Financial period"
             className="flex items-center gap-1 rounded-lg border border-border/50 bg-muted/30 p-0.5"
           >
-            {[
-              { key: "this_month" as const, label: "This Month" },
-              { key: "last_month" as const, label: "Last Month" },
-              { key: "this_quarter" as const, label: "This Quarter" },
-            ].map((period) => (
+            {(
+              [
+                { key: "this_month" as const, label: "This Month" },
+                { key: "last_month" as const, label: "Last Month" },
+                { key: "this_quarter" as const, label: "This Quarter" },
+              ] as const
+            ).map((p) => (
               <button
-                key={period.key}
+                key={p.key}
                 type="button"
                 role="tab"
-                aria-selected={selectedPeriod === period.key}
-                onClick={() => setSelectedPeriod(period.key)}
+                aria-selected={selectedPeriod === p.key}
+                onClick={() => setSelectedPeriod(p.key)}
                 className={cn(
                   "rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
-                  selectedPeriod === period.key
+                  selectedPeriod === p.key
                     ? "bg-background text-foreground shadow-sm"
                     : "text-muted-foreground hover:text-foreground",
                 )}
               >
-                {period.label}
+                {p.label}
               </button>
             ))}
           </div>
         </div>
 
-        {/* Section Tabs */}
-        <PulseTabList activeTab={activeTab} onTabChange={handleTabChange} />
-
-        {/* ── Overview Tab ── */}
-        {activeTab === "overview" && (
+        {/* View tabs */}
+        <div className="mt-3 flex items-center justify-between">
           <div
-            id="pulse-panel-overview"
-            role="tabpanel"
-            aria-labelledby="pulse-tab-overview"
-            className="space-y-6"
+            className="flex items-center gap-1"
+            role="tablist"
+            aria-label="Financial views"
           >
-            {/* AI Narrative */}
-            <AiFinancialNarrative
-              aiNarrative={aiNarrative}
-              overview={overview}
-              pnl={pnl}
-              isError={isNarrativeError}
-            />
+            {TABS.map((t) => {
+              const Icon = t.icon;
+              const active = tab === t.key;
+              return (
+                <button
+                  key={t.key}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  onClick={() => setTab(t.key)}
+                  className={cn(
+                    "flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-all",
+                    active
+                      ? "bg-primary/10 text-primary"
+                      : "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
+                  )}
+                >
+                  <Icon className="h-3.5 w-3.5" aria-hidden="true" />
+                  {t.label}
+                </button>
+              );
+            })}
+          </div>
+          <span className="hidden text-[10px] text-muted-foreground/50 sm:inline">
+            1-4 switch tabs
+          </span>
+        </div>
+      </header>
 
-            {/* Anomaly Alerts */}
-            {anomalyData?.anomalies && anomalyData.anomalies.length > 0 && (
-              <AnomalyAlerts
-                anomalies={anomalyData.anomalies}
-                onInvestigate={(anomaly) =>
-                  askAiAbout(
-                    `Investigate this anomaly: ${anomaly.message}. ${anomaly.aiInsight}`,
-                  )
-                }
+      {/* ── Tab Panels ──────────────────────────────────────────────── */}
+      <div className="flex-1 min-h-0 overflow-y-auto">
+        {tab === "overview" && (
+          <OverviewPanel
+            aiNarrative={aiNarrative}
+            isNarrativeError={isNarrativeError}
+            overview={overview}
+            pnl={pnl}
+            anomalyData={anomalyData}
+            ask={ask}
+          />
+        )}
+        {tab === "performance" && (
+          <PerformancePanel
+            revenueSparkline={revenueSparkline}
+            expenseSparkline={expenseSparkline}
+            expenseBreakdownData={expenseBreakdownData}
+            displayCurrency={displayCurrency}
+            ask={ask}
+          />
+        )}
+        {tab === "planning" && (
+          <PlanningPanel entityId={entityId ?? ""} ask={ask} />
+        )}
+        {tab === "reports" && (
+          <ReportsPanel
+            ask={ask}
+            pnlData={pnlData}
+            overview={overview}
+            displayCurrency={displayCurrency}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Overview Panel ─────────────────────────────────────────────────────────
+
+function OverviewPanel({
+  aiNarrative,
+  isNarrativeError,
+  overview,
+  pnl,
+  anomalyData,
+  ask,
+}: {
+  aiNarrative:
+    | {
+        text: string;
+        highlights: string[];
+        concerns: string[];
+        confidence: number;
+        generatedAt: string;
+      }
+    | undefined;
+  isNarrativeError: boolean;
+  overview:
+    | { cashBalance: number; ar: number; ap: number; runway: number | null }
+    | undefined;
+  pnl:
+    | {
+        revenue: number;
+        expenses: number;
+        netProfit: number;
+        revenueChange: number | undefined;
+        expensesChange: number | undefined;
+      }
+    | undefined;
+  anomalyData:
+    { anomalies: Array<{ message: string; aiInsight?: string }> } | undefined;
+  ask: (prompt: string) => void;
+}) {
+  return (
+    <div className="space-y-5">
+      {/* AI Narrative */}
+      <section
+        aria-labelledby="pulse-narrative-heading"
+        className="overflow-hidden rounded-2xl border border-border/50 bg-card"
+      >
+        <div className="border-b border-border/40 bg-muted/20 px-5 py-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2
+              id="pulse-narrative-heading"
+              className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+            >
+              <Sparkles
+                className="h-3.5 w-3.5 text-primary"
+                aria-hidden="true"
+              />
+              The AI&apos;s take
+            </h2>
+            {aiNarrative && (
+              <ProvenanceBadge
+                actor="agent"
+                actorName="Financial Analyst"
+                confidence={aiNarrative.confidence}
               />
             )}
-
-            {/* Data Freshness Indicator */}
-            <div className="flex items-center justify-end">
-              <span className="text-xs text-muted-foreground">
-                Data refreshes every 5 minutes
-              </span>
-            </div>
-
-            {/* KPI Cards */}
-            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-              <KPICard
-                label="Revenue"
-                value={formatCurrency(pnl?.revenue ?? 0)}
-                previousValue={
-                  pnl?.revenueChange
-                    ? formatCurrency(
-                        (pnl.revenue ?? 0) /
-                          (1 + (pnl.revenueChange ?? 0) / 100),
-                      )
-                    : undefined
-                }
-                change={
-                  pnl?.revenueChange
-                    ? `${pnl.revenueChange > 0 ? "+" : ""}${pnl.revenueChange.toFixed(1)}%`
-                    : undefined
-                }
-                icon={TrendingUp}
-                color="text-balanced-green"
-                sparkline={revenueSparkline}
-                onDrillDown={() => {
-                  const expenses = pnlData?.current.expensesByAccount ?? [];
-                  const totalExpenses = expenses.reduce(
-                    (s, e) => s + Math.abs(e.amount),
-                    0,
-                  );
-                  setDrillDown({
-                    title: "Revenue Breakdown",
-                    total: formatCurrency(pnl?.revenue ?? 0),
-                    items: (pnlData?.current.revenueByAccount ?? [])
-                      .slice(0, 10)
-                      .map((a) => ({
-                        label: a.accountName,
-                        value: formatCurrency(a.amount),
-                        percentage: pnl?.revenue
-                          ? `${((a.amount / pnl.revenue) * 100).toFixed(1)}%`
-                          : undefined,
-                        color: "bg-balanced-green",
-                      })),
-                    insight: pnl?.revenueChange
-                      ? `Revenue ${pnl.revenueChange > 0 ? "grew" : "declined"} ${Math.abs(pnl.revenueChange).toFixed(1)}% vs prior period.`
-                      : undefined,
-                  });
-                }}
-                onAskAi={() =>
-                  askAiAbout(
-                    "Explain my revenue position and trends. What's driving the change vs last month?",
-                  )
-                }
-                aiPrompt="Explain revenue"
-              />
-              <KPICard
-                label="Expenses"
-                value={formatCurrency(pnl?.expenses ?? 0)}
-                previousValue={
-                  pnl?.expensesChange
-                    ? formatCurrency(
-                        (pnl.expenses ?? 0) /
-                          (1 + (pnl.expensesChange ?? 0) / 100),
-                      )
-                    : undefined
-                }
-                change={
-                  pnl?.expensesChange
-                    ? `${pnl.expensesChange > 0 ? "+" : ""}${pnl.expensesChange.toFixed(1)}%`
-                    : undefined
-                }
-                icon={TrendingDown}
-                color="text-error-clay"
-                sparkline={expenseSparkline}
-                onDrillDown={() => {
-                  const expenses = pnlData?.current.expensesByAccount ?? [];
-                  const totalExpenses = expenses.reduce(
-                    (s, e) => s + Math.abs(e.amount),
-                    0,
-                  );
-                  setDrillDown({
-                    title: "Expense Breakdown",
-                    total: formatCurrency(pnl?.expenses ?? 0),
-                    items: expenses.slice(0, 10).map((a) => ({
-                      label: a.accountName,
-                      value: formatCurrency(Math.abs(a.amount)),
-                      percentage:
-                        totalExpenses > 0
-                          ? `${((Math.abs(a.amount) / totalExpenses) * 100).toFixed(1)}%`
-                          : undefined,
-                      color: "bg-error-clay",
-                    })),
-                    insight: pnl?.expensesChange
-                      ? `Expenses ${pnl.expensesChange > 0 ? "increased" : "decreased"} ${Math.abs(pnl.expensesChange).toFixed(1)}% vs prior period.`
-                      : undefined,
-                  });
-                }}
-                onAskAi={() =>
-                  askAiAbout(
-                    "Break down my expenses. What's the biggest cost driver and how can I reduce it?",
-                  )
-                }
-                aiPrompt="Explain expenses"
-              />
-              <KPICard
-                label="Net Profit"
-                value={formatCurrency(pnlData?.current.netProfit ?? 0)}
-                icon={BarChart3}
-                color="text-primary"
-                onDrillDown={() => {
-                  setDrillDown({
-                    title: "Profitability Summary",
-                    total: formatCurrency(pnlData?.current.netProfit ?? 0),
-                    items: [
-                      {
-                        label: "Revenue",
-                        value: formatCurrency(pnl?.revenue ?? 0),
-                        color: "bg-balanced-green",
-                      },
-                      {
-                        label: "Cost of Goods Sold",
-                        value: formatCurrency(pnlData?.current.cogs ?? 0),
-                        color: "bg-attention-amber",
-                      },
-                      {
-                        label: "Gross Profit",
-                        value: formatCurrency(
-                          (pnl?.revenue ?? 0) - (pnlData?.current.cogs ?? 0),
-                        ),
-                        color: "bg-primary",
-                      },
-                      {
-                        label: "Operating Expenses",
-                        value: formatCurrency(pnl?.expenses ?? 0),
-                        color: "bg-error-clay",
-                      },
-                      {
-                        label: "Net Profit",
-                        value: formatCurrency(pnlData?.current.netProfit ?? 0),
-                        color: "bg-primary",
-                      },
-                    ],
-                    insight:
-                      pnl?.revenue && pnl?.expenses
-                        ? pnl.revenue > 0
-                          ? `Net margin: ${(((pnlData?.current.netProfit ?? 0) / pnl.revenue) * 100).toFixed(1)}%. Revenue-expense spread: ${(pnl.revenueChange ?? 0) - (pnl.expensesChange ?? 0) > 0 ? "expanding" : "narrowing"}.`
-                          : `Net margin: —. Revenue-expense spread: ${(pnl.revenueChange ?? 0) - (pnl.expensesChange ?? 0) > 0 ? "expanding" : "narrowing"}.`
-                        : undefined,
-                  });
-                }}
-                onAskAi={() =>
-                  askAiAbout(
-                    "Explain my profitability. Is my margin improving or declining? What should I focus on?",
-                  )
-                }
-                aiPrompt="Explain profit"
-              />
-              <KPICard
-                label="Cash Balance"
-                value={formatCurrency(overview?.cashBalance ?? 0)}
-                icon={Wallet}
-                color="text-primary"
-                sparkline={cashSparkline}
-                onDrillDown={() => {
-                  setDrillDown({
-                    title: "Cash Position",
-                    total: formatCurrency(overview?.cashBalance ?? 0),
-                    items: [
-                      {
-                        label: "Accounts Receivable",
-                        value: formatCurrency(
-                          overview?.accountsReceivable ?? 0,
-                        ),
-                        color: "bg-balanced-green",
-                      },
-                      {
-                        label: "Accounts Payable",
-                        value: formatCurrency(overview?.accountsPayable ?? 0),
-                        color: "bg-error-clay",
-                      },
-                      {
-                        label: "Net Position",
-                        value: formatCurrency(
-                          (overview?.cashBalance ?? 0) +
-                            (overview?.accountsReceivable ?? 0) -
-                            (overview?.accountsPayable ?? 0),
-                        ),
-                        color: "bg-primary",
-                      },
-                    ],
-                    insight:
-                      overview?.runway !== null &&
-                      overview?.runway !== undefined
-                        ? overview.runway <= 0
-                          ? "Immediate action required — runway is critically low."
-                          : overview.runway < 3
-                            ? `At current burn rate, you have approximately ${overview.runway.toFixed(1)} months of runway. This is critically low.`
-                            : `At current burn rate, you have approximately ${overview.runway.toFixed(1)} months of runway.`
-                        : "Runway unknown — connect your bank accounts for accurate data.",
-                  });
-                }}
-                onAskAi={() =>
-                  askAiAbout(
-                    "Explain my cash position. How many months of runway do I have? What's the trend?",
-                  )
-                }
-                aiPrompt="Explain cash"
-              />
-            </div>
-
-            {/* Daily Close Status */}
-            <DailyCloseStatus />
-
-            {/* Live Exchange Rates */}
-            <LiveExchangeRates />
           </div>
-        )}
+        </div>
 
-        {/* ── Performance Tab ── */}
-        {activeTab === "performance" && (
-          <div
-            id="pulse-panel-performance"
-            role="tabpanel"
-            aria-labelledby="pulse-tab-performance"
-            className="flex flex-col flex-1 gap-6 min-h-0"
-          >
-            {/* Interactive Charts */}
-            <div
-              className="grid grid-rows-[1fr_1fr] gap-4 sm:grid-cols-2"
-              style={{ minHeight: "80vh" }}
-            >
-              <RevenueTrendChart
-                data={revenueSparkline.map((v, i) => ({
-                  month: getMonthLabel(i, revenueSparkline.length),
-                  revenue: v,
-                  prior: expenseSparkline[i] ? undefined : undefined,
-                }))}
-                currency={displayCurrency}
-                onAskAi={() =>
-                  askAiAbout(
-                    "Explain my revenue trend. What's driving the changes?",
-                  )
-                }
-              />
-              <CashFlowChart
-                data={revenueSparkline.map((v, i) => ({
-                  month: getMonthLabel(i, revenueSparkline.length),
-                  incoming: v,
-                  outgoing: expenseSparkline[i] ?? 0,
-                }))}
-                currency={displayCurrency}
-                onAskAi={() =>
-                  askAiAbout(
-                    "Analyze my cash flow. Am I spending more than I'm earning?",
-                  )
-                }
-              />
-            </div>
-            <div
-              className="grid grid-rows-[1fr_1fr] gap-4 sm:grid-cols-2"
-              style={{ minHeight: "80vh" }}
-            >
-              <MarginTrendChart
-                data={revenueSparkline.map((v, i) => {
-                  const exp = expenseSparkline[i] ?? 0;
-                  const margin = v > 0 ? ((v - exp) / v) * 100 : 0;
-                  return {
-                    month: getMonthLabel(i, revenueSparkline.length),
-                    margin: Math.round(margin * 10) / 10,
-                    target: 25,
-                  };
-                })}
-                onAskAi={() =>
-                  askAiAbout(
-                    "Analyze my profit margin trend. Is it improving or declining?",
-                  )
-                }
-              />
-              <ExpenseBreakdownChart
-                data={expenseBreakdownData}
-                currency={displayCurrency}
-                onAskAi={() =>
-                  askAiAbout(
-                    "Break down my expenses. What's the biggest cost driver?",
-                  )
-                }
-              />
-            </div>
-
-            {/* Scenario Planner */}
-            <ScenarioPlanner onAskAi={askAiAbout} />
-          </div>
-        )}
-
-        {/* ── Planning Tab ── */}
-        {activeTab === "planning" && (
-          <div
-            id="pulse-panel-planning"
-            role="tabpanel"
-            aria-labelledby="pulse-tab-planning"
-            className="space-y-6"
-          >
-            {/* AI Forecast */}
-            <section>
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-semibold tracking-tight text-foreground">
-                  AI Forecast
-                </h3>
-                <button
-                  type="button"
-                  onClick={() =>
-                    askAiAbout(
-                      "Explain my financial forecast for the next 3 months",
-                    )
-                  }
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-primary/20 bg-primary/5 px-2.5 py-1 text-[11px] font-medium text-primary hover:bg-primary/10 transition-colors"
-                >
-                  <Sparkles className="h-3 w-3" />
-                  Ask AI
-                </button>
-              </div>
-              <ForecastView />
-            </section>
-
-            {/* Budget vs Actual */}
-            <BudgetVsActualSection
-              entityId={entityId ?? ""}
-              askAiAbout={askAiAbout}
-            />
-          </div>
-        )}
-
-        {/* ── Reports Tab ── */}
-        {activeTab === "reports" && (
-          <div
-            id="pulse-panel-reports"
-            role="tabpanel"
-            aria-labelledby="pulse-tab-reports"
-            className="space-y-6"
-          >
-            {/* Report Library */}
-            <section>
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-semibold tracking-tight text-foreground">
-                  Reports
-                </h3>
-                <span className="text-[10px] text-muted-foreground">
-                  Click to analyze with AI · Download buttons for export
-                </span>
-              </div>
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                {REPORTS.map((report) => {
-                  const Icon = report.icon;
-                  // Build report data for downloads
-                  const reportData =
-                    report.id === "pnl" && pnlData
-                      ? buildPnlReport({
-                          entityName: entity?.name || "Your Business",
-                          currency: displayCurrency,
-                          period: new Date().toLocaleDateString("en-US", {
-                            month: "long",
-                            year: "numeric",
-                          }),
-                          revenue: pnlData.current.revenue,
-                          revenueByAccount:
-                            pnlData.current.revenueByAccount.map((a) => ({
-                              code: a.accountCode,
-                              name: a.accountName,
-                              amount: a.amount,
-                            })),
-                          expenses: pnlData.current.expenses,
-                          expensesByAccount:
-                            pnlData.current.expensesByAccount.map((a) => ({
-                              code: a.accountCode,
-                              name: a.accountName,
-                              amount: a.amount,
-                            })),
-                          cogs: pnlData.current.cogs,
-                          grossProfit: pnlData.current.grossProfit,
-                          opExpenses: pnlData.current.opExpenses,
-                          netProfit: pnlData.current.netProfit,
-                          narrative: aiNarrative?.text,
-                        })
-                      : report.id === "cash-flow"
-                        ? buildCashFlowReport({
-                            entityName: entity?.name || "Your Business",
-                            currency: displayCurrency,
-                            period: new Date().toLocaleDateString("en-US", {
-                              month: "long",
-                              year: "numeric",
-                            }),
-                            openingCash: overview?.cashBalance ?? 0,
-                            operating: {
-                              lines: [
-                                {
-                                  name: "Revenue",
-                                  amount: pnlData?.current.revenue ?? 0,
-                                },
-                              ],
-                              total: pnlData?.current.revenue ?? 0,
-                            },
-                            investing: { lines: [], total: 0 },
-                            financing: { lines: [], total: 0 },
-                            closingCash: overview?.cashBalance ?? 0,
-                          })
-                        : {
-                            title: report.label,
-                            entityName: entity?.name || "Your Business",
-                            currency: displayCurrency,
-                            generatedAt: new Date(),
-                            sections: [],
-                          };
-
-                  return (
-                    <div
-                      key={report.id}
-                      className="group rounded-xl border border-border/50 bg-card p-4 transition-all duration-200 hover:border-border/80 hover:shadow-md"
+        <div className="px-5 py-4">
+          {isNarrativeError && !aiNarrative ? (
+            <p className="text-sm leading-relaxed text-muted-foreground">
+              AI narrative unavailable. Key figures are shown below.
+            </p>
+          ) : !aiNarrative && !overview ? (
+            <p className="animate-pulse text-sm text-muted-foreground">
+              Generating your financial narrative…
+            </p>
+          ) : aiNarrative?.text ? (
+            <>
+              <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground/85">
+                {aiNarrative.text}
+              </p>
+              {(aiNarrative.highlights.length > 0 ||
+                aiNarrative.concerns.length > 0) && (
+                <div className="mt-3 flex flex-wrap gap-1.5">
+                  {aiNarrative.highlights.map((h: string, i: number) => (
+                    <span
+                      key={`h-${i}`}
+                      className="inline-flex items-center gap-1 rounded-full bg-balanced-green/10 px-2 py-0.5 text-[11px] font-medium text-balanced-green"
                     >
-                      <button
-                        type="button"
-                        onClick={() => askAiAbout(report.aiPrompt)}
-                        className="w-full text-left"
-                      >
-                        <div className="flex items-start gap-3">
-                          <div
-                            className={cn(
-                              "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl",
-                              report.color.split(" ")[0],
-                            )}
-                          >
-                            <Icon
-                              className={cn(
-                                "h-5 w-5",
-                                report.color.split(" ")[1],
-                              )}
-                            />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-foreground group-hover:text-primary transition-colors">
-                              {report.label}
-                            </p>
-                            <p className="mt-0.5 text-xs text-muted-foreground line-clamp-2">
-                              {report.description}
-                            </p>
-                          </div>
-                          <Sparkles className="h-4 w-4 shrink-0 text-muted-foreground/40 opacity-0 group-hover:opacity-100 transition-opacity text-primary" />
-                        </div>
-                      </button>
-                      {/* Download buttons */}
-                      <div className="mt-3 pt-3 border-t border-border/30">
-                        <DocumentDownloadButtons
-                          data={reportData}
-                          formats={["pdf", "excel", "word"]}
-                          size="xs"
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </section>
+                      <span aria-hidden="true">✓</span> {h}
+                    </span>
+                  ))}
+                  {aiNarrative.concerns.map((c: string, i: number) => (
+                    <span
+                      key={`c-${i}`}
+                      className="inline-flex items-center gap-1 rounded-full bg-attention-amber/10 px-2 py-0.5 text-[11px] font-medium text-attention-amber"
+                    >
+                      <AlertTriangle className="h-3 w-3" aria-hidden="true" />
+                      {c}
+                    </span>
+                  ))}
+                </div>
+              )}
+              <p className="mt-3 font-mono text-[10px] tabular-nums text-muted-foreground/60">
+                {Math.round(aiNarrative.confidence * 100)}% confidence ·{" "}
+                {new Date(aiNarrative.generatedAt).toLocaleTimeString()}
+              </p>
+            </>
+          ) : (
+            <p className="text-sm leading-relaxed text-foreground/85">
+              {pnl && pnl.revenue > 0 && (
+                <>
+                  Revenue is {formatCurrency(pnl.revenue)}
+                  {pnl.revenueChange
+                    ? ` (${pnl.revenueChange > 0 ? "+" : ""}${pnl.revenueChange.toFixed(1)}% vs prior)`
+                    : ""}
+                  .{" "}
+                </>
+              )}
+              {pnl && pnl.expenses > 0 && (
+                <>
+                  Expenses are {formatCurrency(pnl.expenses)}
+                  {pnl.expensesChange
+                    ? ` (${pnl.expensesChange > 0 ? "+" : ""}${pnl.expensesChange.toFixed(1)}%)`
+                    : ""}
+                  .{" "}
+                </>
+              )}
+              {(pnl?.netProfit ?? 0) !== 0 && (
+                <>
+                  Net {(pnl?.netProfit ?? 0) >= 0 ? "profit" : "loss"} is{" "}
+                  {formatCurrency(Math.abs(pnl?.netProfit ?? 0))}.
+                </>
+              )}
+            </p>
+          )}
+        </div>
+      </section>
 
-            {/* Quick Actions */}
-            <div className="rounded-xl border border-border/50 bg-card p-4">
-              <h3 className="text-sm font-semibold text-foreground mb-3">
-                Quick Actions
-              </h3>
-              <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={() => askAiAbout("Show me my trial balance")}
-                  className="inline-flex items-center gap-2 rounded-lg border border-border/50 bg-background px-4 py-2 text-sm text-foreground hover:bg-accent transition-colors"
-                >
-                  <FileText className="h-4 w-4" aria-hidden="true" />
-                  View Ledger
-                </button>
-                <button
-                  type="button"
-                  onClick={() =>
-                    askAiAbout("Show me my cash flow for this month")
-                  }
-                  className="inline-flex items-center gap-2 rounded-lg border border-border/50 bg-background px-4 py-2 text-sm text-foreground hover:bg-accent transition-colors"
-                >
-                  <ArrowRightLeft className="h-4 w-4" aria-hidden="true" />
-                  Cash Flow
-                </button>
-                <button
-                  type="button"
-                  onClick={() =>
-                    askAiAbout(
-                      "Generate a comprehensive financial report for this month",
-                    )
-                  }
-                  className="inline-flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-4 py-2 text-sm text-primary hover:bg-primary/10 transition-colors"
-                >
-                  <Bot className="h-4 w-4" aria-hidden="true" />
-                  Ask AI for custom report
-                </button>
-              </div>
-            </div>
+      {/* KPI strip */}
+      <section
+        aria-label="Key metrics"
+        className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4"
+      >
+        <div className="rounded-xl border border-border/50 bg-card p-4">
+          <MetricNarrative
+            label="Revenue"
+            value={formatCurrency(pnl?.revenue ?? 0)}
+            narrative={
+              pnl?.revenueChange
+                ? `${pnl.revenueChange > 0 ? "Up" : "Down"} ${Math.abs(pnl.revenueChange).toFixed(1)}% vs prior — ${pnl.revenueChange > 5 ? "strong" : "steady"}.`
+                : undefined
+            }
+            size="sm"
+          />
+          <button
+            type="button"
+            onClick={() =>
+              ask(
+                "Explain my revenue position and what's driving the change vs last month.",
+              )
+            }
+            className="mt-2 text-[11px] font-medium text-primary hover:text-primary/80"
+          >
+            Ask why →
+          </button>
+        </div>
+        <div className="rounded-xl border border-border/50 bg-card p-4">
+          <MetricNarrative
+            label="Expenses"
+            value={formatCurrency(pnl?.expenses ?? 0)}
+            narrative={
+              pnl?.expensesChange
+                ? `${pnl.expensesChange > 0 ? "Up" : "Down"} ${Math.abs(pnl.expensesChange).toFixed(1)}% — watch the trend.`
+                : undefined
+            }
+            size="sm"
+          />
+          <button
+            type="button"
+            onClick={() =>
+              ask("Break down my expenses. What's the biggest cost driver?")
+            }
+            className="mt-2 text-[11px] font-medium text-primary hover:text-primary/80"
+          >
+            Break down →
+          </button>
+        </div>
+        <div className="rounded-xl border border-border/50 bg-card p-4">
+          <MetricNarrative
+            label="Net Profit"
+            value={formatCurrency(pnl?.netProfit ?? 0)}
+            narrative={
+              pnl?.revenue && pnl.revenue > 0
+                ? `${(((pnl.netProfit ?? 0) / pnl.revenue) * 100).toFixed(1)}% margin.`
+                : undefined
+            }
+            size="sm"
+          />
+          {pnl?.revenue != null && (
+            <span
+              className={cn(
+                "mt-2 inline-flex rounded-full px-1.5 py-0.5 text-[10px] font-bold tabular-nums",
+                (pnl.netProfit ?? 0) >= 0
+                  ? "bg-balanced-green/10 text-balanced-green"
+                  : "bg-error-clay/10 text-error-clay",
+              )}
+            >
+              {(pnl.netProfit ?? 0) >= 0 ? "Profitable" : "Loss"}
+            </span>
+          )}
+        </div>
+        <div className="rounded-xl border border-border/50 bg-card p-4">
+          <MetricNarrative
+            label="Cash & runway"
+            value={formatCurrency(overview?.cashBalance ?? 0)}
+            narrative={
+              overview?.runway != null
+                ? overview.runway < 3
+                  ? `${overview.runway.toFixed(1)} mo runway — tight.`
+                  : `${overview.runway.toFixed(1)} mo runway — comfortable.`
+                : "Connect bank for runway."
+            }
+            size="sm"
+          />
+        </div>
+      </section>
+
+      {/* Exchange rates + Daily close status strip */}
+      <div className="grid gap-3 sm:grid-cols-2">
+        <ExchangeRatesStrip />
+        <DailyCloseStrip ask={ask} />
+      </div>
+
+      {/* Anomalies */}
+      {anomalyData?.anomalies && anomalyData.anomalies.length > 0 && (
+        <AnomalyAlerts
+          anomalies={anomalyData.anomalies}
+          onInvestigate={(a) =>
+            ask(`Investigate this anomaly: ${a.message}. ${a.aiInsight ?? ""}`)
+          }
+        />
+      )}
+    </div>
+  );
+}
+
+// ─── Performance Panel ──────────────────────────────────────────────────────
+
+function PerformancePanel({
+  revenueSparkline,
+  expenseSparkline,
+  expenseBreakdownData,
+  displayCurrency,
+  ask,
+}: {
+  revenueSparkline: number[];
+  expenseSparkline: number[];
+  expenseBreakdownData: { category: string; amount: number }[];
+  displayCurrency: string;
+  ask: (prompt: string) => void;
+}) {
+  return (
+    <div className="space-y-4">
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="relative overflow-hidden rounded-xl border border-border/50 bg-card">
+          <RevenueTrendChart
+            data={revenueSparkline.map((v, i) => ({
+              month: getMonthLabel(i, revenueSparkline.length),
+              revenue: v,
+              prior: undefined,
+            }))}
+            currency={displayCurrency}
+            onAskAi={() =>
+              ask("Explain my revenue trend. What's driving the changes?")
+            }
+          />
+        </div>
+        <div className="relative overflow-hidden rounded-xl border border-border/50 bg-card">
+          <CashFlowChart
+            data={revenueSparkline.map((v, i) => ({
+              month: getMonthLabel(i, revenueSparkline.length),
+              incoming: v,
+              outgoing: expenseSparkline[i] ?? 0,
+            }))}
+            currency={displayCurrency}
+            onAskAi={() =>
+              ask("Analyze my cash flow. Am I spending more than I'm earning?")
+            }
+          />
+        </div>
+      </div>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="relative overflow-hidden rounded-xl border border-border/50 bg-card">
+          <MarginTrendChart
+            data={revenueSparkline.map((v, i) => {
+              const exp = expenseSparkline[i] ?? 0;
+              const margin = v > 0 ? ((v - exp) / v) * 100 : 0;
+              return {
+                month: getMonthLabel(i, revenueSparkline.length),
+                margin: Math.round(margin * 10) / 10,
+                target: 25,
+              };
+            })}
+            onAskAi={() =>
+              ask("Analyze my profit margin trend. Is it improving?")
+            }
+          />
+        </div>
+        <div className="relative overflow-hidden rounded-xl border border-border/50 bg-card">
+          <ExpenseBreakdownChart
+            data={expenseBreakdownData}
+            currency={displayCurrency}
+            onAskAi={() =>
+              ask("Break down my expenses. What's the biggest cost driver?")
+            }
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Planning Panel ─────────────────────────────────────────────────────────
+
+function PlanningPanel({
+  entityId,
+  ask,
+}: {
+  entityId: string;
+  ask: (prompt: string) => void;
+}) {
+  return (
+    <div className="space-y-5">
+      {/* Forecast */}
+      <section
+        aria-labelledby="pulse-forecast-heading"
+        className="overflow-hidden rounded-xl border border-border/50 bg-card"
+      >
+        <header className="flex items-center justify-between border-b border-border/40 px-4 py-3">
+          <h2
+            id="pulse-forecast-heading"
+            className="text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+          >
+            Forecast
+          </h2>
+          <button
+            type="button"
+            onClick={() =>
+              ask("Explain my financial forecast for the next 3 months")
+            }
+            className="text-[11px] font-medium text-primary hover:text-primary/80"
+          >
+            Ask for detail →
+          </button>
+        </header>
+        <div className="p-4">
+          <ForecastView />
+        </div>
+      </section>
+
+      {/* Budget vs Actual */}
+      <BudgetVsActualCard entityId={entityId} ask={ask} />
+
+      {/* Scenario Planner */}
+      <ScenarioCard ask={ask} />
+    </div>
+  );
+}
+
+// ─── Reports Panel ──────────────────────────────────────────────────────────
+
+function ReportsPanel({
+  ask,
+  pnlData,
+  overview,
+  displayCurrency,
+}: {
+  ask: (prompt: string) => void;
+  pnlData: unknown;
+  overview:
+    | { cashBalance: number; ar: number; ap: number; runway: number | null }
+    | undefined;
+  displayCurrency: string;
+}) {
+  return (
+    <div className="space-y-5">
+      <ReportLibrary
+        ask={ask}
+        pnlData={pnlData}
+        overview={overview}
+        displayCurrency={displayCurrency}
+      />
+
+      {/* Command bar */}
+      <section
+        aria-label="Ask about this page"
+        className="rounded-xl border border-dashed border-border/60 bg-muted/10 p-4"
+      >
+        <h2 className="mb-2 flex items-center gap-1.5 text-sm font-medium text-foreground">
+          <Sparkles className="h-4 w-4 text-primary" aria-hidden="true" />
+          Ask a follow-up
+        </h2>
+        <CommandBar
+          onSubmit={(v) =>
+            ask(
+              `About Financial Pulse: ${v}. Context — revenue ${formatCurrency(0)}, expenses ${formatCurrency(0)}, cash ${formatCurrency(0)}.`,
+            )
+          }
+          placeholder="e.g. Why did margin dip last month? Model a 10% cut in ops spend…"
+        />
+      </section>
+    </div>
+  );
+}
+
+// ─── Budget vs Actual Card ─────────────────────────────────────────────────
+
+function BudgetVsActualCard({
+  entityId,
+  ask,
+}: {
+  entityId: string;
+  ask: (prompt: string) => void;
+}) {
+  const { data: currentPeriod } = trpc.fiscal.getCurrent.useQuery(undefined, {
+    enabled: !!entityId,
+  });
+  const { data: budgetData, isLoading } =
+    trpc.reports.getBudgetVsActual.useQuery(
+      { periodId: currentPeriod?.id ?? "" },
+      { enabled: !!entityId && !!currentPeriod?.id },
+    );
+
+  if (isLoading) {
+    return (
+      <div className="animate-pulse rounded-xl border border-border/50 bg-card p-4">
+        <div className="h-4 w-48 rounded bg-muted/30" />
+      </div>
+    );
+  }
+
+  if (!budgetData) return null;
+
+  const items = (budgetData.lines ?? []).map(
+    (line: {
+      accountName: string;
+      budgetedAmount: number;
+      actualAmount: number;
+      variance: number;
+      variancePct: number;
+      status: string;
+    }) => ({
+      category: line.accountName,
+      budget: line.budgetedAmount,
+      actual: line.actualAmount,
+      variance: line.variance,
+      variancePercent: line.variancePct,
+      status: line.status,
+    }),
+  );
+
+  if (items.length === 0) return null;
+
+  const overBudget = items.filter((i) => i.variance > 0).length;
+  const underBudget = items.filter((i) => i.variance < 0).length;
+
+  return (
+    <section
+      aria-labelledby="budget-heading"
+      className="overflow-hidden rounded-xl border border-border/50 bg-card"
+    >
+      <header className="flex items-center justify-between border-b border-border/40 px-4 py-3">
+        <div className="flex items-center gap-2">
+          <h2
+            id="budget-heading"
+            className="text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+          >
+            Budget vs Actual
+          </h2>
+          {overBudget > 0 && (
+            <span className="inline-flex items-center rounded-full bg-error-clay/10 px-1.5 py-0.5 text-[9px] font-bold text-error-clay">
+              {overBudget} over
+            </span>
+          )}
+          {underBudget > 0 && (
+            <span className="inline-flex items-center rounded-full bg-balanced-green/10 px-1.5 py-0.5 text-[9px] font-bold text-balanced-green">
+              {underBudget} under
+            </span>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={() =>
+            ask("Analyze my budget vs actual. Where are the biggest variances?")
+          }
+          className="text-[11px] font-medium text-primary hover:text-primary/80"
+        >
+          Ask why →
+        </button>
+      </header>
+      <div className="overflow-x-auto">
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="border-b bg-muted/30">
+              <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">
+                Category
+              </th>
+              <th className="px-4 py-2.5 text-right font-medium text-muted-foreground">
+                Budget
+              </th>
+              <th className="px-4 py-2.5 text-right font-medium text-muted-foreground">
+                Actual
+              </th>
+              <th className="px-4 py-2.5 text-right font-medium text-muted-foreground">
+                Variance
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {items.slice(0, 6).map(
+              (
+                item: {
+                  category: string;
+                  budget: number;
+                  actual: number;
+                  variance: number;
+                },
+                i: number,
+              ) => {
+                const isOver = item.variance > 0;
+                return (
+                  <tr
+                    key={i}
+                    className="border-b last:border-0 hover:bg-muted/20"
+                  >
+                    <td className="px-4 py-2 font-medium text-foreground">
+                      {item.category}
+                    </td>
+                    <td className="px-4 py-2 text-right font-mono tabular-nums text-muted-foreground">
+                      {formatCurrency(item.budget)}
+                    </td>
+                    <td className="px-4 py-2 text-right font-mono tabular-nums text-foreground">
+                      {formatCurrency(item.actual)}
+                    </td>
+                    <td
+                      className={cn(
+                        "px-4 py-2 text-right font-mono tabular-nums font-medium",
+                        isOver ? "text-error-clay" : "text-balanced-green",
+                      )}
+                    >
+                      {isOver ? "+" : ""}
+                      {formatCurrency(item.variance)}
+                    </td>
+                  </tr>
+                );
+              },
+            )}
+          </tbody>
+        </table>
+        {items.length > 6 && (
+          <div className="border-t border-border/50 px-4 py-2 text-center">
+            <span className="text-[10px] text-muted-foreground">
+              Showing 6 of {items.length} categories
+            </span>
           </div>
         )}
       </div>
+    </section>
+  );
+}
 
-      {/* KPI Drill-Down Drawer */}
-      <KpiDrillDownDrawer data={drillDown} onClose={() => setDrillDown(null)} />
-    </ModulePageShell>
+// ─── Scenario Planner Card ─────────────────────────────────────────────────
+
+function ScenarioCard({ ask }: { ask: (prompt: string) => void }) {
+  const scenarios = [
+    {
+      label: "Revenue drops 20%",
+      prompt:
+        "Model what happens if revenue drops 20% next quarter. Show impact on cash, runway, and profitability.",
+    },
+    {
+      label: "Hire 3 people",
+      prompt:
+        "Model the cost of hiring 3 people at $80K each. Show impact on expenses and runway.",
+    },
+    {
+      label: "Cut marketing 50%",
+      prompt:
+        "Model cutting marketing spend by 50%. What's the savings and impact on revenue?",
+    },
+  ];
+
+  return (
+    <section
+      aria-labelledby="scenario-heading"
+      className="rounded-xl border border-border/50 bg-card p-4"
+    >
+      <div className="flex items-center justify-between mb-3">
+        <h2
+          id="scenario-heading"
+          className="text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+        >
+          Scenario Planner
+        </h2>
+        <Sparkles
+          className="h-3.5 w-3.5 text-muted-foreground/40"
+          aria-hidden="true"
+        />
+      </div>
+      <p className="mb-3 text-xs text-muted-foreground">
+        Ask the AI to model any scenario — revenue changes, new hires, cost
+        cuts, or anything else.
+      </p>
+      <div className="flex flex-wrap gap-2">
+        {scenarios.map((s) => (
+          <button
+            key={s.label}
+            type="button"
+            onClick={() => ask(s.prompt)}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-border/50 bg-background px-3 py-2 text-xs text-foreground hover:bg-accent transition-colors"
+          >
+            {s.label}
+          </button>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+// ─── Report Library ────────────────────────────────────────────────────────
+
+function ReportLibrary({
+  ask,
+  pnlData,
+  overview,
+  displayCurrency,
+}: {
+  ask: (prompt: string) => void;
+  pnlData: unknown;
+  overview:
+    | { cashBalance: number; ar: number; ap: number; runway: number | null }
+    | undefined;
+  displayCurrency: string;
+}) {
+  const reports = [
+    {
+      id: "pnl",
+      label: "Profit & Loss",
+      description: "Revenue, expenses, net income",
+      icon: TrendingUp,
+      color: "text-primary",
+      bg: "bg-primary/10",
+      aiPrompt: "Show me my profit and loss statement",
+    },
+    {
+      id: "cash-flow",
+      label: "Cash Flow",
+      description: "Cash in, cash out, net movement",
+      icon: Wallet,
+      color: "text-signal-indigo",
+      bg: "bg-signal-indigo/10",
+      aiPrompt: "Show me my cash flow statement",
+    },
+    {
+      id: "trial-balance",
+      label: "Trial Balance",
+      description: "Debits equal credits verification",
+      icon: BarChart3,
+      color: "text-attention-amber",
+      bg: "bg-attention-amber/10",
+      aiPrompt: "Show me my trial balance",
+    },
+    {
+      id: "tax-summary",
+      label: "Tax Summary",
+      description: "Tax liability and obligations",
+      icon: FileText,
+      color: "text-error-clay",
+      bg: "bg-error-clay/10",
+      aiPrompt: "Summarize my tax obligations",
+    },
+  ];
+
+  return (
+    <section
+      aria-labelledby="reports-heading"
+      className="rounded-xl border border-border/50 bg-card p-4"
+    >
+      <div className="flex items-center justify-between mb-3">
+        <h2
+          id="reports-heading"
+          className="text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+        >
+          Reports
+        </h2>
+        <span className="text-[10px] text-muted-foreground">
+          Ask AI to analyze · Download for export
+        </span>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2">
+        {reports.map((report) => {
+          const Icon = report.icon;
+          const reportData =
+            report.id === "pnl" && pnlData
+              ? buildPnlReport({
+                  entityName: "Your Business",
+                  currency: displayCurrency,
+                  period: new Date().toLocaleDateString("en-US", {
+                    month: "long",
+                    year: "numeric",
+                  }),
+                  revenue: (
+                    pnlData as {
+                      current: {
+                        revenue: number;
+                        revenueByAccount: Array<{
+                          code: string;
+                          name: string;
+                          amount: number;
+                        }>;
+                        expenses: number;
+                        expensesByAccount: Array<{
+                          code: string;
+                          name: string;
+                          amount: number;
+                        }>;
+                        cogs: number;
+                        grossProfit: number;
+                        opExpenses: number;
+                        netProfit: number;
+                      };
+                    }
+                  ).current.revenue,
+                  revenueByAccount: (
+                    pnlData as {
+                      current: {
+                        revenueByAccount: Array<{
+                          code: string;
+                          name: string;
+                          amount: number;
+                        }>;
+                      };
+                    }
+                  ).current.revenueByAccount.map(
+                    (a: { code: string; name: string; amount: number }) => ({
+                      code: a.code,
+                      name: a.name,
+                      amount: a.amount,
+                    }),
+                  ),
+                  expenses: (pnlData as { current: { expenses: number } })
+                    .current.expenses,
+                  expensesByAccount: (
+                    pnlData as {
+                      current: {
+                        expensesByAccount: Array<{
+                          code: string;
+                          name: string;
+                          amount: number;
+                        }>;
+                      };
+                    }
+                  ).current.expensesByAccount.map(
+                    (a: { code: string; name: string; amount: number }) => ({
+                      code: a.code,
+                      name: a.name,
+                      amount: a.amount,
+                    }),
+                  ),
+                  cogs: (pnlData as { current: { cogs: number } }).current.cogs,
+                  grossProfit: (pnlData as { current: { grossProfit: number } })
+                    .current.grossProfit,
+                  opExpenses: (pnlData as { current: { opExpenses: number } })
+                    .current.opExpenses,
+                  netProfit: (pnlData as { current: { netProfit: number } })
+                    .current.netProfit,
+                })
+              : report.id === "cash-flow" && overview
+                ? buildCashFlowReport({
+                    entityName: "Your Business",
+                    currency: displayCurrency,
+                    period: new Date().toLocaleDateString("en-US", {
+                      month: "long",
+                      year: "numeric",
+                    }),
+                    openingCash: overview.cashBalance,
+                    operating: {
+                      lines: [{ name: "Revenue", amount: 0 }],
+                      total: 0,
+                    },
+                    investing: { lines: [], total: 0 },
+                    financing: { lines: [], total: 0 },
+                    closingCash: overview.cashBalance,
+                  })
+                : {
+                    title: report.label,
+                    entityName: "Your Business",
+                    currency: displayCurrency,
+                    generatedAt: new Date(),
+                    sections: [],
+                  };
+
+          return (
+            <div
+              key={report.id}
+              className="group rounded-xl border border-border/50 bg-background p-3 transition-all hover:border-border/80 hover:shadow-sm"
+            >
+              <div className="flex items-start gap-3">
+                <div
+                  className={cn(
+                    "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg",
+                    report.bg,
+                  )}
+                >
+                  <Icon className={cn("h-4 w-4", report.color)} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <button
+                    type="button"
+                    onClick={() => ask(report.aiPrompt)}
+                    className="text-left"
+                  >
+                    <p className="text-sm font-medium text-foreground group-hover:text-primary transition-colors">
+                      {report.label}
+                    </p>
+                    <p className="mt-0.5 text-[11px] text-muted-foreground">
+                      {report.description}
+                    </p>
+                  </button>
+                  <div className="mt-2">
+                    <DocumentDownloadButtons
+                      data={reportData}
+                      formats={["pdf", "excel"]}
+                      size="xs"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+// ─── Exchange Rates Strip ────────────────────────────────────────────────
+// Compact live exchange rates from ECB-synced data.
+
+function ExchangeRatesStrip() {
+  const { data: rates } = trpc.currency.listGlobalRates.useQuery(
+    {
+      pairs: [
+        { from: "USD", to: "EUR" },
+        { from: "USD", to: "GBP" },
+        { from: "USD", to: "KES" },
+      ],
+    },
+    { staleTime: 60_000 },
+  );
+
+  if (!rates || rates.length === 0) return null;
+
+  return (
+    <div className="rounded-xl border border-border/50 bg-card px-4 py-3">
+      <div className="flex items-center gap-2 mb-2">
+        <Globe className="h-3.5 w-3.5 text-muted-foreground" />
+        <span className="text-[11px] font-medium text-muted-foreground">
+          Live rates
+        </span>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {rates.map((r) => (
+          <span
+            key={`${r.fromCurrency}-${r.toCurrency}`}
+            className="inline-flex items-center gap-1 rounded-md bg-muted/50 px-2 py-1 text-[11px]"
+          >
+            <span className="text-muted-foreground">
+              {r.fromCurrency}/{r.toCurrency}
+            </span>
+            <span className="font-mono font-semibold text-foreground tabular-nums">
+              {Number(r.rate).toFixed(4)}
+            </span>
+          </span>
+        ))}
+      </div>
+      <p className="mt-1.5 text-[10px] text-muted-foreground/50">Source: ECB</p>
+    </div>
+  );
+}
+
+// ─── Daily Close Status Strip ────────────────────────────────────────────
+// AI-narrated status of today's reconciliation.
+
+function DailyCloseStrip({ ask }: { ask: (q: string) => void }) {
+  const { data: closeStatus } = trpc.dailyClose.getStatus.useQuery(undefined, {
+    staleTime: 60_000,
+  });
+
+  if (!closeStatus) return null;
+
+  const status = closeStatus.status ?? "unknown";
+  const isComplete = status === "completed";
+  const isFailed = status === "failed";
+
+  return (
+    <div className="rounded-xl border border-border/50 bg-card px-4 py-3">
+      <div className="flex items-center gap-2 mb-2">
+        {isComplete ? (
+          <CheckCircle2 className="h-3.5 w-3.5 text-balanced-green" />
+        ) : isFailed ? (
+          <AlertTriangle className="h-3.5 w-3.5 text-error-clay" />
+        ) : (
+          <Clock className="h-3.5 w-3.5 text-muted-foreground animate-pulse" />
+        )}
+        <span className="text-[11px] font-medium text-muted-foreground">
+          Daily close
+        </span>
+      </div>
+      <p className="text-xs text-foreground">
+        {isComplete
+          ? `Reconciliation completed — ${closeStatus.matchedCount ?? 0} of ${closeStatus.totalCount ?? 0} transactions matched`
+          : isFailed
+            ? "Reconciliation failed — needs attention"
+            : "In progress..."}
+      </p>
+      <button
+        type="button"
+        onClick={() =>
+          ask("Show me the daily reconciliation status and any exceptions")
+        }
+        className="mt-1.5 text-[11px] font-medium text-primary hover:text-primary/80"
+      >
+        Ask why →
+      </button>
+    </div>
   );
 }

@@ -1,1872 +1,1821 @@
 "use client";
 
-import { useState, useCallback, useRef, useEffect, useMemo } from "react";
-import Link from "next/link";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
-  Inbox,
-  FileCheck,
-  Bell,
   AlertTriangle,
-  Clock,
+  AlertCircle,
+  Bell,
   CheckCircle2,
-  ChevronRight,
-  Bot,
-  ArrowUpRight,
-  Filter,
-  ThumbsUp,
+  FileCheck,
+  FileUp,
+  Inbox,
+  Clock,
+  Sparkles,
   ThumbsDown,
-  Eye,
+  ThumbsUp,
+  CalendarCheck,
+  TrendingUp,
+  CreditCard,
+  Loader2,
+  Bot,
+  Play,
+  Pause,
+  RotateCcw,
+  SkipForward,
+  XCircle,
+  Square,
+  CheckSquare,
   ChevronDown,
-  ChevronUp,
-  MessageSquare,
-  Zap,
-  X,
-  RefreshCw,
-  Shield,
-  Lightbulb,
-  StickyNote,
+  type LucideIcon,
 } from "lucide-react";
+import { toast } from "sonner";
 
 import { useEntity } from "@/lib/entity-context";
 import { trpc } from "@/lib/trpc/client";
-import { toast } from "sonner";
-import { useSurfaceSync } from "@/lib/hooks/use-surface-sync";
-import { useSrAnnounce } from "@/lib/hooks/use-sr-announce";
 import { cn } from "@/lib/utils";
-import { ModulePageShell } from "@/components/module/module-page-shell";
-import { ConfidenceBadge } from "@/components/shared/ai-native";
-import { ActorBadge } from "@/components/shared/ai-native";
-import { InlineActions } from "@/components/shared/ai-native";
-import { PageEmptyState } from "@/components/shared/page-empty-state";
+import { useSurfaceSync } from "@/lib/hooks/use-surface-sync";
 import { emitDataChanged } from "@/lib/hooks/use-surface-sync";
+import { useSrAnnounce } from "@/lib/hooks/use-sr-announce";
+import { ProvenanceBadge } from "@/components/ai-native-v2/provenance";
 
-// ─── Activity Hub ─────────────────────────────────────────────────────────
+// ─── Activity Hub — AI-Native Decisions + Activity (/activity-hub/new) ────
 //
-// The human-in-the-loop queue. Every item here requires a human decision.
-// The AI has done the work; now it needs your approval.
+// Left panel split into two sections via filter tabs:
+//   - Decisions: items needing user approval (agent escalations, pending reviews)
+//   - Activity: updates, completions, alerts (month-end done, bank statement needed)
 //
-// Replaces: inbox, review-queue, notifications, work
-// Design: Priority-sorted, not chronological. Rich context per item.
+// Keyboard: j/k navigate, a approve, r reject, s snooze, 1/2/3 filter
 
-type FilterType = "all" | "urgent" | "approvals" | "reviews" | "info";
+type ItemType = "decision" | "activity";
 
-const FILTER_OPTIONS: { key: FilterType; label: string; icon: typeof Inbox }[] =
-  [
-    { key: "all", label: "All", icon: Inbox },
-    { key: "urgent", label: "Urgent", icon: AlertTriangle },
-    { key: "approvals", label: "Approvals", icon: FileCheck },
-    { key: "reviews", label: "Reviews", icon: Clock },
-    { key: "info", label: "Info", icon: Bell },
-  ];
-
-// ─── Activity Item ─────────────────────────────────────────────────────────
-
-type ActivityItemData = {
+type DecisionItem = {
   id: string;
-  itemType: "agent_activity" | "ingestion" | "notification";
-  type: "urgent" | "approval" | "review" | "info";
+  itemType: ItemType;
+  category: "agent_activity" | "ingestion" | "notification";
+  severity: "urgent" | "approval" | "review" | "info";
   title: string;
-  description: string;
-  agent?: string;
+  summary: string;
+  rationale?: string;
+  agentName?: string;
   confidence?: number;
-  amount?: string;
   sourceDoc?: string;
+  amount?: string;
   createdAt?: string | Date;
-  recommendation?: string;
-  metadata?: Record<string, unknown>;
-  detail?: Record<string, unknown>;
-  actions: Array<{
-    label: string;
-    variant?: "approve" | "reject" | "review" | "default";
-    onClick?: () => void;
-    href?: string;
-    loading?: boolean;
-  }>;
+  evidence?: Record<string, unknown>;
+  // Activity-specific
+  icon?: LucideIcon;
+  tone?: "green" | "amber" | "red" | "blue";
+  actionLabel?: string;
+  actionHref?: string;
 };
 
-// ─── Helpers ──────────────────────────────────────────────────────────────
+type FilterTab = "all" | "decisions" | "activity" | "tasks";
 
-function timeAgo(dateStr: string | Date | undefined): string {
-  if (!dateStr) return "";
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins}m ago`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  const days = Math.floor(hrs / 24);
-  if (days < 7) return `${days}d ago`;
-  return new Date(dateStr).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-  });
-}
+type UnifiedTask = {
+  id: string;
+  source: "close_task" | "live_run" | "daily_close";
+  title: string;
+  description: string | null;
+  status:
+    | "queued"
+    | "in_progress"
+    | "waiting"
+    | "completed"
+    | "failed"
+    | "blocked"
+    | "skipped";
+  progress: number;
+  agentName: string | null;
+  agentInitials: string | null;
+  agentColor: string | null;
+  confidence: number | null;
+  startedAt: Date | null;
+  completedAt: Date | null;
+  durationMs: number | null;
+  currentStep: string | null;
+  error: string | null;
+  metadata: Record<string, unknown> | null;
+  createdAt: Date;
+};
 
-function getRiskLevel(confidence: number | undefined): {
-  label: string;
-  color: string;
-  bgColor: string;
-  barColor: string;
-} {
-  if (confidence === undefined)
-    return {
-      label: "Unknown",
-      color: "text-muted-foreground",
-      bgColor: "bg-muted/40",
-      barColor: "bg-muted",
-    };
-  if (confidence >= 0.8)
-    return {
-      label: "Low Risk",
-      color: "text-balanced-green",
-      bgColor: "bg-balanced-green/10",
-      barColor: "bg-balanced-green",
-    };
-  if (confidence >= 0.6)
-    return {
-      label: "Medium Risk",
-      color: "text-attention-amber",
-      bgColor: "bg-attention-amber/10",
-      barColor: "bg-attention-amber",
-    };
-  return {
-    label: "High Risk",
-    color: "text-error-clay",
-    bgColor: "bg-error-clay/10",
-    barColor: "bg-error-clay",
-  };
-}
-
-// Track items being processed (optimistic) or completed
-const ITEM_STATES = {
-  idle: "idle",
-  processing: "processing",
-  success: "success",
-  error: "error",
+const SEVERITY_META = {
+  urgent: { icon: AlertTriangle, tone: "text-error-clay", label: "Urgent" },
+  approval: {
+    icon: FileCheck,
+    tone: "text-attention-amber",
+    label: "Approval",
+  },
+  review: { icon: Clock, tone: "text-primary", label: "Review" },
+  info: { icon: Bell, tone: "text-muted-foreground", label: "FYI" },
 } as const;
-type ItemState = (typeof ITEM_STATES)[keyof typeof ITEM_STATES];
 
-function RecommendationBlock({ recommendation }: { recommendation: string }) {
-  const [expanded, setExpanded] = useState(false);
-  const isLong = recommendation.length > 120;
+const ACTIVITY_META: Record<
+  string,
+  { icon: LucideIcon; tone: "green" | "amber" | "red" | "blue" }
+> = {
+  month_end_complete: { icon: CalendarCheck, tone: "green" },
+  bank_statement_needed: { icon: FileUp, tone: "amber" },
+  report_ready: { icon: TrendingUp, tone: "blue" },
+  reconciliation_done: { icon: CheckCircle2, tone: "green" },
+  overdue_invoice: { icon: CreditCard, tone: "red" },
+  budget_alert: { icon: AlertTriangle, tone: "amber" },
+};
 
-  return (
-    <div className="mt-2 rounded-lg border border-primary/10 bg-primary/[0.03] px-2.5 py-1.5">
-      <div className="flex items-start gap-1.5">
-        <Lightbulb
-          className="h-3 w-3 text-primary shrink-0 mt-0.5"
-          aria-hidden="true"
-        />
-        <div className="flex-1">
-          <p
-            className={cn(
-              "text-[11px] text-muted-foreground leading-snug",
-              !expanded && isLong && "line-clamp-2",
-            )}
-          >
-            {recommendation}
-          </p>
-          {isLong && (
-            <button
-              type="button"
-              onClick={() => setExpanded(!expanded)}
-              className="text-[10px] text-primary hover:text-primary/80 mt-1 font-medium"
-            >
-              {expanded ? "Show less" : "Show more"}
-            </button>
-          )}
-        </div>
-      </div>
-    </div>
-  );
+function timeAgo(d: string | Date | undefined): string {
+  if (!d) return "";
+  const mins = Math.floor((Date.now() - new Date(d).getTime()) / 60000);
+  if (mins < 1) return "now";
+  if (mins < 60) return `${mins}m`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h`;
+  const days = Math.floor(hrs / 24);
+  return days < 7
+    ? `${days}d`
+    : new Date(d).toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+      });
 }
 
-function ActivityItemCard({
-  item,
-  itemState,
-  lastAction,
-  onAction,
-  onViewItem,
-  isSelected,
-  onToggleSelect,
-  canSelect,
-  onSnooze,
-}: {
-  item: ActivityItemData;
-  itemState?: ItemState;
-  lastAction?: string;
-  onAction?: (
-    itemId: string,
-    action: string,
-    itemType: string,
-    reason?: string,
-  ) => void;
-  onViewItem?: (item: ActivityItemData) => void;
-  isSelected?: boolean;
-  onToggleSelect?: (itemId: string) => void;
-  canSelect?: boolean;
-  onSnooze?: (item: ActivityItemData) => void;
-}) {
-  const [note, setNote] = useState("");
-  const [showNote, setShowNote] = useState(false);
-
-  const typeConfig = {
-    urgent: {
-      border: "border-error-clay/20",
-      bg: "bg-error-clay/[0.03]",
-      icon: AlertTriangle,
-      iconColor: "text-error-clay",
-      iconBg: "bg-error-clay/10",
-      priority: "Urgent",
-      priorityColor: "bg-error-clay/10 text-error-clay",
-    },
-    approval: {
-      border: "border-attention-amber/20",
-      bg: "bg-attention-amber/[0.03]",
-      icon: FileCheck,
-      iconColor: "text-attention-amber",
-      iconBg: "bg-attention-amber/10",
-      priority: "Approval",
-      priorityColor: "bg-attention-amber/10 text-attention-amber",
-    },
-    review: {
-      border: "border-border/50",
-      bg: "bg-card/60",
-      icon: Clock,
-      iconColor: "text-primary",
-      iconBg: "bg-primary/10",
-      priority: "Review",
-      priorityColor: "bg-primary/10 text-primary",
-    },
-    info: {
-      border: "border-border/50",
-      bg: "bg-card/60",
-      icon: Bell,
-      iconColor: "text-muted-foreground",
-      iconBg: "bg-muted/40",
-      priority: "Info",
-      priorityColor: "bg-muted text-muted-foreground",
-    },
-  };
-
-  const config = typeConfig[item.type];
-  const Icon = config.icon;
-  const risk = getRiskLevel(item.confidence);
-
-  return (
-    <div
-      className={cn(
-        "rounded-xl border p-3 transition-all duration-200 hover:shadow-md",
-        isSelected
-          ? "border-primary/40 bg-primary/[0.03]"
-          : cn(config.border, config.bg),
-        itemState === "success" && "opacity-60",
-        itemState === "error" && "ring-2 ring-error-clay/50",
-      )}
-    >
-      <div className="flex items-start gap-3">
-        {/* Selection checkbox */}
-        {canSelect && (
-          <div className="flex items-center pt-1">
-            <input
-              type="checkbox"
-              checked={isSelected}
-              onChange={() => onToggleSelect?.(item.id)}
-              aria-label={`Select ${item.title}`}
-              className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
-            />
-          </div>
-        )}
-        <div
-          className={cn(
-            "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg",
-            config.iconBg,
-          )}
-        >
-          <Icon
-            className={cn("h-4 w-4", config.iconColor)}
-            aria-hidden="true"
-          />
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-start justify-between gap-2">
-            <p
-              className="text-sm font-medium text-foreground hover:text-primary cursor-pointer transition-colors"
-              onClick={(e) => {
-                e.stopPropagation();
-                onViewItem?.(item);
-              }}
-            >
-              {item.title}
-            </p>
-            <div className="flex items-center gap-2 shrink-0">
-              {item.createdAt && (
-                <span className="text-[10px] text-muted-foreground/50">
-                  {timeAgo(item.createdAt)}
-                </span>
-              )}
-              <span
-                className={cn(
-                  "inline-flex items-center rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider",
-                  config.priorityColor,
-                )}
-              >
-                {config.priority}
-              </span>
-              {item.confidence !== undefined && (
-                <ConfidenceBadge score={item.confidence} showLabel={false} />
-              )}
-            </div>
-          </div>
-          <p className="mt-1 text-xs text-muted-foreground">
-            {item.description}
-          </p>
-
-          {/* AI Recommendation / Reasoning */}
-          {item.recommendation && (
-            <RecommendationBlock recommendation={item.recommendation} />
-          )}
-
-          {/* Risk Assessment Bar */}
-          {item.confidence !== undefined && (
-            <div className="mt-2 flex items-center gap-2">
-              <div className="flex items-center gap-1">
-                <Shield className="h-3 w-3 shrink-0" aria-hidden="true" />
-                <span className={cn("text-[10px] font-semibold", risk.color)}>
-                  {risk.label}
-                </span>
-              </div>
-              <div className="h-1 flex-1 max-w-[80px] rounded-full bg-muted/40">
-                <div
-                  className={cn(
-                    "h-full rounded-full transition-all",
-                    risk.barColor,
-                  )}
-                  style={{ width: `${Math.round(item.confidence * 100)}%` }}
-                  role="progressbar"
-                  aria-valuenow={Math.round(item.confidence * 100)}
-                  aria-valuemin={0}
-                  aria-valuemax={100}
-                  aria-label={`Confidence: ${Math.round(item.confidence * 100)}%`}
-                />
-              </div>
-            </div>
-          )}
-
-          {/* Supporting Data Row */}
-          <div className="mt-2 flex flex-wrap items-center gap-1.5">
-            {item.sourceDoc && (
-              <div className="inline-flex items-center gap-1 rounded-md bg-muted/40 px-2 py-0.5 text-[10px] text-muted-foreground">
-                <FileCheck className="h-3 w-3" aria-hidden="true" />
-                {item.sourceDoc}
-              </div>
-            )}
-            {item.agent && (
-              <div className="inline-flex items-center gap-1 rounded-md bg-muted/40 px-2 py-0.5 text-[10px] text-muted-foreground">
-                <Bot className="h-3 w-3 text-primary/60" aria-hidden="true" />
-                {item.agent}
-              </div>
-            )}
-            {item.amount && (
-              <div className="inline-flex items-center gap-1 rounded-md bg-attention-amber/10 px-2 py-0.5 text-[10px] font-semibold text-attention-amber">
-                {item.amount}
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Inline actions with optional note */}
-      {item.actions.length > 0 && itemState !== "success" && (
-        <div className="mt-2 ml-11 space-y-1.5">
-          {/* Note input — toggle-able */}
-          {showNote && (item.type === "approval" || item.type === "urgent") && (
-            <div className="relative">
-              <label htmlFor={`note-${item.id}`} className="sr-only">
-                Add a note for this {item.type}
-              </label>
-              <StickyNote
-                className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground/50"
-                aria-hidden="true"
-              />
-              <textarea
-                id={`note-${item.id}`}
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-                placeholder="Add a note (optional)..."
-                rows={2}
-                className="w-full rounded-lg border border-border/50 bg-background pl-8 pr-3 py-2 text-xs text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-primary resize-none"
-              />
-            </div>
-          )}
-          <div className="flex items-center gap-2">
-            <InlineActions
-              actions={item.actions.map((a) => ({
-                ...a,
-                loading: itemState === "processing",
-                onClick:
-                  a.variant === "approve" || a.variant === "reject"
-                    ? () => {
-                        const reason = note.trim() || undefined;
-                        onAction?.(
-                          item.id,
-                          a.variant as "approve" | "reject",
-                          item.itemType,
-                          reason,
-                        );
-                        setNote("");
-                        setShowNote(false);
-                      }
-                    : a.variant === "review"
-                      ? () => onViewItem?.(item)
-                      : undefined,
-                icon:
-                  a.variant === "approve"
-                    ? ThumbsUp
-                    : a.variant === "reject"
-                      ? ThumbsDown
-                      : a.variant === "review"
-                        ? Eye
-                        : undefined,
-              }))}
-            />
-            {(item.type === "approval" || item.type === "urgent") && (
-              <>
-                <button
-                  type="button"
-                  onClick={() => setShowNote(!showNote)}
-                  className={cn(
-                    "rounded-lg px-2 py-1.5 text-[10px] font-medium transition-colors",
-                    showNote
-                      ? "bg-primary/10 text-primary"
-                      : "text-muted-foreground hover:bg-muted/50 hover:text-foreground",
-                  )}
-                  aria-label={showNote ? "Hide note field" : "Add a note"}
-                >
-                  <StickyNote className="h-3.5 w-3.5" aria-hidden="true" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onSnooze?.(item)}
-                  className="rounded-lg px-2 py-1.5 text-[10px] font-medium text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-colors"
-                  aria-label="Snooze for 1 hour"
-                >
-                  <Clock className="h-3.5 w-3.5" aria-hidden="true" />
-                </button>
-              </>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Success state — shown after optimistic approve/reject */}
-      {(itemState === "success" || itemState === "processing") && (
-        <div
-          className={cn(
-            "mt-3 ml-13 flex items-center gap-2",
-            lastAction === "reject" ? "text-error-clay" : "text-balanced-green",
-          )}
-        >
-          <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
-          <span className="text-xs font-medium">
-            {itemState === "processing"
-              ? "Processing..."
-              : lastAction === "reject"
-                ? "Rejected"
-                : "Approved"}
-          </span>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─── Completed Section ─────────────────────────────────────────────────────
-
-function CompletedSection({ count }: { count: number }) {
-  const [isOpen, setIsOpen] = useState(false);
-
-  if (count === 0) return null;
-
-  return (
-    <div className="rounded-xl border border-border/50 bg-card/60">
-      <button
-        type="button"
-        onClick={() => setIsOpen(!isOpen)}
-        aria-expanded={isOpen}
-        aria-controls="completed-section"
-        className="flex w-full items-center justify-between px-4 py-3 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-      >
-        <div className="flex items-center gap-2">
-          <CheckCircle2
-            className="h-4 w-4 text-balanced-green"
-            aria-hidden="true"
-          />
-          <span>Completed today</span>
-          <span
-            className="inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-balanced-green/10 px-1.5 text-[10px] font-bold text-balanced-green"
-            aria-label={`${count} completed`}
-          >
-            {count}
-          </span>
-        </div>
-        {isOpen ? (
-          <ChevronUp className="h-4 w-4" />
-        ) : (
-          <ChevronDown className="h-4 w-4" />
-        )}
-      </button>
-      {isOpen && (
-        <div
-          id="completed-section"
-          className="border-t border-border/50 px-4 py-3"
-        >
-          <p className="text-xs text-muted-foreground">
-            {count} items resolved automatically by AI agents.{" "}
-            <Link
-              href="/dashboard/audit-trail"
-              className="text-primary hover:underline"
-            >
-              View audit trail
-            </Link>
-          </p>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─── Detail Drawer ─────────────────────────────────────────────────────────
-
-function ItemDetailDrawer({
-  item,
-  onClose,
-  onAction,
-  itemState,
-}: {
-  item: ActivityItemData;
-  onClose: () => void;
-  onAction: (
-    itemId: string,
-    action: string,
-    itemType: string,
-    reason?: string,
-  ) => void;
-  itemState?: ItemState;
-}) {
-  const [note, setNote] = useState("");
-
-  const typeConfig = {
-    urgent: {
-      label: "Urgent",
-      color: "text-error-clay",
-      bg: "bg-error-clay/10",
-    },
-    approval: {
-      label: "Approval",
-      color: "text-attention-amber",
-      bg: "bg-attention-amber/10",
-    },
-    review: { label: "Review", color: "text-primary", bg: "bg-primary/10" },
-    info: { label: "Info", color: "text-muted-foreground", bg: "bg-muted/40" },
-  };
-  const config = typeConfig[item.type];
-  const risk = getRiskLevel(item.confidence);
-
-  return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="drawer-title"
-      className="fixed inset-0 z-50 flex items-center justify-end bg-black/50 backdrop-blur-sm"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-      onKeyDown={(e) => {
-        if (e.key === "Escape") onClose();
-      }}
-    >
-      <div className="h-full w-full max-w-lg bg-card border-l border-border shadow-2xl overflow-y-auto">
-        {/* Header */}
-        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-card/95 backdrop-blur-sm px-6 py-4">
-          <div className="flex items-center gap-3">
-            <span
-              className={cn(
-                "inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider",
-                config.bg,
-                config.color,
-              )}
-            >
-              {config.label}
-            </span>
-            <h2
-              id="drawer-title"
-              className="text-sm font-semibold text-foreground"
-            >
-              {item.title || "Item Details"}
-            </h2>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-lg p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
-            aria-label="Close"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-
-        {/* Content */}
-        <div className="px-6 py-5 space-y-5">
-          {/* Title */}
-          <div>
-            <h3 className="text-base font-semibold text-foreground">
-              {item.title}
-            </h3>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {item.description}
-            </p>
-            {item.createdAt && (
-              <p className="mt-1 text-[10px] text-muted-foreground/60">
-                Created {timeAgo(item.createdAt)}
-              </p>
-            )}
-          </div>
-
-          {/* Risk Assessment */}
-          {item.confidence !== undefined && (
-            <div className={cn("rounded-lg border p-3", risk.bgColor)}>
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-1.5">
-                  <Shield className="h-3.5 w-3.5" aria-hidden="true" />
-                  <span className={cn("text-xs font-semibold", risk.color)}>
-                    Risk Assessment: {risk.label}
-                  </span>
-                </div>
-                <span className="text-xs text-muted-foreground">
-                  {Math.round(item.confidence * 100)}%
-                </span>
-              </div>
-              <div className="h-2 w-full rounded-full bg-muted/40">
-                <div
-                  className={cn(
-                    "h-full rounded-full transition-all",
-                    risk.barColor,
-                  )}
-                  style={{ width: `${Math.round(item.confidence * 100)}%` }}
-                />
-              </div>
-              <p className="mt-2 text-xs text-muted-foreground">
-                {item.confidence >= 0.8
-                  ? "AI is confident in this action. Low risk of error."
-                  : item.confidence >= 0.6
-                    ? "AI has moderate confidence. Review recommended."
-                    : "AI has low confidence. Manual review strongly recommended."}
-              </p>
-            </div>
-          )}
-
-          {/* AI Recommendation */}
-          {item.recommendation && (
-            <div className="rounded-lg border border-primary/10 bg-primary/[0.03] p-3">
-              <div className="flex items-center gap-1.5 mb-2">
-                <Lightbulb
-                  className="h-3.5 w-3.5 text-primary"
-                  aria-hidden="true"
-                />
-                <span className="text-xs font-semibold text-primary">
-                  AI Recommendation
-                </span>
-              </div>
-              <p className="text-sm text-muted-foreground leading-relaxed">
-                {item.recommendation}
-              </p>
-            </div>
-          )}
-
-          {/* Meta Grid */}
-          <div className="grid grid-cols-2 gap-3">
-            {item.agent && (
-              <div className="rounded-lg border border-border/50 bg-background p-3">
-                <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
-                  Agent
-                </p>
-                <p className="mt-1 text-sm font-medium text-foreground flex items-center gap-1.5">
-                  <Bot className="h-3.5 w-3.5 text-primary/60" /> {item.agent}
-                </p>
-              </div>
-            )}
-            {item.confidence !== undefined && (
-              <div className="rounded-lg border border-border/50 bg-background p-3">
-                <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
-                  Confidence
-                </p>
-                <div className="mt-1">
-                  <ConfidenceBadge score={item.confidence} />
-                </div>
-              </div>
-            )}
-            {item.amount && (
-              <div className="rounded-lg border border-border/50 bg-background p-3">
-                <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
-                  Amount
-                </p>
-                <p className="mt-1 text-sm font-semibold text-foreground">
-                  {item.amount}
-                </p>
-              </div>
-            )}
-            <div className="rounded-lg border border-border/50 bg-background p-3">
-              <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
-                Item Type
-              </p>
-              <p className="mt-1 text-sm font-medium text-foreground">
-                {item.itemType.replace(/_/g, " ")}
-              </p>
-            </div>
-          </div>
-
-          {/* Source doc */}
-          {item.sourceDoc && (
-            <div className="rounded-lg border border-border/50 bg-background p-3">
-              <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
-                Source Document
-              </p>
-              <p className="mt-1 text-sm text-foreground">{item.sourceDoc}</p>
-            </div>
-          )}
-
-          {/* Detail payload */}
-          {item.detail && Object.keys(item.detail).length > 0 && (
-            <div className="rounded-lg border border-border/50 bg-background p-3">
-              <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-2">
-                Full Context
-              </p>
-              <pre className="text-xs text-muted-foreground whitespace-pre-wrap font-mono">
-                {JSON.stringify(item.detail, null, 2)}
-              </pre>
-            </div>
-          )}
-        </div>
-
-        {/* Actions with note field */}
-        {item.actions.length > 0 && itemState !== "success" && (
-          <div className="sticky bottom-0 border-t border-border bg-card/95 backdrop-blur-sm px-6 py-4 space-y-3">
-            {/* Note textarea */}
-            {(item.type === "approval" || item.type === "urgent") && (
-              <div>
-                <label
-                  htmlFor="drawer-note"
-                  className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider"
-                >
-                  Add a note (optional)
-                </label>
-                <textarea
-                  id="drawer-note"
-                  value={note}
-                  onChange={(e) => setNote(e.target.value)}
-                  placeholder="Why are you approving/rejecting this?"
-                  rows={2}
-                  className="mt-1 w-full rounded-lg border border-border/50 bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-primary resize-none"
-                />
-              </div>
-            )}
-            <div className="flex items-center gap-3">
-              {item.actions
-                .filter(
-                  (a) => a.variant === "approve" || a.variant === "reject",
-                )
-                .map((a) => (
-                  <button
-                    key={a.variant}
-                    type="button"
-                    disabled={itemState === "processing"}
-                    onClick={() => {
-                      const reason = note.trim() || undefined;
-                      onAction(item.id, a.variant!, item.itemType, reason);
-                      setNote("");
-                    }}
-                    className={cn(
-                      "flex-1 inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition-colors",
-                      a.variant === "approve"
-                        ? "bg-balanced-green text-white hover:bg-balanced-green/90"
-                        : "bg-error-clay text-white hover:bg-error-clay/90",
-                      itemState === "processing" &&
-                        "opacity-50 cursor-not-allowed",
-                    )}
-                  >
-                    {itemState === "processing" ? (
-                      <RefreshCw className="h-4 w-4 animate-spin" />
-                    ) : a.variant === "approve" ? (
-                      <ThumbsUp className="h-4 w-4" />
-                    ) : (
-                      <ThumbsDown className="h-4 w-4" />
-                    )}
-                    {a.variant === "approve" ? "Approve" : "Reject"}
-                  </button>
-                ))}
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ─── Page ──────────────────────────────────────────────────────────────────
-
-export default function ActivityHubPage() {
+export default function DecisionsPage() {
   const { entityId } = useEntity();
-  const [activeFilter, setActiveFilter] = useState<FilterType>("all");
+  const router = useRouter();
   const { announce } = useSrAnnounce();
 
-  // ── Cross-surface sync ────────────────────────────────────────────────
-  // Listen for data_changed events from other surfaces and refetch
   useSurfaceSync({ entityId: entityId ?? "", surfaces: ["activity-hub"] });
 
-  // ── Optimistic state ───────────────────────────────────────────────────
-  // Track which items are being processed, succeeded, or failed
-  const [itemStates, setItemStates] = useState<Record<string, ItemState>>({});
-  const [lastActions, setLastActions] = useState<Record<string, string>>({});
-  const queryClient = trpc.useUtils();
-
-  // ── Selection state ─────────────────────────────────────────────────────
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [confirmRejectOpen, setConfirmRejectOpen] = useState(false);
-  const [confirmApproveOpen, setConfirmApproveOpen] = useState(false);
-
-  // ── Snooze state ────────────────────────────────────────────────────────
-  // id → timestamp when the item should reappear
-  const [snoozedItems, setSnoozedItems] = useState<
-    Record<string, { item: ActivityItemData; restoreAt: number }>
-  >({});
-
-  // Fetch real data — refetchInterval provides polling fallback if SSE drops
-  const {
-    data: ingestionStats,
-    isError: ingestionError,
-    refetch: refetchIngestion,
-  } = trpc.ingestion.getStats.useQuery(undefined, {
-    enabled: !!entityId,
-    refetchInterval: 30_000, // 30s polling fallback (degraded mode per §16.2)
-  });
-  const {
-    data: agentApprovals,
-    isError: approvalsError,
-    refetch: refetchApprovals,
-  } = trpc.ingestion.listAgentApprovals.useQuery(
+  // ── Data ──────────────────────────────────────────────────────────────
+  const { data: agentApprovals } = trpc.ingestion.listAgentApprovals.useQuery(
     { limit: 50 },
-    {
-      enabled: !!entityId,
-      refetchInterval: 15_000, // 15s polling fallback — approvals are time-sensitive
-    },
+    { enabled: !!entityId, refetchInterval: 15_000 },
   );
-  const {
-    data: notifications,
-    isError: notificationsError,
-    refetch: refetchNotifications,
-  } = trpc.notifications.list.useQuery(
-    { limit: 20, onlyUnread: false },
+  const { data: alerts } = trpc.notifications.listAgentAlerts.useQuery(
+    { limit: 20, unreadOnly: false },
+    { enabled: !!entityId, refetchInterval: 15_000 },
+  );
+  const { data: allNotifications } = trpc.notifications.list.useQuery(
+    { limit: 30, onlyUnread: false },
     { enabled: !!entityId, refetchInterval: 30_000 },
   );
-  const {
-    data: agentAlerts,
-    isError: alertsError,
-    refetch: refetchAlerts,
-  } = trpc.notifications.listAgentAlerts.useQuery(
-    { limit: 20, unreadOnly: false },
-    {
-      enabled: !!entityId,
-      refetchInterval: 15_000, // Alerts are time-sensitive
-    },
+  const { data: tasksData, isLoading: tasksLoading } = trpc.tasks.list.useQuery(
+    { limit: 50 },
+    { enabled: !!entityId, refetchInterval: 10_000 },
   );
 
-  // Daily close exceptions
-  const { data: dailyCloseExceptions } = trpc.dailyClose.getExceptions.useQuery(
-    undefined,
-    {
-      enabled: !!entityId,
-      refetchInterval: 30_000,
-    },
-  );
+  const resolveApproval = trpc.approvals.resolve.useMutation();
+  const rejectIngestion = trpc.ingestion.rejectReview.useMutation();
+  const markNotificationRead = trpc.notifications.markAsRead.useMutation();
 
-  // ── Mutations ───────────────────────────────────────────────────────────
-  const resolveApproval = trpc.approvals.resolve.useMutation({
-    onSuccess: () => {
-      refetchApprovals();
-    },
-  });
-  const approveIngestion = trpc.ingestion.approveReview.useMutation({
-    onSuccess: () => {
-      refetchApprovals();
-    },
-  });
-  const rejectIngestion = trpc.ingestion.rejectReview.useMutation({
-    onSuccess: () => {
-      refetchApprovals();
-    },
-  });
-  const markNotificationRead = trpc.notifications.markAsRead.useMutation({
-    onSuccess: () => {
-      refetchAlerts();
-    },
-  });
+  // ── Build items ─────────────────────────────────────────────────────
+  const items: DecisionItem[] = useMemo(() => {
+    const out: DecisionItem[] = [];
+    const seen = new Set<string>();
 
-  // ── Detail drawer ───────────────────────────────────────────────────────
-  const [selectedItem, setSelectedItem] = useState<ActivityItemData | null>(
-    null,
-  );
-
-  // ── Toggle selection ───────────────────────────────────────────────────
-  const toggleSelect = useCallback((id: string) => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
+    // Agent approvals → decisions
+    if (agentApprovals?.items) {
+      for (const a of agentApprovals.items) {
+        if (seen.has(a.id)) continue;
+        seen.add(a.id);
+        const meta = (a.metadata ?? {}) as Record<string, unknown>;
+        out.push({
+          id: a.id,
+          itemType: "decision",
+          category: "agent_activity",
+          severity: "approval",
+          title: a.title ?? "Agent action pending",
+          summary: a.description ?? "Requires your review",
+          rationale:
+            (meta.recommendation as string) ?? a.description ?? undefined,
+          agentName: a.workflow ?? "AI Agent",
+          confidence: a.confidence ?? undefined,
+          sourceDoc: a.documentName ?? undefined,
+          createdAt: a.createdAt,
+          evidence: (meta.inputData ?? {}) as Record<string, unknown>,
+        });
       }
-      return next;
+    }
+
+    // Agent alerts → decisions (if urgent)
+    if (alerts?.alerts) {
+      for (const al of alerts.alerts) {
+        if (seen.has(al.id)) continue;
+        seen.add(al.id);
+        const isUrgent = al.priority === "critical" || al.priority === "high";
+        out.push({
+          id: al.id,
+          itemType: isUrgent ? "decision" : "activity",
+          category: "notification",
+          severity:
+            al.priority === "critical"
+              ? "urgent"
+              : al.priority === "high"
+                ? "approval"
+                : "info",
+          title: al.title,
+          summary: al.body ?? "",
+          agentName: al.agentSource.replace(/-agent$/, "").replace(/_/g, " "),
+          createdAt: al.createdAt ?? undefined,
+        });
+      }
+    }
+
+    // All notifications → activity items
+    if (allNotifications?.notifications) {
+      for (const n of allNotifications.notifications) {
+        if (seen.has(n.id)) continue;
+        seen.add(n.id);
+
+        // Map notification type to activity meta
+        const typeKey = n.type ?? "info";
+        const activityMeta = ACTIVITY_META[typeKey];
+
+        // Determine if this is a decision or activity
+        const isDecision =
+          typeKey === "ingestion_review" ||
+          typeKey === "ingestion_rejected" ||
+          typeKey === "agent_escalation" ||
+          typeKey === "agent_flag" ||
+          typeKey === "overdue_invoice" ||
+          typeKey === "budget_exceeded";
+
+        out.push({
+          id: n.id,
+          itemType: isDecision ? "decision" : "activity",
+          category: "notification",
+          severity: isDecision ? "approval" : "info",
+          title: n.title,
+          summary: n.body ?? "",
+          createdAt: n.createdAt ?? undefined,
+          icon: activityMeta?.icon,
+          tone: activityMeta?.tone,
+          actionLabel:
+            typeKey === "bank_statement_needed"
+              ? "Upload statement"
+              : typeKey === "month_end_complete"
+                ? "View summary"
+                : typeKey === "report_ready"
+                  ? "View report"
+                  : undefined,
+          actionHref:
+            typeKey === "bank_statement_needed"
+              ? "/dashboard/operations"
+              : typeKey === "month_end_complete"
+                ? "/dashboard/financial-pulse"
+                : typeKey === "report_ready"
+                  ? "/dashboard/financial-pulse"
+                  : undefined,
+        });
+      }
+    }
+
+    // Add synthetic "bank statement needed" if no connected bank
+    // (this is a common real-world scenario)
+    if (entityId) {
+      const hasBankAlert = out.some(
+        (i) =>
+          i.title.toLowerCase().includes("bank statement") ||
+          i.title.toLowerCase().includes("upload"),
+      );
+      if (!hasBankAlert) {
+        // Check if we have bank connection status
+        // For now, we'll add a generic "upload statement" prompt
+        // that appears when reconciliation is needed
+      }
+    }
+
+    const order = { urgent: 0, approval: 1, review: 2, info: 3 } as const;
+    return out.sort((x, y) => order[x.severity] - order[y.severity]);
+  }, [agentApprovals, alerts, allNotifications, entityId]);
+
+  // ── Filter + selection state ─────────────────────────────────────────
+  const [filter, setFilter] = useState<FilterTab>("all");
+  const [cursor, setCursor] = useState(0);
+  const [dismissed, setDismissed] = useState<Set<string>>(new Set());
+  const [pendingIds, setPendingIds] = useState<Set<string>>(new Set());
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [completedExpanded, setCompletedExpanded] = useState(false);
+  const [noteFor, setNoteFor] = useState<string | null>(null);
+  const [note, setNote] = useState("");
+  const listRef = useRef<HTMLDivElement>(null);
+
+  const filtered = useMemo(() => {
+    if (filter === "decisions")
+      return items.filter((i) => i.itemType === "decision");
+    if (filter === "activity")
+      return items.filter((i) => i.itemType === "activity");
+    if (filter === "tasks") return []; // Tasks are rendered separately
+    return items;
+  }, [items, filter]);
+
+  const visible = filtered.filter((i) => !dismissed.has(i.id));
+  const selected = visible[Math.min(cursor, visible.length - 1)] ?? null;
+
+  // Counts for tab badges
+  const decisionCount = items.filter(
+    (i) => i.itemType === "decision" && !dismissed.has(i.id),
+  ).length;
+  const activityCount = items.filter(
+    (i) => i.itemType === "activity" && !dismissed.has(i.id),
+  ).length;
+  const taskCount = tasksData?.counts?.running ?? 0;
+  const taskTotalCount = tasksData?.counts?.total ?? 0;
+
+  const decide = useCallback(
+    async (item: DecisionItem, action: "approve" | "reject") => {
+      setPendingIds((p) => new Set(p).add(item.id));
+      try {
+        if (item.category === "agent_activity") {
+          await resolveApproval.mutateAsync({
+            itemId: item.id,
+            itemType: "agent_escalation",
+            action: action === "approve" ? "approved" : "rejected",
+            reason:
+              note.trim() ||
+              (action === "approve"
+                ? "Approved from Decisions"
+                : "Rejected from Decisions"),
+          });
+        } else if (item.category === "notification") {
+          await markNotificationRead.mutateAsync({ id: item.id });
+        } else if (item.category === "ingestion") {
+          await rejectIngestion.mutateAsync({
+            documentId: item.id,
+            reason: note.trim() || "Rejected from Decisions",
+          });
+        }
+        setDismissed((p) => new Set(p).add(item.id));
+        toast.success(action === "approve" ? "Approved" : "Rejected", {
+          action: {
+            label: "Undo",
+            onClick: () =>
+              setDismissed((p) => {
+                const n = new Set(p);
+                n.delete(item.id);
+                return n;
+              }),
+          },
+        });
+        announce(action === "approve" ? "Approved" : "Rejected");
+        if (entityId) {
+          emitDataChanged(
+            "activity-hub",
+            `${action}_${item.category}`,
+            entityId,
+          );
+        }
+      } catch {
+        toast.error("That didn't save. Try again.");
+      } finally {
+        setPendingIds((p) => {
+          const n = new Set(p);
+          n.delete(item.id);
+          return n;
+        });
+        setNote("");
+        setNoteFor(null);
+      }
+    },
+    [
+      resolveApproval,
+      markNotificationRead,
+      rejectIngestion,
+      note,
+      announce,
+      entityId,
+    ],
+  );
+
+  const snooze = useCallback((item: DecisionItem) => {
+    setDismissed((p) => new Set(p).add(item.id));
+    toast.info("Snoozed for 1 hour", {
+      action: {
+        label: "Restore",
+        onClick: () =>
+          setDismissed((p) => {
+            const n = new Set(p);
+            n.delete(item.id);
+            return n;
+          }),
+      },
     });
   }, []);
+
+  const dismissActivity = useCallback((id: string) => {
+    setDismissed((p) => new Set(p).add(id));
+  }, []);
+
+  // ── Batch actions ──────────────────────────────────────────────────────
+  const toggleSelect = useCallback((id: string) => {
+    setSelectedIds((p) => {
+      const n = new Set(p);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n;
+    });
+  }, []);
+
+  const selectAll = useCallback(() => {
+    const decisionItems = visible.filter(
+      (i) => i.itemType === "decision" && !pendingIds.has(i.id),
+    );
+    setSelectedIds(new Set(decisionItems.map((i) => i.id)));
+  }, [visible, pendingIds]);
 
   const clearSelection = useCallback(() => {
     setSelectedIds(new Set());
   }, []);
 
-  // ── Undo handler ────────────────────────────────────────────────────────
-  const undoBatchAction = useCallback(
-    (ids: string[]) => {
-      // Remove success states so items reappear locally
-      setItemStates((prev) => {
-        const next = { ...prev };
-        for (const id of ids) delete next[id];
-        return next;
-      });
-      // Refetch to restore items
-      refetchApprovals();
-      // Note: server-side reversal is NOT implemented yet — items are archived, not truly undone.
-      // Show honest copy so users know the limitation.
-      toast.info("Item restored to queue", {
-        description:
-          "The item reappears in your queue. Check the audit trail for the full record.",
-        duration: 8000,
-      });
-    },
-    [refetchApprovals],
-  );
-
-  // ── Snooze handler ──────────────────────────────────────────────────────
-  // Real client-side snooze: hides the item and restores it after a delay.
-  const handleSnooze = useCallback(
-    (item: ActivityItemData, durationMs: number = 3600_000) => {
-      const restoreAt = Date.now() + durationMs;
-      setSnoozedItems((prev) => ({
-        ...prev,
-        [item.id]: { item, restoreAt },
-      }));
-
-      const minutes = Math.round(durationMs / 60000);
-      toast.info(`Snoozed for ${minutes} hour${minutes === 1 ? "" : "s"}`, {
-        description: "This item will reappear in your queue.",
-        action: {
-          label: "Restore now",
-          onClick: () => {
-            setSnoozedItems((prev) => {
-              const next = { ...prev };
-              delete next[item.id];
-              return next;
-            });
-          },
-        },
-        duration: durationMs,
-      });
-
-      // Auto-restore when the timer expires
-      setTimeout(() => {
-        setSnoozedItems((prev) => {
-          // Only remove if still snoozed (user may have restored manually)
-          if (!prev[item.id]) return prev;
-          const next = { ...prev };
-          delete next[item.id];
-          return next;
-        });
-      }, durationMs);
-    },
-    [],
-  );
-
-  // Restore a snoozed item immediately
-  const handleUnsnooze = useCallback((itemId: string) => {
-    setSnoozedItems((prev) => {
-      const next = { ...prev };
-      delete next[itemId];
-      return next;
-    });
-  }, []);
-
-  // Build activity items from real data
-  const activityItems: ActivityItemData[] = [];
-  // Track which IDs we've already added (dedup)
-  const addedIds = new Set<string>();
-  // Track logical entities to dedup across sources (same event as approval + alert)
-  const seenEntities = new Set<string>();
-
-  // Add agent approvals as approvals
-  if (agentApprovals?.items) {
-    for (const approval of agentApprovals.items) {
-      if (addedIds.has(approval.id)) continue;
-      addedIds.add(approval.id);
-      // Dedup across sources: same entity (title+type) may appear as both approval and alert
-      const entityKey = `${approval.title}::${approval.type ?? "approval"}`;
-      if (seenEntities.has(entityKey)) continue;
-      seenEntities.add(entityKey);
-      if (itemStates[approval.id] === "success") continue;
-      const meta = (approval.metadata ?? {}) as Record<string, unknown>;
-      const inputData = (meta.inputData ?? {}) as Record<string, unknown>;
-      const recommendation =
-        (meta.recommendation as string) ??
-        approval.description ??
-        "Review and take appropriate action";
-
-      activityItems.push({
-        id: approval.id,
-        itemType: "agent_activity",
-        type: "approval",
-        title: approval.title ?? "Agent action pending",
-        description: approval.description ?? "Requires your review",
-        agent: approval.workflow ?? "AI Agent",
-        confidence: approval.confidence ?? undefined,
-        sourceDoc: approval.documentName ?? undefined,
-        createdAt: approval.createdAt,
-        recommendation,
-        metadata: meta,
-        detail: inputData,
-        actions: [
-          { label: "Approve", variant: "approve" },
-          { label: "Review", variant: "review" },
-          { label: "Reject", variant: "reject" },
-        ],
-      });
-    }
-  }
-
-  // Add pending review items as reviews
-  if (ingestionStats && ingestionStats.pendingReview > 0) {
-    if (!addedIds.has("pending-review")) {
-      addedIds.add("pending-review");
-      if (itemStates["pending-review"] !== "success") {
-        activityItems.push({
-          id: "pending-review",
-          itemType: "ingestion",
-          type: "review",
-          title: `${ingestionStats.pendingReview} document${ingestionStats.pendingReview > 1 ? "s" : ""} need review`,
-          description:
-            "Documents processed by AI, awaiting your verification before posting",
-          agent: "Document Agent",
-          actions: [
-            {
-              label: "Review all",
-              variant: "review",
-              // Link to ingestion page for real bulk review — synthetic ID can't be approved directly
-              href: "/dashboard/ingestion",
-            },
-          ],
-        });
-      }
-    }
-  }
-
-  // Add agent alerts as first-class items (urgent/approval/info based on severity)
-  if (agentAlerts?.alerts) {
-    for (const alert of agentAlerts.alerts) {
-      if (addedIds.has(alert.id)) continue;
-      addedIds.add(alert.id);
-      // Dedup across sources: same entity may appear as both alert and approval
-      const alertEntityKey = `${alert.title}::${alert.type ?? "alert"}`;
-      if (seenEntities.has(alertEntityKey)) continue;
-      seenEntities.add(alertEntityKey);
-      if (itemStates[alert.id] === "success") continue;
-
-      const itemType: "urgent" | "approval" | "info" =
-        alert.priority === "critical"
-          ? "urgent"
-          : alert.priority === "high"
-            ? "approval"
-            : "info";
-
-      activityItems.push({
-        id: alert.id,
-        itemType: "notification",
-        type: itemType,
-        title: alert.title,
-        description: alert.body ?? "",
-        agent: alert.agentSource.replace(/-agent$/, "").replace(/_/g, " "),
-        actions: alert.actionRequired
-          ? [
-              { label: "Review", variant: "review" },
-              {
-                label: "Dismiss",
-                variant: "default",
-                onClick: () => {
-                  void markNotificationRead.mutateAsync({ id: alert.id });
-                  setItemStates((prev) => ({ ...prev, [alert.id]: "success" }));
-                  toast.success("Dismissed");
-                },
-              },
-            ]
-          : [
-              {
-                label: "View",
-                variant: "default",
-                onClick: () => {
-                  void markNotificationRead.mutateAsync({ id: alert.id });
-                  setItemStates((prev) => ({ ...prev, [alert.id]: "success" }));
-                },
-              },
-            ],
-      });
-    }
-  }
-
-  // Add regular notifications as info items (lower priority than agent alerts)
-  if (notifications) {
-    for (const notification of notifications.slice(0, 5)) {
-      if (addedIds.has(notification.id)) continue;
-      addedIds.add(notification.id);
-      if (itemStates[notification.id] === "success") continue;
-      activityItems.push({
-        id: notification.id,
-        itemType: "notification",
-        type: "info",
-        title: notification.title,
-        description: notification.body ?? "",
-        actions: [
-          {
-            label: "View",
-            variant: "default",
-            onClick: () => {
-              void markNotificationRead.mutateAsync({ id: notification.id });
-              setItemStates((prev) => ({
-                ...prev,
-                [notification.id]: "success",
-              }));
-            },
-          },
-        ],
-      });
-    }
-  }
-
-  // Add daily close exceptions as urgent items
-  if (dailyCloseExceptions && dailyCloseExceptions.length > 0) {
-    for (const run of dailyCloseExceptions) {
-      if (addedIds.has(`daily-close-${run.id}`)) continue;
-      addedIds.add(`daily-close-${run.id}`);
-      if (itemStates[`daily-close-${run.id}`] === "success") continue;
-
-      const exceptions = (run.exceptions ?? []) as Array<{
-        type: string;
-        description: string;
-        agentId: string;
-        confidence: number;
-      }>;
-
-      activityItems.push({
-        id: `daily-close-${run.id}`,
-        itemType: "notification",
-        type: "urgent",
-        title: `Daily close exception — ${run.closeDate}`,
-        description:
-          exceptions.map((e) => e.description).join("; ") ||
-          "Exceptions detected during daily close",
-        agent: "Daily Close Pipeline",
-        actions: [
-          { label: "Review", variant: "review" },
-          { label: "Dismiss", variant: "default" },
-        ],
-      });
-    }
-  }
-
-  // ── Real mutation handler ──────────────────────────────────────────────
-  const handleAction = useCallback(
-    async (
-      itemId: string,
-      action: string,
-      itemType: string,
-      reason?: string,
-    ) => {
-      setItemStates((prev) => ({ ...prev, [itemId]: "processing" }));
-
-      try {
-        if (itemType === "agent_activity") {
-          const actionReason =
-            reason ??
-            (action === "approve"
-              ? "Approved from Activity Hub"
-              : "Rejected from Activity Hub");
-          await resolveApproval.mutateAsync({
-            itemId,
-            itemType: "agent_escalation",
-            action: action === "approve" ? "approved" : "rejected",
-            reason: actionReason,
-          });
-        } else if (itemType === "ingestion") {
-          if (action === "approve") {
-            await approveIngestion.mutateAsync({ documentId: itemId });
-          } else {
-            await rejectIngestion.mutateAsync({
-              documentId: itemId,
-              reason: reason ?? "Rejected from Activity Hub",
-            });
-          }
-        } else if (itemType === "notification") {
-          await markNotificationRead.mutateAsync({ id: itemId });
-        }
-
-        setItemStates((prev) => ({ ...prev, [itemId]: "success" }));
-        setLastActions((prev) => ({ ...prev, [itemId]: action }));
-        const actionLabel = action === "approve" ? "Approved" : "Rejected";
-        toast.success(actionLabel, {
-          duration: 6000,
-          action: {
-            label: "Undo",
-            onClick: () => undoBatchAction([itemId]),
-          },
-        });
-        announce(`${actionLabel} successfully`);
-        if (entityId) {
-          emitDataChanged("activity-hub", `${action}_${itemType}`, entityId);
-        }
-
-        setTimeout(() => {
-          setItemStates((prev) => {
-            const next = { ...prev };
-            delete next[itemId];
-            return next;
-          });
-        }, 2000);
-      } catch (error) {
-        setItemStates((prev) => ({ ...prev, [itemId]: "error" }));
-        toast.error("Action failed", {
-          description: "That didn't save. Try again.",
-          duration: 5000,
-        });
-        announce("Action failed. Please try again.", "assertive");
-        setTimeout(() => {
-          setItemStates((prev) => {
-            const next = { ...prev };
-            delete next[itemId];
-            return next;
-          });
-        }, 3000);
-      }
-    },
-    [
-      resolveApproval,
-      approveIngestion,
-      rejectIngestion,
-      markNotificationRead,
-      undoBatchAction,
-    ],
-  );
-
-  // ── Batch approve/reject handler ────────────────────────────────────────
-  const handleBatchAction = useCallback(
+  const batchDecide = useCallback(
     async (action: "approve" | "reject") => {
       const ids = Array.from(selectedIds);
       if (ids.length === 0) return;
-
-      setItemStates((prev) => {
-        const next = { ...prev };
-        for (const id of ids) next[id] = "processing";
-        return next;
+      const items = visible.filter((i) => ids.includes(i.id));
+      setPendingIds((p) => {
+        const n = new Set(p);
+        ids.forEach((id) => n.add(id));
+        return n;
       });
-
-      try {
-        // Resolve each item by its type
-        for (const id of ids) {
-          const item = activityItems.find((i) => i.id === id);
-          if (!item) continue;
-          try {
-            await handleAction(id, action, item.itemType);
-          } catch {
-            // Individual item failures are handled inside handleAction
+      let succeeded = 0;
+      for (const item of items) {
+        try {
+          if (item.category === "agent_activity") {
+            await resolveApproval.mutateAsync({
+              itemId: item.id,
+              itemType: "agent_escalation",
+              action: action === "approve" ? "approved" : "rejected",
+              reason: `Batch ${action}`,
+            });
+            succeeded++;
+          } else if (item.category === "ingestion") {
+            await rejectIngestion.mutateAsync({
+              documentId: item.id,
+              reason: `Batch ${action}`,
+            });
+            succeeded++;
           }
-        }
-
-        const actionLabel = action === "approve" ? "Approved" : "Rejected";
-        const itemCount = ids.length;
-        toast.success(
-          `${actionLabel} ${itemCount} item${itemCount === 1 ? "" : "s"}`,
-          {
-            duration: 5000,
-            action: {
-              label: "Undo",
-              onClick: () => undoBatchAction(ids),
-            },
+        } catch {}
+      }
+      setDismissed((p) => {
+        const n = new Set(p);
+        ids.forEach((id) => n.add(id));
+        return n;
+      });
+      setSelectedIds(new Set());
+      setPendingIds((p) => {
+        const n = new Set(p);
+        ids.forEach((id) => n.delete(id));
+        return n;
+      });
+      toast.success(
+        `${succeeded} item${succeeded !== 1 ? "s" : ""} ${action}d`,
+        {
+          action: {
+            label: "Undo",
+            onClick: () =>
+              setDismissed((p) => {
+                const n = new Set(p);
+                ids.forEach((id) => n.delete(id));
+                return n;
+              }),
           },
-        );
-
-        setSelectedIds(new Set());
-
-        setTimeout(() => {
-          setItemStates((prev) => {
-            const next = { ...prev };
-            for (const id of ids) delete next[id];
-            return next;
-          });
-        }, 2000);
-      } catch (error) {
-        setItemStates((prev) => {
-          const next = { ...prev };
-          for (const id of ids) next[id] = "error";
-          return next;
-        });
-        toast.error("Batch action failed", {
-          description:
-            error instanceof Error ? error.message : "Please try again.",
-          duration: 5000,
-        });
-        setTimeout(() => {
-          setItemStates((prev) => {
-            const next = { ...prev };
-            for (const id of ids) delete next[id];
-            return next;
-          });
-        }, 3000);
+        },
+      );
+      if (entityId) {
+        emitDataChanged("activity-hub", `batch_${action}`, entityId);
       }
     },
-    [selectedIds, activityItems, handleAction, undoBatchAction],
+    [selectedIds, visible, resolveApproval, rejectIngestion, entityId],
   );
 
-  // ── Keyboard shortcuts for batch actions ───────────────────────────────
-  // Use refs to avoid re-registering the listener on every render
-  const confirmRejectOpenRef = useRef(confirmRejectOpen);
-  confirmRejectOpenRef.current = confirmRejectOpen;
-  const confirmApproveOpenRef = useRef(confirmApproveOpen);
-  confirmApproveOpenRef.current = confirmApproveOpen;
-
+  // ── Keyboard triage ──────────────────────────────────────────────────
   useEffect(() => {
-    function handleKeyDown(e: KeyboardEvent) {
-      // Only when items are selected
-      if (selectedIds.size === 0) return;
-      // Ignore if modifier keys are held
-      if (e.metaKey || e.ctrlKey || e.altKey) return;
-      // Ignore if focused on an interactive element
-      const tag = document.activeElement?.tagName;
-      if (
-        tag === "INPUT" ||
-        tag === "TEXTAREA" ||
-        tag === "SELECT" ||
-        tag === "BUTTON" ||
-        tag === "A"
-      )
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.target as HTMLElement)?.tagName.match(/INPUT|TEXTAREA|SELECT/))
         return;
-      if ((document.activeElement as HTMLElement)?.isContentEditable) return;
-      // Ignore if either confirm dialog is open
-      if (confirmRejectOpenRef.current || confirmApproveOpenRef.current) return;
 
-      if (e.key === "a") {
+      // Shift+A = select all visible decisions
+      if (e.shiftKey && e.key === "A") {
         e.preventDefault();
-        setConfirmApproveOpen(true);
-      } else if (e.key === "r") {
-        e.preventDefault();
-        setConfirmRejectOpen(true);
+        selectAll();
+        return;
       }
+      // Shift+X = batch approve selected
+      if (e.shiftKey && e.key === "X") {
+        e.preventDefault();
+        if (selectedIds.size > 0) void batchDecide("approve");
+        return;
+      }
+      // Shift+Z = clear selection
+      if (e.shiftKey && e.key === "Z") {
+        e.preventDefault();
+        clearSelection();
+        return;
+      }
+
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+
+      switch (e.key) {
+        case "1":
+          e.preventDefault();
+          setFilter("all");
+          setCursor(0);
+          break;
+        case "2":
+          e.preventDefault();
+          setFilter("decisions");
+          setCursor(0);
+          break;
+        case "3":
+          e.preventDefault();
+          setFilter("activity");
+          setCursor(0);
+          break;
+        case "4":
+          e.preventDefault();
+          setFilter("tasks");
+          setCursor(0);
+          break;
+        case "j":
+        case "ArrowDown":
+          e.preventDefault();
+          setCursor((c) => Math.min(c + 1, visible.length - 1));
+          break;
+        case "k":
+        case "ArrowUp":
+          e.preventDefault();
+          setCursor((c) => Math.max(c - 1, 0));
+          break;
+        case "a":
+          if (selected && selected.itemType === "decision")
+            void decide(selected, "approve");
+          break;
+        case "r":
+          if (selected && selected.itemType === "decision") {
+            setNoteFor(selected.id);
+            e.preventDefault();
+          }
+          break;
+        case "s":
+          if (selected && selected.itemType === "decision") snooze(selected);
+          break;
+        case "Escape":
+          setNoteFor(null);
+          setNote("");
+          break;
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [
+    visible.length,
+    selected,
+    decide,
+    snooze,
+    selectAll,
+    batchDecide,
+    clearSelection,
+    selectedIds,
+  ]);
+
+  // Announce triage movement for screen readers.
+  useEffect(() => {
+    if (selected) {
+      announce(`Selected: ${selected.title}`);
     }
-
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [selectedIds]);
-
-  // Sort by urgency: urgent > approval > review > info
-  const typeOrder = { urgent: 0, approval: 1, review: 2, info: 3 };
-  const sorted = [...activityItems]
-    .filter((item) => !snoozedItems[item.id]) // exclude snoozed items
-    .sort((a, b) => (typeOrder[a.type] ?? 4) - (typeOrder[b.type] ?? 4));
-
-  // Filter items
-  const filteredItems =
-    activeFilter === "all"
-      ? sorted
-      : sorted.filter((item) => {
-          if (activeFilter === "urgent") return item.type === "urgent";
-          if (activeFilter === "approvals") return item.type === "approval";
-          if (activeFilter === "reviews") return item.type === "review";
-          if (activeFilter === "info") return item.type === "info";
-          return true;
-        });
-
-  const selectAll = useCallback(() => {
-    const selectableIds = filteredItems
-      .filter((item) =>
-        item.actions.some(
-          (a) => a.variant === "approve" || a.variant === "reject",
-        ),
-      )
-      .map((item) => item.id);
-    setSelectedIds(new Set(selectableIds));
-  }, [filteredItems]);
-
-  // Items that can be batch-selected (have approve/reject actions)
-  const selectableCount = useMemo(
-    () =>
-      filteredItems.filter((item) =>
-        item.actions.some(
-          (a) => a.variant === "approve" || a.variant === "reject",
-        ),
-      ).length,
-    [filteredItems],
-  );
-
-  const urgentCount = activityItems.filter((i) => i.type === "urgent").length;
-  const approvalCount = activityItems.filter(
-    (i) => i.type === "approval",
-  ).length;
-  const completedCount = ingestionStats?.autoPosted ?? 0;
-  const agentAlertCount = agentAlerts?.total ?? 0;
-
-  // Two-zone queue: decisions demand an action; info is awareness-only.
-  const decisionItems = filteredItems.filter((item) => item.type !== "info");
-  const fyiItems = filteredItems.filter((item) => item.type === "info");
-
-  const renderCard = (item: ActivityItemData) => {
-    const canSelect = item.actions.some(
-      (a) => a.variant === "approve" || a.variant === "reject",
-    );
-    return (
-      <ActivityItemCard
-        key={item.id}
-        item={item}
-        itemState={itemStates[item.id]}
-        lastAction={lastActions[item.id]}
-        onAction={handleAction}
-        onViewItem={setSelectedItem}
-        isSelected={selectedIds.has(item.id)}
-        onToggleSelect={toggleSelect}
-        canSelect={canSelect}
-        onSnooze={handleSnooze}
-      />
-    );
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected?.id]);
 
   return (
-    <ModulePageShell
-      title="Activity Hub"
-      description="What needs your attention right now. AI-curated, priority-sorted."
-      icon={Inbox}
-      aiSuggestions={[
-        {
-          label: "Show me what needs approval",
-          prompt: "Show me what needs approval",
-        },
-        {
-          label: "Auto-approve low-risk items",
-          prompt: "Auto-approve low-risk items",
-        },
-        { label: "Why was this flagged?", prompt: "Why was this flagged?" },
-      ]}
-    >
-      <div
-        className="mx-auto max-w-4xl space-y-4 p-3 pb-20 sm:p-6 md:pb-6"
-        aria-busy={Object.values(itemStates).some((s) => s === "processing")}
-      >
-        {/* Stats */}
-        <div className="grid gap-3 sm:grid-cols-4">
-          <div className="rounded-xl border border-border/50 bg-card p-4">
-            <div className="flex items-center gap-3">
-              <div
-                className="flex h-10 w-10 items-center justify-center rounded-xl bg-error-clay/10"
-                aria-hidden="true"
-              >
-                <AlertTriangle className="h-5 w-5 text-error-clay" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-foreground">
-                  {urgentCount}
-                </p>
-                <p className="text-xs text-muted-foreground">Urgent</p>
-              </div>
-            </div>
+    <div className="flex h-full min-h-0 flex-col pb-16 md:pb-0">
+      {/* ── Header + Filter Tabs ──────────────────────────────────────── */}
+      <header className="border-b border-border/40">
+        <div className="flex items-center justify-between px-4 py-3 sm:px-6">
+          <div className="flex items-center gap-2.5">
+            <Inbox className="h-4 w-4 text-primary" aria-hidden="true" />
+            <h1 className="text-sm font-semibold tracking-tight text-foreground">
+              Activity Hub
+            </h1>
+            <span className="font-mono text-[11px] tabular-nums text-muted-foreground">
+              {visible.length} items
+            </span>
+            {decisionCount > 0 && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-error-clay/10 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-error-clay">
+                {decisionCount} need you
+              </span>
+            )}
           </div>
-          <div className="rounded-xl border border-border/50 bg-card p-4">
-            <div className="flex items-center gap-3">
-              <div
-                className="flex h-10 w-10 items-center justify-center rounded-xl bg-attention-amber/10"
-                aria-hidden="true"
-              >
-                <FileCheck className="h-5 w-5 text-attention-amber" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-foreground">
-                  {approvalCount}
-                </p>
-                <p className="text-xs text-muted-foreground">Approvals</p>
-              </div>
-            </div>
-          </div>
-          <div className="rounded-xl border border-border/50 bg-card p-4">
-            <div className="flex items-center gap-3">
-              <div
-                className="flex h-10 w-10 items-center justify-center rounded-xl bg-signal-indigo/10"
-                aria-hidden="true"
-              >
-                <Bot className="h-5 w-5 text-signal-indigo" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-foreground">
-                  {agentAlertCount}
-                </p>
-                <p className="text-xs text-muted-foreground">Agent Alerts</p>
-              </div>
-            </div>
-          </div>
-          <div className="rounded-xl border border-border/50 bg-card p-4">
-            <div className="flex items-center gap-3">
-              <div
-                className="flex h-10 w-10 items-center justify-center rounded-xl bg-balanced-green/10"
-                aria-hidden="true"
-              >
-                <CheckCircle2 className="h-5 w-5 text-balanced-green" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-foreground">
-                  {completedCount}
-                </p>
-                <p className="text-xs text-muted-foreground">Auto-resolved</p>
-              </div>
-            </div>
-          </div>
+          <p className="hidden font-mono text-[10px] text-muted-foreground/60 sm:block">
+            1/2/3/4 filter · j/k move · a/r decide
+          </p>
         </div>
 
-        {/* Filters — WAI-ARIA Tabs pattern with keyboard navigation */}
+        {/* Filter tabs */}
         <div
+          className="flex items-center gap-1 px-4 pb-2 sm:px-6"
           role="tablist"
           aria-label="Activity filters"
-          className="flex items-center gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-          onKeyDown={(e) => {
-            const idx = FILTER_OPTIONS.findIndex((f) => f.key === activeFilter);
-            let nextIdx = idx;
-
-            switch (e.key) {
-              case "ArrowRight":
-              case "ArrowDown":
-                e.preventDefault();
-                nextIdx = (idx + 1) % FILTER_OPTIONS.length;
-                break;
-              case "ArrowLeft":
-              case "ArrowUp":
-                e.preventDefault();
-                nextIdx =
-                  (idx - 1 + FILTER_OPTIONS.length) % FILTER_OPTIONS.length;
-                break;
-              case "Home":
-                e.preventDefault();
-                nextIdx = 0;
-                break;
-              case "End":
-                e.preventDefault();
-                nextIdx = FILTER_OPTIONS.length - 1;
-                break;
-              default:
-                return;
-            }
-
-            setActiveFilter(FILTER_OPTIONS[nextIdx].key);
-            // Move focus to the newly activated tab
-            const tabId = `activity-tab-${FILTER_OPTIONS[nextIdx].key}`;
-            document.getElementById(tabId)?.focus();
-          }}
         >
-          {FILTER_OPTIONS.map((filter, i) => {
-            const Icon = filter.icon;
-            const isSelected = activeFilter === filter.key;
-            return (
-              <button
-                key={filter.key}
-                id={`activity-tab-${filter.key}`}
-                type="button"
-                role="tab"
-                aria-selected={isSelected}
-                aria-controls="activity-tab-panel"
-                tabIndex={isSelected ? 0 : -1}
-                onClick={() => setActiveFilter(filter.key)}
-                className={cn(
-                  "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1",
-                  isSelected
-                    ? "bg-primary/10 text-primary"
-                    : "text-muted-foreground hover:bg-muted/50 hover:text-foreground",
-                )}
-              >
-                <Icon className="h-3.5 w-3.5" aria-hidden="true" />
-                {filter.label}
-              </button>
-            );
-          })}
+          {(
+            [
+              {
+                key: "all" as const,
+                label: "All",
+                count: visible.length + taskCount,
+              },
+              {
+                key: "decisions" as const,
+                label: "Decisions",
+                count: decisionCount,
+              },
+              {
+                key: "activity" as const,
+                label: "Activity",
+                count: activityCount,
+              },
+              {
+                key: "tasks" as const,
+                label: "Tasks",
+                count: taskCount,
+                total: taskTotalCount,
+              },
+            ] as const
+          ).map((tab) => (
+            <button
+              key={tab.key}
+              type="button"
+              role="tab"
+              aria-selected={filter === tab.key}
+              onClick={() => {
+                setFilter(tab.key);
+                setCursor(0);
+              }}
+              className={cn(
+                "flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-all",
+                filter === tab.key
+                  ? "bg-primary/10 text-primary"
+                  : "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
+              )}
+            >
+              {tab.label}
+              {"total" in tab && tab.total > 0 ? (
+                <span
+                  className={cn(
+                    "inline-flex min-w-[18px] items-center justify-center rounded-full px-1 py-0.5 text-[9px] font-bold tabular-nums",
+                    filter === tab.key
+                      ? "bg-primary/20 text-primary"
+                      : "bg-muted text-muted-foreground",
+                  )}
+                >
+                  {tab.count}/{tab.total}
+                </span>
+              ) : tab.count > 0 ? (
+                <span
+                  className={cn(
+                    "inline-flex min-w-[18px] items-center justify-center rounded-full px-1 py-0.5 text-[9px] font-bold tabular-nums",
+                    filter === tab.key
+                      ? "bg-primary/20 text-primary"
+                      : "bg-muted text-muted-foreground",
+                  )}
+                >
+                  {tab.count}
+                </span>
+              ) : null}
+            </button>
+          ))}
         </div>
+      </header>
 
-        {/* Batch Action Bar — shown when items are selected */}
-        {selectedIds.size > 0 && (
+      {filter === "tasks" ? (
+        <TasksView
+          tasks={tasksData?.tasks ?? []}
+          isLoading={tasksLoading}
+          counts={tasksData?.counts}
+        />
+      ) : visible.length === 0 ? (
+        <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-2 p-8 text-center">
+          <CheckCircle2
+            className="mb-1 h-8 w-8 text-balanced-green"
+            aria-hidden="true"
+          />
+          <p className="text-sm font-medium text-foreground">
+            {filter === "decisions"
+              ? "No decisions pending"
+              : filter === "activity"
+                ? "No recent activity"
+                : "Queue clear"}
+          </p>
+          <p className="max-w-xs text-xs text-muted-foreground">
+            {filter === "decisions"
+              ? "Agents are running your books. Decisions will appear here when they need your call."
+              : filter === "activity"
+                ? "Agent completions, updates, and alerts will appear here."
+                : "Agents are running your books. Anything that needs your call lands here."}
+          </p>
+        </div>
+      ) : (
+        <div className="grid min-h-0 flex-1 lg:grid-cols-[380px_1fr]">
+          {/* ── Queue pane ─────────────────────────────────────────────── */}
           <div
-            role="toolbar"
-            aria-label="Batch actions"
-            className="sticky top-0 z-20 flex items-center justify-between rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 backdrop-blur-sm"
+            ref={listRef}
+            role="listbox"
+            aria-label="Activity queue"
+            aria-activedescendant={selected ? `item-${selected.id}` : undefined}
+            className="min-h-0 overflow-y-auto border-b border-border/40 lg:border-b-0 lg:border-r"
           >
-            <div className="flex items-center gap-3">
-              <span className="text-sm font-medium text-foreground">
-                {selectedIds.size} item{selectedIds.size === 1 ? "" : "s"}{" "}
-                selected
-              </span>
-              <span className="hidden sm:inline text-[10px] text-muted-foreground">
-                Press{" "}
-                <kbd className="mx-0.5 rounded bg-muted px-1 py-0.5 font-mono text-[9px]">
-                  A
-                </kbd>{" "}
-                approve,{" "}
-                <kbd className="mx-0.5 rounded bg-muted px-1 py-0.5 font-mono text-[9px]">
-                  R
-                </kbd>{" "}
-                reject
-              </span>
-              <button
-                type="button"
-                onClick={selectAll}
-                className="text-xs text-primary hover:underline"
-              >
-                Select all ({selectableCount})
-              </button>
-              <button
-                type="button"
-                onClick={clearSelection}
-                className="text-xs text-muted-foreground hover:text-foreground"
-              >
-                Clear
-              </button>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => handleBatchAction("approve")}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-balanced-green px-3 py-1.5 text-xs font-medium text-white hover:bg-balanced-green/90 transition-colors"
-              >
-                <ThumbsUp className="h-3.5 w-3.5" aria-hidden="true" />
-                Approve all
-              </button>
-              <button
-                type="button"
-                onClick={() => setConfirmRejectOpen(true)}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-error-clay px-3 py-1.5 text-xs font-medium text-white hover:bg-error-clay/90 transition-colors"
-              >
-                <ThumbsDown className="h-3.5 w-3.5" aria-hidden="true" />
-                Reject all
-              </button>
-              <button
-                type="button"
-                onClick={clearSelection}
-                aria-label="Close batch actions"
-                className="rounded-lg p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
-              >
-                <X className="h-4 w-4" aria-hidden="true" />
-              </button>
-            </div>
-          </div>
-        )}
+            {visible.map((item, idx) => {
+              const isSelected = selected?.id === item.id;
+              const isActivity = item.itemType === "activity";
 
-        {/* Reject Confirmation Dialog */}
-        {confirmRejectOpen && (
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-label="Confirm batch reject"
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
-            onClick={(e) => {
-              if (e.target === e.currentTarget) setConfirmRejectOpen(false);
-            }}
-            onKeyDown={(e) => {
-              if (e.key === "Escape") setConfirmRejectOpen(false);
-            }}
-          >
-            <div className="mx-4 w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl">
-              <div className="flex items-start gap-4">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-error-clay/10">
-                  <AlertTriangle
-                    className="h-6 w-6 text-error-clay"
-                    aria-hidden="true"
-                  />
-                </div>
-                <div className="flex-1">
-                  <h2 className="text-lg font-semibold text-foreground">
-                    Reject {selectedIds.size} item
-                    {selectedIds.size === 1 ? "" : "s"}?
-                  </h2>
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    This will reject {selectedIds.size} selected item
-                    {selectedIds.size === 1 ? "" : "s"}. Rejected items return
-                    to the AI for reprocessing.
-                  </p>
-                </div>
-              </div>
-              <div className="mt-6 flex items-center justify-end gap-3">
+              // Activity items get their own icon/tone
+              const ActivityIcon = item.icon;
+              const meta = !isActivity ? SEVERITY_META[item.severity] : null;
+
+              return (
                 <button
-                  type="button"
-                  onClick={() => setConfirmRejectOpen(false)}
-                  className="rounded-lg px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setConfirmRejectOpen(false);
-                    handleBatchAction("reject");
+                  key={item.id}
+                  id={`item-${item.id}`}
+                  role="option"
+                  aria-selected={isSelected}
+                  disabled={pendingIds.has(item.id)}
+                  onClick={(e) => {
+                    if (e.shiftKey) {
+                      toggleSelect(item.id);
+                    } else {
+                      setCursor(idx);
+                    }
                   }}
-                  className="rounded-lg bg-error-clay px-4 py-2 text-sm font-medium text-white hover:bg-error-clay/90 transition-colors"
+                  className={cn(
+                    "flex w-full items-start gap-2.5 border-b border-border/30 px-4 py-3 text-left transition-colors last:border-0",
+                    isSelected ? "bg-primary/[0.06]" : "hover:bg-accent/40",
+                    selectedIds.has(item.id) && "bg-primary/[0.04]",
+                  )}
                 >
-                  Reject {selectedIds.size} item
-                  {selectedIds.size === 1 ? "" : "s"}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+                  {/* Checkbox (for batch selection) */}
+                  <span
+                    className="mt-0.5 shrink-0"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleSelect(item.id);
+                    }}
+                  >
+                    {selectedIds.has(item.id) ? (
+                      <CheckSquare className="h-3.5 w-3.5 text-primary" />
+                    ) : (
+                      <Square className="h-3.5 w-3.5 text-muted-foreground/30" />
+                    )}
+                  </span>
 
-        {confirmApproveOpen && (
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-label="Confirm batch approve"
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
-            onClick={(e) => {
-              if (e.target === e.currentTarget) setConfirmApproveOpen(false);
-            }}
-            onKeyDown={(e) => {
-              if (e.key === "Escape") setConfirmApproveOpen(false);
-            }}
-          >
-            <div className="mx-4 w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl">
-              <div className="flex items-start gap-4">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-balanced-green/10">
-                  <CheckCircle2
-                    className="h-6 w-6 text-balanced-green"
-                    aria-hidden="true"
-                  />
-                </div>
-                <div className="flex-1">
-                  <h2 className="text-lg font-semibold text-foreground">
-                    Approve {selectedIds.size} item
-                    {selectedIds.size === 1 ? "" : "s"}?
-                  </h2>
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    This will approve {selectedIds.size} selected item
-                    {selectedIds.size === 1 ? "" : "s"} and post to the ledger.
-                    Items return to the queue if you need to undo.
-                  </p>
-                </div>
-              </div>
-              <div className="mt-6 flex items-center justify-end gap-3">
+                  {/* Icon */}
+                  {isActivity && ActivityIcon ? (
+                    <span
+                      className={cn(
+                        "mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md",
+                        item.tone === "green"
+                          ? "bg-balanced-green/10"
+                          : item.tone === "amber"
+                            ? "bg-attention-amber/10"
+                            : item.tone === "red"
+                              ? "bg-error-clay/10"
+                              : "bg-primary/10",
+                      )}
+                    >
+                      <ActivityIcon
+                        className={cn(
+                          "h-3 w-3",
+                          item.tone === "green"
+                            ? "text-balanced-green"
+                            : item.tone === "amber"
+                              ? "text-attention-amber"
+                              : item.tone === "red"
+                                ? "text-error-clay"
+                                : "text-primary",
+                        )}
+                        aria-hidden="true"
+                      />
+                    </span>
+                  ) : meta ? (
+                    <meta.icon
+                      className={cn("mt-0.5 h-3.5 w-3.5 shrink-0", meta.tone)}
+                      aria-hidden="true"
+                    />
+                  ) : (
+                    <Bell
+                      className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground"
+                      aria-hidden="true"
+                    />
+                  )}
+
+                  <span className="min-w-0 flex-1">
+                    <span className="flex items-center gap-1.5">
+                      <span className="block truncate text-xs font-medium text-foreground">
+                        {item.title}
+                      </span>
+                      {isActivity && (
+                        <span className="shrink-0 rounded-full bg-muted px-1.5 py-0.5 text-[8px] font-bold uppercase text-muted-foreground">
+                          FYI
+                        </span>
+                      )}
+                    </span>
+                    <span className="mt-0.5 flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                      {!isActivity && item.confidence !== undefined && (
+                        <span
+                          className={cn(
+                            "font-mono font-semibold tabular-nums",
+                            item.confidence >= 0.8
+                              ? "text-balanced-green"
+                              : item.confidence >= 0.6
+                                ? "text-attention-amber"
+                                : "text-error-clay",
+                          )}
+                        >
+                          {Math.round(item.confidence * 100)}%
+                        </span>
+                      )}
+                      {item.agentName && (
+                        <span className="truncate">{item.agentName}</span>
+                      )}
+                      <span aria-hidden="true">·</span>
+                      <span className="shrink-0">
+                        {timeAgo(item.createdAt)}
+                      </span>
+                    </span>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Floating batch action bar */}
+          {selectedIds.size > 0 && (
+            <div className="sticky bottom-0 z-20 flex items-center justify-between border-t border-border/40 bg-background/95 px-4 py-2 backdrop-blur-sm">
+              <span className="text-xs text-muted-foreground">
+                {selectedIds.size} selected
+              </span>
+              <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => setConfirmApproveOpen(false)}
-                  className="rounded-lg px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+                  onClick={() => void batchDecide("approve")}
+                  className="inline-flex items-center gap-1 rounded-lg bg-balanced-green/10 px-3 py-1.5 text-xs font-medium text-balanced-green hover:bg-balanced-green/20 transition-colors"
                 >
-                  Cancel
+                  <ThumbsUp className="h-3 w-3" />
+                  Approve all
                 </button>
                 <button
                   type="button"
-                  onClick={() => {
-                    setConfirmApproveOpen(false);
-                    handleBatchAction("approve");
-                  }}
-                  className="rounded-lg bg-balanced-green px-4 py-2 text-sm font-medium text-white hover:bg-balanced-green/90 transition-colors"
+                  onClick={clearSelection}
+                  className="text-xs text-muted-foreground hover:text-foreground transition-colors"
                 >
-                  Approve {selectedIds.size} item
-                  {selectedIds.size === 1 ? "" : "s"}
+                  Clear
                 </button>
               </div>
-            </div>
-          </div>
-        )}
-
-        {/* Activity Items */}
-        <div
-          id="activity-tab-panel"
-          role="tabpanel"
-          aria-label={`${activeFilter} activities`}
-        >
-          {filteredItems.length === 0 ? (
-            <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border/50 py-12 text-center">
-              <div
-                className="flex h-12 w-12 items-center justify-center rounded-full bg-balanced-green/10 mb-3"
-                aria-hidden="true"
-              >
-                <CheckCircle2 className="h-6 w-6 text-balanced-green" />
-              </div>
-              <p className="text-sm font-medium text-foreground">
-                All caught up
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">
-                No items matching this filter
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-5">
-              {/* Zone 1 — items that need a human decision */}
-              {decisionItems.length > 0 && (
-                <section aria-labelledby="decisions-heading">
-                  <div className="flex items-center gap-2 px-1 pb-2">
-                    <h2
-                      id="decisions-heading"
-                      className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                    >
-                      Needs your decision
-                    </h2>
-                    <span className="inline-flex h-4 min-w-[16px] items-center justify-center rounded-full bg-primary/10 px-1 text-[9px] font-bold tabular-nums text-primary">
-                      {decisionItems.length}
-                    </span>
-                  </div>
-                  <div className="space-y-3">
-                    {decisionItems.map(renderCard)}
-                  </div>
-                </section>
-              )}
-
-              {/* Zone 2 — awareness only, no action required */}
-              {fyiItems.length > 0 && (
-                <section aria-labelledby="fyi-heading">
-                  <div className="flex items-center gap-2 px-1 pb-2">
-                    <h2
-                      id="fyi-heading"
-                      className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                    >
-                      For your awareness
-                    </h2>
-                    <span className="inline-flex h-4 min-w-[16px] items-center justify-center rounded-full bg-muted px-1 text-[9px] font-bold tabular-nums text-muted-foreground">
-                      {fyiItems.length}
-                    </span>
-                  </div>
-                  <div className="space-y-3">{fyiItems.map(renderCard)}</div>
-                </section>
-              )}
             </div>
           )}
 
-          {/* Completed Section */}
+          {/* ── Brief pane ─────────────────────────────────────────────── */}
+          <div className="min-h-0 overflow-y-auto">
+            {selected ? (
+              <BriefPane
+                key={selected.id}
+                item={selected}
+                busy={pendingIds.has(selected.id)}
+                noteOpen={noteFor === selected.id}
+                note={note}
+                onNoteChange={setNote}
+                onToggleNote={() =>
+                  setNoteFor((v) => (v === selected.id ? null : selected.id))
+                }
+                onDecide={(a) => void decide(selected, a)}
+                onSnooze={() => snooze(selected)}
+                onDismiss={() => dismissActivity(selected.id)}
+                onAskAi={(q) =>
+                  router.push(`/dashboard?prompt=${encodeURIComponent(q)}`)
+                }
+              />
+            ) : (
+              <div className="flex h-full items-center justify-center p-8 text-sm text-muted-foreground">
+                Select an item to see its full brief.
+              </div>
+            )}
+          </div>
         </div>
+      )}
 
-        <CompletedSection count={completedCount} />
+      {/* Completed section */}
+      {filter !== "tasks" && dismissed.size > 0 && (
+        <div className="border-t border-border/30">
+          <button
+            type="button"
+            onClick={() => setCompletedExpanded((v) => !v)}
+            className="flex w-full items-center justify-between px-4 py-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <span className="flex items-center gap-2">
+              <CheckCircle2 className="h-3.5 w-3.5 text-balanced-green" />
+              Completed today
+              <span className="font-mono tabular-nums text-muted-foreground/60">
+                {dismissed.size}
+              </span>
+            </span>
+            <ChevronDown
+              className={cn(
+                "h-3.5 w-3.5 transition-transform",
+                completedExpanded && "rotate-180",
+              )}
+            />
+          </button>
+          {completedExpanded && (
+            <div className="px-4 pb-3 text-[11px] text-muted-foreground/60">
+              Items you approved, rejected, or snoozed will appear here.
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Brief pane ───────────────────────────────────────────────────────────
+
+function BriefPane({
+  item,
+  busy,
+  noteOpen,
+  note,
+  onNoteChange,
+  onToggleNote,
+  onDecide,
+  onSnooze,
+  onDismiss,
+  onAskAi,
+}: {
+  item: DecisionItem;
+  busy: boolean;
+  noteOpen: boolean;
+  note: string;
+  onNoteChange: (v: string) => void;
+  onToggleNote: () => void;
+  onDecide: (a: "approve" | "reject") => void;
+  onSnooze: () => void;
+  onDismiss: () => void;
+  onAskAi: (question: string) => void;
+}) {
+  const isActivity = item.itemType === "activity";
+  const meta = !isActivity ? SEVERITY_META[item.severity] : null;
+  const ActivityIcon = item.icon;
+  const evidenceKeys =
+    item.evidence && Object.keys(item.evidence).length > 0
+      ? Object.entries(item.evidence).slice(0, 6)
+      : [];
+
+  return (
+    <article className="mx-auto max-w-2xl space-y-5 p-5 sm:p-6">
+      {/* Title */}
+      <div>
+        <div className="flex items-center gap-2">
+          {isActivity && ActivityIcon ? (
+            <span
+              className={cn(
+                "flex h-6 w-6 items-center justify-center rounded-md",
+                item.tone === "green"
+                  ? "bg-balanced-green/10"
+                  : item.tone === "amber"
+                    ? "bg-attention-amber/10"
+                    : item.tone === "red"
+                      ? "bg-error-clay/10"
+                      : "bg-primary/10",
+              )}
+            >
+              <ActivityIcon
+                className={cn(
+                  "h-3.5 w-3.5",
+                  item.tone === "green"
+                    ? "text-balanced-green"
+                    : item.tone === "amber"
+                      ? "text-attention-amber"
+                      : item.tone === "red"
+                        ? "text-error-clay"
+                        : "text-primary",
+                )}
+                aria-hidden="true"
+              />
+            </span>
+          ) : meta ? (
+            <meta.icon
+              className={cn("h-4 w-4", meta.tone)}
+              aria-hidden="true"
+            />
+          ) : (
+            <Bell
+              className="h-4 w-4 text-muted-foreground"
+              aria-hidden="true"
+            />
+          )}
+          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+            {isActivity ? "Activity Update" : (meta?.label ?? "Update")}
+          </span>
+        </div>
+        <h2 className="mt-1.5 text-base font-semibold leading-snug text-foreground">
+          {item.title}
+        </h2>
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          {!isActivity && (
+            <ProvenanceBadge
+              actor="agent"
+              actorName={item.agentName}
+              confidence={item.confidence}
+              source={item.sourceDoc}
+            />
+          )}
+          {item.amount && (
+            <span className="rounded-full bg-attention-amber/10 px-2 py-0.5 font-mono text-[11px] font-semibold tabular-nums text-attention-amber">
+              {item.amount}
+            </span>
+          )}
+        </div>
       </div>
 
-      {/* Detail Drawer */}
-      {selectedItem && (
-        <ItemDetailDrawer
-          item={selectedItem}
-          onClose={() => setSelectedItem(null)}
-          onAction={handleAction}
-          itemState={itemStates[selectedItem.id]}
-        />
+      {/* What */}
+      <Section title="What this is">
+        <p className="text-sm leading-relaxed text-foreground/85">
+          {item.summary}
+        </p>
+      </Section>
+
+      {/* Why (decisions only) */}
+      {item.rationale && (
+        <Section title="Why the agent recommends this">
+          <p className="rounded-lg border border-primary/15 bg-primary/[0.04] px-3 py-2.5 text-[13px] leading-relaxed text-foreground/85">
+            {item.rationale}
+          </p>
+        </Section>
       )}
-    </ModulePageShell>
+
+      {/* Evidence (decisions only) */}
+      {evidenceKeys.length > 0 && (
+        <Section title="Evidence">
+          <dl className="divide-y divide-border/30 overflow-hidden rounded-lg border border-border/50">
+            {evidenceKeys.map(([k, v]) => (
+              <div
+                key={k}
+                className="flex items-start justify-between gap-4 px-3 py-2"
+              >
+                <dt className="shrink-0 text-[11px] capitalize text-muted-foreground">
+                  {k.replace(/([A-Z])/g, " $1").replace(/_/g, " ")}
+                </dt>
+                <dd className="break-words text-right text-xs text-foreground">
+                  {typeof v === "object" ? JSON.stringify(v) : String(v ?? "—")}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </Section>
+      )}
+
+      {/* Note (decisions only) */}
+      {noteOpen && (
+        <div>
+          <label
+            htmlFor={`note-${item.id}`}
+            className="text-[11px] font-medium text-muted-foreground"
+          >
+            Reason for rejecting (helps the agent learn)
+          </label>
+          <textarea
+            id={`note-${item.id}`}
+            value={note}
+            onChange={(e) => onNoteChange(e.target.value)}
+            rows={2}
+            autoFocus
+            placeholder="Tell the agent what it missed…"
+            className="mt-1 w-full resize-none rounded-lg border border-border/50 bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-primary"
+          />
+        </div>
+      )}
+
+      {/* Actions */}
+      <footer className="flex flex-wrap items-center gap-2 border-t border-border/40 pt-4">
+        {isActivity ? (
+          <>
+            {/* Activity: just dismiss + optional action */}
+            {item.actionLabel && item.actionHref && (
+              <a
+                href={item.actionHref}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+              >
+                {item.actionLabel}
+              </a>
+            )}
+            <button
+              type="button"
+              onClick={onDismiss}
+              className="rounded-lg px-3 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
+            >
+              Dismiss
+            </button>
+          </>
+        ) : (
+          <>
+            {/* Decision: approve/reject/snooze */}
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => onDecide("approve")}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-balanced-green px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-balanced-green/90 disabled:opacity-50"
+            >
+              <ThumbsUp className="h-3.5 w-3.5" aria-hidden="true" />
+              Approve
+            </button>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => (noteOpen ? onDecide("reject") : onToggleNote())}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-2 text-sm font-medium text-destructive transition-colors hover:bg-destructive/20 disabled:opacity-50"
+            >
+              <ThumbsDown className="h-3.5 w-3.5" aria-hidden="true" />
+              {noteOpen ? "Confirm rejection" : "Reject"}
+            </button>
+            <button
+              type="button"
+              onClick={onSnooze}
+              disabled={busy}
+              className="rounded-lg px-3 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
+            >
+              Snooze 1h
+            </button>
+          </>
+        )}
+
+        <button
+          type="button"
+          onClick={() =>
+            onAskAi(`Explain this: "${item.title}". ${item.summary}`)
+          }
+          className="ml-auto inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium text-primary transition-colors hover:bg-primary/5"
+        >
+          <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+          Ask the CFO
+        </button>
+      </footer>
+    </article>
   );
+}
+
+function Section({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section>
+      <h3 className="mb-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70">
+        {title}
+      </h3>
+      {children}
+    </section>
+  );
+}
+
+// ─── Tasks View ────────────────────────────────────────────────────────────
+//
+// AI-native running tasks view. Shows what the AI is working on right now.
+// Tasks are grouped by status: running, queued, completed, failed.
+
+function TasksView({
+  tasks,
+  isLoading,
+  counts,
+}: {
+  tasks: UnifiedTask[];
+  isLoading: boolean;
+  counts?: {
+    total: number;
+    running: number;
+    completed: number;
+    failed: number;
+  };
+}) {
+  const [selectedTask, setSelectedTask] = useState<UnifiedTask | null>(null);
+  const [statusFilter, setStatusFilter] = useState<
+    "all" | "running" | "completed" | "failed"
+  >("all");
+
+  const filteredTasks = useMemo(() => {
+    if (statusFilter === "all") return tasks;
+    if (statusFilter === "running")
+      return tasks.filter(
+        (t) =>
+          t.status === "in_progress" ||
+          t.status === "queued" ||
+          t.status === "waiting",
+      );
+    if (statusFilter === "completed")
+      return tasks.filter((t) => t.status === "completed");
+    if (statusFilter === "failed")
+      return tasks.filter(
+        (t) => t.status === "failed" || t.status === "blocked",
+      );
+    return tasks;
+  }, [tasks, statusFilter]);
+
+  if (isLoading) {
+    return (
+      <div className="flex min-h-0 flex-1 items-center justify-center p-8">
+        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (tasks.length === 0) {
+    return (
+      <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-2 p-8 text-center">
+        <CheckCircle2
+          className="mb-1 h-8 w-8 text-balanced-green"
+          aria-hidden="true"
+        />
+        <p className="text-sm font-medium text-foreground">No tasks running</p>
+        <p className="max-w-xs text-xs text-muted-foreground">
+          AI agents will start tasks automatically. They&apos;ll appear here as
+          they run.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid min-h-0 flex-1 lg:grid-cols-[380px_1fr]">
+      {/* Task list */}
+      <div className="min-h-0 overflow-y-auto border-b border-border/40 lg:border-b-0 lg:border-r">
+        {/* Status filter chips */}
+        <div className="flex items-center gap-1.5 border-b border-border/30 px-4 py-2">
+          {(
+            [
+              { key: "all" as const, label: "All", count: counts?.total ?? 0 },
+              {
+                key: "running" as const,
+                label: "Running",
+                count: counts?.running ?? 0,
+                color: "text-primary",
+              },
+              {
+                key: "completed" as const,
+                label: "Done",
+                count: counts?.completed ?? 0,
+                color: "text-balanced-green",
+              },
+              {
+                key: "failed" as const,
+                label: "Failed",
+                count: counts?.failed ?? 0,
+                color: "text-error-clay",
+              },
+            ] as const
+          ).map((chip) => (
+            <button
+              key={chip.key}
+              type="button"
+              onClick={() => setStatusFilter(chip.key)}
+              className={cn(
+                "flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium transition-all",
+                statusFilter === chip.key
+                  ? "bg-primary/10 text-primary"
+                  : "text-muted-foreground hover:bg-accent/50",
+              )}
+            >
+              {chip.key === "running" && (
+                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary" />
+              )}
+              {chip.label}
+              {chip.count > 0 && (
+                <span className={cn("font-mono tabular-nums", chip.color)}>
+                  {chip.count}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+
+        {/* Task items */}
+        {filteredTasks.length === 0 ? (
+          <div className="flex items-center justify-center p-8 text-xs text-muted-foreground">
+            No tasks in this category
+          </div>
+        ) : (
+          filteredTasks.map((task) => (
+            <button
+              key={task.id}
+              type="button"
+              onClick={() => setSelectedTask(task)}
+              className={cn(
+                "flex w-full items-start gap-3 border-b border-border/30 px-4 py-3 text-left transition-colors last:border-0",
+                selectedTask?.id === task.id
+                  ? "bg-primary/[0.06]"
+                  : "hover:bg-accent/40",
+              )}
+            >
+              {/* Status icon */}
+              <TaskStatusIcon status={task.status} />
+
+              <span className="min-w-0 flex-1">
+                <span className="flex items-center gap-2">
+                  <span className="block truncate text-xs font-medium text-foreground">
+                    {task.title}
+                  </span>
+                  <TaskSourceBadge source={task.source} />
+                </span>
+
+                {/* Progress bar for running tasks */}
+                {(task.status === "in_progress" ||
+                  task.status === "queued") && (
+                  <div className="mt-1.5 flex items-center gap-2">
+                    <div className="h-1 flex-1 overflow-hidden rounded-full bg-muted">
+                      <div
+                        className="h-full rounded-full bg-primary transition-all duration-500"
+                        style={{ width: `${task.progress}%` }}
+                      />
+                    </div>
+                    <span className="font-mono text-[9px] tabular-nums text-muted-foreground">
+                      {task.progress}%
+                    </span>
+                  </div>
+                )}
+
+                {/* Time + confidence info */}
+                <span className="mt-1 flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                  {task.confidence !== null && (
+                    <span
+                      className={cn(
+                        "font-mono font-semibold tabular-nums",
+                        task.confidence >= 0.8
+                          ? "text-balanced-green"
+                          : "text-attention-amber",
+                      )}
+                    >
+                      {Math.round(task.confidence * 100)}%
+                    </span>
+                  )}
+                  <span className="shrink-0">
+                    {timeAgo(task.startedAt ?? task.createdAt)}
+                  </span>
+                  {task.durationMs !== null && (
+                    <span className="text-muted-foreground/60">
+                      ({formatDuration(task.durationMs)})
+                    </span>
+                  )}
+                </span>
+              </span>
+            </button>
+          ))
+        )}
+      </div>
+
+      {/* Task detail pane */}
+      <div className="min-h-0 overflow-y-auto">
+        {selectedTask ? (
+          <TaskDetail task={selectedTask} />
+        ) : (
+          <div className="flex h-full items-center justify-center p-8 text-sm text-muted-foreground">
+            Select a task to see details
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Task Sub-Components ──────────────────────────────────────────────────
+
+function TaskStatusIcon({ status }: { status: UnifiedTask["status"] }) {
+  const iconClass = "h-3.5 w-3.5 shrink-0";
+
+  switch (status) {
+    case "in_progress":
+      return (
+        <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-primary/10">
+          <Loader2 className={cn(iconClass, "text-primary animate-spin")} />
+        </span>
+      );
+    case "queued":
+      return (
+        <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-muted">
+          <Clock className={cn(iconClass, "text-muted-foreground")} />
+        </span>
+      );
+    case "waiting":
+      return (
+        <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-attention-amber/10">
+          <Pause className={cn(iconClass, "text-attention-amber")} />
+        </span>
+      );
+    case "completed":
+      return (
+        <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-balanced-green/10">
+          <CheckCircle2 className={cn(iconClass, "text-balanced-green")} />
+        </span>
+      );
+    case "failed":
+    case "blocked":
+      return (
+        <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-error-clay/10">
+          <XCircle className={cn(iconClass, "text-error-clay")} />
+        </span>
+      );
+    case "skipped":
+      return (
+        <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-muted">
+          <RotateCcw className={cn(iconClass, "text-muted-foreground")} />
+        </span>
+      );
+    default:
+      return (
+        <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-muted">
+          <Bot className={cn(iconClass, "text-muted-foreground")} />
+        </span>
+      );
+  }
+}
+
+function TaskSourceBadge({ source }: { source: UnifiedTask["source"] }) {
+  const meta = {
+    close_task: {
+      label: "Close",
+      color: "bg-attention-amber/10 text-attention-amber",
+    },
+    live_run: { label: "Agent", color: "bg-primary/10 text-primary" },
+    daily_close: {
+      label: "Daily",
+      color: "bg-balanced-green/10 text-balanced-green",
+    },
+  }[source];
+
+  return (
+    <span
+      className={cn(
+        "shrink-0 rounded-full px-1.5 py-0.5 text-[8px] font-bold uppercase",
+        meta.color,
+      )}
+    >
+      {meta.label}
+    </span>
+  );
+}
+
+function TaskDetail({ task }: { task: UnifiedTask }) {
+  const isRunning =
+    task.status === "in_progress" ||
+    task.status === "queued" ||
+    task.status === "waiting";
+  const isComplete = task.status === "completed";
+
+  return (
+    <article className="space-y-0">
+      {/* Hero — live status banner */}
+      <div
+        className={cn(
+          "relative px-5 pt-5 pb-4 sm:px-6",
+          isRunning && "bg-primary/[0.03]",
+          task.status === "failed" && "bg-error-clay/[0.03]",
+        )}
+      >
+        {isRunning && (
+          <div className="absolute inset-0 bg-gradient-to-b from-primary/[0.04] to-transparent" />
+        )}
+        <div className="relative">
+          <div className="flex items-center gap-2">
+            <TaskStatusIcon status={task.status} />
+            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+              {task.source === "close_task"
+                ? "Month-End Close"
+                : task.source === "live_run"
+                  ? "Agent Run"
+                  : "Daily Close"}
+            </span>
+            <TaskSourceBadge source={task.source} />
+          </div>
+
+          <h2 className="mt-1.5 text-base font-semibold leading-snug text-foreground">
+            {task.title}
+          </h2>
+
+          {/* Confidence + timing row */}
+          <div className="mt-2 flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
+            {task.confidence !== null && (
+              <span className="flex items-center gap-1">
+                <span
+                  className={cn(
+                    "h-1.5 w-1.5 rounded-full",
+                    task.confidence >= 0.8
+                      ? "bg-balanced-green"
+                      : "bg-attention-amber",
+                  )}
+                />
+                <span
+                  className={cn(
+                    "font-semibold tabular-nums",
+                    task.confidence >= 0.8
+                      ? "text-balanced-green"
+                      : "text-attention-amber",
+                  )}
+                >
+                  {Math.round(task.confidence * 100)}% confidence
+                </span>
+              </span>
+            )}
+            {task.durationMs !== null && (
+              <span>{formatDuration(task.durationMs)}</span>
+            )}
+            {task.startedAt && !isRunning && (
+              <span>{timeAgo(task.startedAt)} ago</span>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Progress bar — only for running */}
+      {isRunning && (
+        <div className="border-t border-border/30 px-5 py-3 sm:px-6">
+          <div className="flex items-center justify-between text-[10px] text-muted-foreground mb-1.5">
+            <span className="font-medium">
+              {task.currentStep ?? "Working..."}
+            </span>
+            <span className="font-mono tabular-nums">{task.progress}%</span>
+          </div>
+          <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+            <div
+              className="h-full rounded-full bg-primary transition-all duration-700 ease-out"
+              style={{ width: `${task.progress}%` }}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Live step feed — the AI-native core */}
+      {task.source === "live_run" && (
+        <StepFeed taskId={task.id} source={task.source} isRunning={isRunning} />
+      )}
+
+      {/* Error banner */}
+      {task.error && (
+        <div className="mx-5 sm:mx-6 mb-4">
+          <div className="flex items-start gap-2 rounded-lg border border-destructive/20 bg-destructive/5 px-3 py-2.5">
+            <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-destructive" />
+            <span className="text-xs text-destructive leading-relaxed">
+              {task.error}
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* Description */}
+      {task.description && (
+        <div className="mx-5 sm:mx-6 mb-4">
+          <p className="text-xs leading-relaxed text-muted-foreground">
+            {task.description}
+          </p>
+        </div>
+      )}
+
+      {/* Metadata — compact row */}
+      {task.metadata && Object.keys(task.metadata).length > 0 && (
+        <div className="mx-5 sm:mx-6 mb-4">
+          <div className="flex flex-wrap gap-2">
+            {Object.entries(task.metadata)
+              .filter(
+                ([k, v]) =>
+                  v !== null &&
+                  v !== undefined &&
+                  ![
+                    "model",
+                    "costUsd",
+                    "inputTokens",
+                    "outputTokens",
+                    "runId",
+                    "steps",
+                  ].includes(k),
+              )
+              .slice(0, 6)
+              .map(([k, v]) => (
+                <span
+                  key={k}
+                  className="inline-flex items-center gap-1 rounded-md bg-muted/50 px-2 py-1 text-[10px]"
+                >
+                  <span className="text-muted-foreground">
+                    {k.replace(/([A-Z])/g, " $1").replace(/_/g, " ")}
+                  </span>
+                  <span className="font-medium text-foreground">
+                    {typeof v === "object" ? "..." : String(v)}
+                  </span>
+                </span>
+              ))}
+          </div>
+        </div>
+      )}
+    </article>
+  );
+}
+
+// ─── Step Feed (AI-Native Live View) ──────────────────────────────────────
+// Shows step-by-step progress like Cursor/Devin — the core AI UX.
+
+function StepFeed({
+  taskId,
+  source,
+  isRunning,
+}: {
+  taskId: string;
+  source: UnifiedTask["source"];
+  isRunning: boolean;
+}) {
+  const stepsQuery = trpc.tasks.getSteps.useQuery(
+    { taskId, source: source as "live_run" | "daily_close" | "close_task" },
+    { refetchInterval: isRunning ? 2000 : false },
+  );
+
+  const steps = stepsQuery.data?.steps ?? [];
+
+  if (steps.length === 0) {
+    if (!isRunning) return null;
+    return (
+      <div className="mx-5 sm:mx-6 mb-4">
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <Loader2 className="h-3 w-3 animate-spin text-primary" />
+          <span>Initializing...</span>
+        </div>
+      </div>
+    );
+  }
+
+  const completedCount = steps.filter((s) => s.status === "completed").length;
+  const failedStep = steps.find((s) => s.status === "failed");
+  const currentStep = steps.find((s) => s.status === "in_progress");
+
+  return (
+    <div className="mx-5 sm:mx-6 mb-4">
+      <div className="rounded-lg border border-border/40 bg-muted/20">
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-border/30 px-3 py-2">
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+            {isRunning ? "Live" : "Steps"}
+          </span>
+          <span className="text-[10px] tabular-nums text-muted-foreground">
+            {completedCount}/{steps.length}
+          </span>
+        </div>
+
+        {/* Steps */}
+        <div className="divide-y divide-border/20">
+          {steps.map((step, i) => (
+            <StepItem
+              key={`${step.stepNumber}-${step.name}`}
+              step={step}
+              stepNumber={i + 1}
+              totalSteps={steps.length}
+              isLast={i === steps.length - 1}
+            />
+          ))}
+        </div>
+
+        {/* Live indicator */}
+        {isRunning && currentStep && (
+          <div className="flex items-center gap-2 border-t border-border/30 px-3 py-2">
+            <span className="relative flex h-2 w-2">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-primary" />
+            </span>
+            <span className="text-[11px] text-primary font-medium">
+              {currentStep.name}
+            </span>
+          </div>
+        )}
+
+        {/* Failure banner */}
+        {failedStep && (
+          <div className="flex items-center gap-2 border-t border-destructive/20 bg-destructive/5 px-3 py-2">
+            <XCircle className="h-3 w-3 shrink-0 text-destructive" />
+            <span className="text-[11px] text-destructive">
+              Failed: {failedStep.name}
+            </span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Single Step Item ──────────────────────────────────────────────────────
+
+function StepItem({
+  step,
+  stepNumber,
+  totalSteps,
+  isLast,
+}: {
+  step: {
+    name: string;
+    status: string;
+    durationMs: number | null;
+    error: string | null;
+  };
+  stepNumber: number;
+  totalSteps: number;
+  isLast: boolean;
+}) {
+  const isComplete = step.status === "completed";
+  const isFailed = step.status === "failed";
+  const isActive = step.status === "in_progress";
+  const isSkipped = step.status === "skipped";
+
+  return (
+    <div className="flex items-start gap-2.5 px-3 py-2">
+      {/* Status indicator */}
+      <div className="mt-0.5 flex shrink-0 items-center justify-center">
+        {isComplete ? (
+          <CheckCircle2 className="h-3.5 w-3.5 text-balanced-green" />
+        ) : isFailed ? (
+          <XCircle className="h-3.5 w-3.5 text-destructive" />
+        ) : isActive ? (
+          <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
+        ) : isSkipped ? (
+          <SkipForward className="h-3.5 w-3.5 text-muted-foreground/50" />
+        ) : (
+          <span className="flex h-3.5 w-3.5 items-center justify-center">
+            <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/30" />
+          </span>
+        )}
+      </div>
+
+      {/* Step content */}
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center justify-between gap-2">
+          <span
+            className={cn(
+              "text-xs truncate",
+              isActive && "font-medium text-foreground",
+              isComplete && "text-muted-foreground",
+              isFailed && "text-destructive",
+              !isActive &&
+                !isComplete &&
+                !isFailed &&
+                "text-muted-foreground/60",
+            )}
+          >
+            {step.name}
+          </span>
+          {step.durationMs !== null && (
+            <span className="shrink-0 font-mono text-[10px] tabular-nums text-muted-foreground/60">
+              {formatDuration(step.durationMs)}
+            </span>
+          )}
+        </div>
+        {step.error && (
+          <span className="mt-0.5 block text-[10px] text-destructive truncate">
+            {step.error}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function StatusBadge({ status }: { status: UnifiedTask["status"] }) {
+  const meta = {
+    in_progress: { label: "Running", color: "bg-primary/10 text-primary" },
+    queued: { label: "Queued", color: "bg-muted text-muted-foreground" },
+    waiting: {
+      label: "Waiting",
+      color: "bg-attention-amber/10 text-attention-amber",
+    },
+    completed: {
+      label: "Completed",
+      color: "bg-balanced-green/10 text-balanced-green",
+    },
+    failed: { label: "Failed", color: "bg-error-clay/10 text-error-clay" },
+    blocked: { label: "Blocked", color: "bg-error-clay/10 text-error-clay" },
+    skipped: { label: "Skipped", color: "bg-muted text-muted-foreground" },
+  }[status];
+
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold",
+        meta.color,
+      )}
+    >
+      {status === "in_progress" && (
+        <span className="mr-1 h-1.5 w-1.5 animate-pulse rounded-full bg-primary" />
+      )}
+      {meta.label}
+    </span>
+  );
+}
+
+function formatDuration(ms: number): string {
+  if (ms < 60_000) return `${Math.round(ms / 1000)}s`;
+  const mins = Math.floor(ms / 60_000);
+  const secs = Math.round((ms % 60_000) / 1000);
+  if (mins < 60) return `${mins}m ${secs}s`;
+  const hrs = Math.floor(mins / 60);
+  const remMins = mins % 60;
+  return `${hrs}h ${remMins}m`;
 }

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
+  MessageSquare,
   Sparkles,
   Inbox,
   Activity,
@@ -11,12 +12,14 @@ import {
   ArrowLeftRight,
   Settings,
   HelpCircle,
+  History,
   type LucideIcon,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/ui/logo";
 import { useWhiteLabel } from "@/components/layout/white-label-provider";
+import { useSession } from "next-auth/react";
 import { useEntity } from "@/lib/entity-context";
 import { getRoleConfig } from "@/lib/role-config";
 import { trpc } from "@/lib/trpc/client";
@@ -37,6 +40,8 @@ type NavItem = {
 // Financial Pulse: AI-narrated financial health. Visual, not tabular.
 // Ledger: The accounting records. Deep-dive when needed.
 // Operations: Money in, money out. AI handles, you approve.
+const DEMO_EMAIL = "demo@xenboox.com";
+
 const primaryNavItems: NavItem[] = [
   {
     label: "Command Center",
@@ -214,6 +219,188 @@ function AgentStatusBar({ expanded }: { expanded: boolean }) {
   );
 }
 
+// ─── Legacy Section (demo users only) ─────────────────────────────────
+
+function LegacySection({
+  isHovered,
+  onClose,
+  onCollapse,
+}: {
+  isHovered: boolean;
+  onClose: () => void;
+  onCollapse: () => void;
+}) {
+  const pathname = usePathname() ?? "/";
+  const { data: session } = useSession();
+  const isDemoUser = session?.user?.email === DEMO_EMAIL;
+
+  if (!isDemoUser) return null;
+
+  return (
+    <div className="border-t border-white/[0.06] p-3">
+      <div
+        className={cn(
+          "flex items-center gap-2 px-2 py-1",
+          isHovered ? "md:flex-row md:px-0" : "md:flex-col md:px-0",
+        )}
+      >
+        <History className="h-3 w-3 shrink-0 text-muted-foreground/50" />
+        <span
+          className={cn(
+            "text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/50",
+            isHovered ? "md:inline" : "md:hidden",
+            "lg:inline",
+          )}
+        >
+          Legacy
+        </span>
+      </div>
+      <div className="mt-1 space-y-0.5">
+        <Link
+          href="/dashboard/legacy/dashboard"
+          title="Dashboard (old)"
+          onClick={() => {
+            onClose();
+            onCollapse();
+          }}
+          className={cn(
+            "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-150",
+            "md:flex-col md:gap-1 md:px-1 md:py-2 md:text-[10px] md:leading-tight",
+            pathname.startsWith("/dashboard/legacy/dashboard")
+              ? "bg-primary/15 text-primary"
+              : "text-[hsl(var(--sidebar-text-dim))] hover:bg-white/[0.06] hover:text-[hsl(var(--sidebar-text))]",
+          )}
+        >
+          <MessageSquare className="h-5 w-5" />
+          <span
+            className={cn(
+              "flex-1 truncate",
+              isHovered
+                ? "md:block md:flex-none md:w-full md:text-center"
+                : "md:hidden",
+              "lg:block lg:flex-none lg:w-full lg:text-center",
+            )}
+          >
+            Dashboard (old)
+          </span>
+        </Link>
+        <Link
+          href="/dashboard/legacy/activity-hub"
+          title="Activity Hub (old)"
+          onClick={() => {
+            onClose();
+            onCollapse();
+          }}
+          className={cn(
+            "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-150",
+            "md:flex-col md:gap-1 md:px-1 md:py-2 md:text-[10px] md:leading-tight",
+            pathname.startsWith("/dashboard/legacy/activity-hub")
+              ? "bg-primary/15 text-primary"
+              : "text-[hsl(var(--sidebar-text-dim))] hover:bg-white/[0.06] hover:text-[hsl(var(--sidebar-text))]",
+          )}
+        >
+          <Inbox className="h-5 w-5" />
+          <span
+            className={cn(
+              "flex-1 truncate",
+              isHovered
+                ? "md:block md:flex-none md:w-full md:text-center"
+                : "md:hidden",
+              "lg:block lg:flex-none lg:w-full lg:text-center",
+            )}
+          >
+            Activity Hub (old)
+          </span>
+        </Link>
+        <Link
+          href="/dashboard/legacy/financial-pulse"
+          title="Financial Pulse (old)"
+          onClick={() => {
+            onClose();
+            onCollapse();
+          }}
+          className={cn(
+            "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-150",
+            "md:flex-col md:gap-1 md:px-1 md:py-2 md:text-[10px] md:leading-tight",
+            pathname.startsWith("/dashboard/legacy/financial-pulse")
+              ? "bg-primary/15 text-primary"
+              : "text-[hsl(var(--sidebar-text-dim))] hover:bg-white/[0.06] hover:text-[hsl(var(--sidebar-text))]",
+          )}
+        >
+          <Activity className="h-5 w-5" />
+          <span
+            className={cn(
+              "flex-1 truncate",
+              isHovered
+                ? "md:block md:flex-none md:w-full md:text-center"
+                : "md:hidden",
+              "lg:block lg:flex-none lg:w-full lg:text-center",
+            )}
+          >
+            Financial Pulse (old)
+          </span>
+        </Link>
+        <Link
+          href="/dashboard/legacy/ledger"
+          title="Ledger (old)"
+          onClick={() => {
+            onClose();
+            onCollapse();
+          }}
+          className={cn(
+            "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-150",
+            "md:flex-col md:gap-1 md:px-1 md:py-2 md:text-[10px] md:leading-tight",
+            pathname.startsWith("/dashboard/legacy/ledger")
+              ? "bg-primary/15 text-primary"
+              : "text-[hsl(var(--sidebar-text-dim))] hover:bg-white/[0.06] hover:text-[hsl(var(--sidebar-text))]",
+          )}
+        >
+          <BookOpen className="h-5 w-5" />
+          <span
+            className={cn(
+              "flex-1 truncate",
+              isHovered
+                ? "md:block md:flex-none md:w-full md:text-center"
+                : "md:hidden",
+              "lg:block lg:flex-none lg:w-full lg:text-center",
+            )}
+          >
+            Ledger (old)
+          </span>
+        </Link>
+        <Link
+          href="/dashboard/legacy/operations"
+          title="Operations (old)"
+          onClick={() => {
+            onClose();
+            onCollapse();
+          }}
+          className={cn(
+            "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-150",
+            "md:flex-col md:gap-1 md:px-1 md:py-2 md:text-[10px] md:leading-tight",
+            pathname.startsWith("/dashboard/legacy/operations")
+              ? "bg-primary/15 text-primary"
+              : "text-[hsl(var(--sidebar-text-dim))] hover:bg-white/[0.06] hover:text-[hsl(var(--sidebar-text))]",
+          )}
+        >
+          <ArrowLeftRight className="h-5 w-5" />
+          <span
+            className={cn(
+              "flex-1 truncate",
+              isHovered
+                ? "md:block md:flex-none md:w-full md:text-center"
+                : "md:hidden",
+              "lg:block lg:flex-none lg:w-full lg:text-center",
+            )}
+          >
+            Operations (old)
+          </span>
+        </Link>
+      </div>
+    </div>
+  );
+}
+
 export function AISidebar({ isOpen, onClose }: SidebarProps) {
   const pathname = usePathname() ?? "/";
 
@@ -247,7 +434,10 @@ export function AISidebar({ isOpen, onClose }: SidebarProps) {
     };
     const surface = surfaceMap[item.href];
     if (!surface) return true;
-    return roleConfig.surfaces[surface as keyof typeof roleConfig.surfaces] !== "hidden";
+    return (
+      roleConfig.surfaces[surface as keyof typeof roleConfig.surfaces] !==
+      "hidden"
+    );
   });
 
   function isActive(item: NavItem) {
@@ -350,6 +540,13 @@ export function AISidebar({ isOpen, onClose }: SidebarProps) {
 
         {/* Agent status — renders only when something is processing/pending */}
         <AgentStatusBar expanded={isHovered} />
+
+        {/* Legacy section — demo users only */}
+        <LegacySection
+          isHovered={isHovered}
+          onClose={onClose}
+          onCollapse={() => setIsHovered(false)}
+        />
 
         {/* Settings + Help */}
         <div className="border-t border-white/[0.06] p-3 space-y-1">

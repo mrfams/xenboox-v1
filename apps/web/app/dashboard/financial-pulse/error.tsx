@@ -2,7 +2,7 @@
 
 import { ErrorBoundary } from "@/components/shared/error-boundary";
 
-export default function DashboardError({
+export default function FinancialPulseNewError({
   error,
   reset,
 }: {
@@ -10,7 +10,7 @@ export default function DashboardError({
   reset: () => void;
 }) {
   return (
-    <ErrorBoundary surface="dashboard" action="dashboard-error">
+    <ErrorBoundary surface="financial-pulse" action="financial-pulse-new-error">
       <div className="flex min-h-[50vh] flex-col items-center justify-center p-8 text-center">
         <h2 className="text-xl font-semibold text-foreground">
           Something went wrong
