@@ -39,13 +39,14 @@ import { BankingView } from "@/components/operations/banking-view";
 //
 // Keyboard: 1-5 switch tabs, j/k navigate, Enter open detail
 
-type Tab = "cash" | "invoices" | "bills" | "people" | "banking";
+type Tab = "cash" | "invoices" | "bills" | "customers" | "vendors" | "banking";
 
 const TABS: { key: Tab; label: string; icon: LucideIcon }[] = [
   { key: "cash", label: "Cash Position", icon: TrendingUp },
   { key: "invoices", label: "Invoices", icon: FileText },
   { key: "bills", label: "Bills", icon: CreditCard },
-  { key: "people", label: "People", icon: Users },
+  { key: "customers", label: "Customers", icon: Users },
+  { key: "vendors", label: "Vendors", icon: Building2 },
   { key: "banking", label: "Banking", icon: Landmark },
 ];
 
@@ -77,9 +78,13 @@ export default function MoneyFlowsPage() {
           break;
         case "4":
           e.preventDefault();
-          setTab("people");
+          setTab("customers");
           break;
         case "5":
+          e.preventDefault();
+          setTab("vendors");
+          break;
+        case "6":
           e.preventDefault();
           setTab("banking");
           break;
@@ -138,7 +143,8 @@ export default function MoneyFlowsPage() {
         {tab === "cash" && <CashPositionPanel />}
         {tab === "invoices" && <InvoicesView />}
         {tab === "bills" && <BillsView />}
-        {tab === "people" && <PeoplePanel />}
+        {tab === "customers" && <CustomersView />}
+        {tab === "vendors" && <VendorsView />}
         {tab === "banking" && <BankingView />}
       </div>
     </div>
