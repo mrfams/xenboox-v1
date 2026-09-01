@@ -15,8 +15,9 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@xenboox/ui";
-import { Progress, Badge } from "@xenboox/ui";
+  Progress,
+  Badge,
+} from "@/components/ui";
 import {
   ArrowLeft,
   ArrowRight,
@@ -72,25 +73,72 @@ const CURRENCIES = [
 
 // ─── Industry Defaults ─────────────────────────────────────────────────────
 
-const INDUSTRY_DEFAULTS: Record<string, { coa: string[]; invoiceItems: string[] }> = {
+const INDUSTRY_DEFAULTS: Record<
+  string,
+  { coa: string[]; invoiceItems: string[] }
+> = {
   trading: {
-    coa: ["Cash", "Accounts Receivable", "Inventory", "Accounts Payable", "Sales Revenue", "Cost of Goods Sold", "Rent Expense", "Utilities"],
+    coa: [
+      "Cash",
+      "Accounts Receivable",
+      "Inventory",
+      "Accounts Payable",
+      "Sales Revenue",
+      "Cost of Goods Sold",
+      "Rent Expense",
+      "Utilities",
+    ],
     invoiceItems: ["Wholesale goods", "Trading commission", "Delivery fee"],
   },
   services: {
-    coa: ["Cash", "Accounts Receivable", "Accounts Payable", "Service Revenue", "Salary Expense", "Office Rent", "Software Subscriptions"],
+    coa: [
+      "Cash",
+      "Accounts Receivable",
+      "Accounts Payable",
+      "Service Revenue",
+      "Salary Expense",
+      "Office Rent",
+      "Software Subscriptions",
+    ],
     invoiceItems: ["Consulting services", "Project fee", "Hourly rate"],
   },
   retail: {
-    coa: ["Cash", "Accounts Receivable", "Inventory", "Accounts Payable", "Sales Revenue", "Cost of Goods Sold", "Store Rent", "Marketing"],
+    coa: [
+      "Cash",
+      "Accounts Receivable",
+      "Inventory",
+      "Accounts Payable",
+      "Sales Revenue",
+      "Cost of Goods Sold",
+      "Store Rent",
+      "Marketing",
+    ],
     invoiceItems: ["Product sale", "Shipping fee", "Installation service"],
   },
   manufacturing: {
-    coa: ["Cash", "Accounts Receivable", "Raw Materials", "Work in Progress", "Finished Goods", "Accounts Payable", "Sales Revenue", "Production Costs"],
+    coa: [
+      "Cash",
+      "Accounts Receivable",
+      "Raw Materials",
+      "Work in Progress",
+      "Finished Goods",
+      "Accounts Payable",
+      "Sales Revenue",
+      "Production Costs",
+    ],
     invoiceItems: ["Manufacturing fee", "Raw materials", "Assembly service"],
   },
   other: {
-    coa: ["Cash", "Accounts Receivable", "Accounts Payable", "Revenue", "Expenses", "Rent", "Utilities", "Miscellaneous"],
+    coa: [
+      "Cash",
+      "Accounts Receivable",
+      "Accounts Payable",
+      "Revenue",
+      "Expenses",
+      "Rent",
+      "Utilities",
+      "Miscellaneous",
+    ],
     invoiceItems: ["Service fee", "Product sale", "Consulting"],
   },
 };
