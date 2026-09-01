@@ -10,24 +10,41 @@ import {
   type Locale,
 } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
+import { trpc } from "@/lib/trpc/client";
 
 // ─── Language Selector ─────────────────────────────────────────────────────
 //
 // Dropdown selector for changing the platform language.
 // Supports English, French, Arabic (RTL), and Spanish.
+// Now DB-persistent via trpc.settings (cross-device), with localStorage as
+// optimistic cache only.
 
 export function LanguageSelector() {
   const [isOpen, setIsOpen] = useState(false);
   const [currentLocale, setCurrentLocale] = useState<Locale>("en");
 
+  const { data: prefs } = trpc.settings.getAppearancePrefs.useQuery();
+  const updatePrefs = trpc.settings.updateAppearancePrefs.useMutation();
+
   useEffect(() => {
-    setCurrentLocale(getLocale());
-  }, []);
+    // DB is source of truth — sync to localStorage and UI
+    if (prefs?.language) {
+      const dbLocale = prefs.language as Locale;
+      if (dbLocale !== currentLocale) {
+        setLocale(dbLocale);
+        setCurrentLocale(dbLocale);
+      }
+    } else {
+      setCurrentLocale(getLocale());
+    }
+  }, [prefs?.language, currentLocale]);
 
   const handleSelect = (locale: Locale) => {
     setLocale(locale);
     setCurrentLocale(locale);
     setIsOpen(false);
+    // Persist to DB (cross-device) — localStorage is just cache
+    updatePrefs.mutate({ language: locale } as never);
   };
 
   const locales = getAvailableLocales();

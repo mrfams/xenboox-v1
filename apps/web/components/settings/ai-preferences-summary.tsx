@@ -28,28 +28,13 @@ const DEFAULT_PREFS: AIPreferences = {
   dailyDigest: true,
 };
 
-const PREFS_KEY = "xenboox_ai_preferences";
-
-function getStoredPrefs(): AIPreferences {
-  if (typeof window === "undefined") return DEFAULT_PREFS;
-  try {
-    const stored = localStorage.getItem(PREFS_KEY);
-    if (stored) {
-      return { ...DEFAULT_PREFS, ...JSON.parse(stored) };
-    }
-  } catch {
-    // Fall through to defaults
-  }
-  return DEFAULT_PREFS;
-}
-
 export function AIPreferencesSummary() {
   const { data: session } = useSession();
   const [prefs, setPrefs] = useState<AIPreferences>(DEFAULT_PREFS);
   const [isLoaded, setIsLoaded] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
 
-  // Server-side settings
+  // Server is source of truth — cross-device, survives cache clear
   const getSettings = trpc.settings.get.useQuery(undefined, {
     enabled: !!session?.user?.id,
     staleTime: 5 * 60 * 1000,
@@ -57,25 +42,20 @@ export function AIPreferencesSummary() {
   const setSettingsMutation = trpc.settings.set.useMutation();
 
   useEffect(() => {
-    // Try server first (cross-device persistence)
     if (getSettings.data) {
       const serverSettings = getSettings.data as Record<string, unknown>;
       const aiPrefs = serverSettings.aiPreferences as AIPreferences | undefined;
       if (aiPrefs) {
         setPrefs({ ...DEFAULT_PREFS, ...aiPrefs });
-        // Sync localStorage
-        localStorage.setItem(PREFS_KEY, JSON.stringify(aiPrefs));
-        setIsLoaded(true);
-        return;
+      } else {
+        setPrefs(DEFAULT_PREFS);
       }
-    }
-
-    // Fallback to localStorage
-    if (!getSettings.isLoading || getSettings.isError) {
-      setPrefs(getStoredPrefs());
+      setIsLoaded(true);
+    } else if (getSettings.isError) {
+      setPrefs(DEFAULT_PREFS);
       setIsLoaded(true);
     }
-  }, [getSettings.data, getSettings.isLoading, getSettings.isError]);
+  }, [getSettings.data, getSettings.isError]);
 
   const updatePref = (key: keyof AIPreferences, value: boolean) => {
     setPrefs((prev) => ({ ...prev, [key]: value }));
@@ -83,10 +63,7 @@ export function AIPreferencesSummary() {
   };
 
   const handleSave = () => {
-    // Save to localStorage (instant)
-    localStorage.setItem(PREFS_KEY, JSON.stringify(prefs));
     setHasChanges(false);
-    // Persist to server (cross-device)
     if (session?.user?.id) {
       setSettingsMutation.mutate({ aiPreferences: prefs });
     }
@@ -95,9 +72,6 @@ export function AIPreferencesSummary() {
 
   const handleReset = () => {
     setPrefs(DEFAULT_PREFS);
-    // Save to localStorage (instant)
-    localStorage.setItem(PREFS_KEY, JSON.stringify(DEFAULT_PREFS));
-    // Persist to server (cross-device)
     if (session?.user?.id) {
       setSettingsMutation.mutate({ aiPreferences: DEFAULT_PREFS });
     }

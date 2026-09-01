@@ -63,15 +63,16 @@ export function CurrencySection() {
   const utils = trpc.useUtils();
 
   // ── Conversion tool ──
-  const [convertFrom, setConvertFrom] = useState("USD");
-  const [convertTo, setConvertTo] = useState(settings?.baseCurrency ?? "USD");
+  const base = settings?.baseCurrency ?? currencies?.[0]?.code ?? "USD";
+  const [convertFrom, setConvertFrom] = useState(base);
+  const [convertTo, setConvertTo] = useState(settings?.baseCurrency ?? base);
   const [convertAmount, setConvertAmount] = useState("100");
 
   // ── Add rate dialog ──
   const [showAdd, setShowAdd] = useState(false);
   const [rateForm, setRateForm] = useState({
-    fromCurrency: "USD",
-    toCurrency: settings?.baseCurrency ?? "USD",
+    fromCurrency: base,
+    toCurrency: settings?.baseCurrency ?? base,
     rate: "",
     asOf: new Date().toISOString().slice(0, 10),
   });
@@ -125,9 +126,10 @@ export function CurrencySection() {
   };
 
   const openAddDialog = () => {
+    const baseNow = settings?.baseCurrency ?? currencies?.[0]?.code ?? "USD";
     setRateForm({
-      fromCurrency: "USD",
-      toCurrency: settings?.baseCurrency ?? "USD",
+      fromCurrency: baseNow,
+      toCurrency: baseNow,
       rate: "",
       asOf: new Date().toISOString().slice(0, 10),
     });

@@ -50,25 +50,6 @@ type ExportedSettings = {
   };
 };
 
-// ─── localStorage Keys ────────────────────────────────────────────────────────
-
-const KEYS = {
-  aiPreferences: "xenboox_ai_preferences",
-  onboardingCompleted: "xenboox_onboarding_completed",
-  onboardingStep: "xenboox_onboarding_step",
-} as const;
-
-// ─── Helper: Read from localStorage ───────────────────────────────────────────
-
-function readFromStorage<T>(key: string): T | null {
-  try {
-    const stored = localStorage.getItem(key);
-    return stored ? JSON.parse(stored) : null;
-  } catch {
-    return null;
-  }
-}
-
 // ─── Helper: Validate imported settings ───────────────────────────────────────
 
 function validateImportedSettings(data: unknown): data is ExportedSettings {
@@ -103,17 +84,26 @@ export function ExportImportSettings({
     },
   });
 
+  const { data: serverSettings } = trpc.settings.get.useQuery();
+  const setSettingsMutation = trpc.settings.set.useMutation();
+
   // ── Export ──
 
   const handleExport = () => {
+    const server = serverSettings as Record<string, unknown> | undefined;
     const settings: ExportedSettings = {
       version: APP_CONFIG.version,
       exportedAt: new Date().toISOString(),
-      aiPreferences: readFromStorage(KEYS.aiPreferences),
+      aiPreferences:
+        (server?.aiPreferences as ExportedSettings["aiPreferences"]) ?? null,
       notificationPreferences: null, // Notifications are server-side, not exported
       onboarding: {
-        completed: localStorage.getItem(KEYS.onboardingCompleted) === "true",
-        currentStep: localStorage.getItem(KEYS.onboardingStep),
+        completed: Boolean(
+          (server as Record<string, unknown> | undefined)?.onboardingCompleted,
+        ),
+        currentStep:
+          ((server as Record<string, unknown> | undefined)?.onboardingStep as
+            string | null) ?? null,
       },
     };
 
@@ -176,29 +166,16 @@ export function ExportImportSettings({
       label: "Auto-backup: before settings import",
     });
 
-    // Apply AI preferences
+    // Apply AI preferences server-side (cross-device, not localStorage)
     if (importPreview.aiPreferences) {
-      localStorage.setItem(
-        KEYS.aiPreferences,
-        JSON.stringify(importPreview.aiPreferences),
-      );
+      setSettingsMutation.mutate({
+        aiPreferences: importPreview.aiPreferences,
+      });
     }
 
-    // Apply onboarding status
-    if (importPreview.onboarding.completed) {
-      localStorage.setItem(KEYS.onboardingCompleted, "true");
-    } else {
-      localStorage.removeItem(KEYS.onboardingCompleted);
-    }
-
-    if (importPreview.onboarding.currentStep) {
-      localStorage.setItem(
-        KEYS.onboardingStep,
-        importPreview.onboarding.currentStep,
-      );
-    } else {
-      localStorage.removeItem(KEYS.onboardingStep);
-    }
+    // Onboarding is now tracked server-side via activation events;
+    // imported onboarding status is intentionally not written to localStorage.
+    // The server will handle it via the activation router if needed.
 
     setShowImportDialog(false);
     setImportPreview(null);

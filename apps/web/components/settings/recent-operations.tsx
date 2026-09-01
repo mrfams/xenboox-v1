@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   Card,
   CardContent,
@@ -8,98 +8,130 @@ import {
   CardTitle,
   Button,
 } from "@/components/ui";
-import { History, RotateCcw, Trash2, Clock, Loader2 } from "lucide-react";
-import { cn } from "@/lib/utils";
 import {
-  type RecentOperation,
-  getRecentOperations,
-  clearRecentOperations,
-} from "@/lib/settings-undo";
+  History,
+  RotateCcw,
+  Trash2,
+  Clock,
+  Loader2,
+  Settings,
+  AlertTriangle,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { trpc } from "@/lib/trpc/client";
+import { useEntity } from "@/lib/entity-context";
+import { toast } from "sonner";
 
 // ─── Operation Icons ──────────────────────────────────────────────────────────
 
-const OPERATION_ICONS: Record<string, string> = {
-  "Onboarding reset": "🔄",
-  "All settings reset": "🗑️",
-  "Settings imported": "📥",
-  "Restored from v": "⏪",
+const OPERATION_ICONS: Record<string, typeof History> = {
+  "Onboarding reset": History,
+  "All settings reset": Settings,
+  "Settings imported": History,
+  "Restored from v": RotateCcw,
 };
 
-function getOperationIcon(name: string): string {
-  for (const [key, icon] of Object.entries(OPERATION_ICONS)) {
-    if (name.startsWith(key)) return icon;
+function getOperationIcon(name: string) {
+  for (const [key, Icon] of Object.entries(OPERATION_ICONS)) {
+    if (name.startsWith(key)) return Icon;
   }
-  return "⚡";
+  return AlertTriangle;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function RecentOperations() {
-  const [operations, setOperations] = useState<RecentOperation[]>([]);
-  const [restoringId, setRestoringId] = useState<string | null>(null);
+  const { entityId } = useEntity();
   const [isExpanded, setIsExpanded] = useState(false);
+  const utils = trpc.useUtils();
 
-  useEffect(() => {
-    setOperations(getRecentOperations());
-  }, []);
+  const {
+    data: auditData,
+    isLoading,
+    isError,
+    error,
+    refetch,
+  } = trpc.settings.getAuditLog.useQuery(
+    { limit: 10, offset: 0 },
+    { enabled: !!entityId },
+  );
+  const restoreVersion = trpc.settings.restoreVersion.useMutation({
+    onSuccess: () => {
+      toast.success("Settings restored");
+      utils.settings.getAuditLog.invalidate();
+      window.location.reload();
+    },
+    onError: (err) => toast.error(err.message || "Restore failed"),
+  });
 
-  const handleRestore = async (operation: RecentOperation) => {
-    if (!operation.versionId) {
-      // No version ID — fetch latest and restore
-      setRestoringId(operation.id);
-      try {
-        const response = await fetch(
-          "/api/trpc/settings.getVersions?input=%7B%22limit%22%3A1%7D",
-          {
-            headers: { "Content-Type": "application/json" },
-          },
-        );
-        const data = await response.json();
-        const latestVersion = data?.result?.data?.[0];
-
-        if (latestVersion) {
-          const restoreResponse = await fetch(
-            "/api/trpc/settings.restoreVersion",
-            {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ json: { versionId: latestVersion.id } }),
-            },
-          );
-          const restoreData = await restoreResponse.json();
-          if (restoreData?.result?.data) {
-            window.location.reload();
+  const operations =
+    (
+      auditData as unknown as
+        | {
+            logs?: Array<{
+              id: string;
+              action: string;
+              createdAt: string;
+              versionLabel?: string | null;
+            }>;
           }
-        }
-      } catch {
-        // Silent fail
-      }
-      setRestoringId(null);
-      return;
-    }
+        | undefined
+    )?.logs ?? [];
 
-    // Restore specific version
-    setRestoringId(operation.id);
+  const handleRestore = async (operation: { id: string }) => {
     try {
-      const response = await fetch("/api/trpc/settings.restoreVersion", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ json: { versionId: operation.versionId } }),
-      });
-      const data = await response.json();
-      if (data?.result?.data) {
-        window.location.reload();
-      }
+      await restoreVersion.mutateAsync({ versionId: operation.id });
     } catch {
-      // Silent fail
+      // handled by mutation onError
     }
-    setRestoringId(null);
   };
 
   const handleClearAll = () => {
-    clearRecentOperations();
-    setOperations([]);
+    // Audit log is append-only — clear is not supported server-side.
+    // We just collapse the panel; real audit retention is via settings_versions prune.
+    setIsExpanded(false);
+    toast.info("Audit log is append-only and retained per retention policy");
   };
+
+  if (isLoading) {
+    return (
+      <Card>
+        <CardHeader>
+          <div className="h-5 w-32 animate-pulse rounded bg-muted" />
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-2">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-12 animate-pulse rounded bg-muted/50" />
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (isError) {
+    return (
+      <Card className="border-destructive/50">
+        <CardContent className="p-4">
+          <p className="text-sm text-destructive">
+            Failed to load recent operations
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            {String((error as Error)?.message ?? error)}
+          </p>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => refetch()}
+            className="mt-2"
+          >
+            Retry
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
 
   if (operations.length === 0) {
     return null; // Don't show panel if no operations
@@ -146,37 +178,40 @@ export function RecentOperations() {
           </div>
 
           <div className="space-y-2">
-            {operations.map((op) => (
-              <div
-                key={op.id}
-                className="flex items-center gap-3 rounded-lg border bg-muted/30 px-3 py-2"
-              >
-                <span className="text-lg">{getOperationIcon(op.name)}</span>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">{op.name}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {formatTimeAgo(op.timestamp)}
-                    {op.versionLabel && (
-                      <span className="ml-1">· {op.versionLabel}</span>
-                    )}
-                  </p>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleRestore(op)}
-                  disabled={restoringId === op.id}
-                  className="shrink-0"
+            {operations.map((op) => {
+              const Icon = getOperationIcon(op.action);
+              return (
+                <div
+                  key={op.id}
+                  className="flex items-center gap-3 rounded-lg border bg-muted/30 px-3 py-2"
                 >
-                  {restoringId === op.id ? (
-                    <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                  ) : (
-                    <RotateCcw className="mr-1 h-3 w-3" />
-                  )}
-                  Undo
-                </Button>
-              </div>
-            ))}
+                  <Icon
+                    className="h-4 w-4 text-muted-foreground shrink-0"
+                    aria-hidden="true"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{op.action}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {formatTimeAgo(op.createdAt)}
+                    </p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleRestore(op)}
+                    disabled={restoreVersion.isPending}
+                    className="shrink-0"
+                  >
+                    {restoreVersion.isPending ? (
+                      <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                    ) : (
+                      <RotateCcw className="mr-1 h-3 w-3" />
+                    )}
+                    Undo
+                  </Button>
+                </div>
+              );
+            })}
           </div>
         </CardContent>
       )}
@@ -187,14 +222,21 @@ export function RecentOperations() {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function formatTimeAgo(dateStr: string): string {
-  const now = Date.now();
-  const then = new Date(dateStr).getTime();
-  const diff = now - then;
-  const minutes = Math.floor(diff / 60_000);
-  const hours = Math.floor(diff / 3_600_000);
-  const days = Math.floor(diff / 86_400_000);
-  if (minutes < 1) return "Just now";
-  if (minutes < 60) return `${minutes}m ago`;
-  if (hours < 24) return `${hours}h ago`;
-  return `${days}d ago`;
+  try {
+    const then = new Date(dateStr).getTime();
+    if (Number.isNaN(then)) return "—";
+    const diffMs = Date.now() - then;
+    const locale =
+      typeof navigator !== "undefined" ? navigator.language : "en-US";
+    const rtf = new Intl.RelativeTimeFormat(locale, { numeric: "auto" });
+    const minutes = Math.floor(diffMs / 60_000);
+    const hours = Math.floor(diffMs / 3_600_000);
+    const days = Math.floor(diffMs / 86_400_000);
+    if (minutes < 1) return rtf.format(0, "second");
+    if (minutes < 60) return rtf.format(-minutes, "minute");
+    if (hours < 24) return rtf.format(-hours, "hour");
+    return rtf.format(-days, "day");
+  } catch {
+    return "—";
+  }
 }
