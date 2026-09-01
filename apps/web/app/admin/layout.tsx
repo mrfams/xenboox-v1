@@ -94,7 +94,8 @@ const navigationSections: NavSection[] = [
   {
     label: "AI OPERATIONS",
     items: [
-      { label: "AI Agent Monitor", href: "/admin/ai-comparison", icon: Bot },
+      { label: "AI Comparison", href: "/admin/ai-comparison", icon: Bot },
+      { label: "Agent Monitor", href: "/admin/agent-monitor", icon: Bot },
       { label: "Live Agent Runs", href: "/admin/live-runs", icon: Play },
       { label: "AI Cost Analytics", href: "/admin/spending", icon: BarChart3 },
       { label: "Token Usage", href: "/admin/token-usage", icon: Key },
@@ -116,7 +117,7 @@ const navigationSections: NavSection[] = [
   {
     label: "MONITORING",
     items: [
-      { label: "Logs & Traces", href: "/admin/logs", icon: FileText },
+      { label: "Logs & Traces", href: "/admin/logs-traces", icon: FileText },
       { label: "Alerts", href: "/admin/alerts", icon: Bell },
     ],
   },
