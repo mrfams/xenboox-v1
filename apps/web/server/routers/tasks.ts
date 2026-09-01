@@ -4,6 +4,7 @@ import {
   closeTasks,
   opsLiveRuns,
   opsLiveRunSteps,
+  opsLiveRunEvents,
   dailyCloseRuns,
 } from "@xenboox/db/schema";
 
@@ -367,6 +368,73 @@ export const tasksRouter = router({
             (t) => t.status === "failed" || t.status === "blocked",
           ).length,
         },
+      };
+    }),
+
+  /**
+   * Get step-by-step progress for a specific run (AI-native live feed).
+   */
+  getSteps: rlsProtectedProcedure
+    .input(
+      z.object({
+        taskId: z.string(),
+        source: z.enum(["live_run", "daily_close", "close_task"]),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const entityId = ctx.entityId!;
+
+      let runId: string | null = null;
+
+      if (input.source === "live_run") {
+        const run = await db.query.opsLiveRuns.findFirst({
+          where: and(
+            eq(opsLiveRuns.id, input.taskId),
+            eq(opsLiveRuns.entityId, entityId),
+          ),
+        });
+        runId = run?.runId ?? null;
+      } else if (input.source === "daily_close") {
+        const run = await db.query.dailyCloseRuns.findFirst({
+          where: and(
+            eq(dailyCloseRuns.id, input.taskId),
+            eq(dailyCloseRuns.entityId, entityId),
+          ),
+        });
+        runId = run?.runId ?? null;
+      }
+
+      if (!runId) {
+        return { steps: [], events: [] };
+      }
+
+      const steps = await db.query.opsLiveRunSteps.findMany({
+        where: eq(opsLiveRunSteps.runId, runId),
+        orderBy: [opsLiveRunSteps.stepNumber],
+      });
+
+      const events = await db.query.opsLiveRunEvents.findMany({
+        where: eq(opsLiveRunEvents.runId, runId),
+        orderBy: [desc(opsLiveRunEvents.createdAt)],
+        limit: 20,
+      });
+
+      return {
+        steps: steps.map((s) => ({
+          stepNumber: s.stepNumber,
+          name: s.name,
+          status: s.status,
+          durationMs: s.durationMs,
+          startedAt: s.startedAt,
+          completedAt: s.completedAt,
+          error: s.error,
+        })),
+        events: events.map((e) => ({
+          type: e.eventType,
+          message: e.message,
+          metadata: e.metadata as Record<string, unknown> | null,
+          createdAt: e.createdAt,
+        })),
       };
     }),
 

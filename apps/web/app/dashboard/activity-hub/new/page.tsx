@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
+  AlertCircle,
   Bell,
   CheckCircle2,
   FileCheck,
@@ -21,6 +22,7 @@ import {
   Play,
   Pause,
   RotateCcw,
+  SkipForward,
   XCircle,
   type LucideIcon,
 } from "lucide-react";
@@ -1265,145 +1267,307 @@ function TaskSourceBadge({ source }: { source: UnifiedTask["source"] }) {
 }
 
 function TaskDetail({ task }: { task: UnifiedTask }) {
+  const isRunning =
+    task.status === "in_progress" ||
+    task.status === "queued" ||
+    task.status === "waiting";
+  const isComplete = task.status === "completed";
+
   return (
-    <article className="mx-auto max-w-2xl space-y-5 p-5 sm:p-6">
-      {/* Title */}
-      <div>
-        <div className="flex items-center gap-2">
-          <TaskStatusIcon status={task.status} />
-          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-            {task.source === "close_task"
-              ? "Month-End Close Task"
-              : task.source === "live_run"
-                ? "Agent Run"
-                : "Daily Close"}
-          </span>
-          <TaskSourceBadge source={task.source} />
-        </div>
-        <h2 className="mt-1.5 text-base font-semibold leading-snug text-foreground">
-          {task.title}
-        </h2>
-        <div className="mt-2 flex flex-wrap items-center gap-2">
-          {task.confidence !== null && (
-            <span
-              className={cn(
-                "rounded-full px-2 py-0.5 text-[10px] font-semibold tabular-nums",
-                task.confidence >= 0.8
-                  ? "bg-balanced-green/10 text-balanced-green"
-                  : "bg-attention-amber/10 text-attention-amber",
-              )}
-            >
-              {Math.round(task.confidence * 100)}% confidence
+    <article className="space-y-0">
+      {/* Hero — live status banner */}
+      <div
+        className={cn(
+          "relative px-5 pt-5 pb-4 sm:px-6",
+          isRunning && "bg-primary/[0.03]",
+          task.status === "failed" && "bg-error-clay/[0.03]",
+        )}
+      >
+        {isRunning && (
+          <div className="absolute inset-0 bg-gradient-to-b from-primary/[0.04] to-transparent" />
+        )}
+        <div className="relative">
+          <div className="flex items-center gap-2">
+            <TaskStatusIcon status={task.status} />
+            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+              {task.source === "close_task"
+                ? "Month-End Close"
+                : task.source === "live_run"
+                  ? "Agent Run"
+                  : "Daily Close"}
             </span>
-          )}
+            <TaskSourceBadge source={task.source} />
+          </div>
+
+          <h2 className="mt-1.5 text-base font-semibold leading-snug text-foreground">
+            {task.title}
+          </h2>
+
+          {/* Confidence + timing row */}
+          <div className="mt-2 flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
+            {task.confidence !== null && (
+              <span className="flex items-center gap-1">
+                <span
+                  className={cn(
+                    "h-1.5 w-1.5 rounded-full",
+                    task.confidence >= 0.8
+                      ? "bg-balanced-green"
+                      : "bg-attention-amber",
+                  )}
+                />
+                <span
+                  className={cn(
+                    "font-semibold tabular-nums",
+                    task.confidence >= 0.8
+                      ? "text-balanced-green"
+                      : "text-attention-amber",
+                  )}
+                >
+                  {Math.round(task.confidence * 100)}% confidence
+                </span>
+              </span>
+            )}
+            {task.durationMs !== null && (
+              <span>{formatDuration(task.durationMs)}</span>
+            )}
+            {task.startedAt && !isRunning && (
+              <span>{timeAgo(task.startedAt)} ago</span>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Status + Progress */}
-      <Section title="Status">
-        <div className="space-y-3">
-          <div className="flex items-center gap-3">
-            <StatusBadge status={task.status} />
-            {task.durationMs !== null && (
-              <span className="text-xs text-muted-foreground">
-                Duration: {formatDuration(task.durationMs)}
-              </span>
-            )}
+      {/* Progress bar — only for running */}
+      {isRunning && (
+        <div className="border-t border-border/30 px-5 py-3 sm:px-6">
+          <div className="flex items-center justify-between text-[10px] text-muted-foreground mb-1.5">
+            <span className="font-medium">
+              {task.currentStep ?? "Working..."}
+            </span>
+            <span className="font-mono tabular-nums">{task.progress}%</span>
           </div>
-          {(task.status === "in_progress" || task.status === "queued") && (
-            <div className="space-y-1">
-              <div className="flex items-center justify-between text-[10px] text-muted-foreground">
-                <span>{task.currentStep ?? "Processing..."}</span>
-                <span className="font-mono tabular-nums">{task.progress}%</span>
-              </div>
-              <div className="h-1.5 overflow-hidden rounded-full bg-muted">
-                <div
-                  className="h-full rounded-full bg-primary transition-all duration-500"
-                  style={{ width: `${task.progress}%` }}
-                />
-              </div>
-            </div>
-          )}
+          <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+            <div
+              className="h-full rounded-full bg-primary transition-all duration-700 ease-out"
+              style={{ width: `${task.progress}%` }}
+            />
+          </div>
         </div>
-      </Section>
+      )}
+
+      {/* Live step feed — the AI-native core */}
+      {task.source === "live_run" && (
+        <StepFeed taskId={task.id} source={task.source} isRunning={isRunning} />
+      )}
+
+      {/* Error banner */}
+      {task.error && (
+        <div className="mx-5 sm:mx-6 mb-4">
+          <div className="flex items-start gap-2 rounded-lg border border-destructive/20 bg-destructive/5 px-3 py-2.5">
+            <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-destructive" />
+            <span className="text-xs text-destructive leading-relaxed">
+              {task.error}
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* Description */}
       {task.description && (
-        <Section title="Details">
-          <p className="text-sm leading-relaxed text-foreground/85">
+        <div className="mx-5 sm:mx-6 mb-4">
+          <p className="text-xs leading-relaxed text-muted-foreground">
             {task.description}
           </p>
-        </Section>
+        </div>
       )}
 
-      {/* Error */}
-      {task.error && (
-        <Section title="Error">
-          <div className="rounded-lg border border-destructive/20 bg-destructive/5 px-3 py-2.5 text-sm text-destructive">
-            {task.error}
-          </div>
-        </Section>
-      )}
-
-      {/* Metadata */}
+      {/* Metadata — compact row */}
       {task.metadata && Object.keys(task.metadata).length > 0 && (
-        <Section title="Metadata">
-          <dl className="divide-y divide-border/30 overflow-hidden rounded-lg border border-border/50">
+        <div className="mx-5 sm:mx-6 mb-4">
+          <div className="flex flex-wrap gap-2">
             {Object.entries(task.metadata)
               .filter(([, v]) => v !== null && v !== undefined)
-              .slice(0, 8)
+              .slice(0, 6)
               .map(([k, v]) => (
-                <div
+                <span
                   key={k}
-                  className="flex items-start justify-between gap-4 px-3 py-2"
+                  className="inline-flex items-center gap-1 rounded-md bg-muted/50 px-2 py-1 text-[10px]"
                 >
-                  <dt className="shrink-0 text-[11px] capitalize text-muted-foreground">
+                  <span className="text-muted-foreground">
                     {k.replace(/([A-Z])/g, " $1").replace(/_/g, " ")}
-                  </dt>
-                  <dd className="break-words text-right text-xs text-foreground">
-                    {typeof v === "object"
-                      ? JSON.stringify(v)
-                      : String(v ?? "—")}
-                  </dd>
-                </div>
+                  </span>
+                  <span className="font-medium text-foreground">
+                    {typeof v === "object" ? "..." : String(v)}
+                  </span>
+                </span>
               ))}
-          </dl>
-        </Section>
+          </div>
+        </div>
       )}
+    </article>
+  );
+}
 
-      {/* Timeline */}
-      <Section title="Timeline">
-        <div className="space-y-2 text-xs">
-          {task.startedAt && (
-            <div className="flex items-center gap-2">
-              <Play className="h-3 w-3 text-primary" />
-              <span className="text-muted-foreground">Started</span>
-              <span className="font-mono tabular-nums">
-                {timeAgo(task.startedAt)}
-              </span>
-            </div>
-          )}
-          {task.completedAt && (
-            <div className="flex items-center gap-2">
-              <CheckCircle2 className="h-3 w-3 text-balanced-green" />
-              <span className="text-muted-foreground">Completed</span>
-              <span className="font-mono tabular-nums">
-                {timeAgo(task.completedAt)}
-              </span>
-            </div>
-          )}
-          {!task.startedAt && (
-            <div className="flex items-center gap-2">
-              <Clock className="h-3 w-3 text-muted-foreground" />
-              <span className="text-muted-foreground">Created</span>
-              <span className="font-mono tabular-nums">
-                {timeAgo(task.createdAt)}
-              </span>
-            </div>
+// ─── Step Feed (AI-Native Live View) ──────────────────────────────────────
+// Shows step-by-step progress like Cursor/Devin — the core AI UX.
+
+function StepFeed({
+  taskId,
+  source,
+  isRunning,
+}: {
+  taskId: string;
+  source: UnifiedTask["source"];
+  isRunning: boolean;
+}) {
+  const stepsQuery = trpc.tasks.getSteps.useQuery(
+    { taskId, source: source as "live_run" | "daily_close" | "close_task" },
+    { refetchInterval: isRunning ? 2000 : false },
+  );
+
+  const steps = stepsQuery.data?.steps ?? [];
+
+  if (steps.length === 0) {
+    if (!isRunning) return null;
+    return (
+      <div className="mx-5 sm:mx-6 mb-4">
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <Loader2 className="h-3 w-3 animate-spin text-primary" />
+          <span>Initializing...</span>
+        </div>
+      </div>
+    );
+  }
+
+  const completedCount = steps.filter((s) => s.status === "completed").length;
+  const failedStep = steps.find((s) => s.status === "failed");
+  const currentStep = steps.find((s) => s.status === "in_progress");
+
+  return (
+    <div className="mx-5 sm:mx-6 mb-4">
+      <div className="rounded-lg border border-border/40 bg-muted/20">
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-border/30 px-3 py-2">
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+            {isRunning ? "Live" : "Steps"}
+          </span>
+          <span className="text-[10px] tabular-nums text-muted-foreground">
+            {completedCount}/{steps.length}
+          </span>
+        </div>
+
+        {/* Steps */}
+        <div className="divide-y divide-border/20">
+          {steps.map((step, i) => (
+            <StepItem
+              key={`${step.stepNumber}-${step.name}`}
+              step={step}
+              stepNumber={i + 1}
+              totalSteps={steps.length}
+              isLast={i === steps.length - 1}
+            />
+          ))}
+        </div>
+
+        {/* Live indicator */}
+        {isRunning && currentStep && (
+          <div className="flex items-center gap-2 border-t border-border/30 px-3 py-2">
+            <span className="relative flex h-2 w-2">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-primary" />
+            </span>
+            <span className="text-[11px] text-primary font-medium">
+              {currentStep.name}
+            </span>
+          </div>
+        )}
+
+        {/* Failure banner */}
+        {failedStep && (
+          <div className="flex items-center gap-2 border-t border-destructive/20 bg-destructive/5 px-3 py-2">
+            <XCircle className="h-3 w-3 shrink-0 text-destructive" />
+            <span className="text-[11px] text-destructive">
+              Failed: {failedStep.name}
+            </span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Single Step Item ──────────────────────────────────────────────────────
+
+function StepItem({
+  step,
+  stepNumber,
+  totalSteps,
+  isLast,
+}: {
+  step: {
+    name: string;
+    status: string;
+    durationMs: number | null;
+    error: string | null;
+  };
+  stepNumber: number;
+  totalSteps: number;
+  isLast: boolean;
+}) {
+  const isComplete = step.status === "completed";
+  const isFailed = step.status === "failed";
+  const isActive = step.status === "in_progress";
+  const isSkipped = step.status === "skipped";
+
+  return (
+    <div className="flex items-start gap-2.5 px-3 py-2">
+      {/* Status indicator */}
+      <div className="mt-0.5 flex shrink-0 items-center justify-center">
+        {isComplete ? (
+          <CheckCircle2 className="h-3.5 w-3.5 text-balanced-green" />
+        ) : isFailed ? (
+          <XCircle className="h-3.5 w-3.5 text-destructive" />
+        ) : isActive ? (
+          <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
+        ) : isSkipped ? (
+          <SkipForward className="h-3.5 w-3.5 text-muted-foreground/50" />
+        ) : (
+          <span className="flex h-3.5 w-3.5 items-center justify-center">
+            <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/30" />
+          </span>
+        )}
+      </div>
+
+      {/* Step content */}
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center justify-between gap-2">
+          <span
+            className={cn(
+              "text-xs truncate",
+              isActive && "font-medium text-foreground",
+              isComplete && "text-muted-foreground",
+              isFailed && "text-destructive",
+              !isActive &&
+                !isComplete &&
+                !isFailed &&
+                "text-muted-foreground/60",
+            )}
+          >
+            {step.name}
+          </span>
+          {step.durationMs !== null && (
+            <span className="shrink-0 font-mono text-[10px] tabular-nums text-muted-foreground/60">
+              {formatDuration(step.durationMs)}
+            </span>
           )}
         </div>
-      </Section>
-    </article>
+        {step.error && (
+          <span className="mt-0.5 block text-[10px] text-destructive truncate">
+            {step.error}
+          </span>
+        )}
+      </div>
+    </div>
   );
 }
 
