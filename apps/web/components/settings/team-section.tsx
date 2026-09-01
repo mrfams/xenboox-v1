@@ -81,6 +81,11 @@ const ROLES = [
     description: "Read-only audit access",
   },
   {
+    value: "external_accountant",
+    label: "External Accountant",
+    description: "External CPA firm access",
+  },
+  {
     value: "donor",
     label: "Donor",
     description: "View grant/donation reports",
@@ -94,14 +99,16 @@ export function TeamSection() {
   const { data: user } = trpc.organization.getCurrentUser.useQuery();
   const { data: entities } = trpc.organization.listEntities.useQuery({});
   const { entityId: currentEntityId } = useEntity();
-  const entityId = currentEntityId ?? entities?.[0]?.id;
+  const entityId = currentEntityId;
 
   const {
     data: members,
     isLoading,
+    isError,
+    error,
     refetch,
   } = trpc.organization.listMembers.useQuery(
-    { entityId: entityId ?? "" },
+    { entityId: entityId! },
     { enabled: !!entityId },
   );
 
@@ -123,6 +130,18 @@ export function TeamSection() {
     onError: (error) => toast.error(error.message),
   });
 
+  if (!entityId) {
+    return (
+      <Card>
+        <CardContent className="p-6 text-center">
+          <p className="text-sm text-muted-foreground">
+            Select an entity to manage its team
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
   if (isLoading) {
     return (
       <div className="space-y-3">
@@ -130,6 +149,29 @@ export function TeamSection() {
           <div key={i} className="h-16 rounded-lg bg-muted animate-pulse" />
         ))}
       </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <Card className="border-destructive/50">
+        <CardContent className="p-4">
+          <p className="text-sm text-destructive">
+            Failed to load team members
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            {String((error as Error)?.message ?? error)}
+          </p>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => refetch()}
+            className="mt-3"
+          >
+            Retry
+          </Button>
+        </CardContent>
+      </Card>
     );
   }
 
