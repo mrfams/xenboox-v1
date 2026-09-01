@@ -2,42 +2,9 @@
 
 import { useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { httpBatchLink, TRPCLink } from "@trpc/client";
-import { observable } from "@trpc/server/observable";
+import { httpBatchLink } from "@trpc/client";
 
 import { trpc } from "@/lib/trpc/client";
-import type { AppRouter } from "@/server/routers/_app";
-
-const sessionExpiryLink: TRPCLink<AppRouter> = () => {
-  return ({ next, op }) =>
-    observable((observer) => {
-      const unsubscribe = next(op).subscribe({
-        next(value) {
-          observer.next(value);
-        },
-        error(err) {
-          const code =
-            (err as unknown as { data?: { code?: string } })?.data?.code ||
-            (err as unknown as { code?: string })?.code;
-          const message = (err as Error)?.message || "";
-          if (
-            code === "UNAUTHORIZED" ||
-            message.includes("UNAUTHORIZED") ||
-            message.includes("Not authenticated")
-          ) {
-            if (typeof window !== "undefined") {
-              window.dispatchEvent(new CustomEvent("xenboox:session-expired"));
-            }
-          }
-          observer.error(err as never);
-        },
-        complete() {
-          observer.complete();
-        },
-      });
-      return unsubscribe;
-    });
-};
 
 /**
  * Resolve the API base URL for server-side tRPC calls.
@@ -83,7 +50,6 @@ export function TRPCProvider({ children }: { children: React.ReactNode }) {
   const [trpcClient] = useState(() =>
     trpc.createClient({
       links: [
-        sessionExpiryLink,
         httpBatchLink({
           url: `${getBaseUrl()}/api/trpc`,
           headers() {
