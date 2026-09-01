@@ -1144,20 +1144,8 @@ function TasksView({
                   </div>
                 )}
 
-                {/* Agent + time info */}
+                {/* Time + confidence info */}
                 <span className="mt-1 flex items-center gap-1.5 text-[10px] text-muted-foreground">
-                  {task.agentInitials && (
-                    <span
-                      className="inline-flex h-4 w-4 items-center justify-center rounded-full text-[8px] font-bold text-white"
-                      style={{
-                        backgroundColor:
-                          task.agentColor ?? "hsl(var(--primary))",
-                      }}
-                    >
-                      {task.agentInitials}
-                    </span>
-                  )}
-                  <span className="truncate">{task.agentName ?? "Agent"}</span>
                   {task.confidence !== null && (
                     <span
                       className={cn(
@@ -1170,7 +1158,6 @@ function TasksView({
                       {Math.round(task.confidence * 100)}%
                     </span>
                   )}
-                  <span aria-hidden="true">·</span>
                   <span className="shrink-0">
                     {timeAgo(task.startedAt ?? task.createdAt)}
                   </span>
@@ -1297,19 +1284,6 @@ function TaskDetail({ task }: { task: UnifiedTask }) {
           {task.title}
         </h2>
         <div className="mt-2 flex flex-wrap items-center gap-2">
-          {task.agentInitials && (
-            <span
-              className="inline-flex h-5 w-5 items-center justify-center rounded-full text-[9px] font-bold text-white"
-              style={{
-                backgroundColor: task.agentColor ?? "hsl(var(--primary))",
-              }}
-            >
-              {task.agentInitials}
-            </span>
-          )}
-          <span className="text-xs text-muted-foreground">
-            {task.agentName ?? "Agent"}
-          </span>
           {task.confidence !== null && (
             <span
               className={cn(

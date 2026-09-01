@@ -77,6 +77,66 @@ function mapDailyCloseStatus(status: string): UnifiedTask["status"] {
   }
 }
 
+// ─── Human-Readable Task Names ─────────────────────────────────────────────
+// Users don't care about agent names. They care about WHAT is being done.
+
+const AGENT_TASK_NAMES: Record<string, string> = {
+  // Core agents
+  "bank-reconciler-agent": "Reconciling bank accounts",
+  bank_reconciler_agent: "Reconciling bank accounts",
+  "reconciliation-agent": "Reconciling accounts",
+  reconciliation_agent: "Reconciling accounts",
+  "ledger-agent": "Updating general ledger",
+  ledger_agent: "Updating general ledger",
+  "controller-agent": "Running month-end close",
+  controller_agent: "Running month-end close",
+  "treasury-agent": "Managing cash flow",
+  treasury_agent: "Managing cash flow",
+  "payroll-agent": "Processing payroll",
+  payroll_agent: "Processing payroll",
+  "compliance-agent": "Checking compliance",
+  compliance_agent: "Checking compliance",
+  "ar-agent": "Processing receivables",
+  ar_agent: "Processing receivables",
+  "ap-agent": "Processing payables",
+  ap_agent: "Processing payables",
+  "cash-agent": "Counting cash",
+  cash_agent: "Counting cash",
+  "document-agent": "Processing documents",
+  document_agent: "Processing documents",
+  "reporting-agent": "Generating reports",
+  reporting_agent: "Generating reports",
+  "mobile-money-agent": "Reconciling mobile money",
+  mobile_money_agent: "Reconciling mobile money",
+  // Tier names
+  "cfo-agent": "Running financial analysis",
+  cfo_agent: "Running financial analysis",
+  "finance-director": "Reviewing financials",
+  finance_director: "Reviewing financials",
+  // Generic fallbacks
+  "daily-close-agent": "Running daily close",
+  daily_close_agent: "Running daily close",
+};
+
+function getTaskTitle(
+  agentName: string | null,
+  currentStep: string | null,
+): string {
+  if (currentStep && currentStep.length > 5) return currentStep;
+  if (!agentName) return "Working on task";
+  const normalized = agentName
+    .toLowerCase()
+    .replace(/\s+/g, "_")
+    .replace(/-/g, "_");
+  return (
+    AGENT_TASK_NAMES[normalized] ??
+    agentName
+      .replace(/-/g, " ")
+      .replace(/_/g, " ")
+      .replace(/\b\w/g, (c) => c.toUpperCase())
+  );
+}
+
 // ─── Tasks Router ──────────────────────────────────────────────────────────
 
 export const tasksRouter = router({
@@ -183,7 +243,7 @@ export const tasksRouter = router({
           tasks.push({
             id: r.id,
             source: "live_run",
-            title: r.agentDisplayName ?? r.agentName,
+            title: getTaskTitle(r.agentName, r.currentStep),
             description: r.currentStep ?? `Run ${r.runId}`,
             status: r.status as UnifiedTask["status"],
             progress: r.progress,
@@ -226,14 +286,19 @@ export const tasksRouter = router({
           }
 
           const exceptionCount = d.exceptions?.length ?? 0;
+          const date = new Date(d.closeDate + "T00:00:00");
+          const dateStr = date.toLocaleDateString("en-US", {
+            month: "short",
+            day: "numeric",
+          });
           tasks.push({
             id: d.id,
             source: "daily_close",
-            title: `Daily Close — ${d.closeDate}`,
+            title: `Daily reconciliation — ${dateStr}`,
             description:
               exceptionCount > 0
                 ? `${exceptionCount} exception${exceptionCount > 1 ? "s" : ""} need review`
-                : `Processed ${d.transactionsProcessed ?? 0} transactions`,
+                : `Matched ${d.autoMatched ?? 0} of ${d.transactionsProcessed ?? 0} transactions`,
             status: taskStatus,
             progress:
               d.status === "completed"
@@ -367,7 +432,7 @@ export const tasksRouter = router({
         return {
           id: run.id,
           source: "live_run" as const,
-          title: run.agentDisplayName ?? run.agentName,
+          title: getTaskTitle(run.agentName, run.currentStep),
           description: run.currentStep ?? `Run ${run.runId}`,
           status: run.status as UnifiedTask["status"],
           progress: run.progress,
@@ -404,11 +469,20 @@ export const tasksRouter = router({
         ),
       });
       if (!run) return null;
+      const date = new Date(run.closeDate + "T00:00:00");
+      const dateStr = date.toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+      });
+      const exceptionCount = run.exceptions?.length ?? 0;
       return {
         id: run.id,
         source: "daily_close" as const,
-        title: `Daily Close — ${run.closeDate}`,
-        description: `Processed ${run.transactionsProcessed ?? 0} transactions`,
+        title: `Daily reconciliation — ${dateStr}`,
+        description:
+          exceptionCount > 0
+            ? `${exceptionCount} exception${exceptionCount > 1 ? "s" : ""} need review`
+            : `Matched ${run.autoMatched ?? 0} of ${run.transactionsProcessed ?? 0} transactions`,
         status: mapDailyCloseStatus(run.status),
         progress: run.status === "completed" ? 100 : 0,
         agentName: "daily-close-agent",

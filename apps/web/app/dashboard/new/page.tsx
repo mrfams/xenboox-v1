@@ -678,8 +678,8 @@ function TaskRailItem({ task }: { task: TaskItem }) {
   };
 
   const sourceLabel = {
-    close_task: "Close",
-    live_run: "Agent",
+    close_task: "Month-End",
+    live_run: "AI",
     daily_close: "Daily",
   }[task.source];
 
@@ -713,20 +713,8 @@ function TaskRailItem({ task }: { task: TaskItem }) {
               </span>
             </div>
           )}
-        {/* Agent + time */}
+        {/* Source + time */}
         <span className="mt-0.5 flex items-center gap-1 text-[9px] text-muted-foreground/60">
-          {task.agentInitials && (
-            <span
-              className="inline-flex h-3 w-3 items-center justify-center rounded-full text-[6px] font-bold text-white"
-              style={{
-                backgroundColor: task.agentColor ?? "hsl(var(--primary))",
-              }}
-            >
-              {task.agentInitials}
-            </span>
-          )}
-          <span>{task.agentName ?? "Agent"}</span>
-          <span aria-hidden="true">·</span>
           <span>{timeAgo(task.startedAt ?? task.createdAt)}</span>
         </span>
         {/* Error */}
