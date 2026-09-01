@@ -13,7 +13,6 @@
 import { useState, useEffect } from "react";
 import { trpc } from "@/lib/trpc/client";
 import { useEntity } from "@/lib/entity-context";
-import { useActivationStatus } from "@/lib/hooks/use-activation-status";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui";
 import { Badge } from "@/components/ui";
@@ -266,16 +265,25 @@ function KnowledgeBaseOnboarding({
 }: {
   onUploadClick: () => void;
 }) {
-  const { events, trackEvent } = useActivationStatus();
-  // Server-side: check if KB onboarding was dismissed
-  const dismissed =
-    events?.some(
-      (e: { event: string }) => e.event === "kb_onboarding_dismissed",
-    ) ?? false;
+  const [dismissed, setDismissed] = useState(false);
+
+  useEffect(() => {
+    try {
+      if (localStorage.getItem(KB_ONBOARDING_KEY) === "true") {
+        setDismissed(true);
+      }
+    } catch {
+      // SSR or localStorage unavailable
+    }
+  }, []);
 
   const handleDismiss = () => {
-    // Track server-side (cross-device persistence)
-    trackEvent("kb_onboarding_dismissed");
+    setDismissed(true);
+    try {
+      localStorage.setItem(KB_ONBOARDING_KEY, "true");
+    } catch {
+      // ignore
+    }
   };
 
   if (dismissed) return null;
