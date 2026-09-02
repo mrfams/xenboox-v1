@@ -147,7 +147,7 @@ Analysis of 20 competitor About pages reveals that Xenboox's About page must use
 **Content:**
 
 - Headline: "Our mission" (32-40px, semibold)
-- Description: "To make AI-native accounting accessible to every SME worldwide."
+- Description: "To make AI-native accounting accessible to every SME."
 - Stats: "500+ businesses", "10,000+ hours saved", "99.9% accuracy"
 
 ### 3. Team Section — Asymmetrical Bento

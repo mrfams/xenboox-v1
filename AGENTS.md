@@ -20,7 +20,7 @@
 
 ## Project Overview
 
-Xenboox is an **AI-native, full-stack accounting platform for SMEs worldwide.** Specialized AI agents in a three-tier hierarchy handle the accounting work. Humans make decisions. The AI is the interface — users talk, the AI acts.
+Xenboox is an **AI-native, full-stack accounting platform for SMEs.** Specialized AI agents in a three-tier hierarchy handle the accounting work. Humans make decisions. The AI is the interface — users talk, the AI acts.
 
 **The 5-Surface AI-Native Model:**
 
@@ -40,7 +40,7 @@ Xenboox is an **AI-native, full-stack accounting platform for SMEs worldwide.** 
 - Database: Neon PostgreSQL
 - ORM: Drizzle ORM
 - Agent Framework: LangGraph (JS)
-- LLM: Claude Sonnet 4.6 + Haiku 4.5
+- LLM: Frontier & open-source frontier models (model-agnostic layer)
 - Job Queue: Trigger.dev
 - Storage: Cloudflare R2
 - Email: Resend

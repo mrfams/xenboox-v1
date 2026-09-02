@@ -301,7 +301,7 @@ H1: AI-native accounting that works for you
   "name": "Xenboox",
   "url": "https://xenboox.com",
   "logo": "https://xenboox.com/logo.png",
-  "description": "AI-native accounting platform with specialized agents for SMEs worldwide.",
+  "description": "AI-native accounting platform with specialized agents for SMEs.",
   "foundingDate": "2024",
   "founders": [
     {
@@ -514,7 +514,7 @@ H1: AI-native accounting that works for you
   "name": "Xenboox",
   "url": "https://xenboox.com",
   "logo": "https://xenboox.com/logo.png",
-  "description": "AI-native accounting platform with specialized agents for SMEs worldwide.",
+  "description": "AI-native accounting platform with specialized agents for SMEs.",
   "sameAs": [
     "https://twitter.com/xenboox",
     "https://linkedin.com/company/xenboox",

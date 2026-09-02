@@ -22,7 +22,7 @@ Analysis of 20 competitor Careers pages reveals that Xenboox's Careers page must
 
 **Title Tag:** "Careers — Join the AI-Native Accounting Revolution | Xenboox" (55 chars)
 
-**Meta Description:** "Join the team building AI-native accounting. Explore open roles, learn about our culture, and help us transform accounting for SMEs worldwide." (145 chars)
+**Meta Description:** "Join the team building AI-native accounting. Explore open roles, learn about our culture, and help us transform accounting for SMEs." (145 chars)
 
 **H1:** "Join the team building AI-native accounting"
 
@@ -149,7 +149,7 @@ H1: [Job Title]
 />
 <meta
   property="og:description"
-  content="Join the team building AI-native accounting. Explore open roles, learn about our culture, and help us transform accounting for SMEs worldwide."
+  content="Join the team building AI-native accounting. Explore open roles, learn about our culture, and help us transform accounting for SMEs."
 />
 <meta property="og:image" content="https://xenboox.com/og/careers.png" />
 <meta property="og:url" content="https://xenboox.com/careers" />
@@ -183,7 +183,7 @@ H1: [Job Title]
 />
 <meta
   name="twitter:description"
-  content="Join the team building AI-native accounting. Explore open roles, learn about our culture, and help us transform accounting for SMEs worldwide."
+  content="Join the team building AI-native accounting. Explore open roles, learn about our culture, and help us transform accounting for SMEs."
 />
 <meta name="twitter:image" content="https://xenboox.com/og/careers.png" />
 ```

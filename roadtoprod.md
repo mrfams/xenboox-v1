@@ -2692,7 +2692,7 @@ DESIGN LEAD EVIDENCE:
 
 **Xenboox Positioning Statement:**
 
-> "The first AI-native accounting platform that replaces your entire accounting department. AI agents handle the work. You make the decisions. Built for businesses worldwide, starting with Africa."
+> "The first AI-native accounting platform that replaces your entire accounting department. AI agents handle the work. You make the decisions. Built for businesses, starting with Africa."
 
 **Competitive Positioning Matrix:**
 
@@ -2701,7 +2701,7 @@ DESIGN LEAD EVIDENCE:
 | Position       | Default for US SMBs      | Global cloud accounting          | Enterprise/Africa            | Free for solos       | **AI-native accounting**            |
 | Tagline        | "Run your business"      | "Beautiful accounting"           | "Accounting for growth"      | "Free accounting"    | **"Your AI accounting department"** |
 | Differentiator | Ecosystem + integrations | Unlimited users + multi-currency | Africa presence + enterprise | Free tier            | **AI agents + mobile money**        |
-| Target         | US small businesses      | Global growing teams             | African enterprise           | Pre-revenue founders | **SMEs worldwide, Africa-first**    |
+| Target         | US small businesses      | Global growing teams             | African enterprise           | Pre-revenue founders | **SMEs, Africa-first**              |
 
 ---
 

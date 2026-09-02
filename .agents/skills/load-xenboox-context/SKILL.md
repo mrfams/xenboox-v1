@@ -9,7 +9,7 @@ metadata:
 
 ## What Xenboox Is
 
-Xenboox is an AI-native, full-stack accounting platform for SMEs worldwide. Specialized AI agents organized in a three-tier hierarchy handle every accounting function autonomously. Humans manage and approve. Agents execute.
+Xenboox is an AI-native, full-stack accounting platform for SMEs. Specialized AI agents organized in a three-tier hierarchy handle every accounting function autonomously. Humans manage and approve. Agents execute.
 
 **Core promise:** "Your entire accounting department, running autonomously. Agents do the work. You make the decisions that matter."
 
@@ -67,20 +67,20 @@ Platform (report to CFO directly): Reporting, Budget, Analytics, Document
 
 ## Tech Stack (Locked)
 
-| Layer           | Technology                                         |
-| --------------- | -------------------------------------------------- |
-| Frontend        | Next.js 15 + TypeScript + Shadcn/ui + Tailwind     |
-| API             | tRPC                                               |
-| Auth            | Auth.js v5                                         |
-| Database        | Neon PostgreSQL                                    |
-| ORM             | Drizzle ORM                                        |
-| Agent Framework | LangGraph (JS)                                     |
-| LLM             | Claude Sonnet 4.6 (strategic) + Haiku 4.5 (worker) |
-| Job Queue       | Trigger.dev                                        |
-| Storage         | Cloudflare R2                                      |
-| Email           | Resend                                             |
-| Deployment      | Vercel                                             |
-| Observability   | LangFuse                                           |
+| Layer           | Technology                                              |
+| --------------- | ------------------------------------------------------- |
+| Frontend        | Next.js 15 + TypeScript + Shadcn/ui + Tailwind          |
+| API             | tRPC                                                    |
+| Auth            | Auth.js v5                                              |
+| Database        | Neon PostgreSQL                                         |
+| ORM             | Drizzle ORM                                             |
+| Agent Framework | LangGraph (JS)                                          |
+| LLM             | Frontier & open-source frontier models (model-agnostic) |
+| Job Queue       | Trigger.dev                                             |
+| Storage         | Cloudflare R2                                           |
+| Email           | Resend                                                  |
+| Deployment      | Vercel                                                  |
+| Observability   | LangFuse                                                |
 
 ---
 

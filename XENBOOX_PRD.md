@@ -1129,7 +1129,7 @@ Auth              Auth.js v5
 Database          Neon PostgreSQL
 ORM               Drizzle ORM
 Agent Framework   LangGraph (JS)
-LLM               Claude Sonnet 4.6 + Haiku 4.5
+LLM               Frontier & open-source frontier models (model-agnostic layer)
 Job Queue         Trigger.dev
 Banking Data      Plaid (where available) + PDF upload
 Integrations      Merge.dev (QuickBooks + Xero)

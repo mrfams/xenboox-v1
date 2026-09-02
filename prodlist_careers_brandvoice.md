@@ -45,7 +45,7 @@ Analysis of 20 competitor Careers pages reveals that Xenboox's Careers page must
 ### Mission Section: ✅ PASS
 
 - "Our mission" — Clear, confident
-- "To make AI-native accounting accessible to every SME worldwide." — Specific, AI-native language
+- "To make AI-native accounting accessible to every SME." — Specific, AI-native language
 
 ### Values Section: ✅ PASS
 

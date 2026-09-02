@@ -54,7 +54,7 @@ Analysis of 20 competitor Careers pages reveals that Xenboox's Careers page must
 ### Mission
 
 - Headline: "Our mission"
-- Description: "To make AI-native accounting accessible to every SME worldwide."
+- Description: "To make AI-native accounting accessible to every SME."
 - Stats: "500+ businesses" | "10,000+ hours saved" | "99.9% accuracy"
 
 ### Values
@@ -106,7 +106,7 @@ Analysis of 20 competitor Careers pages reveals that Xenboox's Careers page must
 
 **Title tag:** Careers — Join the AI-Native Accounting Revolution | Xenboox (55 chars)
 
-**Meta description:** Join the team building AI-native accounting. Explore open roles, learn about our culture, and help us transform accounting for SMEs worldwide. (145 chars)
+**Meta description:** Join the team building AI-native accounting. Explore open roles, learn about our culture, and help us transform accounting for SMEs. (145 chars)
 
 **H1:** Join the team building AI-native accounting
 

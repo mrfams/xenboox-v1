@@ -48,7 +48,7 @@ const keyTopics = [
     icon: Zap,
     title: "AI-Native Accounting",
     description:
-      "How three-tier AI agent hierarchies are replacing traditional accounting software — and what it means for finance teams worldwide.",
+      "How three-tier AI agent hierarchies are replacing traditional accounting software — and what it means for finance teams.",
   },
   {
     icon: Globe,

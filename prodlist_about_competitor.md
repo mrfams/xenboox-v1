@@ -134,7 +134,7 @@
 
 ### Positioning Verification
 
-**Xenboox Positioning:** "AI-native accounting platform with specialized agents for SMEs worldwide"
+**Xenboox Positioning:** "AI-native accounting platform with specialized agents for SMEs"
 
 **Is it honest?** ✅ Yes — We are AI-native, not bolt-on AI
 **Is it defensible?** ✅ Yes — 3-tier agent hierarchy is unique

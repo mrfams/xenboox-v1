@@ -8591,7 +8591,7 @@ H1: AI-native accounting that works for you
   "name": "Xenboox",
   "url": "https://xenboox.com",
   "logo": "https://xenboox.com/logo.png",
-  "description": "AI-native accounting platform with specialized agents for SMEs worldwide.",
+  "description": "AI-native accounting platform with specialized agents for SMEs.",
   "sameAs": [
     "https://twitter.com/xenboox",
     "https://linkedin.com/company/xenboox",
@@ -9013,7 +9013,7 @@ Score: ✅ PASS
 | QuickBooks | Corporate        | Small businesses | Scale        | 7 million businesses |
 | Xero       | Customer-centric | Small businesses | Global reach | 5 million customers  |
 
-**Xenboox Position:** AI-native accounting platform with specialized agents for SMEs worldwide
+**Xenboox Position:** AI-native accounting platform with specialized agents for SMEs
 
 ---
 
@@ -9062,7 +9062,7 @@ Score: ✅ PASS
 
 #### Positioning Verification
 
-**Xenboox Positioning:** "AI-native accounting platform with specialized agents for SMEs worldwide"
+**Xenboox Positioning:** "AI-native accounting platform with specialized agents for SMEs"
 
 **Is it honest?** ✅ Yes — We are AI-native, not bolt-on AI
 **Is it defensible?** ✅ Yes — 3-tier agent hierarchy is unique
@@ -12906,7 +12906,7 @@ SUCCESS METRIC: 100+ job applications per month, 50%+ increase in qualified cand
 **2. Mission Section**
 
 - Headline: "Our mission" (32-40px)
-- Description: "To make AI-native accounting accessible to every SME worldwide."
+- Description: "To make AI-native accounting accessible to every SME."
 - Stats: "500+ businesses", "10,000+ hours saved", "99.9% accuracy"
 
 **3. Values Section**
@@ -13168,7 +13168,7 @@ Hero → Mission → Values → Open Roles → Benefits → Culture → CTA
 **Mission Section:**
 
 - Headline: "Our mission" (32-40px)
-- Description: "To make AI-native accounting accessible to every SME worldwide."
+- Description: "To make AI-native accounting accessible to every SME."
 - Stats: "500+ businesses" | "10,000+ hours saved" | "99.9% accuracy"
 
 **Values Section:**
@@ -13359,7 +13359,7 @@ Hero → Mission → Values → Open Roles → Benefits → Culture → CTA
 **Mission:**
 
 - Headline: "Our mission"
-- Description: "To make AI-native accounting accessible to every SME worldwide."
+- Description: "To make AI-native accounting accessible to every SME."
 - Stats: "500+ businesses" | "10,000+ hours saved" | "99.9% accuracy"
 
 **Values:**
@@ -13411,7 +13411,7 @@ Hero → Mission → Values → Open Roles → Benefits → Culture → CTA
 
 **Title tag:** Careers — Join the AI-Native Accounting Revolution | Xenboox (55 chars)
 
-**Meta description:** Join the team building AI-native accounting. Explore open roles, learn about our culture, and help us transform accounting for SMEs worldwide. (145 chars)
+**Meta description:** Join the team building AI-native accounting. Explore open roles, learn about our culture, and help us transform accounting for SMEs. (145 chars)
 
 **H1:** Join the team building AI-native accounting
 
@@ -13611,7 +13611,7 @@ Body: {
 **Careers Hub Page (/careers):**
 
 - Title Tag: "Careers — Join the AI-Native Accounting Revolution | Xenboox" (55 chars)
-- Meta Description: "Join the team building AI-native accounting. Explore open roles, learn about our culture, and help us transform accounting for SMEs worldwide." (145 chars)
+- Meta Description: "Join the team building AI-native accounting. Explore open roles, learn about our culture, and help us transform accounting for SMEs." (145 chars)
 - H1: "Join the team building AI-native accounting"
 - Primary Keyword: "AI-native accounting careers"
 - Schema: Organization + JobPosting
@@ -13731,7 +13731,7 @@ H1: [Job Title]
 />
 <meta
   property="og:description"
-  content="Join the team building AI-native accounting. Explore open roles, learn about our culture, and help us transform accounting for SMEs worldwide."
+  content="Join the team building AI-native accounting. Explore open roles, learn about our culture, and help us transform accounting for SMEs."
 />
 <meta property="og:image" content="https://xenboox.com/og/careers.png" />
 <meta property="og:url" content="https://xenboox.com/careers" />
@@ -13967,7 +13967,7 @@ Score: ✅ PASS
 **Mission Section:** ✅ PASS
 
 - "Our mission" — Clear, confident
-- "To make AI-native accounting accessible to every SME worldwide." — Specific, AI-native language
+- "To make AI-native accounting accessible to every SME." — Specific, AI-native language
 
 **Values Section:** ✅ PASS
 

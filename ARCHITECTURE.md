@@ -59,7 +59,7 @@
 │  │  Platform: Reporting │ Budget │ Analytics │ Doc   │      │
 │  └──────────────────────────────────────────────────┘      │
 │                                                             │
-│  LLM: Claude Sonnet 4.6 (strategic) + Haiku 4.5 (worker)  │
+│  LLM: Frontier & open-source frontier models (model-agnostic)  │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -350,7 +350,9 @@ await db.insert(auditLog).values({
   action: "invoice.created",
   entityType: "invoice",
   entityId: invoice.id,
-  changes: {/* before/after diff */},
+  changes: {
+    /* before/after diff */
+  },
   agentId: null, // or agent identifier if agent-initiated
   confidence: null,
   metadata: {},
@@ -729,17 +731,17 @@ NODE_ENV=                       # development | production
 
 ## 13. Key Architectural Decisions
 
-| Decision        | Choice                      | Reasoning                                                           |
-| --------------- | --------------------------- | ------------------------------------------------------------------- |
-| Monorepo        | pnpm workspaces + Turborepo | Shared code between apps, type safety, atomic commits               |
-| API             | tRPC                        | End-to-end type safety with Next.js, no code generation needed      |
-| ORM             | Drizzle                     | Type-safe, SQL-like API, good Neon support, lightweight             |
-| Agent Framework | LangGraph                   | Stateful graph maps to three-tier hierarchy, native HITL            |
-| Job Queue       | Trigger.dev                 | Long-running agent workflows, Vercel-native integration             |
-| AI-Native UI    | 5-surface dashboard         | Command Center, Activity Hub, Financial Pulse, Ledger, Operations   |
-| LLM             | Claude Sonnet + Haiku       | Sonnet for complex reasoning, Haiku for cost-effective worker tasks |
-| Observability   | LangFuse                    | Open source, self-hostable, purpose-built for LLM apps              |
-| Storage         | Cloudflare R2               | S3-compatible, no egress fees, global edge                          |
+| Decision        | Choice                                 | Reasoning                                                         |
+| --------------- | -------------------------------------- | ----------------------------------------------------------------- |
+| Monorepo        | pnpm workspaces + Turborepo            | Shared code between apps, type safety, atomic commits             |
+| API             | tRPC                                   | End-to-end type safety with Next.js, no code generation needed    |
+| ORM             | Drizzle                                | Type-safe, SQL-like API, good Neon support, lightweight           |
+| Agent Framework | LangGraph                              | Stateful graph maps to three-tier hierarchy, native HITL          |
+| Job Queue       | Trigger.dev                            | Long-running agent workflows, Vercel-native integration           |
+| AI-Native UI    | 5-surface dashboard                    | Command Center, Activity Hub, Financial Pulse, Ledger, Operations |
+| LLM             | Frontier & open-source frontier models | Model-agnostic layer, swap providers as capabilities evolve       |
+| Observability   | LangFuse                               | Open source, self-hostable, purpose-built for LLM apps            |
+| Storage         | Cloudflare R2                          | S3-compatible, no egress fees, global edge                        |
 
 ---
 

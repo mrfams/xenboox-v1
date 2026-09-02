@@ -5,7 +5,7 @@
 ### Business Context
 
 **Company:** Xenboox
-**Product:** AI-native accounting platform for SMEs worldwide
+**Product:** AI-native accounting platform for SMEs
 **ICP:** SMEs (1-500 employees), accounting professionals, business owners, CFOs, controllers
 **Primary Goal:** Drive traffic, build authority, and generate leads through educational content
 **Content Goal:** Establish Xenboox as the thought leader in AI-native accounting
