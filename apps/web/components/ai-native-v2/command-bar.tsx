@@ -133,6 +133,7 @@ export function CommandBar({
             entityId={entityId}
             onFilesUploaded={onFilesUploaded}
             disabled={busy}
+            maxFiles={10}
           />
         )}
         <label htmlFor="v2-command-input" className="sr-only">

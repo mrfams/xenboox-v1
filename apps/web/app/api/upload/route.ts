@@ -1,16 +1,19 @@
-import { NextRequest, NextResponse } from "next/server";
-import { eq } from "drizzle-orm";
-import { documents } from "@xenboox/db/schema";
-
-import { auth } from "@/lib/auth";
+import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { entities, documents } from "@xenboox/db/schema";
+import { eq } from "drizzle-orm";
+import {
+  getPresignedUploadUrl,
+  getPresignedDownloadUrl,
+  R2_BUCKET,
+} from "@/lib/r2";
 import { logger } from "@/lib/logger";
-import { getPresignedUploadUrl } from "@/lib/r2";
 
-export const runtime = "nodejs";
+// ─── Helpers ────────────────────────────────────────────────────────────────
 
-const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20 MB
-const ALLOWED_TYPES = new Set([
+const ALLOWED_MIME_TYPES = [
   "application/pdf",
   "image/jpeg",
   "image/png",
@@ -18,28 +21,39 @@ const ALLOWED_TYPES = new Set([
   "text/csv",
   "text/plain",
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   "application/msword",
-]);
+] as const;
 
-/**
- * POST /api/upload
- *
- * Accepts a file upload, stores it in R2, creates a document registry
- * entry, and returns the document ID for use in chat.
- *
- * Body: multipart/form-data with:
- *   - file: The file to upload
- *   - entityId: The entity this document belongs to
- */
-export async function POST(request: NextRequest) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
 
+function sanitizeFileName(name: string): string {
+  // Strip path traversal, control chars, dotfiles
+  return name
+    .replace(/[^a-zA-Z0-9._-]/g, "_")
+    .replace(/\.{2,}/g, ".")
+    .replace(/^\.+/, "")
+    .slice(0, 255);
+}
+
+function generateStoragePath(entityId: string, fileName: string): string {
+  const timestamp = Date.now();
+  const random = Math.random().toString(36).slice(2, 8);
+  const ext = fileName.split(".").pop() ?? "bin";
+  return `uploads/${entityId}/${timestamp}-${random}.${ext}`;
+}
+
+// ─── POST /api/upload ───────────────────────────────────────────────────────
+
+export async function POST(request: Request) {
   try {
+    // Auth check
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const formData = await request.formData();
     const file = formData.get("file") as File | null;
     const entityId = formData.get("entityId") as string | null;
@@ -47,10 +61,18 @@ export async function POST(request: NextRequest) {
     if (!file) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 });
     }
-
     if (!entityId) {
+      return NextResponse.json({ error: "No entity ID" }, { status: 400 });
+    }
+
+    // Validate file type
+    if (
+      !ALLOWED_MIME_TYPES.includes(
+        file.type as (typeof ALLOWED_MIME_TYPES)[number],
+      )
+    ) {
       return NextResponse.json(
-        { error: "Entity ID is required" },
+        { error: "File type not allowed" },
         { status: 400 },
       );
     }
@@ -58,96 +80,80 @@ export async function POST(request: NextRequest) {
     // Validate file size
     if (file.size > MAX_FILE_SIZE) {
       return NextResponse.json(
-        {
-          error: `File too large. Maximum size is ${MAX_FILE_SIZE / 1024 / 1024}MB`,
-        },
+        { error: "File too large (max 20MB)" },
         { status: 400 },
       );
     }
 
-    // Validate file type
-    if (!ALLOWED_TYPES.has(file.type)) {
-      return NextResponse.json(
-        { error: `File type not supported: ${file.type}` },
-        { status: 400 },
-      );
+    // Verify entity exists and user has access
+    const entity = await db.query.entities.findFirst({
+      where: eq(entities.id, entityId),
+    });
+    if (!entity) {
+      return NextResponse.json({ error: "Entity not found" }, { status: 404 });
     }
 
-    // Generate storage path
-    const timestamp = Date.now();
-    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-    const storagePath = `chat-uploads/${entityId}/${timestamp}_${safeName}`;
+    // Generate presigned upload URL
+    const safeName = sanitizeFileName(file.name);
+    const storagePath = generateStoragePath(entityId, safeName);
 
-    // Get presigned upload URL
     const uploadUrl = await getPresignedUploadUrl(
       storagePath,
       file.type,
       file.size,
     );
 
-    // Upload to R2
+    // Upload file to R2
+    const arrayBuffer = await file.arrayBuffer();
     const uploadResponse = await fetch(uploadUrl, {
       method: "PUT",
-      body: file,
+      body: arrayBuffer,
       headers: {
         "Content-Type": file.type,
       },
     });
 
     if (!uploadResponse.ok) {
-      logger.error(
-        { status: uploadResponse.status, storagePath },
-        "Failed to upload to R2",
-      );
+      logger.error("R2 upload failed", {
+        status: uploadResponse.status,
+        storagePath,
+      });
       return NextResponse.json(
-        { error: "Failed to upload file" },
+        { error: "Upload to storage failed" },
         { status: 500 },
       );
     }
 
-    // Map MIME type to document type enum (default to "supporting")
-    const docType =
-      file.type === "application/pdf"
-        ? "supporting"
-        : file.type.startsWith("image/")
-          ? "receipt"
-          : file.type.includes("spreadsheet") || file.type.includes("excel")
-            ? "invoice"
-            : file.type.includes("word") || file.type.includes("document")
-              ? "contract"
-              : "supporting";
-
-    // Create document registry entry
+    // Create document record
     const [doc] = await db
       .insert(documents)
       .values({
-        entityId,
-        name: file.name,
-        type: docType,
+        name: safeName,
+        type: "supporting",
         mimeType: file.type,
-        sizeBytes: file.size,
+        fileSize: file.size,
         r2Key: storagePath,
-        r2Bucket: process.env.R2_BUCKET_NAME ?? "xenboox-documents",
+        r2Bucket: R2_BUCKET,
         uploadedBy: session.user.id,
-        metadata: {
-          uploadedBy: session.user.id,
-          uploadedAt: new Date().toISOString(),
-          source: "chat-upload",
-        },
+        entityId,
       })
       .returning();
 
+    // Generate download URL for immediate use
+    const downloadUrl = await getPresignedDownloadUrl(storagePath);
+
     return NextResponse.json({
       documentId: doc.id,
-      name: file.name,
-      type: doc.type,
-      size: doc.sizeBytes,
+      name: safeName,
+      type: file.type,
+      size: file.size,
+      downloadUrl,
+      r2Key: storagePath,
     });
   } catch (error) {
-    logger.error({ err: error }, "Upload failed");
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
+    logger.error("Upload failed", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return NextResponse.json({ error: "Upload failed" }, { status: 500 });
   }
 }

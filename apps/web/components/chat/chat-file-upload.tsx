@@ -10,6 +10,8 @@ import {
   File,
   Loader2,
   Upload,
+  Check,
+  AlertCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -28,12 +30,14 @@ type UploadState = {
   progress?: number;
   documentId?: string;
   error?: string;
+  previewUrl?: string;
 };
 
 interface ChatFileUploadProps {
   entityId: string;
   onFilesUploaded: (files: UploadedFile[]) => void;
   disabled?: boolean;
+  maxFiles?: number;
 }
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
@@ -53,39 +57,40 @@ function formatFileSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+function isImageFile(type: string): boolean {
+  return type.startsWith("image/");
+}
+
 // ─── Component ─────────────────────────────────────────────────────────────
 
 export function ChatFileUpload({
   entityId,
   onFilesUploaded,
   disabled = false,
+  maxFiles = 10,
 }: ChatFileUploadProps) {
   const [isDragOver, setIsDragOver] = useState(false);
   const [uploads, setUploads] = useState<UploadState[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Upload a single file
+  // Upload a single file to R2 via our API route
   const uploadFile = useCallback(
     async (file: File): Promise<UploadedFile | null> => {
       const formData = new FormData();
       formData.append("file", file);
       formData.append("entityId", entityId);
 
-      try {
-        const response = await fetch("/api/upload", {
-          method: "POST",
-          body: formData,
-        });
+      const response = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
 
-        if (!response.ok) {
-          const error = await response.json();
-          throw new Error(error.error || "Upload failed");
-        }
-
-        return await response.json();
-      } catch (error) {
-        throw error;
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Upload failed");
       }
+
+      return await response.json();
     },
     [entityId],
   );
@@ -96,19 +101,32 @@ export function ChatFileUpload({
       const fileArray = Array.from(files);
       if (fileArray.length === 0) return;
 
-      // Add files to upload state
-      const newUploads: UploadState[] = fileArray.map((file) => ({
-        file,
-        status: "uploading" as const,
-        progress: 0,
-      }));
+      // Enforce max files limit
+      const remaining = maxFiles - uploads.length;
+      const filesToUpload = fileArray.slice(0, remaining);
+      if (filesToUpload.length < fileArray.length) {
+        // Some files were rejected
+      }
+
+      // Create preview URLs for images
+      const newUploads: UploadState[] = filesToUpload.map((file) => {
+        const previewUrl = isImageFile(file.type)
+          ? URL.createObjectURL(file)
+          : undefined;
+        return {
+          file,
+          status: "uploading" as const,
+          progress: 0,
+          previewUrl,
+        };
+      });
 
       setUploads((prev) => [...prev, ...newUploads]);
 
       // Upload all files
       const results: UploadedFile[] = [];
-      for (let i = 0; i < fileArray.length; i++) {
-        const file = fileArray[i];
+      for (let i = 0; i < filesToUpload.length; i++) {
+        const file = filesToUpload[i];
         const uploadIndex = uploads.length + i;
 
         try {
@@ -143,13 +161,8 @@ export function ChatFileUpload({
       if (results.length > 0) {
         onFilesUploaded(results);
       }
-
-      // Clear successful uploads after 2 seconds
-      setTimeout(() => {
-        setUploads((prev) => prev.filter((u) => u.status !== "success"));
-      }, 2000);
     },
-    [uploads, uploadFile, onFilesUploaded],
+    [uploads, uploadFile, onFilesUploaded, maxFiles],
   );
 
   // Drag and drop handlers
@@ -194,7 +207,19 @@ export function ChatFileUpload({
 
   // Remove upload from list
   const removeUpload = useCallback((index: number) => {
-    setUploads((prev) => prev.filter((_, i) => i !== index));
+    setUploads((prev) => {
+      const removed = prev[index];
+      // Clean up preview URL
+      if (removed?.previewUrl) {
+        URL.revokeObjectURL(removed.previewUrl);
+      }
+      return prev.filter((_, i) => i !== index);
+    });
+  }, []);
+
+  // Remove a successful upload (before sending)
+  const removeSuccessful = useCallback((documentId: string) => {
+    setUploads((prev) => prev.filter((u) => u.documentId !== documentId));
   }, []);
 
   return (
@@ -219,15 +244,15 @@ export function ChatFileUpload({
       <button
         type="button"
         onClick={handlePickerClick}
-        disabled={disabled}
+        disabled={disabled || uploads.length >= maxFiles}
         className={cn(
           "inline-flex items-center justify-center h-10 w-10 rounded-xl transition-colors",
           "text-muted-foreground hover:text-foreground hover:bg-muted/50",
           "disabled:opacity-40 disabled:pointer-events-none",
           isDragOver && "text-primary bg-primary/10",
         )}
-        aria-label="Attach files"
-        title="Attach files (PDF, images, Excel, Word)"
+        aria-label={`Attach files (${uploads.length}/${maxFiles})`}
+        title={`Attach files (PDF, images, Excel, Word) — ${maxFiles - uploads.length} slots left`}
       >
         <Paperclip className="h-4 w-4" />
       </button>
@@ -242,18 +267,19 @@ export function ChatFileUpload({
                 Drop files here
               </p>
               <p className="text-xs text-muted-foreground">
-                PDF, images, Excel, Word — up to 20MB each
+                PDF, images, Excel, Word — up to 20MB each, {maxFiles} files max
               </p>
             </div>
           </div>
         </div>
       )}
 
-      {/* Upload progress list */}
+      {/* Upload progress list — shows above the command bar */}
       {uploads.length > 0 && (
-        <div className="absolute bottom-full left-0 mb-2 w-72 space-y-1.5 rounded-xl border border-border/50 bg-card/95 p-2 shadow-lg backdrop-blur-sm">
+        <div className="absolute bottom-full left-0 mb-2 w-80 space-y-1.5 rounded-xl border border-border/50 bg-card/95 p-2 shadow-lg backdrop-blur-sm">
           {uploads.map((upload, i) => {
             const Icon = getFileIcon(upload.file.type);
+            const hasPreview = upload.previewUrl && upload.status === "success";
             return (
               <div
                 key={`${upload.file.name}-${i}`}
@@ -262,7 +288,17 @@ export function ChatFileUpload({
                   upload.status === "error" && "bg-destructive/5",
                 )}
               >
-                <Icon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                {/* Thumbnail or icon */}
+                {hasPreview ? (
+                  <img
+                    src={upload.previewUrl}
+                    alt={upload.file.name}
+                    className="h-8 w-8 shrink-0 rounded-md object-cover"
+                  />
+                ) : (
+                  <Icon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                )}
+
                 <div className="flex-1 min-w-0">
                   <p className="truncate font-medium text-foreground">
                     {upload.file.name}
@@ -271,22 +307,36 @@ export function ChatFileUpload({
                     {formatFileSize(upload.file.size)}
                   </p>
                 </div>
+
+                {/* Status indicators */}
                 {upload.status === "uploading" && (
                   <Loader2 className="h-3.5 w-3.5 shrink-0 text-primary animate-spin" />
                 )}
                 {upload.status === "success" && (
-                  <span className="text-[10px] text-emerald-500 font-medium">
-                    ✓
-                  </span>
+                  <div className="flex items-center gap-1">
+                    <Check className="h-3 w-3 text-emerald-500" />
+                    <button
+                      type="button"
+                      onClick={() => removeSuccessful(upload.documentId!)}
+                      className="shrink-0 text-muted-foreground hover:text-destructive transition-colors"
+                      aria-label={`Remove ${upload.file.name}`}
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
                 )}
                 {upload.status === "error" && (
-                  <button
-                    type="button"
-                    onClick={() => removeUpload(i)}
-                    className="shrink-0 text-muted-foreground hover:text-destructive"
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
+                  <div className="flex items-center gap-1">
+                    <AlertCircle className="h-3 w-3 text-destructive" />
+                    <button
+                      type="button"
+                      onClick={() => removeUpload(i)}
+                      className="shrink-0 text-muted-foreground hover:text-destructive transition-colors"
+                      aria-label={`Remove ${upload.file.name}`}
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
                 )}
               </div>
             );
