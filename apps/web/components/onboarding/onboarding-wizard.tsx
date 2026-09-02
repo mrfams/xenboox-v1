@@ -35,6 +35,11 @@ import {
   Zap,
 } from "lucide-react";
 import { AhaMomentStep } from "@/components/onboarding/aha-moment";
+import { track } from "@/lib/analytics/events";
+import {
+  trackFunnel,
+  trackFeatureAdoption,
+} from "@/lib/analytics/feature-tracking";
 
 // ─── Progress Bar ─────────────────────────────────────────────────────────────
 
@@ -961,14 +966,10 @@ export function OnboardingWizard() {
   if (!showWizard || !isFirstTime) return null;
 
   const handleComplete = () => {
-    // Analytics: track onboarding completion + funnel
+    // Analytics: track onboarding skip (user clicked "Skip all")
     try {
-      const { track } = require("@/lib/analytics/events");
-      const { trackFunnel } = require("@/lib/analytics/feature-tracking");
       const entityId = localStorage.getItem("currentEntityId") ?? "";
-      track("onboarding_completed", { entityId, duration_seconds: 0 });
       track("onboarding_skipped", { entityId, lastStep: stepIndex });
-      trackFunnel("onboarding_completed", { entityId });
       trackFunnel("signup_to_paid", { entityId, step: "onboarding_skip" });
     } catch {
       // Non-blocking
@@ -980,11 +981,6 @@ export function OnboardingWizard() {
   const handleGoToDashboard = () => {
     // Analytics: track onboarding completion + funnel activation
     try {
-      const { track } = require("@/lib/analytics/events");
-      const {
-        trackFunnel,
-        trackFeatureAdoption,
-      } = require("@/lib/analytics/feature-tracking");
       const entityId = localStorage.getItem("currentEntityId") ?? "";
       track("onboarding_completed", { entityId, duration_seconds: 0 });
       trackFunnel("onboarding_completed", { entityId });
