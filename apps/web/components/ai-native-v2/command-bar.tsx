@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ArrowUp, Square, FileText, X } from "lucide-react";
+import { ArrowUp, Square, FileText, X, Sparkles } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import {
@@ -85,7 +85,7 @@ export function CommandBar({
                 setValue(s);
                 inputRef.current?.focus();
               }}
-              className="rounded-full border border-border/50 bg-card/60 px-2.5 py-0.5 text-[10px] text-muted-foreground transition-colors hover:border-primary/30 hover:bg-primary/5 hover:text-primary"
+              className="rounded-full border border-primary/15 bg-primary/5 px-2.5 py-0.5 text-[10px] font-medium text-primary/70 transition-colors hover:border-primary/30 hover:bg-primary/10 hover:text-primary"
             >
               {s}
             </button>
@@ -120,10 +120,14 @@ export function CommandBar({
 
       <div
         className={cn(
-          "relative flex items-center gap-2.5 rounded-2xl border border-border/60 bg-muted/30 px-4 py-2 shadow-lg shadow-black/[0.06] transition-all duration-200 focus-within:border-primary/50 focus-within:bg-card focus-within:shadow-xl focus-within:shadow-primary/[0.04] focus-within:ring-2 focus-within:ring-primary/15",
-          busy && "opacity-90",
+          "group relative flex items-center gap-2.5 rounded-2xl border border-primary/20 bg-card px-4 py-2.5 shadow-lg shadow-primary/[0.06] transition-all duration-300",
+          "focus-within:border-primary/50 focus-within:shadow-xl focus-within:shadow-primary/[0.12] focus-within:ring-2 focus-within:ring-primary/20",
+          !value && !busy && "animate-[pulse-glow_3s_ease-in-out_infinite]",
+          busy && "opacity-90 border-primary/40",
         )}
       >
+        {/* Subtle gradient accent line at top */}
+        <div className="absolute inset-x-4 top-0 h-px bg-gradient-to-r from-transparent via-primary/40 to-transparent" />
         {entityId && onFilesUploaded && (
           <ChatFileUpload
             entityId={entityId}
@@ -153,7 +157,7 @@ export function CommandBar({
             }
           }}
           placeholder={placeholder}
-          className="max-h-36 min-h-[40px] flex-1 resize-none bg-transparent px-0 pt-3 pb-0 text-[15px] leading-5 text-foreground placeholder:text-muted-foreground/50 focus:outline-none"
+          className="max-h-36 min-h-[40px] flex-1 resize-none bg-transparent px-0 pt-3 pb-0 text-[15px] leading-5 text-foreground placeholder:text-foreground/40 focus:outline-none"
         />
         {busy && onCancel ? (
           <button
@@ -170,7 +174,7 @@ export function CommandBar({
             onClick={submit}
             disabled={!value.trim() || busy}
             aria-label="Send"
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm transition-all hover:bg-primary/90 hover:shadow disabled:opacity-40"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-md shadow-primary/20 transition-all hover:bg-primary/90 hover:shadow-lg hover:shadow-primary/30 disabled:opacity-30 disabled:shadow-none"
           >
             <ArrowUp className="h-4 w-4" />
           </button>
