@@ -7,7 +7,10 @@ import { Button } from "@/components/ui";
 import { useEntity } from "@/lib/entity-context";
 import { cn } from "@/lib/utils";
 import { trpc } from "@/lib/trpc/client";
-import { useOtherEntityTasks, EntityTaskBadge } from "@/components/layout/entity-task-badge";
+import {
+  useOtherEntityTasks,
+  EntityTaskBadge,
+} from "@/components/layout/entity-task-badge";
 
 type Entity = {
   id: string;
@@ -17,10 +20,11 @@ type Entity = {
 };
 
 export function EntitySwitcher() {
-  const { entityId, setEntityId, isLoaded } = useEntity();
+  const { entityId, setEntityId, isLoaded, entityCurrency } = useEntity();
   const [entities, setEntities] = useState<Entity[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [currentEntity, setCurrentEntity] = useState<Entity | null>(null);
+  const [isSwitching, setIsSwitching] = useState(false);
   const switcherRef = useRef<HTMLDivElement>(null);
   const closeTimer = useRef<number | null>(null);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
@@ -104,13 +108,21 @@ export function EntitySwitcher() {
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  // Handle entity selection
+  // Handle entity selection with transition
   const handleSelect = useCallback(
     (entity: Entity) => {
+      if (entity.id === entityId) {
+        setIsOpen(false);
+        return;
+      }
+      setIsSwitching(true);
       setEntityId(entity.id, entity.role);
       setIsOpen(false);
+      // Brief transition feel — clear after data refetches
+      const timer = setTimeout(() => setIsSwitching(false), 800);
+      return () => clearTimeout(timer);
     },
-    [setEntityId],
+    [setEntityId, entityId],
   );
 
   // Handle create entity using tRPC mutations
@@ -253,16 +265,28 @@ export function EntitySwitcher() {
         <Button
           variant="outline"
           size="sm"
-          className="min-w-[180px] justify-between"
+          className={cn(
+            "min-w-[180px] justify-between transition-all duration-200",
+            isSwitching && "opacity-70",
+          )}
           aria-expanded={isOpen}
           aria-haspopup="menu"
           onClick={() => setIsOpen(!isOpen)}
         >
           <span className="flex items-center gap-2 truncate">
-            <Building2 className="h-4 w-4 shrink-0" />
+            {isSwitching ? (
+              <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
+            ) : (
+              <Building2 className="h-4 w-4 shrink-0" />
+            )}
             <span className="truncate text-sm font-medium">
               {currentEntity?.name ?? "Select entity"}
             </span>
+            {entityCurrency && (
+              <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[9px] font-bold tabular-nums text-muted-foreground">
+                {entityCurrency}
+              </span>
+            )}
           </span>
           <ChevronDown
             className={cn(
@@ -306,7 +330,10 @@ export function EntitySwitcher() {
                         )}
                       </p>
                     </div>
-                    <EntityTaskBadge entityId={entity.id} otherCounts={otherCounts} />
+                    <EntityTaskBadge
+                      entityId={entity.id}
+                      otherCounts={otherCounts}
+                    />
                   </button>
                 </div>
               ))}

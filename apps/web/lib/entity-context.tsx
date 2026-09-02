@@ -85,9 +85,20 @@ export function useEntity() {
 }
 
 export function EntityProvider({ children }: { children: ReactNode }) {
-  const [entityId, setEntityIdState] = useState<string | null>(null);
-  const [entityRole, setEntityRole] = useState<string | null>(null);
+  // OPTIMISTIC: read localStorage synchronously on first render so the
+  // entity name appears instantly (no loading flash).  Validation against
+  // the server list happens async below — if the stored id is stale the
+  // state will silently correct, but the user never sees "Loading...".
+  const [entityId, setEntityIdState] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    return localStorage.getItem("currentEntityId");
+  });
+  const [entityRole, setEntityRole] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    return localStorage.getItem("currentEntityRole");
+  });
   const [entityCurrency, setEntityCurrency] = useState<string | null>(null);
+  /** true once server validation has run at least once */
   const [isLoaded, setIsLoaded] = useState(false);
   const { data: session, status } = useSession();
   const hasInitialized = useRef(false);
