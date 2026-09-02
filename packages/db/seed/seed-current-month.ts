@@ -39,7 +39,12 @@ import {
   paymentsAr,
 } from "../schema/ap-ar";
 import { employees, payrollRuns, payrollLineItems } from "../schema/payroll";
-import { bankAccounts, bankTransactions } from "../schema/treasury";
+import {
+  bankAccounts,
+  bankTransactions,
+  reconciliations,
+  reconciliationItems,
+} from "../schema/treasury";
 import {
   mobileMoneyAccounts,
   mobileMoneyTransactions,
@@ -57,6 +62,12 @@ import {
   journalEntryLines,
   fiscalPeriods,
 } from "../schema/accounting";
+import {
+  cashAccounts,
+  imprestFloats,
+  imprestReceipts,
+  pettyCashLedger,
+} from "../schema/cash";
 import { notifications } from "../schema/notifications";
 import { idFromKey, shouldRunDirect } from "./seed-lib";
 
@@ -86,6 +97,7 @@ const ACCT = {
   travelExpense: A("0024"),
   marketingExpense: A("0025"),
   insuranceExpense: A("0026"),
+  interestExpense: A("0027"),
 };
 
 const AUG = { year: 2026, month: 8, period: "2026-08" };
@@ -194,7 +206,14 @@ export async function seedCurrentMonth() {
     { cIdx: 0, pIdx: 0, qty: 25, d: 1, status: "paid" as const, paidPct: 1.0 },
     { cIdx: 2, pIdx: 3, qty: 15, d: 1, status: "pending" as const, paidPct: 0 },
     { cIdx: 1, pIdx: 5, qty: 10, d: 3, status: "pending" as const, paidPct: 0 },
-    { cIdx: 4, pIdx: 7, qty: 200, d: 4, status: "pending" as const, paidPct: 0 },
+    {
+      cIdx: 4,
+      pIdx: 7,
+      qty: 200,
+      d: 4,
+      status: "pending" as const,
+      paidPct: 0,
+    },
     { cIdx: 3, pIdx: 0, qty: 50, d: 5, status: "paid" as const, paidPct: 1.0 },
     // Weekend (Aug 6-7) — Saturday/Sunday orders
     { cIdx: 5, pIdx: 2, qty: 80, d: 6, status: "pending" as const, paidPct: 0 },
@@ -202,32 +221,144 @@ export async function seedCurrentMonth() {
     // Week 2 (Aug 8-14)
     { cIdx: 6, pIdx: 0, qty: 40, d: 8, status: "pending" as const, paidPct: 0 },
     { cIdx: 7, pIdx: 4, qty: 15, d: 9, status: "paid" as const, paidPct: 1.0 },
-    { cIdx: 1, pIdx: 1, qty: 60, d: 10, status: "pending" as const, paidPct: 0 },
-    { cIdx: 2, pIdx: 0, qty: 30, d: 11, status: "overdue" as const, paidPct: 0 },
+    {
+      cIdx: 1,
+      pIdx: 1,
+      qty: 60,
+      d: 10,
+      status: "pending" as const,
+      paidPct: 0,
+    },
+    {
+      cIdx: 2,
+      pIdx: 0,
+      qty: 30,
+      d: 11,
+      status: "overdue" as const,
+      paidPct: 0,
+    },
     { cIdx: 3, pIdx: 5, qty: 8, d: 12, status: "pending" as const, paidPct: 0 },
     // Weekend (Aug 13-14)
-    { cIdx: 4, pIdx: 3, qty: 25, d: 13, status: "pending" as const, paidPct: 0 },
-    { cIdx: 5, pIdx: 7, qty: 150, d: 14, status: "paid" as const, paidPct: 0.6 },
+    {
+      cIdx: 4,
+      pIdx: 3,
+      qty: 25,
+      d: 13,
+      status: "pending" as const,
+      paidPct: 0,
+    },
+    {
+      cIdx: 5,
+      pIdx: 7,
+      qty: 150,
+      d: 14,
+      status: "paid" as const,
+      paidPct: 0.6,
+    },
     // Week 3 (Aug 15-21)
-    { cIdx: 6, pIdx: 2, qty: 45, d: 15, status: "pending" as const, paidPct: 0 },
+    {
+      cIdx: 6,
+      pIdx: 2,
+      qty: 45,
+      d: 15,
+      status: "pending" as const,
+      paidPct: 0,
+    },
     { cIdx: 0, pIdx: 0, qty: 60, d: 16, status: "paid" as const, paidPct: 1.0 },
-    { cIdx: 7, pIdx: 6, qty: 500, d: 17, status: "pending" as const, paidPct: 0 },
-    { cIdx: 1, pIdx: 4, qty: 12, d: 18, status: "pending" as const, paidPct: 0 },
+    {
+      cIdx: 7,
+      pIdx: 6,
+      qty: 500,
+      d: 17,
+      status: "pending" as const,
+      paidPct: 0,
+    },
+    {
+      cIdx: 1,
+      pIdx: 4,
+      qty: 12,
+      d: 18,
+      status: "pending" as const,
+      paidPct: 0,
+    },
     // Weekend (Aug 20-21)
-    { cIdx: 2, pIdx: 1, qty: 90, d: 20, status: "overdue" as const, paidPct: 0 },
-    { cIdx: 3, pIdx: 0, qty: 35, d: 21, status: "pending" as const, paidPct: 0 },
+    {
+      cIdx: 2,
+      pIdx: 1,
+      qty: 90,
+      d: 20,
+      status: "overdue" as const,
+      paidPct: 0,
+    },
+    {
+      cIdx: 3,
+      pIdx: 0,
+      qty: 35,
+      d: 21,
+      status: "pending" as const,
+      paidPct: 0,
+    },
     // Week 4 (Aug 22-28)
     { cIdx: 4, pIdx: 5, qty: 6, d: 22, status: "pending" as const, paidPct: 0 },
-    { cIdx: 5, pIdx: 2, qty: 55, d: 23, status: "pending" as const, paidPct: 0 },
-    { cIdx: 6, pIdx: 7, qty: 180, d: 25, status: "pending" as const, paidPct: 0 },
+    {
+      cIdx: 5,
+      pIdx: 2,
+      qty: 55,
+      d: 23,
+      status: "pending" as const,
+      paidPct: 0,
+    },
+    {
+      cIdx: 6,
+      pIdx: 7,
+      qty: 180,
+      d: 25,
+      status: "pending" as const,
+      paidPct: 0,
+    },
     { cIdx: 0, pIdx: 3, qty: 20, d: 26, status: "paid" as const, paidPct: 1.0 },
     // Weekend (Aug 27-28)
-    { cIdx: 1, pIdx: 0, qty: 45, d: 27, status: "pending" as const, paidPct: 0 },
-    { cIdx: 7, pIdx: 6, qty: 250, d: 28, status: "paid" as const, paidPct: 0.5 },
+    {
+      cIdx: 1,
+      pIdx: 0,
+      qty: 45,
+      d: 27,
+      status: "pending" as const,
+      paidPct: 0,
+    },
+    {
+      cIdx: 7,
+      pIdx: 6,
+      qty: 250,
+      d: 28,
+      status: "paid" as const,
+      paidPct: 0.5,
+    },
     // Week 5 (Aug 29-31)
-    { cIdx: 2, pIdx: 4, qty: 10, d: 29, status: "pending" as const, paidPct: 0 },
-    { cIdx: 3, pIdx: 1, qty: 70, d: 30, status: "pending" as const, paidPct: 0 },
-    { cIdx: 4, pIdx: 0, qty: 55, d: 31, status: "pending" as const, paidPct: 0 },
+    {
+      cIdx: 2,
+      pIdx: 4,
+      qty: 10,
+      d: 29,
+      status: "pending" as const,
+      paidPct: 0,
+    },
+    {
+      cIdx: 3,
+      pIdx: 1,
+      qty: 70,
+      d: 30,
+      status: "pending" as const,
+      paidPct: 0,
+    },
+    {
+      cIdx: 4,
+      pIdx: 0,
+      qty: 55,
+      d: 31,
+      status: "pending" as const,
+      paidPct: 0,
+    },
   ];
   let arCount = 0;
   for (let k = 0; k < augSales.length; k++) {
@@ -243,15 +374,17 @@ export async function seedCurrentMonth() {
     const invoiceDate = new Date(`${day(s.d)}T09:00:00Z`);
     // Sent at time varies — some sent same day, some next morning
     const sentHour = s.d % 7 < 5 ? 9 : 11; // weekends sent later
-    const sentAt = s.status !== "draft"
-      ? new Date(`${day(s.d)}T${String(sentHour).padStart(2, "0")}:00:00Z`)
-      : null;
-    // Paid at varies — some same day, some days later
-    const paidAt = s.paidPct === 1.0
-      ? new Date(`${day(Math.min(31, s.d + (s.d % 3) + 1))}T15:00:00Z`)
-      : s.paidPct > 0 && s.paidPct < 1.0
-        ? new Date(`${day(Math.min(31, s.d + 3))}T14:00:00Z`)
+    const sentAt =
+      s.status !== "draft"
+        ? new Date(`${day(s.d)}T${String(sentHour).padStart(2, "0")}:00:00Z`)
         : null;
+    // Paid at varies — some same day, some days later
+    const paidAt =
+      s.paidPct === 1.0
+        ? new Date(`${day(Math.min(31, s.d + (s.d % 3) + 1))}T15:00:00Z`)
+        : s.paidPct > 0 && s.paidPct < 1.0
+          ? new Date(`${day(Math.min(31, s.d + 3))}T14:00:00Z`)
+          : null;
     await db
       .insert(salesInvoices)
       .values({
@@ -880,20 +1013,118 @@ export async function seedCurrentMonth() {
 
   // ── 9. August AP bills (supplier invoices) ──────────────────────────────
   const augBills = [
-    { sIdx: 0, desc: "Rice (50kg) x 100 — bulk order", d: 2, total: 650000, status: "paid" as const, paidPct: 1.0 },
-    { sIdx: 1, desc: "Sugar (10kg) x 200", d: 3, total: 360000, status: "pending" as const, paidPct: 0 },
-    { sIdx: 2, desc: "Cooking Oil (5L) x 50", d: 5, total: 70000, status: "paid" as const, paidPct: 1.0 },
-    { sIdx: 0, desc: "Flour (25kg) x 80", d: 7, total: 336000, status: "pending" as const, paidPct: 0 },
-    { sIdx: 3, desc: "Tomato Paste (carton) x 30", d: 8, total: 288000, status: "paid" as const, paidPct: 0.5 },
-    { sIdx: 4, desc: "Milk Powder (carton) x 25", d: 10, total: 300000, status: "pending" as const, paidPct: 0 },
-    { sIdx: 1, desc: "Bottled Water (case) x 500", d: 12, total: 240000, status: "pending" as const, paidPct: 0 },
-    { sIdx: 5, desc: "Soap (carton) x 100", d: 14, total: 240000, status: "overdue" as const, paidPct: 0 },
-    { sIdx: 0, desc: "Rice (50kg) x 60 — restock", d: 18, total: 390000, status: "pending" as const, paidPct: 0 },
-    { sIdx: 2, desc: "Cooking Oil (5L) x 80", d: 20, total: 112000, status: "pending" as const, paidPct: 0 },
-    { sIdx: 3, desc: "Flour (25kg) x 40", d: 22, total: 168000, status: "paid" as const, paidPct: 1.0 },
-    { sIdx: 4, desc: "Milk Powder (carton) x 15", d: 25, total: 180000, status: "pending" as const, paidPct: 0 },
-    { sIdx: 1, desc: "Sugar (10kg) x 150", d: 27, total: 270000, status: "pending" as const, paidPct: 0 },
-    { sIdx: 5, desc: "Soap (carton) x 60", d: 29, total: 144000, status: "pending" as const, paidPct: 0 },
+    {
+      sIdx: 0,
+      desc: "Rice (50kg) x 100 — bulk order",
+      d: 2,
+      total: 650000,
+      status: "paid" as const,
+      paidPct: 1.0,
+    },
+    {
+      sIdx: 1,
+      desc: "Sugar (10kg) x 200",
+      d: 3,
+      total: 360000,
+      status: "pending" as const,
+      paidPct: 0,
+    },
+    {
+      sIdx: 2,
+      desc: "Cooking Oil (5L) x 50",
+      d: 5,
+      total: 70000,
+      status: "paid" as const,
+      paidPct: 1.0,
+    },
+    {
+      sIdx: 0,
+      desc: "Flour (25kg) x 80",
+      d: 7,
+      total: 336000,
+      status: "pending" as const,
+      paidPct: 0,
+    },
+    {
+      sIdx: 3,
+      desc: "Tomato Paste (carton) x 30",
+      d: 8,
+      total: 288000,
+      status: "paid" as const,
+      paidPct: 0.5,
+    },
+    {
+      sIdx: 4,
+      desc: "Milk Powder (carton) x 25",
+      d: 10,
+      total: 300000,
+      status: "pending" as const,
+      paidPct: 0,
+    },
+    {
+      sIdx: 1,
+      desc: "Bottled Water (case) x 500",
+      d: 12,
+      total: 240000,
+      status: "pending" as const,
+      paidPct: 0,
+    },
+    {
+      sIdx: 5,
+      desc: "Soap (carton) x 100",
+      d: 14,
+      total: 240000,
+      status: "overdue" as const,
+      paidPct: 0,
+    },
+    {
+      sIdx: 0,
+      desc: "Rice (50kg) x 60 — restock",
+      d: 18,
+      total: 390000,
+      status: "pending" as const,
+      paidPct: 0,
+    },
+    {
+      sIdx: 2,
+      desc: "Cooking Oil (5L) x 80",
+      d: 20,
+      total: 112000,
+      status: "pending" as const,
+      paidPct: 0,
+    },
+    {
+      sIdx: 3,
+      desc: "Flour (25kg) x 40",
+      d: 22,
+      total: 168000,
+      status: "paid" as const,
+      paidPct: 1.0,
+    },
+    {
+      sIdx: 4,
+      desc: "Milk Powder (carton) x 15",
+      d: 25,
+      total: 180000,
+      status: "pending" as const,
+      paidPct: 0,
+    },
+    {
+      sIdx: 1,
+      desc: "Sugar (10kg) x 150",
+      d: 27,
+      total: 270000,
+      status: "pending" as const,
+      paidPct: 0,
+    },
+    {
+      sIdx: 5,
+      desc: "Soap (carton) x 60",
+      d: 29,
+      total: 144000,
+      status: "pending" as const,
+      paidPct: 0,
+    },
   ];
   let apCount = 0;
   for (let k = 0; k < augBills.length; k++) {
@@ -904,11 +1135,12 @@ export async function seedCurrentMonth() {
     const billId = uuid("g20", seq);
     const paidAmt = Math.round(b.total * (b.paidPct ?? 0));
     const balance = b.total - paidAmt;
-    const paidAt = b.paidPct === 1.0
-      ? new Date(`${day(Math.min(31, b.d + 5))}T16:00:00Z`)
-      : b.paidPct > 0
-        ? new Date(`${day(Math.min(31, b.d + 7))}T14:00:00Z`)
-        : null;
+    const paidAt =
+      b.paidPct === 1.0
+        ? new Date(`${day(Math.min(31, b.d + 5))}T16:00:00Z`)
+        : b.paidPct > 0
+          ? new Date(`${day(Math.min(31, b.d + 7))}T14:00:00Z`)
+          : null;
     await db
       .insert(invoicesAp)
       .values({
@@ -945,17 +1177,71 @@ export async function seedCurrentMonth() {
   // ── 10. Customer payments (AR receipts) ──────────────────────────────────
   // Payments received from customers against their invoices
   const arPayments = [
-    { cIdx: 0, d: 8, amount: 162500, method: "bank_transfer", ref: "PAY-2026-08-001" },
-    { cIdx: 2, d: 10, amount: 260000, method: "bank_transfer", ref: "PAY-2026-08-002" },
-    { cIdx: 3, d: 12, amount: 86400, method: "mobile_money", ref: "WAVE-2026-08-C1" },
-    { cIdx: 5, d: 15, amount: 112000, method: "bank_transfer", ref: "PAY-2026-08-003" },
+    {
+      cIdx: 0,
+      d: 8,
+      amount: 162500,
+      method: "bank_transfer",
+      ref: "PAY-2026-08-001",
+    },
+    {
+      cIdx: 2,
+      d: 10,
+      amount: 260000,
+      method: "bank_transfer",
+      ref: "PAY-2026-08-002",
+    },
+    {
+      cIdx: 3,
+      d: 12,
+      amount: 86400,
+      method: "mobile_money",
+      ref: "WAVE-2026-08-C1",
+    },
+    {
+      cIdx: 5,
+      d: 15,
+      amount: 112000,
+      method: "bank_transfer",
+      ref: "PAY-2026-08-003",
+    },
     { cIdx: 7, d: 18, amount: 144000, method: "cash", ref: "CASH-2026-08-001" },
-    { cIdx: 0, d: 20, amount: 312000, method: "bank_transfer", ref: "PAY-2026-08-004" },
-    { cIdx: 1, d: 22, amount: 120000, method: "mobile_money", ref: "WAVE-2026-08-C2" },
-    { cIdx: 4, d: 25, amount: 288000, method: "bank_transfer", ref: "PAY-2026-08-005" },
-    { cIdx: 6, d: 27, amount: 205000, method: "bank_transfer", ref: "PAY-2026-08-006" },
+    {
+      cIdx: 0,
+      d: 20,
+      amount: 312000,
+      method: "bank_transfer",
+      ref: "PAY-2026-08-004",
+    },
+    {
+      cIdx: 1,
+      d: 22,
+      amount: 120000,
+      method: "mobile_money",
+      ref: "WAVE-2026-08-C2",
+    },
+    {
+      cIdx: 4,
+      d: 25,
+      amount: 288000,
+      method: "bank_transfer",
+      ref: "PAY-2026-08-005",
+    },
+    {
+      cIdx: 6,
+      d: 27,
+      amount: 205000,
+      method: "bank_transfer",
+      ref: "PAY-2026-08-006",
+    },
     { cIdx: 2, d: 29, amount: 96000, method: "cash", ref: "CASH-2026-08-002" },
-    { cIdx: 3, d: 30, amount: 48000, method: "mobile_money", ref: "WAVE-2026-08-C3" },
+    {
+      cIdx: 3,
+      d: 30,
+      amount: 48000,
+      method: "mobile_money",
+      ref: "WAVE-2026-08-C3",
+    },
   ];
   let arPayCount = 0;
   for (let k = 0; k < arPayments.length; k++) {
@@ -984,11 +1270,41 @@ export async function seedCurrentMonth() {
 
   // ── 11. Vendor payments (AP disbursements) ──────────────────────────────
   const apPayments = [
-    { sIdx: 0, d: 7, amount: 650000, method: "bank_transfer", ref: "VEND-2026-08-001" },
-    { sIdx: 2, d: 10, amount: 70000, method: "bank_transfer", ref: "VEND-2026-08-002" },
-    { sIdx: 3, d: 15, amount: 144000, method: "bank_transfer", ref: "VEND-2026-08-003" },
-    { sIdx: 0, d: 20, amount: 390000, method: "bank_transfer", ref: "VEND-2026-08-004" },
-    { sIdx: 3, d: 25, amount: 168000, method: "mobile_money", ref: "WAVE-2026-08-V1" },
+    {
+      sIdx: 0,
+      d: 7,
+      amount: 650000,
+      method: "bank_transfer",
+      ref: "VEND-2026-08-001",
+    },
+    {
+      sIdx: 2,
+      d: 10,
+      amount: 70000,
+      method: "bank_transfer",
+      ref: "VEND-2026-08-002",
+    },
+    {
+      sIdx: 3,
+      d: 15,
+      amount: 144000,
+      method: "bank_transfer",
+      ref: "VEND-2026-08-003",
+    },
+    {
+      sIdx: 0,
+      d: 20,
+      amount: 390000,
+      method: "bank_transfer",
+      ref: "VEND-2026-08-004",
+    },
+    {
+      sIdx: 3,
+      d: 25,
+      amount: 168000,
+      method: "mobile_money",
+      ref: "WAVE-2026-08-V1",
+    },
   ];
   let apPayCount = 0;
   for (let k = 0; k < apPayments.length; k++) {
@@ -1025,23 +1341,119 @@ export async function seedCurrentMonth() {
       ref: string;
     }> = [
       // Weekend transactions (realistic — business doesn't stop)
-      { d: 6, type: "deposit", amount: "85000", desc: "Weekend market sales — Serrekunda", ref: "WKND-2026-08-1" },
-      { d: 7, type: "withdrawal", amount: "18500", desc: "Fuel — weekend delivery run", ref: "WKND-2026-08-2" },
-      { d: 13, type: "deposit", amount: "125000", desc: "Weekend collections — Banjul market", ref: "WKND-2026-08-3" },
-      { d: 14, type: "withdrawal", amount: "9200", desc: "Staff transport — weekend shift", ref: "WKND-2026-08-4" },
-      { d: 20, type: "deposit", amount: "95000", desc: "Weekend sales — Fajara", ref: "WKND-2026-08-5" },
-      { d: 21, type: "fee", amount: "1800", desc: "ATM withdrawal fee", ref: "ATM-2026-08-3" },
-      { d: 27, type: "deposit", amount: "142000", desc: "Weekend sales — Kanifing", ref: "WKND-2026-08-6" },
-      { d: 28, type: "withdrawal", amount: "22000", desc: "Weekend restocking — suppliers", ref: "WKND-2026-08-7" },
+      {
+        d: 6,
+        type: "deposit",
+        amount: "85000",
+        desc: "Weekend market sales — Serrekunda",
+        ref: "WKND-2026-08-1",
+      },
+      {
+        d: 7,
+        type: "withdrawal",
+        amount: "18500",
+        desc: "Fuel — weekend delivery run",
+        ref: "WKND-2026-08-2",
+      },
+      {
+        d: 13,
+        type: "deposit",
+        amount: "125000",
+        desc: "Weekend collections — Banjul market",
+        ref: "WKND-2026-08-3",
+      },
+      {
+        d: 14,
+        type: "withdrawal",
+        amount: "9200",
+        desc: "Staff transport — weekend shift",
+        ref: "WKND-2026-08-4",
+      },
+      {
+        d: 20,
+        type: "deposit",
+        amount: "95000",
+        desc: "Weekend sales — Fajara",
+        ref: "WKND-2026-08-5",
+      },
+      {
+        d: 21,
+        type: "fee",
+        amount: "1800",
+        desc: "ATM withdrawal fee",
+        ref: "ATM-2026-08-3",
+      },
+      {
+        d: 27,
+        type: "deposit",
+        amount: "142000",
+        desc: "Weekend sales — Kanifing",
+        ref: "WKND-2026-08-6",
+      },
+      {
+        d: 28,
+        type: "withdrawal",
+        amount: "22000",
+        desc: "Weekend restocking — suppliers",
+        ref: "WKND-2026-08-7",
+      },
       // Weekday transactions (more varied)
-      { d: 22, type: "deposit", amount: "180000", desc: "Customer payment — large order", ref: "PAY-2026-08-LG1" },
-      { d: 23, type: "withdrawal", amount: "45000", desc: "Insurance premium — Q3", ref: "INS-AUG" },
-      { d: 24, type: "deposit", amount: "67500", desc: "Mobile money collections batch", ref: "MOMO-BATCH-AUG" },
-      { d: 25, type: "withdrawal", amount: "32000", desc: "Marketing — social media ads", ref: "MKTG-AUG" },
-      { d: 26, type: "withdrawal", amount: "15000", desc: "Office maintenance", ref: "MAINT-AUG" },
-      { d: 29, type: "deposit", amount: "210000", desc: "End-of-month collections", ref: "COLL-2026-08-EOM" },
-      { d: 30, type: "withdrawal", amount: "88000", desc: "Payroll disbursement", ref: "PAYROLL-AUG" },
-      { d: 31, type: "fee", amount: "3200", desc: "Monthly account maintenance fee", ref: "FEE-2026-08-2" },
+      {
+        d: 22,
+        type: "deposit",
+        amount: "180000",
+        desc: "Customer payment — large order",
+        ref: "PAY-2026-08-LG1",
+      },
+      {
+        d: 23,
+        type: "withdrawal",
+        amount: "45000",
+        desc: "Insurance premium — Q3",
+        ref: "INS-AUG",
+      },
+      {
+        d: 24,
+        type: "deposit",
+        amount: "67500",
+        desc: "Mobile money collections batch",
+        ref: "MOMO-BATCH-AUG",
+      },
+      {
+        d: 25,
+        type: "withdrawal",
+        amount: "32000",
+        desc: "Marketing — social media ads",
+        ref: "MKTG-AUG",
+      },
+      {
+        d: 26,
+        type: "withdrawal",
+        amount: "15000",
+        desc: "Office maintenance",
+        ref: "MAINT-AUG",
+      },
+      {
+        d: 29,
+        type: "deposit",
+        amount: "210000",
+        desc: "End-of-month collections",
+        ref: "COLL-2026-08-EOM",
+      },
+      {
+        d: 30,
+        type: "withdrawal",
+        amount: "88000",
+        desc: "Payroll disbursement",
+        ref: "PAYROLL-AUG",
+      },
+      {
+        d: 31,
+        type: "fee",
+        amount: "3200",
+        desc: "Monthly account maintenance fee",
+        ref: "FEE-2026-08-2",
+      },
     ];
     for (let i = 0; i < moreTxs.length; i++) {
       const tx = moreTxs[i];
@@ -1067,14 +1479,57 @@ export async function seedCurrentMonth() {
   // ── 13. More mobile money transactions ──────────────────────────────────
   if (mmAccountId) {
     const moreMm = [
-      { amt: "28500", from: "Banjul Retail Shop", d: 8, type: "collection" as const },
-      { amt: "19200", from: "Fajara Pharmacy", d: 11, type: "collection" as const },
-      { amt: "45000", from: "Kanifing Warehouse", d: 15, type: "collection" as const },
-      { amt: "32000", from: "Serekunda Market Traders", d: 18, type: "collection" as const },
-      { amt: "15800", from: "Brusubi Gas Station", d: 22, type: "collection" as const },
-      { amt: "62000", from: "Hotel Kairaba Beach", d: 25, type: "collection" as const },
-      { amt: "38500", from: "Brikama Fresh Produce", d: 28, type: "collection" as const },
-      { amt: "22000", from: "Main Operating Account", d: 25, type: "transfer" as const, fee: "100", net: "22100", desc: "Transfer to bank — collections" },
+      {
+        amt: "28500",
+        from: "Banjul Retail Shop",
+        d: 8,
+        type: "collection" as const,
+      },
+      {
+        amt: "19200",
+        from: "Fajara Pharmacy",
+        d: 11,
+        type: "collection" as const,
+      },
+      {
+        amt: "45000",
+        from: "Kanifing Warehouse",
+        d: 15,
+        type: "collection" as const,
+      },
+      {
+        amt: "32000",
+        from: "Serekunda Market Traders",
+        d: 18,
+        type: "collection" as const,
+      },
+      {
+        amt: "15800",
+        from: "Brusubi Gas Station",
+        d: 22,
+        type: "collection" as const,
+      },
+      {
+        amt: "62000",
+        from: "Hotel Kairaba Beach",
+        d: 25,
+        type: "collection" as const,
+      },
+      {
+        amt: "38500",
+        from: "Brikama Fresh Produce",
+        d: 28,
+        type: "collection" as const,
+      },
+      {
+        amt: "22000",
+        from: "Main Operating Account",
+        d: 25,
+        type: "transfer" as const,
+        fee: "100",
+        net: "22100",
+        desc: "Transfer to bank — collections",
+      },
     ];
     for (let i = 0; i < moreMm.length; i++) {
       const it = moreMm[i];
@@ -1269,21 +1724,111 @@ export async function seedCurrentMonth() {
 
   // ── 10. August notifications (unread — bell + Work feed) ────────────────
   const notifDefs = [
-    { type: "ingestion_posted", priority: "medium", title: "4 documents auto-posted", body: "OCR extraction posted 4 supplier bills from the August inbox.", d: 3 },
-    { type: "overdue_invoice", priority: "high", title: "2 invoices overdue", body: "SI-2026-062 and SI-2026-070 are past due — collections agent drafted reminders.", d: 5 },
-    { type: "budget_alert", priority: "medium", title: "Utilities at 91% of budget", body: "August utilities spend is tracking 12% above plan.", d: 7 },
-    { type: "agent_flag", priority: "medium", title: "Duplicate vendor flagged", body: "A possible duplicate supplier was detected and moved to review.", d: 9 },
-    { type: "ingestion_posted", priority: "low", title: "3 receipts scanned", body: "Mobile money receipts from Wave auto-categorized.", d: 11 },
-    { type: "payroll_processed", priority: "medium", title: "August payroll approved", body: "The August payroll run is approved and ready for disbursement on the 28th.", d: 14 },
-    { type: "estimate_converted", priority: "low", title: "EST-2026-007 accepted", body: "Gambia Ports Authority accepted the estimate — convert it to an invoice.", d: 16 },
-    { type: "overdue_invoice", priority: "high", title: "3 invoices overdue", body: "SI-2026-062, SI-2026-070, and SI-2026-078 are now overdue.", d: 18 },
-    { type: "agent_flag", priority: "medium", title: "Large expense flagged", body: "A payment of GMD 45,000 for insurance exceeds the GMD 40,000 threshold.", d: 20 },
-    { type: "ingestion_posted", priority: "low", title: "2 invoices received", body: "Supplier invoices from Atlantic Trading posted via email scan.", d: 22 },
-    { type: "budget_alert", priority: "high", title: "Marketing at 95% of budget", body: "August marketing spend is nearly exhausted — 5 days remaining.", d: 24 },
-    { type: "agent_flag", priority: "medium", title: "Cash flow warning", body: "Projected cash balance dips below GMD 200,000 next week.", d: 26 },
-    { type: "ingestion_posted", priority: "medium", title: "5 documents auto-posted", body: "Weekend batch: 3 supplier bills + 2 customer payments.", d: 28 },
-    { type: "overdue_invoice", priority: "urgent", title: "4 invoices overdue", body: "Total overdue balance: GMD 1,245,000 — escalate to senior collections.", d: 30 },
-    { type: "payroll_processed", priority: "medium", title: "Payroll disbursement ready", body: "GMD 368,000 ready for bank transfer — August payroll.", d: 30 },
+    {
+      type: "ingestion_posted",
+      priority: "medium",
+      title: "4 documents auto-posted",
+      body: "OCR extraction posted 4 supplier bills from the August inbox.",
+      d: 3,
+    },
+    {
+      type: "overdue_invoice",
+      priority: "high",
+      title: "2 invoices overdue",
+      body: "SI-2026-062 and SI-2026-070 are past due — collections agent drafted reminders.",
+      d: 5,
+    },
+    {
+      type: "budget_alert",
+      priority: "medium",
+      title: "Utilities at 91% of budget",
+      body: "August utilities spend is tracking 12% above plan.",
+      d: 7,
+    },
+    {
+      type: "agent_flag",
+      priority: "medium",
+      title: "Duplicate vendor flagged",
+      body: "A possible duplicate supplier was detected and moved to review.",
+      d: 9,
+    },
+    {
+      type: "ingestion_posted",
+      priority: "low",
+      title: "3 receipts scanned",
+      body: "Mobile money receipts from Wave auto-categorized.",
+      d: 11,
+    },
+    {
+      type: "payroll_processed",
+      priority: "medium",
+      title: "August payroll approved",
+      body: "The August payroll run is approved and ready for disbursement on the 28th.",
+      d: 14,
+    },
+    {
+      type: "estimate_converted",
+      priority: "low",
+      title: "EST-2026-007 accepted",
+      body: "Gambia Ports Authority accepted the estimate — convert it to an invoice.",
+      d: 16,
+    },
+    {
+      type: "overdue_invoice",
+      priority: "high",
+      title: "3 invoices overdue",
+      body: "SI-2026-062, SI-2026-070, and SI-2026-078 are now overdue.",
+      d: 18,
+    },
+    {
+      type: "agent_flag",
+      priority: "medium",
+      title: "Large expense flagged",
+      body: "A payment of GMD 45,000 for insurance exceeds the GMD 40,000 threshold.",
+      d: 20,
+    },
+    {
+      type: "ingestion_posted",
+      priority: "low",
+      title: "2 invoices received",
+      body: "Supplier invoices from Atlantic Trading posted via email scan.",
+      d: 22,
+    },
+    {
+      type: "budget_alert",
+      priority: "high",
+      title: "Marketing at 95% of budget",
+      body: "August marketing spend is nearly exhausted — 5 days remaining.",
+      d: 24,
+    },
+    {
+      type: "agent_flag",
+      priority: "medium",
+      title: "Cash flow warning",
+      body: "Projected cash balance dips below GMD 200,000 next week.",
+      d: 26,
+    },
+    {
+      type: "ingestion_posted",
+      priority: "medium",
+      title: "5 documents auto-posted",
+      body: "Weekend batch: 3 supplier bills + 2 customer payments.",
+      d: 28,
+    },
+    {
+      type: "overdue_invoice",
+      priority: "urgent",
+      title: "4 invoices overdue",
+      body: "Total overdue balance: GMD 1,245,000 — escalate to senior collections.",
+      d: 30,
+    },
+    {
+      type: "payroll_processed",
+      priority: "medium",
+      title: "Payroll disbursement ready",
+      body: "GMD 368,000 ready for bank transfer — August payroll.",
+      d: 30,
+    },
   ];
   let nCount = 0;
   for (let n = 0; n < notifDefs.length; n++) {
@@ -1300,13 +1845,415 @@ export async function seedCurrentMonth() {
         body: nd.body,
         read: n >= 11,
         status: n >= 11 ? "read" : "sent",
-        sentAt: new Date(`${day(nd.d)}T${String(8 + (n % 4)).padStart(2, "0")}:00:00Z`),
-        createdAt: new Date(`${day(nd.d)}T${String(8 + (n % 4)).padStart(2, "0")}:00:00Z`),
+        sentAt: new Date(
+          `${day(nd.d)}T${String(8 + (n % 4)).padStart(2, "0")}:00:00Z`,
+        ),
+        createdAt: new Date(
+          `${day(nd.d)}T${String(8 + (n % 4)).padStart(2, "0")}:00:00Z`,
+        ),
       })
       .onConflictDoNothing();
     nCount++;
   }
   console.log(`  Notifications (Aug): +${nCount}`);
+
+  // ── 15. August bank reconciliation (mid-month: Aug 1-15) ──────────────
+  let reconCount = 0;
+  if (bankAccountId) {
+    // Calculate book balance from reconciled bank transactions up to Aug 15
+    const reconTxs = await db
+      .select({
+        type: bankTransactions.type,
+        amount: bankTransactions.amount,
+      })
+      .from(bankTransactions)
+      .where(
+        and(
+          eq(bankTransactions.entityId, entityId),
+          eq(bankTransactions.bankAccountId, bankAccountId),
+        ),
+      );
+
+    let bookBalance = 520000; // opening balance from main seed
+    for (const tx of reconTxs) {
+      const amt = parseFloat(String(tx.amount));
+      if (tx.type === "deposit") bookBalance += amt;
+      else if (tx.type === "withdrawal" || tx.type === "fee")
+        bookBalance -= amt;
+    }
+
+    const reconId = uuid("g30", 1);
+    await db
+      .insert(reconciliations)
+      .values({
+        id: reconId,
+        entityId,
+        bankAccountId,
+        statementDate: "2026-08-15",
+        statementBalance: String(Math.round(bookBalance * 0.98)), // slight difference for realism
+        bookBalance: String(bookBalance),
+        difference: String(Math.round(bookBalance * -0.02)),
+        status: "matched",
+        closedBy: "demo@xenboox.com",
+        closedAt: new Date("2026-08-16T10:00:00Z"),
+        notes: "Mid-August reconciliation — minor bank fee timing difference",
+      })
+      .onConflictDoNothing();
+
+    // Match reconciled bank transactions (first 10 that are marked reconciled)
+    const matchedTxs = await db
+      .select({ id: bankTransactions.id, amount: bankTransactions.amount })
+      .from(bankTransactions)
+      .where(
+        and(
+          eq(bankTransactions.entityId, entityId),
+          eq(bankTransactions.bankAccountId, bankAccountId),
+          eq(bankTransactions.isReconciled, true),
+        ),
+      )
+      .limit(10);
+
+    for (let i = 0; i < matchedTxs.length; i++) {
+      await db
+        .insert(reconciliationItems)
+        .values({
+          id: uuid("g31", i + 1),
+          reconciliationId: reconId,
+          bankTransactionId: matchedTxs[i].id,
+          status: "matched",
+          matchedAmount: matchedTxs[i].amount,
+          notes: "Auto-matched by reconciliation agent",
+        })
+        .onConflictDoNothing();
+    }
+    reconCount++;
+    console.log(`  Bank reconciliation (Aug mid-month): +${reconCount}`);
+  }
+
+  // ── 16. August petty cash ledger ────────────────────────────────────────
+  let pettyCount = 0;
+  const cashAcctRows = await db
+    .select({ id: cashAccounts.id })
+    .from(cashAccounts)
+    .where(eq(cashAccounts.entityId, entityId))
+    .limit(1);
+  const cashAccountId = cashAcctRows[0]?.id;
+  if (cashAccountId) {
+    const pettyEntries = [
+      {
+        d: 1,
+        type: "receipt" as const,
+        amount: 50000,
+        desc: "Opening petty cash float — August",
+        balance: 50000,
+        cat: "replenishment",
+      },
+      {
+        d: 3,
+        type: "expense" as const,
+        amount: 3200,
+        desc: "Staff refreshments — morning tea",
+        balance: 46800,
+        cat: "office_supplies",
+      },
+      {
+        d: 5,
+        type: "expense" as const,
+        amount: 7800,
+        desc: "Printer toner cartridge",
+        balance: 39000,
+        cat: "office_supplies",
+      },
+      {
+        d: 7,
+        type: "expense" as const,
+        amount: 2500,
+        desc: "Courier service — document delivery",
+        balance: 36500,
+        cat: "travel",
+      },
+      {
+        d: 9,
+        type: "expense" as const,
+        amount: 4500,
+        desc: "Cleaning supplies — office",
+        balance: 32000,
+        cat: "office_supplies",
+      },
+      {
+        d: 10,
+        type: "replenishment" as const,
+        amount: 18000,
+        desc: "Cash replenishment from bank",
+        balance: 50000,
+        cat: "replenishment",
+      },
+      {
+        d: 12,
+        type: "expense" as const,
+        amount: 6200,
+        desc: "Staff lunch — team meeting",
+        balance: 43800,
+        cat: "meals",
+      },
+      {
+        d: 14,
+        type: "expense" as const,
+        amount: 1800,
+        desc: "Phone credit — office mobile",
+        balance: 42000,
+        cat: "utilities",
+      },
+      {
+        d: 16,
+        type: "expense" as const,
+        amount: 5500,
+        desc: "Parking fees — client visit",
+        balance: 36500,
+        cat: "travel",
+      },
+      {
+        d: 18,
+        type: "expense" as const,
+        amount: 3800,
+        desc: "Stationery — notebooks and pens",
+        balance: 32700,
+        cat: "office_supplies",
+      },
+      {
+        d: 19,
+        type: "replenishment" as const,
+        amount: 17300,
+        desc: "Cash replenishment from bank",
+        balance: 50000,
+        cat: "replenishment",
+      },
+      {
+        d: 21,
+        type: "expense" as const,
+        amount: 8400,
+        desc: "Client entertainment — Senegambia",
+        balance: 41600,
+        cat: "meals",
+      },
+      {
+        d: 23,
+        type: "expense" as const,
+        amount: 2200,
+        desc: "Postage — registered mail",
+        balance: 39400,
+        cat: "office_supplies",
+      },
+      {
+        d: 25,
+        type: "expense" as const,
+        amount: 4100,
+        desc: "Staff transport — overtime shift",
+        balance: 35300,
+        cat: "travel",
+      },
+      {
+        d: 27,
+        type: "expense" as const,
+        amount: 6800,
+        desc: "Office cleaning service",
+        balance: 28500,
+        cat: "office_supplies",
+      },
+      {
+        d: 28,
+        type: "replenishment" as const,
+        amount: 21500,
+        desc: "Cash replenishment from bank",
+        balance: 50000,
+        cat: "replenishment",
+      },
+      {
+        d: 30,
+        type: "expense" as const,
+        amount: 3500,
+        desc: "Staff refreshments — month-end",
+        balance: 46500,
+        cat: "office_supplies",
+      },
+    ];
+    for (let i = 0; i < pettyEntries.length; i++) {
+      const p = pettyEntries[i];
+      await db
+        .insert(pettyCashLedger)
+        .values({
+          id: uuid("g32", i + 1),
+          entityId,
+          cashAccountId,
+          transactionDate: day(p.d),
+          description: p.desc,
+          debit:
+            p.type === "receipt" || p.type === "replenishment"
+              ? String(p.amount)
+              : "0",
+          credit: p.type === "expense" ? String(p.amount) : "0",
+          balance: String(p.balance),
+          category: p.cat,
+        })
+        .onConflictDoNothing();
+      pettyCount++;
+    }
+    console.log(`  Petty cash ledger (Aug): +${pettyCount}`);
+  }
+
+  // ── 17. August imprest floats ───────────────────────────────────────────
+  let imprestCount = 0;
+  if (cashAccountId) {
+    const imprestDefs = [
+      {
+        assignee: "Awa Bah",
+        amount: 30000,
+        spent: 22500,
+        purpose: "Office supplies purchase — August",
+        status: "active" as const,
+        issuedDay: 1,
+        settleDay: 31,
+        receipts: [
+          { desc: "A4 paper ream x4", amount: 6000, d: 3 },
+          { desc: "Printer toner + staples", amount: 8500, d: 8 },
+          { desc: "File folders and labels", amount: 4200, d: 15 },
+          { desc: "Whiteboard markers", amount: 1800, d: 22 },
+          { desc: "USB flash drives x3", amount: 2000, d: 28 },
+        ],
+      },
+      {
+        assignee: "Bubacarr Jobe",
+        amount: 25000,
+        spent: 25000,
+        purpose: "IT maintenance supplies — August",
+        status: "settled" as const,
+        issuedDay: 2,
+        settleDay: 20,
+        receipts: [
+          { desc: "Network cable (50m)", amount: 4500, d: 4 },
+          { desc: "Mouse and keyboard combo", amount: 6500, d: 7 },
+          { desc: "External hard drive — backup", amount: 8500, d: 10 },
+          { desc: "HDMI cables x2 + adapters", amount: 3200, d: 14 },
+          { desc: "WiFi extender", amount: 2300, d: 18 },
+        ],
+      },
+      {
+        assignee: "Fatoumata Jawara",
+        amount: 20000,
+        spent: 12800,
+        purpose: "Client meeting expenses — August",
+        status: "active" as const,
+        issuedDay: 10,
+        settleDay: 31,
+        receipts: [
+          { desc: "Client lunch — Kairaba", amount: 7200, d: 12 },
+          { desc: "Taxi fare — client office", amount: 2800, d: 15 },
+          { desc: "Business cards printing", amount: 2800, d: 19 },
+        ],
+      },
+    ];
+    for (let i = 0; i < imprestDefs.length; i++) {
+      const imp = imprestDefs[i];
+      const floatId = uuid("g33", i + 1);
+      const remaining = imp.amount - imp.spent;
+      await db
+        .insert(imprestFloats)
+        .values({
+          id: floatId,
+          entityId,
+          cashAccountId,
+          assigneeName: imp.assignee,
+          amount: String(imp.amount),
+          remainingBalance: String(remaining),
+          purpose: imp.purpose,
+          status: imp.status,
+          issuedDate: day(imp.issuedDay),
+          settleByDate: day(imp.settleDay),
+          settledAt:
+            imp.status === "settled"
+              ? new Date(`${day(imp.settleDay)}T16:00:00Z`)
+              : null,
+        })
+        .onConflictDoNothing();
+
+      for (let r = 0; r < imp.receipts.length; r++) {
+        const receipt = imp.receipts[r];
+        await db
+          .insert(imprestReceipts)
+          .values({
+            id: uuid("g34", i * 10 + r + 1),
+            imprestFloatId: floatId,
+            description: receipt.desc,
+            amount: String(receipt.amount),
+            receiptDate: day(receipt.d),
+          })
+          .onConflictDoNothing();
+      }
+      imprestCount++;
+    }
+    console.log(`  Imprest floats (Aug): +${imprestCount}`);
+  }
+
+  // ── 18. August AR payments linked to specific invoices ───────────────────
+  // (Aug AR payments already seeded in section 10 — adding invoice linkage note)
+  console.log("  AR payments (Aug): already linked in section 10");
+
+  // ── 19. August closing summary entries ──────────────────────────────────
+  // End-of-month accrual reversal and period close entries
+  if (augPeriodId) {
+    const closingEntries = [
+      {
+        desc: "Aug accrual reversal — operating expenses",
+        d: 31,
+        lines: [
+          [ACCT.accruedLiability, "161500", "0"],
+          [ACCT.rentExpense, "0", "75000"],
+          [ACCT.utilitiesExpense, "0", "45500"],
+          [ACCT.officeExpense, "0", "12500"],
+          [ACCT.travelExpense, "0", "28500"],
+        ],
+      },
+      {
+        desc: "Aug interest expense — short-term loan",
+        d: 31,
+        lines: [
+          [ACCT.interestExpense, "8500", "0"],
+          [ACCT.accruedLiability, "0", "8500"],
+        ],
+      },
+    ];
+    for (const e of closingEntries) {
+      const jeId = uuid("g35", closingEntries.indexOf(e) + 1);
+      await db
+        .insert(journalEntries)
+        .values({
+          id: jeId,
+          entityId,
+          entryNumber: 250 + closingEntries.indexOf(e),
+          description: e.desc,
+          date: day(e.d),
+          periodId: augPeriodId,
+          status: "posted",
+          postedBy: "demo@xenboox.com",
+          postedAt: new Date(`${day(e.d)}T18:00:00Z`),
+          source: "seed",
+        })
+        .onConflictDoNothing();
+      for (const [accountId, debit, credit] of e.lines) {
+        await db
+          .insert(journalEntryLines)
+          .values({
+            journalEntryId: jeId,
+            accountId,
+            debit,
+            credit,
+            description: e.desc,
+          })
+          .onConflictDoNothing();
+      }
+    }
+    console.log(`  Closing journal entries (Aug): +${closingEntries.length}`);
+  }
 
   console.log("  Current-month seed complete.");
   return {
@@ -1323,6 +2270,9 @@ export async function seedCurrentMonth() {
     clCount,
     jeCount,
     nCount,
+    reconCount,
+    pettyCount,
+    imprestCount,
   };
 }
 
