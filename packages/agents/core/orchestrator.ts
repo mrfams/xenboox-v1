@@ -1,4 +1,5 @@
 import { langfuse } from "./langfuse";
+import { reportAgentError } from "./sentry";
 import { createAuditEntry } from "./state";
 import { getAgentTier } from "./security";
 import { db } from "@xenboox/db";
@@ -558,6 +559,15 @@ export async function orchestrate(
       metadata: { taskType: params.taskType },
     });
 
+    // §4.7 — Report agent failure to Sentry for observability.
+    // Fire-and-forget: don't block the error response on Sentry.
+    void reportAgentError(error, {
+      agentId,
+      entityId: params.entityId,
+      taskType: params.taskType,
+      action: `Agent ${agentId} failed during ${params.taskType}`,
+    });
+
     // §16.2: emit critical alert on agent failure — fire-and-forget
     if (params.userId) {
       void emitAgentAlert(
@@ -962,6 +972,14 @@ export async function orchestrateHierarchical(
     await trace.update({
       output: { error: msg },
       metadata: { status: "error" },
+    });
+
+    // §4.7 — Report orchestration-level failure to Sentry
+    void reportAgentError(error, {
+      agentId: "orchestrator",
+      entityId: params.entityId,
+      taskType: params.taskType,
+      action: `Orchestration failed for ${params.taskType}`,
     });
 
     return {

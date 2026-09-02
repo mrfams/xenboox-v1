@@ -4,6 +4,69 @@
 
 ---
 
+## 2026-09-02 — Sentry Error Tracking: Full-Stack Integration
+
+**Scope:** Production-grade Sentry error tracking across every layer. TDD methodology with graph engineering.
+
+### What shipped
+
+| Layer               | Change                                                                                           | File                                                      |
+| ------------------- | ------------------------------------------------------------------------------------------------ | --------------------------------------------------------- |
+| **Config**          | Removed `prismaIntegration()` (wrong ORM), added `beforeSend` PII redaction                      | `sentry.server.config.ts`                                 |
+| **tRPC Router**     | `handleMutationError` now reports to Sentry with context                                         | `lib/sentry.ts` (new), `lib/trpc/server.ts`               |
+| **tRPC Middleware** | `authMiddleware` calls `Sentry.setUser()`, `entityScopingMiddleware` calls `Sentry.setContext()` | `lib/trpc/server.ts`                                      |
+| **Frontend**        | Error boundary uses direct Sentry import + `withScope` tags + breadcrumbs                        | `components/shared/error-boundary.tsx`                    |
+| **Agents**          | `reportAgentError` helper wired into orchestrator catch blocks                                   | `packages/agents/core/sentry.ts` (new), `orchestrator.ts` |
+| **Logger**          | Pino `logger.error` bridge sends errors to Sentry automatically                                  | `lib/logger.ts`                                           |
+| **Tracing**         | Existing OTel spans auto-captured by Sentry via `withSentryConfig`                               | Already covered                                           |
+| **Tests**           | 33 tests across 5 test files — all passing                                                       | `__tests__/sentry-*.test.ts`                              |
+
+### Files created/modified
+
+| File                                                         | Action                                                                                          |
+| ------------------------------------------------------------ | ----------------------------------------------------------------------------------------------- |
+| `apps/web/sentry.server.config.ts`                           | Modified — removed prismaIntegration, added beforeSend PII redaction                            |
+| `apps/web/lib/sentry.ts`                                     | Created — `reportToSentry`, `handleMutationError`, `captureSentryMessage`                       |
+| `apps/web/lib/trpc/server.ts`                                | Modified — added Sentry import, setUser/setContext in middleware, re-export handleMutationError |
+| `apps/web/lib/logger.ts`                                     | Modified — added logger.error → Sentry bridge                                                   |
+| `apps/web/components/shared/error-boundary.tsx`              | Modified — direct Sentry import, withScope tags, addBreadcrumb                                  |
+| `packages/agents/core/sentry.ts`                             | Created — `reportAgentError`, `addAgentBreadcrumb`                                              |
+| `packages/agents/core/orchestrator.ts`                       | Modified — wired reportAgentError into catch blocks                                             |
+| `apps/web/__tests__/sentry-init.test.ts`                     | Created — 10 tests for Sentry config                                                            |
+| `apps/web/__tests__/sentry-integration.test.ts`              | Created — 9 tests for handleMutationError + reportToSentry                                      |
+| `apps/web/__tests__/sentry-context.test.ts`                  | Created — 3 tests for user/entity context                                                       |
+| `apps/web/__tests__/sentry-e2e.test.ts`                      | Created — 8 E2E tests for full error flow                                                       |
+| `apps/web/__tests__/sentry-sourcemaps.test.ts`               | Created — 3 tests for source map config                                                         |
+| `docs/superpowers/plans/2026-09-02-sentry-error-tracking.md` | Created — 12-task implementation plan                                                           |
+| `howtowork.md`                                               | Created — loop+graph engineering methodology                                                    |
+
+### Verification
+
+- 33/33 tests passing across 5 test files
+- All Sentry configs verified (client, server, edge)
+- PII redaction via `beforeSend` hook
+- User context via `Sentry.setUser` in authMiddleware
+- Entity context via `Sentry.setContext` in entityScopingMiddleware
+- Agent errors reported via `reportAgentError` in orchestrator
+- Logger errors bridged to Sentry via Pino override
+- Error boundary uses direct import + withScope tags
+
+### What requires env vars (Vercel production)
+
+- `SENTRY_DSN` — Sentry project DSN (required for Sentry to be active)
+- `SENTRY_ORG` — Sentry organization slug (for source map upload)
+- `SENTRY_PROJECT` — Sentry project slug (for source map upload)
+- `SENTRY_AUTH_TOKEN` — Sentry auth token (for source map upload)
+
+### Next
+
+1. Set `SENTRY_DSN` in Vercel production environment
+2. Verify Sentry receives errors in production
+3. Set up Sentry alerts for critical errors
+4. Continue with remaining P0 issues from roadtoprod.md
+
+---
+
 ## 2026-08-26 — AI-NATIVE v2: 5 greenfield surfaces + shared agent kit
 
 **Scope:** Ground-up AI-native pages at /dashboard/new, /activity-hub/new, /operations/new, /ledger/new, /financial-pulse/new. Design thesis from Basis/Cursor/Devin research: runs-not-pages, decision briefs, intent previews, provenance everywhere, command-first. Old surfaces untouched; no backend changes.

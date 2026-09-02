@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import * as Sentry from "@sentry/nextjs";
 
 // ─── Error Context ─────────────────────────────────────────────────────────
 //
@@ -118,30 +119,29 @@ export class ErrorBoundary extends Component<Props, State> {
       );
     }
 
-    // Log to Sentry in production (if configured)
+    // §4.7 — Report to Sentry with full context for debugging.
+    // Uses withScope to attach surface, action, error category, and retry
+    // count without polluting the global scope.
     if (typeof window !== "undefined") {
       try {
-        // Dynamic import to avoid SSR issues — Sentry is optional
-        import("@sentry/nextjs")
-          .then(({ captureException }) => {
-            captureException(error, {
-              extra: {
-                componentStack: errorInfo.componentStack,
-                surface: this.props.surface,
-                action: this.props.action,
-                retryCount: this.state.retryCount,
-              },
-              tags: {
-                surface: this.props.surface || "unknown",
-                errorCategory: getErrorCategory(error),
-              },
-            });
-          })
-          .catch(() => {
-            // @sentry/nextjs not installed — silent fail
-          });
+        // Add breadcrumb so Sentry shows what happened before the error
+        Sentry.addBreadcrumb({
+          category: "ui",
+          message: `Error in ${this.props.surface || "unknown"}${this.props.action ? ` during ${this.props.action}` : ""}`,
+          level: "error",
+        });
+
+        Sentry.withScope((scope) => {
+          scope.setTag("surface", this.props.surface || "unknown");
+          scope.setTag("errorCategory", getErrorCategory(error));
+          scope.setTag("retryCount", String(this.state.retryCount));
+          scope.setExtra("componentStack", errorInfo.componentStack);
+          scope.setExtra("action", this.props.action);
+          scope.setExtra("userAgent", navigator.userAgent);
+          Sentry.captureException(error);
+        });
       } catch {
-        // Sentry not available — silent fail
+        // Sentry not available — continue without error tracking
       }
     }
   }

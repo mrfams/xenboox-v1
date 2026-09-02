@@ -86,3 +86,34 @@ export const logger = pino({
 export function createRequestLogger(requestId: string) {
   return logger.child({ requestId });
 }
+
+// §4.7 — Bridge: send error/fatal logs to Sentry automatically.
+// This captures ALL logger.error() and logger.error() calls across the
+// codebase (226+ sites) without modifying each call site.
+// Only runs server-side (Sentry is initialized in sentry.server.config.ts).
+if (typeof window === "undefined") {
+  const originalError = logger.error.bind(logger);
+  logger.error = function (...args: Parameters<typeof originalError>) {
+    originalError(...args);
+    // Extract the first argument — could be error object, context object, or message
+    try {
+      const Sentry = require("@sentry/nextjs");
+      const firstArg = args[0];
+      if (firstArg instanceof Error) {
+        Sentry.captureException(firstArg);
+      } else if (typeof firstArg === "object" && firstArg !== null) {
+        // Pino logger.error({ err }, "message") pattern
+        const err = (firstArg as any).err || (firstArg as any).error;
+        if (err instanceof Error) {
+          Sentry.captureException(err);
+        } else {
+          Sentry.captureMessage(String(args[1] ?? "Unknown error"), "error");
+        }
+      } else {
+        Sentry.captureMessage(String(firstArg ?? "Unknown error"), "error");
+      }
+    } catch {
+      // Sentry not available — continue with Pino only
+    }
+  } as typeof logger.error;
+}

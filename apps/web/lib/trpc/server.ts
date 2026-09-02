@@ -1,4 +1,5 @@
 import { initTRPC, TRPCError } from "@trpc/server";
+import * as Sentry from "@sentry/nextjs";
 import { eq, and, sql } from "drizzle-orm";
 import {
   userEntityAccess,
@@ -198,6 +199,14 @@ const authMiddleware = t.middleware(async ({ ctx, next }) => {
   const requestId = ctx.headers?.["x-request-id"] || "unknown";
   const reqLog = logger.child({ requestId, userId: session.user?.id });
 
+  // §4.7 — Set Sentry user context so all subsequent errors are attributed
+  // to the authenticated user. Cleared on logout via Sentry.setUser(null).
+  Sentry.setUser({
+    id: session.user?.id ?? undefined,
+    email: session.user?.email ?? undefined,
+    username: session.user?.name ?? undefined,
+  });
+
   return next({ ctx: { ...ctx, session, requestId, log: reqLog } });
 });
 
@@ -274,6 +283,15 @@ const entityScopingMiddleware = t.middleware(async ({ ctx, next }) => {
     });
 
     if (orgRole) {
+      // §4.7 — Set Sentry entity context so all subsequent errors show which
+      // entity they occurred in. Critical for multi-tenant debugging.
+      Sentry.setContext("entity", {
+        id: entityId,
+        name: entity?.name ?? "unknown",
+        currency: entity?.currency ?? "unknown",
+        role: orgRole.role,
+      });
+
       // Org-level owner/admin has full access to all entities under this org
       return next({
         ctx: {
@@ -306,6 +324,14 @@ const entityScopingMiddleware = t.middleware(async ({ ctx, next }) => {
       message: "You do not have access to this entity",
     });
   }
+
+  // §4.7 — Set Sentry entity context for entity-level access path
+  Sentry.setContext("entity", {
+    id: entityId,
+    name: entity?.name ?? "unknown",
+    currency: entity?.currency ?? "unknown",
+    role: access.role,
+  });
 
   return next({
     ctx: {
@@ -935,15 +961,10 @@ export const mutateProcedure = t.procedure
  *     handleMutationError(error, "Failed to create invoice");
  *   }
  */
-export function handleMutationError(error: unknown, message: string): never {
-  if (error instanceof TRPCError) throw error;
-  throw new TRPCError({
-    code: "INTERNAL_SERVER_ERROR",
-    message,
-    // Preserve the original error so the errorFormatter's causeMessage
-    // logging can surface the real failure instead of hiding it.
-    cause: error,
-  });
-}
+// Re-export from lib/sentry.ts — adds Sentry reporting + PII-safe context.
+// The Sentry-aware version preserves all existing behavior (re-throws TRPCError,
+// wraps unknown errors in INTERNAL_SERVER_ERROR) and additionally calls
+// Sentry.captureException for unexpected errors.
+export { handleMutationError } from "@/lib/sentry";
 
 // Use createCaller from ./caller.ts to avoid circular dependency
