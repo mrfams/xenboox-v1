@@ -35,6 +35,7 @@ import {
   Zap,
 } from "lucide-react";
 import { AhaMomentStep } from "@/components/onboarding/aha-moment";
+import { AiOnboarding } from "@/components/onboarding/ai-onboarding";
 import { track } from "@/lib/analytics/events";
 import {
   trackFunnel,
@@ -945,16 +946,7 @@ function QuickLink({
 // ─── Main Wizard ──────────────────────────────────────────────────────────────
 
 export function OnboardingWizard() {
-  const {
-    isFirstTime,
-    currentStep,
-    stepIndex,
-    totalSteps,
-    isLoaded,
-    nextStep,
-    prevStep,
-    completeOnboarding,
-  } = useOnboarding();
+  const { isFirstTime, isLoaded } = useOnboarding();
   const [showWizard, setShowWizard] = useState(false);
 
   // Auto-show wizard ONLY after server confirms first-time status
@@ -964,84 +956,15 @@ export function OnboardingWizard() {
 
   if (!showWizard || !isFirstTime || !isLoaded) return null;
 
-  const handleComplete = () => {
-    // Analytics: track onboarding skip (user clicked "Skip all")
-    try {
-      const entityId = localStorage.getItem("currentEntityId") ?? "";
-      track("onboarding_skipped", { entityId, lastStep: stepIndex });
-      trackFunnel("signup_to_paid", { entityId, step: "onboarding_skip" });
-    } catch {
-      // Non-blocking
-    }
-    completeOnboarding();
-    setShowWizard(false);
-  };
-
-  const handleGoToDashboard = () => {
-    // Analytics: track onboarding completion + funnel activation
-    try {
-      const entityId = localStorage.getItem("currentEntityId") ?? "";
-      track("onboarding_completed", { entityId, duration_seconds: 0 });
-      trackFunnel("onboarding_completed", { entityId });
-      trackFunnel("activation", { entityId });
-      trackFeatureAdoption("onboarding_complete", { entityId });
-    } catch {
-      // Non-blocking
-    }
-    completeOnboarding();
-    setShowWizard(false);
-  };
-
   return (
     <div
       className="fixed inset-0 z-[100] flex items-center justify-center bg-background/80 backdrop-blur-sm"
       role="dialog"
       aria-modal="true"
-      aria-label="Onboarding wizard"
+      aria-label="Onboarding"
     >
-      <div className="w-full max-w-xl mx-4">
-        <Card className="shadow-2xl max-h-[90vh] flex flex-col">
-          <CardHeader className="pb-4">
-            <ProgressBar currentStep={stepIndex} totalSteps={totalSteps} />
-            <div className="flex items-center justify-between pt-2">
-              <StepDots currentStep={stepIndex} totalSteps={totalSteps} />
-              {currentStep !== "complete" && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleComplete}
-                  className="text-xs text-muted-foreground"
-                >
-                  Skip all
-                </Button>
-              )}
-            </div>
-          </CardHeader>
-          <CardContent className="pt-0 overflow-y-auto flex-1 min-h-0">
-            {currentStep === "welcome" && <WelcomeStep onNext={nextStep} />}
-            {currentStep === "chart-of-accounts" && (
-              <CoAStep onNext={nextStep} onPrev={prevStep} />
-            )}
-            {currentStep === "bank-connection" && (
-              <BankStep onNext={nextStep} onPrev={prevStep} />
-            )}
-            {currentStep === "aha-moment" && (
-              <AhaMomentStep onNext={nextStep} onPrev={prevStep} />
-            )}
-            {currentStep === "team" && (
-              <TeamStep onNext={nextStep} onPrev={prevStep} />
-            )}
-            {currentStep === "ai-preferences" && (
-              <AIPreferencesStep
-                onComplete={handleComplete}
-                onPrev={prevStep}
-              />
-            )}
-            {currentStep === "complete" && (
-              <CompletionStep onGoToDashboard={handleGoToDashboard} />
-            )}
-          </CardContent>
-        </Card>
+      <div className="flex h-[90vh] w-full max-w-lg flex-col rounded-2xl border border-border/50 bg-background shadow-2xl mx-4 overflow-hidden">
+        <AiOnboarding />
       </div>
     </div>
   );
