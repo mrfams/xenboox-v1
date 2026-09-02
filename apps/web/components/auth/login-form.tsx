@@ -7,15 +7,8 @@ import { useRouter } from "next/navigation";
 
 import { trpc } from "@/lib/trpc/client";
 import { Button } from "@/components/ui";
-import {
-  Input,
-  Label,
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "@/components/ui";
+import { Input, Label } from "@/components/ui";
+import { Logo } from "@/components/ui/logo";
 
 interface LoginFormProps {
   ssoEnabled?: boolean;
@@ -36,25 +29,20 @@ export function LoginForm({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    // Re-entrancy guard: the submit button is disabled while loading, but a
-    // programmatic/synthetic double activation must not fire a second request.
     if (isLoading) return;
     setError(null);
     setIsLoading(true);
 
     try {
-      // Use tRPC login to check credentials + MFA status
       const result = await loginMutation.mutateAsync({ email, password });
 
       if ("mfaRequired" in result && result.mfaRequired) {
-        // Redirect to MFA challenge
         router.push(
           `/mfa-challenge?token=${encodeURIComponent(result.mfaToken)}`,
         );
         return;
       }
 
-      // No MFA required — sign in with the mobile token directly
       if ("token" in result && result.token) {
         try {
           const signInResult = await signIn("credentials", {
@@ -63,7 +51,6 @@ export function LoginForm({
           });
 
           if (signInResult?.error) {
-            // NextAuth surfaces rate-limit as a generic error; surface a humane message
             if (
               signInResult.error === "AccessDenied" ||
               /too many requests/i.test(signInResult.error)
@@ -78,7 +65,6 @@ export function LoginForm({
           }
 
           if (!signInResult || (!signInResult.ok && !signInResult.url)) {
-            // Edge case: middleware 429 returns {error} without url → NextAuth throws Invalid URL
             setError("Too many requests. Please wait a minute and try again.");
             return;
           }
@@ -103,7 +89,6 @@ export function LoginForm({
       }
     } catch (err) {
       if (err instanceof Error) {
-        // Handle middleware 429 Invalid URL transparently
         if (
           /Failed to construct 'URL'/i.test(err.message) ||
           /Invalid URL/i.test(err.message)
@@ -131,17 +116,35 @@ export function LoginForm({
   }
 
   return (
-    <Card className="bg-white/95 backdrop-blur-sm border-white/10 shadow-xl">
-      <CardHeader className="text-center">
-        <CardTitle>Welcome back</CardTitle>
-        <CardDescription>
-          Enter your credentials to access your account
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
+    <div className="w-full">
+      {/* Logo — visible when hero panel is commented out */}
+      <div className="mb-8 text-center">
+        <Link href="/" className="inline-flex items-center gap-2.5 group">
+          <Logo
+            size={32}
+            className="transition-transform duration-200 group-hover:scale-105"
+          />
+          <span className="text-2xl font-bold tracking-tight">Xenboox</span>
+        </Link>
+      </div>
+
+      {/* Header */}
+      <div className="mb-8 text-center">
+        <h1 className="text-2xl font-bold tracking-tight text-foreground">
+          Welcome back
+        </h1>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Sign in to your account to continue
+        </p>
+      </div>
+
+      {/* Form card */}
+      <div className="rounded-2xl border border-border/50 bg-card p-6 shadow-sm">
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
+            <Label htmlFor="email" className="text-sm font-medium">
+              Email
+            </Label>
             <Input
               id="email"
               name="email"
@@ -152,14 +155,18 @@ export function LoginForm({
               required
               autoComplete="email"
               disabled={isLoading}
+              className="h-11"
             />
           </div>
+
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password" className="text-sm font-medium">
+                Password
+              </Label>
               <Link
                 href="/forgot-password"
-                className="text-xs text-muted-foreground hover:text-foreground"
+                className="text-xs text-muted-foreground hover:text-foreground transition-colors"
               >
                 Forgot password?
               </Link>
@@ -168,82 +175,140 @@ export function LoginForm({
               id="password"
               name="password"
               type="password"
-              placeholder="••••••••"
+              placeholder="Enter your password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
               autoComplete="current-password"
               disabled={isLoading}
+              className="h-11"
             />
           </div>
 
           {error && (
-            <p className="text-sm font-medium text-destructive">{error}</p>
+            <div className="flex items-start gap-2.5 rounded-lg bg-destructive/10 px-3 py-2.5">
+              <svg
+                className="mt-0.5 h-4 w-4 shrink-0 text-destructive"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
+              <p className="text-sm font-medium text-destructive">{error}</p>
+            </div>
           )}
 
-          <Button type="submit" className="w-full" disabled={isLoading}>
-            {isLoading ? "Signing in..." : "Sign in"}
+          <Button
+            type="submit"
+            className="w-full h-11 text-sm font-semibold"
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <span className="flex items-center gap-2">
+                <svg
+                  className="h-4 w-4 animate-spin"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  />
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                  />
+                </svg>
+                Signing in...
+              </span>
+            ) : (
+              "Sign in"
+            )}
           </Button>
         </form>
 
-        <div className="relative">
+        {/* Divider */}
+        <div className="relative my-6">
           <div className="absolute inset-0 flex items-center">
-            <span className="w-full border-t" />
+            <span className="w-full border-t border-border/50" />
           </div>
           <div className="relative flex justify-center text-xs uppercase">
             <span className="bg-card px-2 text-muted-foreground">or</span>
           </div>
         </div>
 
-        {ssoEnabled && (
+        {/* Social logins */}
+        <div className="space-y-3">
+          {ssoEnabled && (
+            <Button
+              variant="outline"
+              className="w-full h-11"
+              onClick={handleSsoSignIn}
+              disabled={isLoading}
+            >
+              <svg
+                className="mr-2 h-4 w-4"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
+                <polyline points="10 17 15 12 10 7" />
+                <line x1="15" y1="12" x2="3" y2="12" />
+              </svg>
+              {ssoDisplayName ?? "Sign in with SSO"}
+            </Button>
+          )}
+
           <Button
             variant="outline"
-            className="w-full"
-            onClick={handleSsoSignIn}
+            className="w-full h-11"
+            onClick={handleGoogleSignIn}
             disabled={isLoading}
           >
-            <svg
-              className="mr-2 h-4 w-4"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
-              <polyline points="10 17 15 12 10 7" />
-              <line x1="15" y1="12" x2="3" y2="12" />
+            <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
+              <path
+                d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"
+                fill="#4285F4"
+              />
+              <path
+                d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                fill="#34A853"
+              />
+              <path
+                d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+                fill="#FBBC05"
+              />
+              <path
+                d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+                fill="#EA4335"
+              />
             </svg>
-            {ssoDisplayName ?? "Sign in with SSO"}
+            Continue with Google
           </Button>
-        )}
+        </div>
+      </div>
 
-        <Button
-          variant="outline"
-          className="w-full"
-          onClick={handleGoogleSignIn}
-          disabled={isLoading}
+      {/* Footer */}
+      <div className="mt-6 text-center text-sm text-muted-foreground">
+        Don&apos;t have an account?{" "}
+        <Link
+          href="/register"
+          className="font-medium text-primary hover:text-primary/80 transition-colors"
         >
-          <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
-            <path
-              d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"
-              fill="#4285F4"
-            />
-            <path
-              d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-              fill="#34A853"
-            />
-            <path
-              d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
-              fill="#FBBC05"
-            />
-            <path
-              d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-              fill="#EA4335"
-            />
-          </svg>
-          Continue with Google
-        </Button>
-      </CardContent>
-    </Card>
+          Sign up free
+        </Link>
+      </div>
+    </div>
   );
 }
