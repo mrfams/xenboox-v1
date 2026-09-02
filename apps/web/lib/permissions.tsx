@@ -101,7 +101,9 @@ export function PermissionProvider({
       return permissions[module]?.[action] ?? "none";
     },
     role,
-    permissionsLoaded: !!permissions,
+    // Loaded when we have a role (auth completed) — permissions may be null
+    // (empty DB) in which case the client-side heuristic handles access.
+    permissionsLoaded: !!role || !!permissions,
     refetchPermissions: refetchPermissions ?? (() => {}),
   };
 

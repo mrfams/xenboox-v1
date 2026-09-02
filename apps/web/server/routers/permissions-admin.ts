@@ -301,6 +301,12 @@ export const permissionsAdminRouter = router({
       },
     });
 
+    // If no permissions exist for this role (seed not run), return null
+    // so the client falls back to the roleHasBasicAccess heuristic.
+    if (perms.length === 0) {
+      return null;
+    }
+
     // Check for user-specific overrides scoped to current entity
     const overrides = await db.query.userPermissionOverrides.findMany({
       where: and(
