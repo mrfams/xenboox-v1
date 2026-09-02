@@ -1,10 +1,20 @@
 "use client";
 
-import { Wallet, Smartphone, AlertTriangle, CheckCircle2, ChevronRight, Sparkles, ArrowUpRight, ArrowDownRight } from "lucide-react";
+import {
+  Wallet,
+  Smartphone,
+  AlertTriangle,
+  CheckCircle2,
+  ChevronRight,
+  Sparkles,
+  ArrowUpRight,
+  ArrowDownRight,
+} from "lucide-react";
 import { useEntity } from "@/lib/entity-context";
 import { trpc } from "@/lib/trpc/client";
 import { cn, formatCurrency } from "@/lib/utils";
 import { useModuleAi } from "@/components/module/module-ai-context";
+import { useFormatCurrency } from "@/lib/hooks/use-currency";
 
 // ─── Mobile Money Cards ─────────────────────────────────────────────────────
 //
@@ -13,6 +23,7 @@ import { useModuleAi } from "@/components/module/module-ai-context";
 // AI-native: click to ask the AI about any account.
 
 export function MobileMoneyCards() {
+  const { format } = useFormatCurrency();
   const { entityId } = useEntity();
   const { openWithFocus } = useModuleAi();
 
@@ -28,7 +39,10 @@ export function MobileMoneyCards() {
 
   const recentTxs = transactions?.slice(0, 5) ?? [];
   const totalBalance =
-    accounts?.reduce((sum, a) => sum + parseFloat(a.currentBalance ?? "0"), 0) ?? 0;
+    accounts?.reduce(
+      (sum, a) => sum + parseFloat(a.currentBalance ?? "0"),
+      0,
+    ) ?? 0;
 
   const providerColors: Record<string, string> = {
     wave: "text-yellow-500 bg-yellow-500/10",
@@ -50,7 +64,7 @@ export function MobileMoneyCards() {
               Mobile Money
             </h3>
             <p className="text-[10px] text-muted-foreground">
-              {accounts?.length ?? 0} accounts · {formatCurrency(totalBalance)}
+              {accounts?.length ?? 0} accounts · {format(totalBalance)}
             </p>
           </div>
         </div>
@@ -63,8 +77,11 @@ export function MobileMoneyCards() {
                 name: "Mobile Money Overview",
                 fields: [
                   { label: "Accounts", value: String(accounts?.length ?? 0) },
-                  { label: "Total Balance", value: formatCurrency(totalBalance) },
-                  { label: "Recent Transactions", value: String(recentTxs.length) },
+                  { label: "Total Balance", value: format(totalBalance) },
+                  {
+                    label: "Recent Transactions",
+                    value: String(recentTxs.length),
+                  },
                 ],
               },
               "Show me my mobile money accounts. Which provider has the most activity? Any fee optimization opportunities?",
@@ -80,7 +97,10 @@ export function MobileMoneyCards() {
       {isLoading ? (
         <div className="space-y-2">
           {[1, 2].map((i) => (
-            <div key={i} className="h-16 animate-pulse rounded-lg bg-muted/30" />
+            <div
+              key={i}
+              className="h-16 animate-pulse rounded-lg bg-muted/30"
+            />
           ))}
         </div>
       ) : !accounts || accounts.length === 0 ? (
@@ -113,7 +133,8 @@ export function MobileMoneyCards() {
             {accounts.slice(0, 4).map((account) => {
               const balance = parseFloat(account.currentBalance ?? "0");
               const colorClass =
-                providerColors[account.provider] ?? "text-gray-500 bg-gray-500/10";
+                providerColors[account.provider] ??
+                "text-gray-500 bg-gray-500/10";
 
               return (
                 <button
@@ -130,7 +151,7 @@ export function MobileMoneyCards() {
                           { label: "Phone", value: account.phoneNumber },
                           {
                             label: "Balance",
-                            value: formatCurrency(balance),
+                            value: format(balance),
                           },
                           {
                             label: "Status",
@@ -164,7 +185,7 @@ export function MobileMoneyCards() {
                     </div>
                     <div className="text-right">
                       <p className="text-sm font-bold text-foreground">
-                        {formatCurrency(balance)}
+                        {format(balance)}
                       </p>
                       <div className="flex items-center justify-end gap-1">
                         {account.isActive ? (
@@ -213,9 +234,7 @@ export function MobileMoneyCards() {
                         </div>
                         <div className="min-w-0">
                           <p className="text-[11px] font-medium text-foreground truncate">
-                            {tx.counterpartyName ??
-                              tx.description ??
-                              tx.type}
+                            {tx.counterpartyName ?? tx.description ?? tx.type}
                           </p>
                           <p className="text-[9px] text-muted-foreground">
                             {tx.initiatedAt
@@ -246,7 +265,7 @@ export function MobileMoneyCards() {
                         )}
                       >
                         {isCredit ? "+" : "-"}
-                        {formatCurrency(parseFloat(tx.amount))}
+                        {format(parseFloat(tx.amount))}
                       </span>
                     </div>
                   );

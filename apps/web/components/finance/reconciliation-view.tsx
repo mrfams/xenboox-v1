@@ -21,6 +21,7 @@ import {
 import { trpc } from "@/lib/trpc/client";
 import { useEntity } from "@/lib/entity-context";
 import { cn, formatCurrency } from "@/lib/utils";
+import { useFormatCurrency } from "@/lib/hooks/use-currency";
 
 // ─── Reconciliation View ───────────────────────────────────────────────────
 // AI-powered bank reconciliation: matches bank transactions with journal entries.
@@ -29,6 +30,7 @@ import { cn, formatCurrency } from "@/lib/utils";
 type ReconTab = "unmatched" | "ai-matches" | "history";
 
 export function ReconciliationView() {
+  const { format } = useFormatCurrency();
   const { entityId, entityCurrency } = useEntity();
   const [activeTab, setActiveTab] = useState<ReconTab>("unmatched");
   const [selectedBankAccountId, setSelectedBankAccountId] = useState<
@@ -125,8 +127,7 @@ export function ReconciliationView() {
             <option value="">All Bank Accounts</option>
             {reconData?.accounts.map((acc) => (
               <option key={acc.id} value={acc.id}>
-                {acc.name} (
-                {formatCurrency(parseFloat(acc.currentBalance ?? "0"))})
+                {acc.name} ({format(parseFloat(acc.currentBalance ?? "0"))})
               </option>
             ))}
           </select>
@@ -151,7 +152,7 @@ export function ReconciliationView() {
             {reconData?.unreconciledBankTransactions.length ?? 0}
           </p>
           <p className="text-[10px] text-muted-foreground/50">
-            {formatCurrency(reconData?.bankTotal ?? 0)}
+            {format(reconData?.bankTotal ?? 0)}
           </p>
         </div>
         <div className="rounded-xl border border-border/50 bg-card p-3">
@@ -368,10 +369,7 @@ function UnmatchedView({
                       )}
                     >
                       {parseFloat(tx.amount) >= 0 ? "+" : ""}
-                      {formatCurrency(
-                        Math.abs(parseFloat(tx.amount)),
-                        currency,
-                      )}
+                      {format(Math.abs(parseFloat(tx.amount)), currency)}
                     </p>
                   </div>
                 </button>
@@ -639,7 +637,7 @@ function HistoryView({
                   : "text-red-500",
               )}
             >
-              {formatCurrency(Math.abs(parseFloat(recon.difference)), currency)}
+              {format(Math.abs(parseFloat(recon.difference)), currency)}
             </p>
           </div>
         </div>

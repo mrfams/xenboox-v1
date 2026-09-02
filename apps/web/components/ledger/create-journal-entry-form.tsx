@@ -14,6 +14,7 @@ import { trpc } from "@/lib/trpc/client";
 import { useEntity } from "@/lib/entity-context";
 import { cn, formatCurrency } from "@/lib/utils";
 import { dispatchActivationEvent } from "@/lib/hooks/use-activation-tracking";
+import { useFormatCurrency } from "@/lib/hooks/use-currency";
 
 type Line = {
   accountId: string;
@@ -98,6 +99,7 @@ export function CreateJournalEntryForm({
   }, []);
 
   const handleSubmit = () => {
+    const { format } = useFormatCurrency();
     setError(null);
     if (!description.trim()) {
       setError("Description is required");
@@ -337,11 +339,11 @@ export function CreateJournalEntryForm({
               >
                 {isBalanced
                   ? "Balanced"
-                  : `Out of balance by ${formatCurrency(Math.abs(totalDebit - totalCredit))}`}
+                  : `Out of balance by ${format(Math.abs(totalDebit - totalCredit))}`}
               </span>
             </div>
             <div className="text-[10px] text-muted-foreground tabular-nums">
-              Dr {formatCurrency(totalDebit)} / Cr {formatCurrency(totalCredit)}
+              Dr {format(totalDebit)} / Cr {format(totalCredit)}
             </div>
           </div>
         </div>

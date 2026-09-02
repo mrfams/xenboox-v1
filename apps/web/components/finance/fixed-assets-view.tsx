@@ -32,6 +32,7 @@ import {
 } from "lucide-react";
 import { cn } from "@xenboox/ui";
 import { formatCurrency } from "@/lib/utils";
+import { useFormatCurrency } from "@/lib/hooks/use-currency";
 
 // ─── Types ────────────────────────────────────────────────────────────────
 
@@ -66,6 +67,7 @@ interface AssetOverview {
 // ─── Component ────────────────────────────────────────────────────────────
 
 export function FixedAssetsView() {
+  const { format } = useFormatCurrency();
   const { entityId } = useEntity();
   const [expandedAsset, setExpandedAsset] = useState<string | null>(null);
 
@@ -116,7 +118,7 @@ export function FixedAssetsView() {
               </div>
               <div>
                 <div className="text-2xl font-bold">
-                  {formatCurrency(summary?.totalAssets ?? 0)}
+                  {format(summary?.totalAssets ?? 0)}
                 </div>
                 <div className="text-xs text-muted-foreground">Total Cost</div>
               </div>
@@ -131,7 +133,7 @@ export function FixedAssetsView() {
               </div>
               <div>
                 <div className="text-2xl font-bold">
-                  {formatCurrency(summary?.totalDepreciation ?? 0)}
+                  {format(summary?.totalDepreciation ?? 0)}
                 </div>
                 <div className="text-xs text-muted-foreground">
                   Depreciation
@@ -148,7 +150,7 @@ export function FixedAssetsView() {
               </div>
               <div>
                 <div className="text-2xl font-bold">
-                  {formatCurrency(summary?.netBookValue ?? 0)}
+                  {format(summary?.netBookValue ?? 0)}
                 </div>
                 <div className="text-xs text-muted-foreground">
                   Net Book Value
@@ -295,14 +297,14 @@ function AssetRow({
         <div className="flex items-center gap-6">
           {/* Cost */}
           <div className="text-right">
-            <p className="font-medium text-sm">{formatCurrency(cost)}</p>
+            <p className="font-medium text-sm">{format(cost)}</p>
             <p className="text-xs text-muted-foreground">Cost</p>
           </div>
 
           {/* NBV */}
           <div className="text-right">
             <p className="font-medium text-sm">
-              {formatCurrency(parseFloat(asset.netBookValue ?? "0"))}
+              {format(parseFloat(asset.netBookValue ?? "0"))}
             </p>
             <p className="text-xs text-muted-foreground">NBV</p>
           </div>
@@ -339,9 +341,7 @@ function AssetRow({
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Salvage Value</span>
-                  <span>
-                    {formatCurrency(parseFloat(asset.salvageValue ?? "0"))}
-                  </span>
+                  <span>{format(parseFloat(asset.salvageValue ?? "0"))}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Useful Life</span>
@@ -368,20 +368,18 @@ function AssetRow({
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Original Cost</span>
-                  <span className="font-medium">{formatCurrency(cost)}</span>
+                  <span className="font-medium">{format(cost)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">
                     Accumulated Depreciation
                   </span>
-                  <span className="text-red-600">
-                    -{formatCurrency(accumulated)}
-                  </span>
+                  <span className="text-red-600">-{format(accumulated)}</span>
                 </div>
                 <div className="flex justify-between border-t pt-2">
                   <span className="font-medium">Net Book Value</span>
                   <span className="font-medium">
-                    {formatCurrency(parseFloat(asset.netBookValue ?? "0"))}
+                    {format(parseFloat(asset.netBookValue ?? "0"))}
                   </span>
                 </div>
               </div>

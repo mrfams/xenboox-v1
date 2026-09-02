@@ -15,7 +15,8 @@ import {
   Flag,
 } from "lucide-react";
 
-import { cn, formatCurrency } from "@/lib/utils";
+import { cn } from "@/lib/utils";
+import { useFormatCurrency } from "@/lib/hooks/use-currency";
 import { trpc } from "@/lib/trpc/client";
 
 // ─── Transaction Detail Drawer ─────────────────────────────────────────────
@@ -30,6 +31,7 @@ export function TransactionDetailDrawer({
   transactionId: string;
   onClose: () => void;
 }) {
+  const { format } = useFormatCurrency();
   const { data: detail, isLoading } =
     trpc.transactions.getTransactionDetail.useQuery(
       { transactionId },
@@ -131,7 +133,7 @@ export function TransactionDetailDrawer({
                   )}
                 >
                   {isPositive ? "+" : "-"}
-                  {formatCurrency(Math.abs(amount))}
+                  {format(Math.abs(amount))}
                 </p>
               </div>
 

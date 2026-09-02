@@ -21,7 +21,8 @@ import {
   Wallet,
   BarChart3,
 } from "lucide-react";
-import { cn, formatCurrency } from "@/lib/utils";
+import { cn } from "@/lib/utils";
+import { useFormatCurrency } from "@/lib/hooks/use-currency";
 
 // ─── Time Range Selector — pill tabs, shadcn-style ──────────────────────────
 
@@ -215,7 +216,7 @@ export function RevenueTrendChart({
         latest ? (
           <div className="flex items-baseline gap-3">
             <span className="font-mono text-2xl font-semibold tracking-tight tabular-nums text-foreground">
-              {formatCurrency(latest.revenue)}
+              {format(latest.revenue)}
             </span>
             {delta !== null && (
               <span
@@ -306,7 +307,7 @@ export function RevenueTrendChart({
                 content={
                   <ChartTooltip
                     currency={currency}
-                    formatter={(v) => formatCurrency(v ?? 0)}
+                    formatter={(v) => format(v ?? 0)}
                   />
                 }
               />
@@ -447,7 +448,7 @@ export function ExpenseBreakdownChart({
         <div className="mt-3 flex items-center justify-between border-t border-border/40 pt-3">
           <span className="text-[11px] text-muted-foreground">Total shown</span>
           <span className="font-mono text-[13px] font-medium tabular-nums text-foreground">
-            {formatCurrency(data.reduce((s, d) => s + d.amount, 0))}
+            {format(data.reduce((s, d) => s + d.amount, 0))}
           </span>
         </div>
       )}
@@ -483,11 +484,11 @@ export function CashFlowChart({
         last ? (
           <div className="flex items-center gap-2">
             <span className="font-mono text-[13px] font-medium tabular-nums text-balanced-green">
-              +{formatCurrency(last.incoming)}
+              +{format(last.incoming)}
             </span>
             <span className="text-muted-foreground">/</span>
             <span className="font-mono text-[13px] font-medium tabular-nums text-error-clay">
-              -{formatCurrency(last.outgoing)}
+              -{format(last.outgoing)}
             </span>
             {net !== null && (
               <span
@@ -499,7 +500,7 @@ export function CashFlowChart({
                 )}
               >
                 {net >= 0 ? "+" : ""}
-                {formatCurrency(net)} net
+                {format(net)} net
               </span>
             )}
           </div>

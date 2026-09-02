@@ -40,6 +40,7 @@ import { AgentStream } from "@/components/ai-native-v2/stream-feed";
 import { CommandBar } from "@/components/ai-native-v2/command-bar";
 import { ConversationSidebar } from "@/components/chat/conversation-sidebar";
 import { getRoleConfig } from "@/lib/role-config";
+import { useFormatCurrency } from "@/lib/hooks/use-currency";
 
 // ─── Mission Control (/dashboard/new) ─────────────────────────────────────
 //
@@ -1048,7 +1049,7 @@ function ProactiveBriefing({ entityId }: { entityId: string | null }) {
         id: "cash",
         type: cashType,
         title: "Cash position",
-        value: formatCurrency(businessHealth.cashBalance),
+        value: format(businessHealth.cashBalance),
         href: "/dashboard/operations",
       });
     }

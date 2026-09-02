@@ -21,6 +21,7 @@ import { trpc } from "@/lib/trpc/client";
 import { useEntity } from "@/lib/entity-context";
 import { formatCurrency } from "@/lib/utils";
 import { toast } from "sonner";
+import { useFormatCurrency } from "@/lib/hooks/use-currency";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -39,6 +40,7 @@ export function CreatePaymentLinkDialog({
   currency,
   onClose,
 }: CreatePaymentLinkDialogProps) {
+  const { format } = useFormatCurrency();
   const { entityId } = useEntity();
   const [expiresInDays, setExpiresInDays] = useState(30);
   const [paymentMethods, setPaymentMethods] = useState<string[]>([
@@ -141,7 +143,7 @@ export function CreatePaymentLinkDialog({
             <div className="flex items-center justify-between text-sm">
               <span className="text-slate-500">Amount</span>
               <span className="font-semibold text-slate-900">
-                {currency} {formatCurrency(balance)}
+                {currency} {format(balance)}
               </span>
             </div>
             <div className="mt-1 flex items-center justify-between text-sm">
@@ -184,7 +186,7 @@ export function CreatePaymentLinkDialog({
   return (
     <CreateRecordModal
       title="Create Payment Link"
-      subtitle={`Generate a secure payment link for ${formatCurrency(balance)}`}
+      subtitle={`Generate a secure payment link for ${format(balance)}`}
       icon={<Link2 className="h-4 w-4 text-primary" />}
       onClose={onClose}
       maxWidth="max-w-lg"
@@ -216,7 +218,7 @@ export function CreatePaymentLinkDialog({
         <div className="rounded-xl bg-slate-50 p-4">
           <p className="text-xs text-slate-500">Payment Amount</p>
           <p className="text-lg font-bold text-slate-900">
-            {currency} {formatCurrency(balance)}
+            {currency} {format(balance)}
           </p>
         </div>
 

@@ -27,6 +27,7 @@ import { CreateInvoiceDialog } from "@/components/dashboard/create-invoice-dialo
 import { CreatePaymentLinkDialog } from "@/components/dashboard/create-payment-link-dialog";
 import { RecordPaymentDialog } from "@/components/dashboard/record-payment-dialog";
 import { InvoiceDetailPanel } from "@/components/finance/invoice-detail-panel";
+import { useFormatCurrency } from "@/lib/hooks/use-currency";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -97,6 +98,7 @@ function InvoiceStatusBadge({ status }: { status?: string }) {
 // The /dashboard/operations/invoices route wraps this in ModulePageShell.
 
 export function InvoicesView() {
+  const { format } = useFormatCurrency();
   const { entityId, entityCurrency } = useEntity();
   const { openWithFocus } = useModuleAi();
   const trpcUtils = trpc.useUtils();
@@ -110,9 +112,10 @@ export function InvoicesView() {
   const [paymentLinkInvoiceId, setPaymentLinkInvoiceId] = useState<
     string | null
   >(null);
-  const [recordPaymentTarget, setRecordPaymentTarget] = useState<
-    { id: string; balance: number } | null
-  >(null);
+  const [recordPaymentTarget, setRecordPaymentTarget] = useState<{
+    id: string;
+    balance: number;
+  } | null>(null);
 
   const { data, isLoading } = trpc.invoicing.listInvoices.useQuery(
     {
@@ -214,7 +217,7 @@ export function InvoicesView() {
       align: "right",
       render: (row) => (
         <span className="text-sm font-semibold tabular-nums">
-          {formatCurrency(row.total ?? 0, entityCurrency ?? "USD")}
+          {format(row.total ?? 0, entityCurrency ?? "USD")}
         </span>
       ),
     },
@@ -232,7 +235,7 @@ export function InvoicesView() {
               balance > 0 ? "text-attention-amber" : "text-balanced-green",
             )}
           >
-            {formatCurrency(balance, entityCurrency ?? "USD")}
+            {format(balance, entityCurrency ?? "USD")}
           </span>
         );
       },
@@ -307,18 +310,22 @@ export function InvoicesView() {
                     Payment Link
                   </button>
                 )}
-                {row.status !== "paid" && row.status !== "voided" && (                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setRecordPaymentTarget({ id: row.id, balance: row.balance ?? 0 });
-                        setActionMenuId(null);
-                      }}
-                      className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors"
-                    >
-                      <DollarSign className="h-4 w-4 text-muted-foreground" />
-                      Record Payment
-                    </button>
+                {row.status !== "paid" && row.status !== "voided" && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setRecordPaymentTarget({
+                        id: row.id,
+                        balance: row.balance ?? 0,
+                      });
+                      setActionMenuId(null);
+                    }}
+                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors"
+                  >
+                    <DollarSign className="h-4 w-4 text-muted-foreground" />
+                    Record Payment
+                  </button>
                 )}
               </div>
             </>

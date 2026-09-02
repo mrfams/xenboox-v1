@@ -18,6 +18,7 @@ import {
 import { trpc } from "@/lib/trpc/client";
 import { useEntity } from "@/lib/entity-context";
 import { cn, formatCurrency } from "@/lib/utils";
+import { useFormatCurrency } from "@/lib/hooks/use-currency";
 
 // ─── Forecast View ─────────────────────────────────────────────────────────
 // AI-powered financial forecasting with historical data and projections.
@@ -26,6 +27,7 @@ import { cn, formatCurrency } from "@/lib/utils";
 type ForecastTab = "overview" | "revenue" | "expenses" | "cashflow";
 
 export function ForecastView() {
+  const { format } = useFormatCurrency();
   const { entityId, entityCurrency } = useEntity();
   const [activeTab, setActiveTab] = useState<ForecastTab>("overview");
 
@@ -169,7 +171,7 @@ export function ForecastView() {
                           : "bg-emerald-500/70",
                       )}
                       style={{ height: `${revHeight}%` }}
-                      title={`Revenue: ${formatCurrency(allRevenues[i] ?? 0)}`}
+                      title={`Revenue: ${format(allRevenues[i] ?? 0)}`}
                     />
                   ) : null}
                   {activeTab === "overview" || activeTab === "expenses" ? (
@@ -181,7 +183,7 @@ export function ForecastView() {
                           : "bg-amber-500/70",
                       )}
                       style={{ height: `${expHeight}%` }}
-                      title={`Expenses: ${formatCurrency(allExpenses[i] ?? 0)}`}
+                      title={`Expenses: ${format(allExpenses[i] ?? 0)}`}
                     />
                   ) : null}
                   {activeTab === "cashflow" ? (
@@ -197,7 +199,7 @@ export function ForecastView() {
                       style={{
                         height: `${Math.abs(((allRevenues[i] ?? 0) - (allExpenses[i] ?? 0)) / maxValue) * 100}%`,
                       }}
-                      title={`Net: ${formatCurrency((allRevenues[i] ?? 0) - (allExpenses[i] ?? 0))}`}
+                      title={`Net: ${format((allRevenues[i] ?? 0) - (allExpenses[i] ?? 0))}`}
                     />
                   ) : null}
                 </div>
@@ -244,7 +246,7 @@ export function ForecastView() {
             Cash Balance
           </p>
           <p className="text-lg font-semibold text-foreground tabular-nums">
-            {formatCurrency(trends.cashBalance)}
+            {format(trends.cashBalance)}
           </p>
         </div>
         <div className="rounded-xl border border-border/50 bg-card p-3">
@@ -329,8 +331,7 @@ export function ForecastView() {
                       {label}
                     </p>
                     <p className="text-[10px] text-muted-foreground">
-                      Revenue {formatCurrency(rev)} · Expenses{" "}
-                      {formatCurrency(exp)}
+                      Revenue {format(rev)} · Expenses {format(exp)}
                     </p>
                   </div>
                 </div>
@@ -342,7 +343,7 @@ export function ForecastView() {
                     )}
                   >
                     {net >= 0 ? "+" : ""}
-                    {formatCurrency(net)}
+                    {format(net)}
                   </p>
                   <p className="text-[10px] text-muted-foreground">net</p>
                 </div>
@@ -380,7 +381,7 @@ function TrendCard({
       </p>
       <div className="flex items-center gap-2">
         <p className="text-lg font-semibold text-foreground tabular-nums">
-          {formatCurrency(avg)}
+          {format(avg)}
         </p>
         <span
           className={cn(

@@ -30,6 +30,7 @@ import { useSurfaceSync } from "@/lib/hooks/use-surface-sync";
 import { TransactionDetailDrawer } from "@/components/operations/transaction-detail-drawer";
 import { CashFlowChart } from "@/components/finance/cash-flow-chart";
 import { MobileMoneyCards } from "@/components/operations/mobile-money-cards";
+import { useFormatCurrency } from "@/lib/hooks/use-currency";
 
 // ─── Overview View ────────────────────────────────────────────────────────
 //
@@ -140,10 +141,22 @@ function MoneyFlowSummary() {
               kind: "Money Flow",
               name: "Cash Position",
               fields: [
-                { label: "Cash Balance", value: formatCurrency(cashBalance, entityCurrency ?? "USD") },
-                { label: "Incoming", value: formatCurrency(incoming, entityCurrency ?? "USD") },
-                { label: "Outgoing", value: formatCurrency(outgoing, entityCurrency ?? "USD") },
-                { label: "Net Change", value: formatCurrency(netChange, entityCurrency ?? "USD") },
+                {
+                  label: "Cash Balance",
+                  value: format(cashBalance, entityCurrency ?? "USD"),
+                },
+                {
+                  label: "Incoming",
+                  value: format(incoming, entityCurrency ?? "USD"),
+                },
+                {
+                  label: "Outgoing",
+                  value: format(outgoing, entityCurrency ?? "USD"),
+                },
+                {
+                  label: "Net Change",
+                  value: format(netChange, entityCurrency ?? "USD"),
+                },
                 {
                   label: "Runway",
                   value:
@@ -165,7 +178,7 @@ function MoneyFlowSummary() {
         <div className="flex-1">
           <p className="text-xs text-foreground/80 leading-relaxed">
             {businessHealth
-              ? `Cash balance is ${formatCurrency(cashBalance, entityCurrency ?? "USD")}. You have ${formatCurrency(incoming, entityCurrency ?? "USD")} coming in and ${formatCurrency(outgoing, entityCurrency ?? "USD")} going out this month. Net: ${formatCurrency(netChange, entityCurrency ?? "USD")}.`
+              ? `Cash balance is ${format(cashBalance, entityCurrency ?? "USD")}. You have ${format(incoming, entityCurrency ?? "USD")} coming in and ${format(outgoing, entityCurrency ?? "USD")} going out this month. Net: ${format(netChange, entityCurrency ?? "USD")}.`
               : "Loading money flow summary..."}
           </p>
           <p className="mt-1 text-[10px] text-primary/70 font-medium">
@@ -180,7 +193,7 @@ function MoneyFlowSummary() {
             Cash Balance
           </p>
           <p className="mt-1 text-lg font-bold text-foreground">
-            {formatCurrency(cashBalance, entityCurrency ?? "USD")}
+            {format(cashBalance, entityCurrency ?? "USD")}
           </p>
         </div>
         <div className="rounded-lg bg-background/50 p-3">
@@ -188,7 +201,7 @@ function MoneyFlowSummary() {
             Coming In
           </p>
           <p className="mt-1 text-lg font-bold text-balanced-green">
-            {formatCurrency(incoming, entityCurrency ?? "USD")}
+            {format(incoming, entityCurrency ?? "USD")}
           </p>
         </div>
         <div className="rounded-lg bg-background/50 p-3">
@@ -196,7 +209,7 @@ function MoneyFlowSummary() {
             Going Out
           </p>
           <p className="mt-1 text-lg font-bold text-error-clay">
-            {formatCurrency(outgoing, entityCurrency ?? "USD")}
+            {format(outgoing, entityCurrency ?? "USD")}
           </p>
         </div>
         <div className="rounded-lg bg-background/50 p-3">
@@ -251,7 +264,10 @@ function BankingCards({ onViewBanking }: { onViewBanking: () => void }) {
                 fields: [
                   {
                     label: "Total Balance",
-                    value: formatCurrency(bankData?.summary?.totalBalance ?? 0, entityCurrency ?? "USD"),
+                    value: format(
+                      bankData?.summary?.totalBalance ?? 0,
+                      entityCurrency ?? "USD",
+                    ),
                   },
                   { label: "Accounts", value: String(accounts.length) },
                   {
@@ -292,7 +308,7 @@ function BankingCards({ onViewBanking }: { onViewBanking: () => void }) {
                 {account.name}
               </p>
               <p className="mt-1 text-lg font-bold text-foreground">
-                {formatCurrency(
+                {format(
                   Number(account.currentBalance ?? 0),
                   account.currency ?? "USD",
                 )}
@@ -447,7 +463,7 @@ function RecentTransactions({
                   )}
                 >
                   {isPositive ? "+" : ""}
-                  {formatCurrency(amount, entityCurrency ?? "USD")}
+                  {format(amount, entityCurrency ?? "USD")}
                 </span>
               </button>
             );
@@ -793,7 +809,7 @@ export function OverviewView({
                   </span>
                 </span>
                 <span className="text-xs font-medium tabular-nums text-muted-foreground">
-                  {formatCurrency(arOutstanding, entityCurrency ?? "USD")}
+                  {format(arOutstanding, entityCurrency ?? "USD")}
                 </span>
               </button>
               <button

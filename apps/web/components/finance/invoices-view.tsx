@@ -33,7 +33,8 @@ import {
   Download,
 } from "lucide-react";
 import { cn } from "@xenboox/ui";
-import { formatCurrency } from "@/lib/utils";
+import {} from "@/lib/utils";
+import { useFormatCurrency } from "@/lib/hooks/use-currency";
 import { InvoiceDetailPanel } from "@/components/finance/invoice-detail-panel";
 import { CreatePaymentLinkDialog } from "@/components/dashboard/create-payment-link-dialog";
 import { toast } from "sonner";
@@ -90,6 +91,7 @@ function exportCsv(invoices: Invoice[]) {
 }
 
 export function InvoicesView() {
+  const { format } = useFormatCurrency();
   const { entityId, entityCurrency } = useEntity();
   const [status, setStatus] = useState<InvoiceStatus>("all");
   const [search, setSearch] = useState("");
@@ -132,7 +134,7 @@ export function InvoicesView() {
               </div>
               <div>
                 <div className="text-2xl font-bold">
-                  {formatCurrency(totalOutstanding)}
+                  {format(totalOutstanding)}
                 </div>
                 <div className="text-xs text-muted-foreground">Outstanding</div>
               </div>
@@ -365,12 +367,10 @@ function InvoiceRow({
       <div className="flex items-center gap-6">
         {/* Amount */}
         <div className="text-right">
-          <p className="font-medium text-sm">
-            {formatCurrency(invoice.totalAmount)}
-          </p>
+          <p className="font-medium text-sm">{format(invoice.totalAmount)}</p>
           {invoice.balance !== invoice.totalAmount && (
             <p className="text-xs text-muted-foreground">
-              Balance: {formatCurrency(invoice.balance)}
+              Balance: {format(invoice.balance)}
             </p>
           )}
         </div>

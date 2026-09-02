@@ -14,6 +14,7 @@ import { trpc } from "@/lib/trpc/client";
 import { useEntity } from "@/lib/entity-context";
 import { formatCurrency } from "@/lib/utils";
 import { toast } from "sonner";
+import { useFormatCurrency } from "@/lib/hooks/use-currency";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -42,6 +43,7 @@ export function RecordPaymentDialog({
   onClose,
   onPaymentRecorded,
 }: RecordPaymentDialogProps) {
+  const { format } = useFormatCurrency();
   const utils = trpc.useUtils();
 
   const [amount, setAmount] = useState(balance.toFixed(2));
@@ -109,8 +111,7 @@ export function RecordPaymentDialog({
               Payment Recorded
             </h2>
             <p className="text-sm text-slate-500">
-              {formatCurrency(parseFloat(amount))} has been applied to this
-              invoice.
+              {format(parseFloat(amount))} has been applied to this invoice.
             </p>
           </div>
         </div>
@@ -121,7 +122,7 @@ export function RecordPaymentDialog({
   return (
     <CreateRecordModal
       title="Record Payment"
-      subtitle={`Record a payment for invoice — balance: ${formatCurrency(balance)}`}
+      subtitle={`Record a payment for invoice — balance: ${format(balance)}`}
       icon={<DollarSign className="h-4 w-4 text-emerald-600" />}
       onClose={onClose}
       maxWidth="max-w-lg"
@@ -170,7 +171,7 @@ export function RecordPaymentDialog({
             />
           </div>
           <p className="mt-1 text-xs text-slate-500">
-            Balance due: {formatCurrency(balance)}
+            Balance due: {format(balance)}
           </p>
         </div>
 

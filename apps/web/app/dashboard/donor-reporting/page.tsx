@@ -24,6 +24,7 @@ import { cn, formatCurrency } from "@/lib/utils";
 import { ModulePageShell } from "@/components/module/module-page-shell";
 import { useModuleAi } from "@/components/module/module-ai-context";
 import { Button } from "@/components/ui";
+import { useFormatCurrency } from "@/lib/hooks/use-currency";
 
 // ─── Donor & Grant Reporting ────────────────────────────────────────────────
 //
@@ -88,21 +89,21 @@ function DonorStats() {
     },
     {
       label: "Total Grants",
-      value: formatCurrency(stats?.totalGrantAmount ?? 0),
+      value: format(stats?.totalGrantAmount ?? 0),
       icon: HandCoins,
       color: "text-balanced-green dark:text-balanced-green",
       bg: "bg-balanced-green/10 dark:bg-balanced-green/20",
     },
     {
       label: "Disbursed",
-      value: formatCurrency(stats?.totalDisbursed ?? 0),
+      value: format(stats?.totalDisbursed ?? 0),
       icon: ArrowUpRight,
       color: "text-attention-amber dark:text-attention-amber",
       bg: "bg-attention-amber/10 dark:bg-attention-amber/20",
     },
     {
       label: "Remaining",
-      value: formatCurrency(stats?.totalRemaining ?? 0),
+      value: format(stats?.totalRemaining ?? 0),
       icon: ArrowDownRight,
       color: "text-signal-indigo dark:text-signal-indigo",
       bg: "bg-signal-indigo/10 dark:bg-signal-indigo/20",
@@ -282,15 +283,15 @@ function ProjectCards() {
                         },
                         {
                           label: "Grant Amount",
-                          value: formatCurrency(grantAmount, currency),
+                          value: format(grantAmount, currency),
                         },
                         {
                           label: "Disbursed",
-                          value: formatCurrency(disbursed, currency),
+                          value: format(disbursed, currency),
                         },
                         {
                           label: "Remaining",
-                          value: formatCurrency(remaining, currency),
+                          value: format(remaining, currency),
                         },
                         {
                           label: "Reporting",
@@ -330,10 +331,10 @@ function ProjectCards() {
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between text-[10px]">
                     <span className="text-muted-foreground">
-                      {formatCurrency(disbursed, currency)} disbursed
+                      {format(disbursed, currency)} disbursed
                     </span>
                     <span className="text-muted-foreground">
-                      {formatCurrency(remaining, currency)} remaining
+                      {format(remaining, currency)} remaining
                     </span>
                   </div>
                   <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
@@ -347,7 +348,7 @@ function ProjectCards() {
                   </div>
                   <div className="flex items-center justify-between text-[10px]">
                     <span className="text-muted-foreground">
-                      {formatCurrency(grantAmount, currency)} total grant
+                      {format(grantAmount, currency)} total grant
                     </span>
                     <span
                       className={cn(
@@ -542,6 +543,7 @@ function DonorAiActions() {
 // ─── Page ──────────────────────────────────────────────────────────────────
 
 export default function DonorReportingPage() {
+  const { format } = useFormatCurrency();
   return (
     <ModulePageShell
       title="Donor & Grant Reporting"

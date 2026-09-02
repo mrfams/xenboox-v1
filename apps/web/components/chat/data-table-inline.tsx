@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui";
+import { useFormatCurrency } from "@/lib/hooks/use-currency";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -84,11 +85,7 @@ export type DataTableProps = {
 
 // ─── Formatters ────────────────────────────────────────────────────────────
 
-function formatCurrency(
-  value: number,
-  currency = "USD",
-  locale = "en-US",
-): string {
+function format(value: number, currency = "USD", locale = "en-US"): string {
   return new Intl.NumberFormat(locale, {
     style: "currency",
     currency,
@@ -124,10 +121,7 @@ function formatCell(
 
   switch (column.format) {
     case "currency":
-      return formatCurrency(
-        Number(value),
-        column.currency ?? currency ?? "USD",
-      );
+      return format(Number(value), column.currency ?? currency ?? "USD");
     case "number":
       return formatNumber(Number(value));
     case "percent":
@@ -191,6 +185,7 @@ export function DataTableInline({
   onRowClick,
   className,
 }: DataTableProps) {
+  const { format } = useFormatCurrency();
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [filter, setFilter] = useState("");

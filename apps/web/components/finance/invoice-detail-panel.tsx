@@ -24,6 +24,7 @@ import { Button } from "@xenboox/ui";
 import { toast } from "sonner";
 import { RecordPaymentDialog } from "@/components/dashboard/record-payment-dialog";
 import { CreatePaymentLinkDialog } from "@/components/dashboard/create-payment-link-dialog";
+import { useFormatCurrency } from "@/lib/hooks/use-currency";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -80,6 +81,7 @@ export function InvoiceDetailPanel({
   invoiceId,
   onClose,
 }: InvoiceDetailPanelProps) {
+  const { format } = useFormatCurrency();
   const { entityId } = useEntity();
   const [showRecordPayment, setShowRecordPayment] = useState(false);
   const [showPaymentLink, setShowPaymentLink] = useState(false);
@@ -213,13 +215,13 @@ export function InvoiceDetailPanel({
               <div className="rounded-xl bg-muted/50 p-3">
                 <p className="text-xs text-muted-foreground">Total</p>
                 <p className="text-lg font-bold text-foreground tabular-nums">
-                  {formatCurrency(detail.totalAmount)}
+                  {format(detail.totalAmount)}
                 </p>
               </div>
               <div className="rounded-xl bg-muted/50 p-3">
                 <p className="text-xs text-muted-foreground">Paid</p>
                 <p className="text-lg font-bold text-emerald-600 tabular-nums">
-                  {formatCurrency(detail.paidAmount)}
+                  {format(detail.paidAmount)}
                 </p>
               </div>
               <div className="rounded-xl bg-muted/50 p-3">
@@ -230,7 +232,7 @@ export function InvoiceDetailPanel({
                     detail.balance > 0 ? "text-amber-600" : "text-emerald-600",
                   )}
                 >
-                  {formatCurrency(detail.balance)}
+                  {format(detail.balance)}
                 </p>
               </div>
             </div>
@@ -369,7 +371,7 @@ export function InvoiceDetailPanel({
                           </div>
                           <div>
                             <p className="text-sm font-medium text-foreground">
-                              {formatCurrency(payment.amount)}
+                              {format(payment.amount)}
                             </p>
                             <p className="text-xs text-muted-foreground">
                               {payment.method.replace("_", " ")}

@@ -9,6 +9,7 @@ import { cn, formatCurrency } from "@/lib/utils";
 import { DataTable, type Column } from "@/components/shared/data-table";
 import { useModuleAi } from "@/components/module/module-ai-context";
 import { CreateVendorDialog } from "@/components/dashboard/create-vendor-dialog";
+import { useFormatCurrency } from "@/lib/hooks/use-currency";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -31,16 +32,16 @@ type Vendor = {
 // The /dashboard/operations/vendors route wraps this in ModulePageShell.
 
 export function VendorsView() {
+  const { format } = useFormatCurrency();
   const { entityId, entityCurrency } = useEntity();
   const { openWithFocus } = useModuleAi();
   const [search] = useState("");
   const [filter, setFilter] = useState("all");
   const [showCreateDialog, setShowCreateDialog] = useState(false);
 
-  const { data, isLoading } = trpc.ap.listSuppliers.useQuery(
-    undefined,
-    { enabled: !!entityId },
-  );
+  const { data, isLoading } = trpc.ap.listSuppliers.useQuery(undefined, {
+    enabled: !!entityId,
+  });
 
   // listSuppliers returns a plain array (not wrapped in { suppliers: [...] })
   const allVendors = (Array.isArray(data) ? data : []) as Vendor[];
@@ -97,7 +98,7 @@ export function VendorsView() {
       align: "right",
       render: (row) => (
         <span className="text-sm font-medium tabular-nums">
-          {formatCurrency(row.totalBilled ?? 0, entityCurrency ?? "USD")}
+          {format(row.totalBilled ?? 0, entityCurrency ?? "USD")}
         </span>
       ),
     },
@@ -115,7 +116,7 @@ export function VendorsView() {
               balance > 0 ? "text-attention-amber" : "text-muted-foreground",
             )}
           >
-            {formatCurrency(balance, entityCurrency ?? "USD")}
+            {format(balance, entityCurrency ?? "USD")}
           </span>
         );
       },
@@ -163,11 +164,11 @@ export function VendorsView() {
           { label: "Phone", value: row.phone ?? "—" },
           {
             label: "Total Billed",
-            value: formatCurrency(row.totalBilled ?? 0, entityCurrency ?? "USD"),
+            value: format(row.totalBilled ?? 0, entityCurrency ?? "USD"),
           },
           {
             label: "Outstanding",
-            value: formatCurrency(row.outstandingBalance ?? 0, entityCurrency ?? "USD"),
+            value: format(row.outstandingBalance ?? 0, entityCurrency ?? "USD"),
           },
           { label: "1099", value: row.is1099 ? "Yes" : "No" },
         ],

@@ -13,7 +13,8 @@ import {
   Link2,
   Zap,
 } from "lucide-react";
-import { cn, formatCurrency } from "@/lib/utils";
+import { cn } from "@/lib/utils";
+import { useFormatCurrency } from "@/lib/hooks/use-currency";
 import { trpc } from "@/lib/trpc/client";
 
 type Transaction = {
@@ -239,13 +240,13 @@ export function TransactionRow({
         )}
       >
         {isPositive ? "+" : ""}
-        {formatCurrency(tx.amount)}
+        {format(tx.amount)}
       </span>
 
       {/* Balance */}
       {tx.balance !== null && (
         <span className="text-[10px] text-muted-foreground tabular-nums shrink-0 hidden md:block">
-          {formatCurrency(tx.balance)}
+          {format(tx.balance)}
         </span>
       )}
     </div>

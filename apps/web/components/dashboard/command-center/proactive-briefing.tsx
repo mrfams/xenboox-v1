@@ -120,6 +120,7 @@ function BriefingCard({ item }: { item: BriefingItem }) {
 }
 
 export function ProactiveBriefing() {
+  const { format } = useFormatCurrency();
   const { entityId } = useEntity();
   const [briefingText, setBriefingText] = useState<string | null>(null);
   const [briefingActions, setBriefingActions] = useState<
@@ -130,6 +131,7 @@ export function ProactiveBriefing() {
   // Fetch AI briefing
   // Note: tRPC inference resolves to Record<never, never> for this procedure
   // due to the dynamic import pattern in the server handler. We cast once here.
+  import { useFormatCurrency } from "@/lib/hooks/use-currency";
   const { data: aiBriefing, isError } = trpc.dashboard.getAiBriefing.useQuery(
     undefined,
     {
@@ -264,7 +266,7 @@ export function ProactiveBriefing() {
         id: "cash-position",
         type: cashType,
         title: "Cash position",
-        value: formatCurrency(cashBalance),
+        value: format(cashBalance),
         detail:
           runwayMonths !== null && runwayMonths !== undefined
             ? `${runwayMonths.toFixed(1)} months runway`

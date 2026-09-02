@@ -21,6 +21,7 @@ import {
 import { Download, Maximize2, Minimize2, TrendingUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui";
+import { useFormatCurrency } from "@/lib/hooks/use-currency";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -80,7 +81,7 @@ const CHART_COLORS = [
 
 // ─── Formatters ────────────────────────────────────────────────────────────
 
-function formatCurrency(value: number, currency = "USD"): string {
+function format(value: number, currency = "USD"): string {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency,
@@ -133,7 +134,7 @@ function ChartTooltip({
           <span className="text-muted-foreground">{entry.name}:</span>
           <span className="font-medium text-foreground">
             {currency
-              ? formatCurrency(entry.value ?? 0, currency)
+              ? format(entry.value ?? 0, currency)
               : formatNumber(entry.value ?? 0)}
           </span>
         </div>
@@ -285,6 +286,7 @@ export function ChartInline({
   summary,
   className,
 }: ChartProps) {
+  const { format } = useFormatCurrency();
   // Determine which keys to use for y-axis
   const yKeys = useMemo(() => {
     if (series?.length) return series.map((s) => s.key);

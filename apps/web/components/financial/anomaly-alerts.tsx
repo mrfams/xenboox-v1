@@ -14,6 +14,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { cn, formatCurrency } from "@/lib/utils";
+import { useFormatCurrency } from "@/lib/hooks/use-currency";
 
 // ─── Anomaly Alerts ────────────────────────────────────────────────────────
 //

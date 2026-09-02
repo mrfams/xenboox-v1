@@ -35,7 +35,8 @@ import {
   Wallet,
 } from "lucide-react";
 import { cn } from "@xenboox/ui";
-import { formatCurrency } from "@/lib/utils";
+import {} from "@/lib/utils";
+import { useFormatCurrency } from "@/lib/hooks/use-currency";
 
 // ─── Types ────────────────────────────────────────────────────────────────
 
@@ -60,6 +61,7 @@ export function CashFlowChart({
   data?: CashFlowData;
   isLoading?: boolean;
 }) {
+  const { format } = useFormatCurrency();
   const [timeRange, setTimeRange] = useState<TimeRange>("30d");
 
   // Process data for chart — recompute when timeRange changes
@@ -175,20 +177,18 @@ export function CashFlowChart({
         <div className="grid grid-cols-4 gap-4 mb-4">
           <div>
             <p className="text-xs text-muted-foreground">Current Balance</p>
-            <p className="text-lg font-bold">
-              {formatCurrency(stats!.currentBalance)}
-            </p>
+            <p className="text-lg font-bold">{format(stats!.currentBalance)}</p>
           </div>
           <div>
             <p className="text-xs text-muted-foreground">Incoming</p>
             <p className="text-lg font-bold text-green-600">
-              +{formatCurrency(stats!.incoming)}
+              +{format(stats!.incoming)}
             </p>
           </div>
           <div>
             <p className="text-xs text-muted-foreground">Outgoing</p>
             <p className="text-lg font-bold text-red-600">
-              -{formatCurrency(stats!.outgoing)}
+              -{format(stats!.outgoing)}
             </p>
           </div>
           <div>
@@ -200,7 +200,7 @@ export function CashFlowChart({
               )}
             >
               {stats!.netChange >= 0 ? "+" : ""}
-              {formatCurrency(stats!.netChange)}
+              {format(stats!.netChange)}
             </p>
           </div>
         </div>
@@ -234,7 +234,7 @@ export function CashFlowChart({
                 }}
                 formatter={(value: number, name: string, ..._rest: any[]) =>
                   [
-                    formatCurrency(value),
+                    format(value),
                     name === "incoming"
                       ? "Incoming"
                       : name === "outgoing"

@@ -9,6 +9,7 @@ import { cn, formatCurrency } from "@/lib/utils";
 import { DataTable, type Column } from "@/components/shared/data-table";
 import { useModuleAi } from "@/components/module/module-ai-context";
 import { CreateCustomerDialog } from "@/components/dashboard/create-customer-dialog";
+import { useFormatCurrency } from "@/lib/hooks/use-currency";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -52,6 +53,7 @@ function CustomerStatusBadge({ status }: { status?: string }) {
 // The /dashboard/operations/customers route wraps this in ModulePageShell.
 
 export function CustomersView() {
+  const { format } = useFormatCurrency();
   const { entityId, entityCurrency } = useEntity();
   const { openWithFocus } = useModuleAi();
   const [search] = useState("");
@@ -116,7 +118,7 @@ export function CustomersView() {
       align: "right",
       render: (row) => (
         <span className="text-sm font-medium tabular-nums">
-          {formatCurrency(row.totalInvoiced ?? 0, entityCurrency ?? "USD")}
+          {format(row.totalInvoiced ?? 0, entityCurrency ?? "USD")}
         </span>
       ),
     },
@@ -134,7 +136,7 @@ export function CustomersView() {
               balance > 0 ? "text-attention-amber" : "text-muted-foreground",
             )}
           >
-            {formatCurrency(balance, entityCurrency ?? "USD")}
+            {format(balance, entityCurrency ?? "USD")}
           </span>
         );
       },
@@ -176,11 +178,11 @@ export function CustomersView() {
           { label: "Phone", value: row.phone ?? "—" },
           {
             label: "Total Invoiced",
-            value: formatCurrency(row.totalInvoiced ?? 0, entityCurrency ?? "USD"),
+            value: format(row.totalInvoiced ?? 0, entityCurrency ?? "USD"),
           },
           {
             label: "Outstanding",
-            value: formatCurrency(row.outstandingBalance ?? 0, entityCurrency ?? "USD"),
+            value: format(row.outstandingBalance ?? 0, entityCurrency ?? "USD"),
           },
         ],
       },

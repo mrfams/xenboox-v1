@@ -28,6 +28,7 @@ import { usePermission } from "@/lib/permissions";
 import { CreateJournalEntryForm } from "@/components/ledger/create-journal-entry-form";
 import { CoaImportWizard } from "@/components/ledger/coa-import-wizard";
 import { BulkExportButton } from "@/components/shared/bulk-csv";
+import { useFormatCurrency } from "@/lib/hooks/use-currency";
 
 // ─── The Book — AI-Native Ledger (/ledger/new) ─────────────────────────────
 //
@@ -70,6 +71,7 @@ type Entry = {
 // ─── Page ───────────────────────────────────────────────────────────────────
 
 export default function TheBookPage() {
+  const { format } = useFormatCurrency();
   const { entityId } = useEntity();
   const [tab, setTab] = useState<Tab>("journal");
   const [query, setQuery] = useState("");
@@ -745,8 +747,7 @@ function TrialBalancePanel({
                   : "Trial balance is out of balance"}
               </p>
               <p className="text-xs text-muted-foreground">
-                Debits {formatCurrency(totalDebit)} · Credits{" "}
-                {formatCurrency(totalCredit)}
+                Debits {format(totalDebit)} · Credits {format(totalCredit)}
               </p>
             </div>
           </div>
@@ -760,11 +761,11 @@ function TrialBalancePanel({
                   fields: [
                     {
                       label: "Total Debits",
-                      value: formatCurrency(totalDebit),
+                      value: format(totalDebit),
                     },
                     {
                       label: "Total Credits",
-                      value: formatCurrency(totalCredit),
+                      value: format(totalCredit),
                     },
                     {
                       label: "Balanced",
@@ -851,10 +852,10 @@ function TrialBalancePanel({
                           {account.name}
                         </span>
                         <span className="text-right font-mono text-xs tabular-nums text-foreground/70">
-                          {balance > 0 ? formatCurrency(balance) : ""}
+                          {balance > 0 ? format(balance) : ""}
                         </span>
                         <span className="text-right font-mono text-xs tabular-nums text-foreground/70">
-                          {balance < 0 ? formatCurrency(Math.abs(balance)) : ""}
+                          {balance < 0 ? format(Math.abs(balance)) : ""}
                         </span>
                       </button>
                     </li>
@@ -867,7 +868,7 @@ function TrialBalancePanel({
             <div className="flex items-center justify-between border-t-2 bg-muted/30 px-4 py-2.5 text-xs font-semibold text-foreground">
               <span>Total</span>
               <span className="font-mono tabular-nums">
-                {formatCurrency(totalDebit)} / {formatCurrency(totalCredit)}
+                {format(totalDebit)} / {format(totalCredit)}
               </span>
             </div>
           </>
@@ -930,7 +931,7 @@ function RegisterRow({
             : ""}
         </span>
         <span className="w-24 shrink-0 text-right text-xs font-semibold tabular-nums text-foreground">
-          {formatCurrency(entry.debit)}
+          {format(entry.debit)}
         </span>
         <ChevronRight
           className="h-3.5 w-3.5 shrink-0 text-muted-foreground/40"
@@ -1122,12 +1123,12 @@ function EntryDetailDrawer({
                               </td>
                               <td className="px-3 py-2 text-right font-mono tabular-nums text-foreground/70">
                                 {parseFloat(line.debit ?? "0") > 0
-                                  ? formatCurrency(parseFloat(line.debit!))
+                                  ? format(parseFloat(line.debit!))
                                   : ""}
                               </td>
                               <td className="px-3 py-2 text-right font-mono tabular-nums text-foreground/70">
                                 {parseFloat(line.credit ?? "0") > 0
-                                  ? formatCurrency(parseFloat(line.credit!))
+                                  ? format(parseFloat(line.credit!))
                                   : ""}
                               </td>
                             </tr>
@@ -1165,7 +1166,7 @@ function EntryDetailDrawer({
                             />
                             {balanced
                               ? "Balanced"
-                              : `Out of balance by ${formatCurrency(Math.abs(dr - cr))}`}
+                              : `Out of balance by ${format(Math.abs(dr - cr))}`}
                           </span>
                         </div>
                       );

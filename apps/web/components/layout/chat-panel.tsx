@@ -21,6 +21,7 @@ import { Button, Badge } from "@/components/ui";
 import { cn, formatCurrency } from "@/lib/utils";
 import { useEntity } from "@/lib/entity-context";
 import { trpc } from "@/lib/trpc/client";
+import { useFormatCurrency } from "@/lib/hooks/use-currency";
 
 // ─── Rich Content Types (Architecture Doc §4 — Structured Inline Results) ────
 
@@ -135,7 +136,7 @@ function renderBlock(block: StructuredContent, bi: number): ReactNode {
                     {block.columns.map((col) => (
                       <td key={col.key} className="px-3 py-1.5">
                         {col.format === "currency"
-                          ? formatCurrency(Number(row[col.key]) || 0)
+                          ? format(Number(row[col.key]) || 0)
                           : col.format === "badge"
                             ? (() => {
                                 const val = String(row[col.key] ?? "");
@@ -348,7 +349,7 @@ export function ChatPanel({
               ...m,
               content: m.content.map((c) =>
                 c.type === "metric" && c.label === "Cash Position"
-                  ? { ...c, value: formatCurrency(liveBalance) }
+                  ? { ...c, value: format(liveBalance) }
                   : c,
               ),
             }
@@ -375,7 +376,7 @@ export function ChatPanel({
         {
           type: "metric",
           label: "Current Cash Position",
-          value: total !== undefined ? formatCurrency(total) : "…",
+          value: total !== undefined ? format(total) : "…",
           trend: "up",
         },
         {
@@ -527,7 +528,7 @@ export function ChatPanel({
       {
         type: "metric",
         label: "Current Cash Position",
-        value: liveBalance !== undefined ? formatCurrency(liveBalance) : "…",
+        value: liveBalance !== undefined ? format(liveBalance) : "…",
         trend: "up",
       },
       {

@@ -27,6 +27,7 @@ import { BillsView } from "@/components/finance/bills-view";
 import { CustomersView } from "@/components/operations/customers-view";
 import { VendorsView } from "@/components/operations/vendors-view";
 import { BankingView } from "@/components/operations/banking-view";
+import { useFormatCurrency } from "@/lib/hooks/use-currency";
 
 // ─── Money Flows — AI-Native Operations (/operations/new) ─────────────────
 //
@@ -51,6 +52,7 @@ const TABS: { key: Tab; label: string; icon: LucideIcon }[] = [
 ];
 
 export default function MoneyFlowsPage() {
+  const { format } = useFormatCurrency();
   const { entityId } = useEntity();
   const [tab, setTab] = useState<Tab>("cash");
 
@@ -221,7 +223,7 @@ function CashPositionPanel() {
         <div className="grid grid-cols-2 gap-x-6 gap-y-5 sm:grid-cols-4">
           <MetricNarrative
             label="Cash on hand"
-            value={formatCurrency(health?.cashBalance ?? 0)}
+            value={format(health?.cashBalance ?? 0)}
             loading={dashLoading && !health}
             size="lg"
             className="col-span-2 sm:col-span-1"
@@ -242,7 +244,7 @@ function CashPositionPanel() {
           />
           <MetricNarrative
             label="This month, net"
-            value={formatCurrency(netChange)}
+            value={format(netChange)}
             size="sm"
           />
           <div className="min-w-0">
@@ -276,8 +278,8 @@ function CashPositionPanel() {
             {netChange >= 0
               ? "Net positive month so far"
               : "Spending ahead of intake"}{" "}
-            — {formatCurrency(Math.abs(cashPos.incoming ?? 0))} came in,{" "}
-            {formatCurrency(Math.abs(cashPos.outgoing ?? 0))} went out.
+            — {format(Math.abs(cashPos.incoming ?? 0))} came in,{" "}
+            {format(Math.abs(cashPos.outgoing ?? 0))} went out.
           </p>
         )}
       </section>
@@ -299,7 +301,7 @@ function CashPositionPanel() {
                   day: "numeric",
                 })
               : "",
-            amount: formatCurrency(t.amount),
+            amount: format(t.amount),
             state: t.isReconciled
               ? { label: "reconciled", tone: "ok" as const }
               : { label: "unreconciled", tone: "warn" as const },
@@ -320,7 +322,7 @@ function CashPositionPanel() {
                   day: "numeric",
                 })
               : "",
-            amount: formatCurrency(Math.abs(t.amount)),
+            amount: format(Math.abs(t.amount)),
             state: t.isReconciled
               ? { label: "reconciled", tone: "ok" as const }
               : { label: "unreconciled", tone: "warn" as const },

@@ -22,6 +22,7 @@ import {
 import { trpc } from "@/lib/trpc/client";
 import { useEntity } from "@/lib/entity-context";
 import { cn, formatCurrency } from "@/lib/utils";
+import { useFormatCurrency } from "@/lib/hooks/use-currency";
 
 // ─── Auto-Approve Rules UI ─────────────────────────────────────────────────
 //
@@ -31,6 +32,7 @@ import { cn, formatCurrency } from "@/lib/utils";
 type RuleTab = "rules" | "log" | "stats";
 
 export function AutoApproveRules() {
+  const { format } = useFormatCurrency();
   const { entityId, entityCurrency } = useEntity();
   const [activeTab, setActiveTab] = useState<RuleTab>("rules");
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -340,8 +342,7 @@ function RulesList({
                     </span>
                     {rule.maxAmount && (
                       <span className="text-[10px] text-muted-foreground">
-                        Max:{" "}
-                        {formatCurrency(parseFloat(rule.maxAmount), currency)}
+                        Max: {format(parseFloat(rule.maxAmount), currency)}
                       </span>
                     )}
                     {rule.confidence && parseFloat(rule.confidence) > 0 && (
@@ -514,7 +515,7 @@ function AuditLog({
           <div className="text-right">
             {log.amount && (
               <p className="text-xs font-medium text-foreground tabular-nums">
-                {formatCurrency(parseFloat(log.amount), currency)}
+                {format(parseFloat(log.amount), currency)}
               </p>
             )}
             {log.confidence && (

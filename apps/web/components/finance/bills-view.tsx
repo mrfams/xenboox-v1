@@ -34,6 +34,7 @@ import { cn, formatCurrency } from "@/lib/utils";
 import { DataTable, type Column } from "@/components/shared/data-table";
 import { useModuleAi } from "@/components/module/module-ai-context";
 import { CreateBillDialog } from "@/components/dashboard/create-bill-dialog";
+import { useFormatCurrency } from "@/lib/hooks/use-currency";
 
 // ─── Types ────────────────────────────────────────────────────────────────
 
@@ -99,11 +100,7 @@ function BillStatusBadge({ status }: { status: string }) {
 // ─── AI Payment Priority Strip ────────────────────────────────────────────
 // Shows AI-recommended payment order based on urgency and amount.
 
-function AiPaymentPriority({
-  bills,
-}: {
-  bills: Bill[];
-}) {
+function AiPaymentPriority({ bills }: { bills: Bill[] }) {
   const { openWithFocus } = useModuleAi();
 
   // Compute priority: overdue first, then by days-to-due ascending
@@ -170,7 +167,7 @@ function AiPaymentPriority({
             </div>
             <div className="text-right shrink-0">
               <p className="text-xs font-semibold tabular-nums text-foreground">
-                {formatCurrency(bill.balance, entityCurrency ?? "USD")}
+                {format(bill.balance, entityCurrency ?? "USD")}
               </p>
             </div>
           </div>
@@ -179,7 +176,7 @@ function AiPaymentPriority({
 
       <div className="mt-3 flex items-center justify-between">
         <p className="text-[10px] text-muted-foreground">
-          Total recommended: {formatCurrency(totalDue, entityCurrency ?? "USD")}
+          Total recommended: {format(totalDue, entityCurrency ?? "USD")}
         </p>
         <button
           type="button"
@@ -211,7 +208,7 @@ function SummaryCards({
   const cards = [
     {
       label: "Outstanding",
-      value: formatCurrency(totalOutstanding, entityCurrency ?? "USD"),
+      value: format(totalOutstanding, entityCurrency ?? "USD"),
       sub: "Total owed",
       icon: DollarSign,
       iconBg: "bg-attention-amber/10",
@@ -267,6 +264,7 @@ function SummaryCards({
 // ─── Component ────────────────────────────────────────────────────────────
 
 export function BillsView() {
+  const { format } = useFormatCurrency();
   const { entityId, entityCurrency } = useEntity();
   const { openWithFocus } = useModuleAi();
   const [status, setStatus] = useState<BillStatus>("all");
@@ -399,7 +397,7 @@ export function BillsView() {
       align: "right",
       render: (row) => (
         <span className="text-sm font-semibold tabular-nums">
-          {formatCurrency(row.totalAmount, entityCurrency ?? "USD")}
+          {format(row.totalAmount, entityCurrency ?? "USD")}
         </span>
       ),
     },
@@ -415,7 +413,7 @@ export function BillsView() {
             row.balance > 0 ? "text-attention-amber" : "text-balanced-green",
           )}
         >
-          {formatCurrency(row.balance, entityCurrency ?? "USD")}
+          {format(row.balance, entityCurrency ?? "USD")}
         </span>
       ),
     },
@@ -511,9 +509,7 @@ export function BillsView() {
         <div className="flex items-center gap-1.5">
           <button
             type="button"
-            onClick={() =>
-              openWithFocus("Create a new bill for me")
-            }
+            onClick={() => openWithFocus("Create a new bill for me")}
             className="inline-flex items-center gap-1.5 rounded-lg border border-primary/20 bg-primary/5 px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/10 transition-colors"
           >
             <Bot className="h-3.5 w-3.5" />
@@ -578,9 +574,7 @@ export function BillsView() {
               {!search && status === "all" && (
                 <button
                   type="button"
-                  onClick={() =>
-                    openWithFocus("Create a new bill for me")
-                  }
+                  onClick={() => openWithFocus("Create a new bill for me")}
                   className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground shadow-sm hover:bg-primary/90 transition-colors"
                 >
                   <Plus className="h-3.5 w-3.5" />
