@@ -17,6 +17,7 @@ type Entity = {
   name: string;
   type?: string;
   role?: string;
+  currency?: string;
 };
 
 export function EntitySwitcher() {
@@ -323,6 +324,11 @@ export function EntitySwitcher() {
                       <p className="font-medium truncate">{entity.name}</p>
                       <p className="text-xs text-muted-foreground flex items-center gap-1.5">
                         {entity.type}
+                        {entity.currency && (
+                          <span className="rounded bg-muted px-1 py-0.5 text-[9px] font-bold tabular-nums">
+                            {entity.currency}
+                          </span>
+                        )}
                         {entity.role && (
                           <span className="capitalize">
                             · {entity.role.replace(/_/g, " ")}

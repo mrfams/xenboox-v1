@@ -334,7 +334,8 @@ function OverviewPanel({
       }
     | undefined;
   anomalyData:
-    { anomalies: Array<{ message: string; aiInsight?: string }> } | undefined;
+    | { anomalies: Array<{ message: string; aiInsight?: string }> }
+    | undefined;
   ask: (prompt: string) => void;
 }) {
   return (
@@ -411,7 +412,7 @@ function OverviewPanel({
             <p className="text-sm leading-relaxed text-foreground/85">
               {pnl && pnl.revenue > 0 && (
                 <>
-                  Revenue is {formatCurrency(pnl.revenue)}
+                  Revenue is {formatCurrency(pnl.revenue, displayCurrency)}
                   {pnl.revenueChange
                     ? ` (${pnl.revenueChange > 0 ? "+" : ""}${pnl.revenueChange.toFixed(1)}% vs prior)`
                     : ""}
@@ -420,7 +421,7 @@ function OverviewPanel({
               )}
               {pnl && pnl.expenses > 0 && (
                 <>
-                  Expenses are {formatCurrency(pnl.expenses)}
+                  Expenses are {formatCurrency(pnl.expenses, displayCurrency)}
                   {pnl.expensesChange
                     ? ` (${pnl.expensesChange > 0 ? "+" : ""}${pnl.expensesChange.toFixed(1)}%)`
                     : ""}
@@ -430,7 +431,11 @@ function OverviewPanel({
               {(pnl?.netProfit ?? 0) !== 0 && (
                 <>
                   Net {(pnl?.netProfit ?? 0) >= 0 ? "profit" : "loss"} is{" "}
-                  {formatCurrency(Math.abs(pnl?.netProfit ?? 0))}.
+                  {formatCurrency(
+                    Math.abs(pnl?.netProfit ?? 0),
+                    displayCurrency,
+                  )}
+                  .
                 </>
               )}
             </p>
@@ -446,7 +451,7 @@ function OverviewPanel({
         <div className="rounded-xl border border-border/50 bg-card p-4">
           <MetricNarrative
             label="Revenue"
-            value={formatCurrency(pnl?.revenue ?? 0)}
+            value={formatCurrency(pnl?.revenue ?? 0, displayCurrency)}
             narrative={
               pnl?.revenueChange
                 ? `${pnl.revenueChange > 0 ? "Up" : "Down"} ${Math.abs(pnl.revenueChange).toFixed(1)}% vs prior — ${pnl.revenueChange > 5 ? "strong" : "steady"}.`
@@ -469,7 +474,7 @@ function OverviewPanel({
         <div className="rounded-xl border border-border/50 bg-card p-4">
           <MetricNarrative
             label="Expenses"
-            value={formatCurrency(pnl?.expenses ?? 0)}
+            value={formatCurrency(pnl?.expenses ?? 0, displayCurrency)}
             narrative={
               pnl?.expensesChange
                 ? `${pnl.expensesChange > 0 ? "Up" : "Down"} ${Math.abs(pnl.expensesChange).toFixed(1)}% — watch the trend.`
@@ -490,7 +495,7 @@ function OverviewPanel({
         <div className="rounded-xl border border-border/50 bg-card p-4">
           <MetricNarrative
             label="Net Profit"
-            value={formatCurrency(pnl?.netProfit ?? 0)}
+            value={formatCurrency(pnl?.netProfit ?? 0, displayCurrency)}
             narrative={
               pnl?.revenue && pnl.revenue > 0
                 ? `${(((pnl.netProfit ?? 0) / pnl.revenue) * 100).toFixed(1)}% margin.`
@@ -514,7 +519,7 @@ function OverviewPanel({
         <div className="rounded-xl border border-border/50 bg-card p-4">
           <MetricNarrative
             label="Cash & runway"
-            value={formatCurrency(overview?.cashBalance ?? 0)}
+            value={formatCurrency(overview?.cashBalance ?? 0, displayCurrency)}
             narrative={
               overview?.runway != null
                 ? overview.runway < 3
@@ -839,10 +844,10 @@ function BudgetVsActualCard({
                       {item.category}
                     </td>
                     <td className="px-4 py-2 text-right font-mono tabular-nums text-muted-foreground">
-                      {formatCurrency(item.budget)}
+                      {formatCurrency(item.budget, displayCurrency)}
                     </td>
                     <td className="px-4 py-2 text-right font-mono tabular-nums text-foreground">
-                      {formatCurrency(item.actual)}
+                      {formatCurrency(item.actual, displayCurrency)}
                     </td>
                     <td
                       className={cn(
@@ -851,7 +856,7 @@ function BudgetVsActualCard({
                       )}
                     >
                       {isOver ? "+" : ""}
-                      {formatCurrency(item.variance)}
+                      {formatCurrency(item.variance, displayCurrency)}
                     </td>
                   </tr>
                 );
