@@ -366,7 +366,6 @@ function AgentConversationsRail({
     { limit: 30 },
     { enabled: active === "tasks", refetchInterval: 10_000 },
   );
-
   const runningTasks =
     tasksData?.tasks?.filter(
       (t) =>
@@ -374,6 +373,11 @@ function AgentConversationsRail({
         t.status === "queued" ||
         t.status === "waiting",
     ) ?? [];
+  const failedTasks =
+    tasksData?.tasks?.filter(
+      (t) => t.status === "failed" || t.status === "blocked",
+    ) ?? [];
+  const totalConversations = conversations?.length ?? 0;
 
   return (
     <div className="flex h-full min-h-0 w-full flex-col bg-card">
@@ -385,17 +389,38 @@ function AgentConversationsRail({
       >
         {(
           [
-            { key: "agents" as const, label: "Agents", icon: Bot },
+            {
+              key: "agents" as const,
+              label: "Agents",
+              icon: Bot,
+              activeCls: "bg-sky-500/10 text-sky-600 dark:text-sky-400",
+              iconCls: "bg-sky-500/15",
+              count: runningTasks.length,
+            },
             {
               key: "tasks" as const,
               label: "Tasks",
               icon: CheckCircle2,
+              activeCls:
+                "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+              iconCls: "bg-emerald-500/15",
               count: runningTasks.length,
+              extraBadge:
+                failedTasks.length > 0
+                  ? {
+                      n: failedTasks.length,
+                      cls: "bg-error-clay/15 text-error-clay",
+                    }
+                  : null,
             },
             {
               key: "conversations" as const,
               label: "Chat",
               icon: MessageSquare,
+              activeCls:
+                "bg-violet-500/10 text-violet-600 dark:text-violet-400",
+              iconCls: "bg-violet-500/15",
+              count: totalConversations,
             },
           ] as const
         ).map((tab) => (
@@ -406,17 +431,41 @@ function AgentConversationsRail({
             aria-selected={active === tab.key}
             onClick={() => setActive(tab.key)}
             className={cn(
-              "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium transition-all duration-200",
+              "group inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[11px] font-medium transition-all duration-200",
               active === tab.key
-                ? "bg-primary/10 text-primary"
+                ? tab.activeCls
                 : "text-muted-foreground hover:bg-muted/50 hover:text-foreground",
             )}
           >
-            <tab.icon className="h-3 w-3" />
+            <span
+              className={cn(
+                "inline-flex h-5 w-5 items-center justify-center rounded-md",
+                active === tab.key ? tab.iconCls : "bg-muted/50",
+              )}
+            >
+              <tab.icon className="h-3 w-3" />
+            </span>
             {tab.label}
-            {"count" in tab && tab.count > 0 && (
-              <span className="ml-0.5 inline-flex h-4 min-w-[16px] items-center justify-center rounded-full bg-primary/20 px-1 text-[9px] font-bold tabular-nums text-primary">
+            {tab.count > 0 && (
+              <span
+                className={cn(
+                  "inline-flex h-4 min-w-[16px] items-center justify-center rounded-full px-1 text-[9px] font-bold tabular-nums",
+                  active === tab.key
+                    ? "bg-current/15"
+                    : "bg-muted text-muted-foreground",
+                )}
+              >
                 {tab.count}
+              </span>
+            )}
+            {"extraBadge" in tab && tab.extraBadge && (
+              <span
+                className={cn(
+                  "inline-flex h-4 min-w-[16px] items-center justify-center rounded-full px-1 text-[9px] font-bold tabular-nums",
+                  tab.extraBadge.cls,
+                )}
+              >
+                {tab.extraBadge.n}
               </span>
             )}
           </button>
@@ -426,73 +475,107 @@ function AgentConversationsRail({
       {/* Content — each tab is its own scroll plane */}
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-card">
         {active === "agents" && (
-          <div className="min-h-0 flex-1 overflow-hidden">
-            <AgentStream
-              entityId={entityId}
-              className="h-full w-full rounded-none border-0 bg-card"
-            />
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+            <div className="h-0.5 w-full shrink-0 bg-gradient-to-r from-sky-500/40 via-sky-400/20 to-transparent" />
+            <div className="min-h-0 flex-1 overflow-hidden">
+              <AgentStream
+                entityId={entityId}
+                className="h-full w-full rounded-none border-0 bg-card"
+              />
+            </div>
           </div>
         )}
 
         {active === "tasks" && (
-          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-            <TasksRail tasks={tasksData?.tasks ?? []} />
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+            <div className="h-0.5 w-full shrink-0 bg-gradient-to-r from-emerald-500/40 via-emerald-400/20 to-transparent" />
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+              <TasksRail tasks={tasksData?.tasks ?? []} />
+            </div>
           </div>
         )}
 
         {active === "conversations" && (
-          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-            {!conversations || conversations.length === 0 ? (
-              <div className="flex h-full min-h-[200px] flex-col items-center justify-center p-4 text-center">
-                <MessageSquare className="h-6 w-6 text-muted-foreground/30 mb-2" />
-                <p className="text-xs text-muted-foreground">
-                  No conversations yet
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-0.5 p-1">
-                {conversations.slice(0, 30).map((c) => {
-                  const isActive = c.id === currentConversationId;
-                  return (
-                    <button
-                      key={c.id}
-                      type="button"
-                      onClick={() => onSelectConversation(c.id)}
-                      className={cn(
-                        "flex w-full items-start gap-2 rounded-lg px-2.5 py-2 text-left transition-colors",
-                        isActive
-                          ? "bg-primary/10 text-primary"
-                          : "hover:bg-accent",
-                      )}
-                    >
-                      <MessageSquare
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+            <div className="h-0.5 w-full shrink-0 bg-gradient-to-r from-violet-500/40 via-violet-400/20 to-transparent" />
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+              {!conversations || conversations.length === 0 ? (
+                <div className="flex h-full min-h-[200px] flex-col items-center justify-center p-4 text-center">
+                  <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-violet-500/10">
+                    <MessageSquare className="h-5 w-5 text-violet-500/50" />
+                  </div>
+                  <p className="text-xs font-medium text-foreground">
+                    No conversations yet
+                  </p>
+                  <p className="mt-1 text-[11px] text-muted-foreground/60">
+                    Start a chat to begin
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-0.5 p-1">
+                  {conversations.slice(0, 30).map((c) => {
+                    const isActive = c.id === currentConversationId;
+                    const updatedAt = c.updatedAt
+                      ? new Date(c.updatedAt)
+                      : null;
+                    const timeLabel = updatedAt ? timeAgo(updatedAt) : null;
+                    return (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => onSelectConversation(c.id)}
                         className={cn(
-                          "h-3.5 w-3.5 shrink-0 mt-0.5",
+                          "flex w-full items-start gap-2 rounded-lg px-2.5 py-2 text-left transition-colors",
                           isActive
-                            ? "text-primary"
-                            : "text-muted-foreground/50",
+                            ? "bg-violet-500/10 ring-1 ring-violet-500/20"
+                            : "hover:bg-violet-500/5",
                         )}
-                      />
-                      <span className="min-w-0 flex-1">
-                        <span
+                      >
+                        <div
                           className={cn(
-                            "block truncate text-xs font-medium",
-                            isActive ? "text-primary" : "text-foreground",
+                            "mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md",
+                            isActive ? "bg-violet-500/20" : "bg-muted/60",
                           )}
                         >
-                          {c.title || "Untitled"}
+                          <MessageSquare
+                            className={cn(
+                              "h-3 w-3",
+                              isActive
+                                ? "text-violet-600 dark:text-violet-400"
+                                : "text-muted-foreground/50",
+                            )}
+                          />
+                        </div>
+                        <span className="min-w-0 flex-1">
+                          <div className="flex items-center justify-between gap-1">
+                            <span
+                              className={cn(
+                                "block truncate text-xs font-medium",
+                                isActive
+                                  ? "text-violet-600 dark:text-violet-400"
+                                  : "text-foreground",
+                              )}
+                            >
+                              {c.title || "Untitled"}
+                            </span>
+                            {timeLabel && (
+                              <span className="shrink-0 text-[9px] text-muted-foreground/50">
+                                {timeLabel}
+                              </span>
+                            )}
+                          </div>
+                          {c.summary && (
+                            <span className="block truncate text-[11px] text-muted-foreground/70">
+                              {c.summary}
+                            </span>
+                          )}
                         </span>
-                        {c.summary && (
-                          <span className="block truncate text-[11px] text-muted-foreground">
-                            {c.summary}
-                          </span>
-                        )}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>
