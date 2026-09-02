@@ -158,12 +158,17 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm db:migrate
+      - run: pnpm db:seed
       - run: pnpm build --filter=@xenboox/web
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
         working-directory: apps/web
+      - name: Run Playwright auth-setup (create storageState)
+        run: pnpm --filter=@xenboox/web test:e2e --project=auth-setup
       - name: Run Playwright (anon marketing + compare)
         run: pnpm --filter=@xenboox/web test:e2e --project=anon-chromium
+      - name: Run Playwright (authenticated dashboard flows)
+        run: pnpm --filter=@xenboox/web test:e2e --project=chromium
       - uses: actions/upload-artifact@v4
         if: always()
         with:
