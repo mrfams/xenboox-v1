@@ -11,9 +11,9 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
       </div>
       */}
 
-      {/* Right: Form panel (full width while hero is commented out) */}
-      <div className="flex w-full items-center justify-center bg-background px-5 py-10 sm:px-8">
-        <div className="w-full max-w-md">{children}</div>
+      {/* Form panel — full width, vertically centered, fits on screen */}
+      <div className="flex w-full items-center justify-center bg-background px-5 py-6 sm:px-8">
+        <div className="w-full max-w-sm">{children}</div>
       </div>
     </div>
   );
