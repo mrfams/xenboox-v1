@@ -54,6 +54,8 @@ export function SecuritySection() {
   const { data: currentPrefs, isLoading: prefsLoading } =
     trpc.settings.getSecurityPrefs.useQuery();
 
+  const utils = trpc.useUtils();
+
   const changePassword = trpc.auth.changePassword.useMutation({
     onSuccess: () => {
       toast.success("Password changed successfully");
@@ -67,6 +69,7 @@ export function SecuritySection() {
   const updatePrefs = trpc.settings.updateSecurityPrefs.useMutation({
     onSuccess: () => {
       toast.success("Security preferences saved");
+      utils.settings.getSecurityPrefs.invalidate();
     },
     onError: (error) => {
       toast.error(error.message || "Failed to save preferences");

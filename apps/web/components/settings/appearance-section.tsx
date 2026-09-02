@@ -74,6 +74,8 @@ export function AppearanceSection() {
     dateFormat: "YYYY-MM-DD",
   });
 
+  const utils = trpc.useUtils();
+
   const {
     data: prefs,
     isLoading,
@@ -84,6 +86,8 @@ export function AppearanceSection() {
   const updatePrefs = trpc.settings.updateAppearancePrefs.useMutation({
     onSuccess: () => {
       toast.success("Appearance preferences saved");
+      // §4.7 — Invalidate so sidebar/top-nav reflect new theme immediately
+      utils.settings.getAppearancePrefs.invalidate();
     },
     onError: (error) => {
       toast.error(error.message || "Failed to save preferences");

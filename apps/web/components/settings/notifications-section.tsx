@@ -63,9 +63,12 @@ export function NotificationsSection() {
   const { data: currentPrefs, isLoading } =
     trpc.settings.getNotificationPrefs.useQuery();
 
+  const utils = trpc.useUtils();
+
   const savePrefs = trpc.settings.updateNotificationPrefs.useMutation({
     onSuccess: () => {
       toast.success("Notification preferences saved");
+      utils.settings.getNotificationPrefs.invalidate();
     },
     onError: (error) => {
       toast.error(error.message || "Failed to save preferences");
