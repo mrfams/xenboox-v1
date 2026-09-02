@@ -3,11 +3,12 @@ import { dlqOnFailure } from "./lib/dlq";
 import { db } from "@xenboox/db";
 import {
   users,
-  entities,
   transactions,
   journalEntries,
+  userEntityAccess,
+  bankAccounts,
 } from "@xenboox/db/schema";
-import { eq, and, gte, count } from "drizzle-orm";
+import { eq, gte, count } from "drizzle-orm";
 import { getJobAppUrl } from "./lib/app-url";
 
 // ─── Onboarding Drip Email Sequence ──────────────────────────────────────
@@ -146,39 +147,25 @@ export const processOnboardingDrip = task({
       const userName = user.name?.split(" ")[0] ?? "there";
 
       try {
-        // Day 0: Welcome (sent within first day)
-        if (days === 0) {
-          await sendOnboardingWelcomeEmail(user.email, {
-            userName,
-            dashboardUrl,
-          });
-          emailsSent++;
-          results.push({
-            userId: user.id,
-            email: user.email,
-            day: 0,
-            sent: true,
-          });
-          continue;
-        }
-
         // Day 1: Check-in
-        if (days === 1 && user.entityId) {
-          const bankConnected = await hasConnectedBank(user.entityId);
-          await sendOnboardingDay1Email(user.email, {
-            userName,
-            dashboardUrl,
-            hasConnectedBank: bankConnected,
-          });
-          emailsSent++;
-          results.push({
-            userId: user.id,
-            email: user.email,
-            day: 1,
-            sent: true,
-          });
-          continue;
-        }
+        // Note: Day 0 welcome email is sent by auth router on signup
+        if (days === 1)
+          if (days === 1 && user.entityId) {
+            const bankConnected = await hasConnectedBank(user.entityId);
+            await sendOnboardingDay1Email(user.email, {
+              userName,
+              dashboardUrl,
+              hasConnectedBank: bankConnected,
+            });
+            emailsSent++;
+            results.push({
+              userId: user.id,
+              email: user.email,
+              day: 1,
+              sent: true,
+            });
+            continue;
+          }
 
         // Day 3: Value reminder
         if (days === 3 && user.entityId) {
