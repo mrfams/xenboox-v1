@@ -53,10 +53,12 @@ export function useOnboarding() {
     // Try server first (cross-device persistence)
     if (getSettings.data) {
       const serverSettings = getSettings.data as Record<string, unknown>;
-      const onboarding = serverSettings.onboarding as {
-        completed?: boolean;
-        currentStep?: string | null;
-      } | undefined;
+      const onboarding = serverSettings.onboarding as
+        | {
+            completed?: boolean;
+            currentStep?: string | null;
+          }
+        | undefined;
 
       if (onboarding?.completed) {
         setIsFirstTime(false);
@@ -65,7 +67,8 @@ export function useOnboarding() {
         localStorage.removeItem(ONBOARDING_STEP_KEY);
       } else {
         setIsFirstTime(true);
-        const step = (onboarding?.currentStep ?? localStorage.getItem(ONBOARDING_STEP_KEY)) as OnboardingStep | null;
+        const step = (onboarding?.currentStep ??
+          localStorage.getItem(ONBOARDING_STEP_KEY)) as OnboardingStep | null;
         if (step && STEPS.includes(step)) {
           setCurrentStep(step);
         }
@@ -75,11 +78,13 @@ export function useOnboarding() {
     }
 
     // Fallback to localStorage while server loads
+    // DON'T set isFirstTime=true yet — wait for server to confirm
     if (getSettings.isLoading) {
       const completed = localStorage.getItem(ONBOARDING_KEY);
       if (completed !== "true") {
-        setIsFirstTime(true);
-        const savedStep = localStorage.getItem(ONBOARDING_STEP_KEY) as OnboardingStep | null;
+        const savedStep = localStorage.getItem(
+          ONBOARDING_STEP_KEY,
+        ) as OnboardingStep | null;
         if (savedStep && STEPS.includes(savedStep)) {
           setCurrentStep(savedStep);
         }
@@ -92,7 +97,9 @@ export function useOnboarding() {
     const completed = localStorage.getItem(ONBOARDING_KEY);
     if (completed !== "true") {
       setIsFirstTime(true);
-      const savedStep = localStorage.getItem(ONBOARDING_STEP_KEY) as OnboardingStep | null;
+      const savedStep = localStorage.getItem(
+        ONBOARDING_STEP_KEY,
+      ) as OnboardingStep | null;
       if (savedStep && STEPS.includes(savedStep)) {
         setCurrentStep(savedStep);
       }
@@ -109,7 +116,7 @@ export function useOnboarding() {
       // Persist to server (non-blocking)
       if (session?.user?.id) {
         setSettings.mutate({
-          onboarding: { completed: false, currentStep: step },
+          settings: { onboarding: { completed: false, currentStep: step } },
         });
       }
     },
@@ -138,7 +145,7 @@ export function useOnboarding() {
     // Persist to server (non-blocking)
     if (session?.user?.id) {
       setSettings.mutate({
-        onboarding: { completed: true, currentStep: null },
+        settings: { onboarding: { completed: true, currentStep: null } },
       });
     }
   }, [session, setSettings]);
@@ -152,7 +159,7 @@ export function useOnboarding() {
     // Persist to server (non-blocking)
     if (session?.user?.id) {
       setSettings.mutate({
-        onboarding: { completed: false, currentStep: "welcome" },
+        settings: { onboarding: { completed: false, currentStep: "welcome" } },
       });
     }
   }, [session, setSettings]);

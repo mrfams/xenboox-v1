@@ -950,20 +950,19 @@ export function OnboardingWizard() {
     currentStep,
     stepIndex,
     totalSteps,
+    isLoaded,
     nextStep,
     prevStep,
     completeOnboarding,
   } = useOnboarding();
   const [showWizard, setShowWizard] = useState(false);
 
-  // Auto-show wizard after entity context loads
-  if (!showWizard && isFirstTime) {
-    // We use a trick: set state during render to trigger re-render
-    // This is fine because it only fires once
+  // Auto-show wizard ONLY after server confirms first-time status
+  if (!showWizard && isFirstTime && isLoaded) {
     setShowWizard(true);
   }
 
-  if (!showWizard || !isFirstTime) return null;
+  if (!showWizard || !isFirstTime || !isLoaded) return null;
 
   const handleComplete = () => {
     // Analytics: track onboarding skip (user clicked "Skip all")
