@@ -17,7 +17,10 @@ const EXEMPT_PREFIXES = [
   "/admin-login",
   "/api/auth",
 ];
-const COUNTDOWN_SECONDS = 10;
+/** 30-second countdown before forced redirect */
+const COUNTDOWN_SECONDS = 30;
+/** Proactive warning: trigger modal 30s BEFORE JWT expires */
+const WARNING_BEFORE_EXPIRY_MS = 30_000;
 
 function isExempt(pathname: string | null): boolean {
   if (!pathname) return false;
@@ -40,6 +43,8 @@ export function SessionExpiryProvider({
   const [countdown, setCountdown] = React.useState(COUNTDOWN_SECONDS);
   const wasAuthenticatedRef = React.useRef(false);
   const hasSignaledRef = React.useRef(false);
+  /** Track when session was last confirmed active for proactive warning */
+  const lastActiveRef = React.useRef<number>(Date.now());
 
   const callbackUrl = React.useMemo(() => {
     if (typeof window === "undefined") return "/dashboard";
@@ -64,6 +69,7 @@ export function SessionExpiryProvider({
     if (status === "authenticated") {
       wasAuthenticatedRef.current = true;
       hasSignaledRef.current = false;
+      lastActiveRef.current = Date.now();
     }
     if (status === "unauthenticated" && wasAuthenticatedRef.current) {
       trigger();
@@ -135,6 +141,21 @@ export function SessionExpiryProvider({
     return () => document.removeEventListener("visibilitychange", onVisible);
   }, [status, trigger]);
 
+  // 6) Proactive session expiry warning — poll every 30s, warn 30s before JWT dies
+  React.useEffect(() => {
+    if (status !== "authenticated") return;
+    const SESSION_DURATION_MS = 60 * 60 * 1000; // 1 hour
+    const check = () => {
+      const elapsed = Date.now() - lastActiveRef.current;
+      const remaining = SESSION_DURATION_MS - elapsed;
+      if (remaining <= WARNING_BEFORE_EXPIRY_MS && remaining > 0) {
+        trigger();
+      }
+    };
+    const id = window.setInterval(check, 30_000);
+    return () => window.clearInterval(id);
+  }, [status, trigger]);
+
   // Countdown + auto-redirect
   React.useEffect(() => {
     if (!open) return;
@@ -164,6 +185,14 @@ export function SessionExpiryProvider({
   return (
     <>
       {children}
+      {/* Block all dashboard interaction when session expiry modal is open */}
+      {open && (
+        <div
+          className="fixed inset-0 z-[9998] bg-background/80 backdrop-blur-sm"
+          aria-hidden="true"
+          style={{ pointerEvents: "auto" }}
+        />
+      )}
       <SessionExpiryModal
         open={open}
         onOpenChange={handleOpenChange}

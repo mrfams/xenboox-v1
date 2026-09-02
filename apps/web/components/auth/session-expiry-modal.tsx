@@ -48,9 +48,9 @@ export function SessionExpiryModal({
               id="session-expiry-desc"
               className="pt-2 text-[13.5px] leading-relaxed"
             >
-              You&apos;ve been signed out after 60 minutes of inactivity — your
-              data is safe, but the dashboard can&apos;t load without a fresh
-              sign-in. You&apos;ll be redirected in{" "}
+              Your session is expiring due to inactivity. Your data is safe.
+              Sign in again to continue, or you&apos;ll be redirected
+              automatically in{" "}
               <span className="font-mono font-medium text-foreground">
                 {countdown}s
               </span>
