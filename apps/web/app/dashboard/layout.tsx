@@ -16,6 +16,7 @@ import { WhiteLabelProvider } from "@/components/layout/white-label-provider";
 import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav";
 import { OnboardingWizard } from "@/components/onboarding/onboarding-wizard";
 import { ProductTour } from "@/components/onboarding/product-tour";
+import { EntitySwitchOverlay } from "@/components/shared/entity-switch-overlay";
 import { NpsSurvey } from "@/components/dashboard/nps-survey";
 import { LiveChatWidget } from "@/components/dashboard/live-chat-widget";
 import { useRouteFocus } from "@/lib/hooks/use-route-focus";
@@ -358,6 +359,9 @@ export default function DashboardLayout({
 
             {/* First-time onboarding wizard */}
             <OnboardingWizard />
+
+            {/* Entity switch overlay — full-screen blur during switch */}
+            <EntitySwitchOverlay />
 
             {/* Product tour — shows after onboarding completes */}
             <ProductTour />

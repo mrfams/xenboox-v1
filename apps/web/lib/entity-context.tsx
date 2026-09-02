@@ -21,6 +21,10 @@ type EntityContextValue = {
   entityRole: string | null;
   /** ISO currency code of the active entity (e.g. "GMD") — drives form defaults */
   entityCurrency: string | null;
+  /** True while switching entities — drives the full-screen overlay */
+  isSwitching: boolean;
+  /** Name of the entity being switched to (shown in overlay) */
+  switchingToName: string | null;
 };
 
 type AccessibleEntity = { id: string; role?: string };
@@ -74,6 +78,8 @@ const EntityContext = createContext<EntityContextValue>({
   isLoaded: false,
   entityRole: null,
   entityCurrency: null,
+  isSwitching: false,
+  switchingToName: null,
 });
 
 export function useEntity() {
@@ -98,6 +104,8 @@ export function EntityProvider({ children }: { children: ReactNode }) {
     return localStorage.getItem("currentEntityRole");
   });
   const [entityCurrency, setEntityCurrency] = useState<string | null>(null);
+  const [isSwitching, setIsSwitching] = useState(false);
+  const [switchingToName, setSwitchingToName] = useState<string | null>(null);
   /** true once server validation has run at least once */
   const [isLoaded, setIsLoaded] = useState(false);
   const { data: session, status } = useSession();
@@ -193,14 +201,26 @@ export function EntityProvider({ children }: { children: ReactNode }) {
   const setEntityId = useCallback(
     (id: string, role?: string) => {
       if (!id) {
-        // Empty id = "no entity selected". Mirror clearEntityId semantics
-        // without touching localStorage keys other callers may rely on.
         localStorage.removeItem("currentEntityId");
         localStorage.removeItem("currentEntityRole");
         setEntityIdState(null);
         setEntityRole(null);
         return;
       }
+
+      // Look up the target entity name for the overlay
+      const target = (listEntitiesQuery.data ?? []).find(
+        (e: { id: string }) => e.id === id,
+      );
+      const targetName =
+        (target as { name?: string } | undefined)?.name ?? null;
+
+      // Only show overlay if switching to a DIFFERENT entity
+      if (id !== entityId && targetName) {
+        setIsSwitching(true);
+        setSwitchingToName(targetName);
+      }
+
       localStorage.setItem("currentEntityId", id);
       if (role) {
         localStorage.setItem("currentEntityRole", role);
@@ -216,8 +236,14 @@ export function EntityProvider({ children }: { children: ReactNode }) {
       );
       // Persist to server for cross-device sync
       setLastUsedEntityMutation.mutate({ entityId: id });
+
+      // Auto-dismiss overlay after data refetches
+      setTimeout(() => {
+        setIsSwitching(false);
+        setSwitchingToName(null);
+      }, 1200);
     },
-    [setLastUsedEntityMutation, listEntitiesQuery.data],
+    [setLastUsedEntityMutation, listEntitiesQuery.data, entityId],
   );
 
   const clearEntityId = useCallback(() => {
@@ -237,6 +263,8 @@ export function EntityProvider({ children }: { children: ReactNode }) {
         isLoaded,
         entityRole,
         entityCurrency,
+        isSwitching,
+        switchingToName,
       }}
     >
       {children}
