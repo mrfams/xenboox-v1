@@ -207,13 +207,22 @@ async function resolveSupplier(
 
   if (!config.fuzzyMatch) return null;
 
-  // Fuzzy match — find all suppliers and score them
-  const allSuppliers = await db.query.suppliers.findMany({
-    where: and(eq(suppliers.entityId, entityId), eq(suppliers.isActive, true)),
+  // Fuzzy match — use SQL LIKE to narrow candidates before scoring
+  const searchWords = name.toLowerCase().split(/\s+/).filter(Boolean);
+  const likeConditions = searchWords.map(
+    (w) => sql`LOWER(${suppliers.name}) LIKE ${"%" + w + "%"}`,
+  );
+
+  const candidateSuppliers = await db.query.suppliers.findMany({
+    where: and(
+      eq(suppliers.entityId, entityId),
+      eq(suppliers.isActive, true),
+      ...likeConditions,
+    ),
   });
 
   const scored = scoreNameMatches(
-    allSuppliers.map((s) => ({ id: s.id, name: s.name })),
+    candidateSuppliers.map((s) => ({ id: s.id, name: s.name })),
     name,
   );
   if (scored.length > 0 && scored[0].score >= config.threshold) {
@@ -243,12 +252,21 @@ async function resolveCustomer(
 
   if (!config.fuzzyMatch) return null;
 
-  const allCustomers = await db.query.customers.findMany({
-    where: and(eq(customers.entityId, entityId), eq(customers.isActive, true)),
+  const searchWords = name.toLowerCase().split(/\s+/).filter(Boolean);
+  const likeConditions = searchWords.map(
+    (w) => sql`LOWER(${customers.name}) LIKE ${"%" + w + "%"}`,
+  );
+
+  const candidateCustomers = await db.query.customers.findMany({
+    where: and(
+      eq(customers.entityId, entityId),
+      eq(customers.isActive, true),
+      ...likeConditions,
+    ),
   });
 
   const scored = scoreNameMatches(
-    allCustomers.map((c) => ({ id: c.id, name: c.name })),
+    candidateCustomers.map((c) => ({ id: c.id, name: c.name })),
     name,
   );
   if (scored.length > 0 && scored[0].score >= config.threshold) {
@@ -278,12 +296,21 @@ async function resolveEmployee(
 
   if (!config.fuzzyMatch) return null;
 
-  const allEmployees = await db.query.employees.findMany({
-    where: and(eq(employees.entityId, entityId), eq(employees.isActive, true)),
+  const searchWords = name.toLowerCase().split(/\s+/).filter(Boolean);
+  const likeConditions = searchWords.map(
+    (w) => sql`LOWER(${employees.name}) LIKE ${"%" + w + "%"}`,
+  );
+
+  const candidateEmployees = await db.query.employees.findMany({
+    where: and(
+      eq(employees.entityId, entityId),
+      eq(employees.isActive, true),
+      ...likeConditions,
+    ),
   });
 
   const scored = scoreNameMatches(
-    allEmployees.map((e) => ({ id: e.id, name: e.name })),
+    candidateEmployees.map((e) => ({ id: e.id, name: e.name })),
     name,
   );
   if (scored.length > 0 && scored[0].score >= config.threshold) {
@@ -383,29 +410,33 @@ async function resolvePurchaseOrder(
   poNumber: string,
   config: MatchConfig,
 ): Promise<{ id: string; number: string; confidence: number } | null> {
-  // Purchase orders use number-based matching
-  const pos = await db.query.purchaseOrders.findMany({
+  // Purchase orders use number-based matching with SQL
+  const exactPo = await db.query.purchaseOrders.findFirst({
     where: and(
       eq(purchaseOrders.entityId, entityId),
       eq(purchaseOrders.status, "approved"),
+      sql`LOWER(${purchaseOrders.poNumber}) = LOWER(${poNumber})`,
     ),
   });
-
-  for (const po of pos) {
-    if (po.poNumber.toLowerCase() === poNumber.toLowerCase()) {
-      return { id: po.id, number: po.poNumber, confidence: 0.95 };
-    }
-  }
+  if (exactPo)
+    return { id: exactPo.id, number: exactPo.poNumber, confidence: 0.95 };
 
   // Partial match
   if (config.fuzzyMatch) {
-    for (const po of pos) {
-      if (
-        po.poNumber.toLowerCase().includes(poNumber.toLowerCase()) ||
-        poNumber.toLowerCase().includes(po.poNumber.toLowerCase())
-      ) {
-        return { id: po.id, number: po.poNumber, confidence: 0.7 };
-      }
+    const partialPos = await db.query.purchaseOrders.findMany({
+      where: and(
+        eq(purchaseOrders.entityId, entityId),
+        eq(purchaseOrders.status, "approved"),
+        sql`LOWER(${purchaseOrders.poNumber}) LIKE LOWER(${"%" + poNumber + "%"}) OR LOWER(${poNumber}) LIKE LOWER(${"%" + sql`COALESCE(${purchaseOrders.poNumber}, '')`} + "%"})`,
+      ),
+      limit: 5,
+    });
+    if (partialPos.length > 0) {
+      return {
+        id: partialPos[0]!.id,
+        number: partialPos[0]!.poNumber,
+        confidence: 0.7,
+      };
     }
   }
 
@@ -456,16 +487,24 @@ function scoreNameMatches(
       ) {
         score = 0.85;
       }
-      // Word overlap scoring
+      // Word overlap scoring — exact word matches score higher
       else {
         const nameWords = nameLower.split(/\s+/).filter(Boolean);
-        const matchingWords = searchWords.filter((w) =>
-          nameWords.some((nw) => nw.includes(w) || w.includes(nw)),
-        );
+        let exactMatches = 0;
+        let partialMatches = 0;
+        for (const sw of searchWords) {
+          if (nameWords.includes(sw)) {
+            exactMatches++;
+          } else if (
+            nameWords.some((nw) => nw.includes(sw) || sw.includes(nw))
+          ) {
+            partialMatches++;
+          }
+        }
+        const totalWords = Math.max(searchWords.length, nameWords.length);
         score =
-          searchWords.length > 0
-            ? matchingWords.length /
-              Math.max(searchWords.length, nameWords.length)
+          totalWords > 0
+            ? (exactMatches * 0.8 + partialMatches * 0.4) / totalWords
             : 0;
       }
 

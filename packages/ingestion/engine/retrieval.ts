@@ -139,7 +139,7 @@ async function vectorSearch(
   const chunks = await db.query.documentChunks.findMany({
     where: and(...conditions),
     orderBy: [desc(documentChunks.createdAt)],
-    limit: 1000,
+    limit: Math.min(topK * 10, 200), // Limit to avoid loading too many chunks
   });
 
   const scored = chunks
@@ -201,7 +201,7 @@ async function keywordSearch(
   const chunks = await db.query.documentChunks.findMany({
     where: and(...conditions),
     orderBy: [desc(documentChunks.createdAt)],
-    limit: 500,
+    limit: Math.min(topK * 10, 200), // Limit to avoid loading too many chunks
   });
 
   const scored = chunks
@@ -364,28 +364,34 @@ export async function retrieve(
 
   const durationMs = Date.now() - startTime;
 
-  // Log citation for audit trail
-  const [citation] = await db
-    .insert(ragCitations)
-    .values({
-      entityId: options.entityId,
-      query,
-      agentName: options.agentName,
-      chunkIds: chunks.map((c) => c.id),
-      scores: chunks.map((c) => c.score),
-      citedChunkIds: chunks.filter((c) => c.score >= minScore).map((c) => c.id),
-      totalChunks,
-      retrievalMethod: method,
-      durationMs,
-    })
-    .returning();
+  // Log citation for audit trail (only when results found)
+  let citationId = "";
+  if (chunks.length > 0) {
+    const [citation] = await db
+      .insert(ragCitations)
+      .values({
+        entityId: options.entityId,
+        query,
+        agentName: options.agentName,
+        chunkIds: chunks.map((c) => c.id),
+        scores: chunks.map((c) => c.score),
+        citedChunkIds: chunks
+          .filter((c) => c.score >= minScore)
+          .map((c) => c.id),
+        totalChunks,
+        retrievalMethod: method,
+        durationMs,
+      })
+      .returning();
+    citationId = citation?.id ?? "";
+  }
 
   return {
     chunks,
     totalChunks,
     method,
     durationMs,
-    citationId: citation?.id ?? "",
+    citationId,
   };
 }
 

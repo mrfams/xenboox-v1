@@ -15,7 +15,7 @@
  */
 
 import { db } from "@xenboox/db";
-import { eq, and, desc, inArray } from "drizzle-orm";
+import { eq, and, desc, inArray, sql } from "drizzle-orm";
 import {
   journalEntries,
   journalEntryLines,
@@ -117,12 +117,15 @@ async function answerWhatHappened(
   const tb = await getTrialBalance(entityId, currentPeriod.id);
 
   // Count entries
-  const entryCount = await db.query.journalEntries.findMany({
-    where: and(
-      eq(journalEntries.entityId, entityId),
-      eq(journalEntries.periodId, currentPeriod.id),
-    ),
-  });
+  const [{ count: entryCount }] = await db
+    .select({ count: sql<number>`count(*)::int` })
+    .from(journalEntries)
+    .where(
+      and(
+        eq(journalEntries.entityId, entityId),
+        eq(journalEntries.periodId, currentPeriod.id),
+      ),
+    );
 
   // Summarize revenue and expenses
   let totalRevenue = 0;
@@ -142,14 +145,14 @@ async function answerWhatHappened(
 
   dataPoints.push(
     `Period: ${periodLabel} (${currentPeriod.status})`,
-    `Journal entries: ${entryCount.length} entries posted`,
+    `Journal entries: ${entryCount} entries posted`,
     `Total revenue: ${formatCurrency(totalRevenue)}`,
     `Total expenses: ${formatCurrency(totalExpenses)}`,
     `Net income: ${formatCurrency(netIncome)}`,
     `Trial balance: ${tb.isBalanced ? "Balanced ✓" : "NOT balanced ✗"}`,
   );
 
-  let answer = `In ${periodLabel}, ${entryCount.length} journal entr${entryCount.length === 1 ? "y was" : "ies were"} posted. `;
+  let answer = `In ${periodLabel}, ${entryCount} journal entr${entryCount === 1 ? "y was" : "ies were"} posted. `;
   answer += `Revenue was ${formatCurrency(totalRevenue)} and expenses were ${formatCurrency(totalExpenses)}, `;
   answer += `resulting in a ${netIncome >= 0 ? "profit" : "loss"} of ${formatCurrency(Math.abs(netIncome))}. `;
 
@@ -458,18 +461,19 @@ async function answerWhatShouldWeDo(
 
   // Check period status
   if (currentPeriod.status === "open") {
-    const entryCount = (
-      await db.query.journalEntries.findMany({
-        where: and(
+    const [{ count: actionEntryCount }] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(journalEntries)
+      .where(
+        and(
           eq(journalEntries.entityId, entityId),
           eq(journalEntries.periodId, currentPeriod.id),
         ),
-      })
-    ).length;
+      );
 
-    if (entryCount > 0) {
+    if (actionEntryCount > 0) {
       recommendations.push(
-        `Period ${currentPeriod.year}-${String(currentPeriod.month).padStart(2, "0")} has ${entryCount} entries ready for review. Consider closing the period.`,
+        `Period ${currentPeriod.year}-${String(currentPeriod.month).padStart(2, "0")} has ${actionEntryCount} entries ready for review. Consider closing the period.`,
       );
     }
   }
@@ -581,16 +585,17 @@ async function answerWhatRisksExist(
   }
 
   // Risk 5: No activity in current period
-  const entryCount = (
-    await db.query.journalEntries.findMany({
-      where: and(
+  const [{ count: riskEntryCount }] = await db
+    .select({ count: sql<number>`count(*)::int` })
+    .from(journalEntries)
+    .where(
+      and(
         eq(journalEntries.entityId, entityId),
         eq(journalEntries.periodId, currentPeriod.id),
       ),
-    })
-  ).length;
+    );
 
-  if (entryCount === 0) {
+  if (riskEntryCount === 0) {
     risks.push(
       `No journal entries in the current period (${currentPeriod.year}-${String(currentPeriod.month).padStart(2, "0")}). Transactions may not have been recorded.`,
     );
@@ -660,33 +665,33 @@ async function answerWhatNeedsAttention(
       ),
     });
 
-    const entryIds = periodEntries.map((e) => e.id);
-    if (entryIds.length > 0) {
-      const allLines = await db.query.journalEntryLines.findMany({
-        where: inArray(journalEntryLines.journalEntryId, entryIds),
-      });
+    // Use SQL to find unbalanced entries (much faster than loading all lines)
+    const [{ count: unbalancedCount }] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(
+        db
+          .select({
+            journalEntryId: journalEntryLines.journalEntryId,
+          })
+          .from(journalEntryLines)
+          .where(
+            inArray(
+              journalEntryLines.journalEntryId,
+              periodEntries.map((e) => e.id),
+            ),
+          )
+          .groupBy(journalEntryLines.journalEntryId)
+          .having(
+            sql`ABS(SUM(${journalEntryLines.debit}) - SUM(${journalEntryLines.credit})) > 0.01`,
+          )
+          .as("unbalanced"),
+      );
 
-      const lineTotals = new Map<string, { debit: number; credit: number }>();
-      for (const line of allLines) {
-        const current = lineTotals.get(line.journalEntryId) ?? {
-          debit: 0,
-          credit: 0,
-        };
-        current.debit += Number(line.debit);
-        current.credit += Number(line.credit);
-        lineTotals.set(line.journalEntryId, current);
-      }
-
-      const unbalancedCount = Array.from(lineTotals.values()).filter(
-        (t) => Math.abs(t.debit - t.credit) > 0.01,
-      ).length;
-
-      if (unbalancedCount > 0) {
-        attentionItems.push(
-          `${unbalancedCount} posted journal entr${unbalancedCount === 1 ? "y is" : "ies are"} not balanced.`,
-        );
-        dataPoints.push(`Unbalanced posted entries: ${unbalancedCount}`);
-      }
+    if (unbalancedCount > 0) {
+      attentionItems.push(
+        `${unbalancedCount} posted journal entr${unbalancedCount === 1 ? "y is" : "ies are"} not balanced.`,
+      );
+      dataPoints.push(`Unbalanced posted entries: ${unbalancedCount}`);
     }
 
     // 3. Period status
@@ -820,10 +825,10 @@ async function getPreviousPeriod(
   });
 }
 
-function formatCurrency(amount: number): string {
+function formatCurrency(amount: number, currency = "USD"): string {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
-    currency: "USD",
+    currency,
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(amount);

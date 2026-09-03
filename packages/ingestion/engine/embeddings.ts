@@ -74,6 +74,47 @@ export function chunkText(
   let charOffset = 0;
 
   for (const paragraph of paragraphs) {
+    // Handle very long paragraphs that exceed chunkSize
+    if (estimateTokenCount(paragraph) > chunkSize * 1.5) {
+      // Flush current chunk if non-empty
+      if (currentChunk.trim().length > 0) {
+        const startOffset = charOffset - currentChunk.length;
+        chunks.push({
+          content: currentChunk.trim(),
+          index: chunkIndex,
+          tokenCount: estimateTokenCount(currentChunk),
+          metadata: { startOffset, endOffset: charOffset },
+        });
+        const overlapText = getOverlapText(currentChunk, overlap);
+        currentChunk = overlapText;
+        chunkIndex++;
+      }
+
+      // Split long paragraph by character boundaries
+      const chars = paragraph.split("");
+      let segment = "";
+      for (const char of chars) {
+        segment += char;
+        if (estimateTokenCount(segment) >= chunkSize) {
+          chunks.push({
+            content: segment.trim(),
+            index: chunkIndex,
+            tokenCount: estimateTokenCount(segment),
+            metadata: {
+              startOffset: charOffset,
+              endOffset: charOffset + segment.length,
+            },
+          });
+          chunkIndex++;
+          charOffset += segment.length;
+          segment = getOverlapText(segment, overlap);
+        }
+      }
+      currentChunk = segment;
+      charOffset += 2; // paragraph break
+      continue;
+    }
+
     const sentences = paragraph.split(/(?<=[.!?])\s+/);
 
     for (const sentence of sentences) {
@@ -360,33 +401,28 @@ export async function processDocumentForRAG(
   const texts = chunks.map((c) => c.content);
   const embeddings = await generateEmbeddings(texts, entityId);
 
-  // 3. Store chunks in the database
-  let chunksCreated = 0;
-  let embeddingsGenerated = 0;
-
-  for (let i = 0; i < chunks.length; i++) {
-    const chunk = chunks[i];
+  // 3. Store chunks in the database (batch insert for performance)
+  const chunkValues = chunks.map((chunk, i) => {
     const embedding = embeddings[i];
-
-    // Convert embedding to pgvector format: '[0.1, 0.2, ...]'
     const vectorStr = embedding ? `[${embedding.join(",")}]` : null;
-
-    await db.insert(documentChunks).values({
+    return {
       entityId,
       documentId,
       sourceType: metadata?.sourceType ?? "knowledge_document",
       chunkIndex: chunk.index,
       content: chunk.content,
       tokenCount: chunk.tokenCount,
-      embedding: JSON.stringify(embedding), // JSON for backward compat
-      embeddingVector: vectorStr as any, // pgvector format
+      embedding: JSON.stringify(embedding),
+      embeddingVector: vectorStr as any,
       metadata: chunk.metadata,
       isEmbedded: true,
-    });
+    };
+  });
 
-    chunksCreated++;
-    if (embedding) embeddingsGenerated++;
-  }
+  await db.insert(documentChunks).values(chunkValues);
+
+  const chunksCreated = chunks.length;
+  const embeddingsGenerated = embeddings.filter(Boolean).length;
 
   // 4. Update knowledge_embeddings record
   const aggregateEmbedding =
