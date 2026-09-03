@@ -212,7 +212,8 @@ export async function detectDuplicates(
   const existing = await db.query.reconciliationSessions.findFirst({
     where: and(
       eq(reconciliationSessions.entityId, entityId),
-      sql`${reconciliationSessions.accountsIncluded} @> ARRAY[${bankAccountId}]`,
+      // Parameterized array containment — no string interpolation of bankAccountId
+      sql`${reconciliationSessions.accountsIncluded} @> ARRAY[${bankAccountId}::text]`,
       eq(reconciliationSessions.periodEnd, statementDate),
     ),
   });
@@ -325,18 +326,19 @@ export async function retrieveLedgerCandidates(
   }> = [];
 
   for (const line of allLines) {
-    const lineAmount = Math.max(Number(line.debit), Number(line.credit));
+    const candidateAmount = Math.max(Number(line.debit), Number(line.credit));
     const entry = entryMap.get(line.journalEntryId);
     if (!entry) continue;
 
-    // Amount tolerance: within 1 USD equivalent or 10% for larger amounts
-    const amountTolerance = Math.max(1, lineAmount * 0.1);
-    if (Math.abs(lineAmount - Math.abs(lineAmount)) > amountTolerance) continue;
+    // Amount tolerance: within 1 USD equivalent or 10% (based on statement amount)
+    const amountTolerance = Math.max(1, Math.abs(lineAmount) * 0.1);
+    if (Math.abs(candidateAmount - Math.abs(lineAmount)) > amountTolerance)
+      continue;
 
     candidates.push({
       journalEntryId: entry.id,
       lineId: line.id,
-      amount: lineAmount,
+      amount: candidateAmount,
       date: entry.date,
       description: entry.description ?? "",
       reference: entry.reference ?? null,
@@ -1427,29 +1429,47 @@ export async function getReconciliationStatus(entityId: string): Promise<
     currentBalance: number;
   }> = [];
 
+  if (accounts.length === 0) return [];
+
+  // Batch fetch — fixes N+1 (2 queries instead of 2*N)
+  const accountIds = accounts.map((a) => a.id);
+  const allUnreconciled = await db.query.bankTransactions.findMany({
+    where: and(
+      eq(bankTransactions.entityId, entityId),
+      inArray(bankTransactions.bankAccountId, accountIds),
+      eq(bankTransactions.isReconciled, false),
+    ),
+  });
+  const unreconciledByAccount = new Map<string, number>();
+  for (const tx of allUnreconciled) {
+    unreconciledByAccount.set(
+      tx.bankAccountId,
+      (unreconciledByAccount.get(tx.bankAccountId) ?? 0) + 1,
+    );
+  }
+
+  const allRecons = await db.query.reconciliations.findMany({
+    where: and(
+      eq(reconciliations.entityId, entityId),
+      inArray(reconciliations.bankAccountId, accountIds),
+    ),
+    orderBy: [desc(reconciliations.createdAt)],
+  });
+  const latestByAccount = new Map<string, (typeof allRecons)[number]>();
+  for (const recon of allRecons) {
+    if (!latestByAccount.has(recon.bankAccountId)) {
+      latestByAccount.set(recon.bankAccountId, recon);
+    }
+  }
+
   for (const account of accounts) {
-    const unreconciledTxs = await db.query.bankTransactions.findMany({
-      where: and(
-        eq(bankTransactions.entityId, entityId),
-        eq(bankTransactions.bankAccountId, account.id),
-        eq(bankTransactions.isReconciled, false),
-      ),
-    });
-
-    const latestRecon = await db.query.reconciliations.findFirst({
-      where: and(
-        eq(reconciliations.entityId, entityId),
-        eq(reconciliations.bankAccountId, account.id),
-      ),
-      orderBy: [desc(reconciliations.createdAt)],
-    });
-
+    const latestRecon = latestByAccount.get(account.id);
     result.push({
       accountId: account.id,
       accountName: account.name,
       bankName: account.bankName,
       currency: account.currency,
-      unreconciledCount: unreconciledTxs.length,
+      unreconciledCount: unreconciledByAccount.get(account.id) ?? 0,
       lastReconciledDate: latestRecon?.statementDate ?? null,
       lastReconciliationStatus: latestRecon?.status ?? null,
       currentBalance: Number(account.currentBalance),
