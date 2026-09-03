@@ -16,6 +16,7 @@ import {
 import { useEntity } from "@/lib/entity-context";
 import { trpc } from "@/lib/trpc/client";
 import { cn, formatCurrency } from "@/lib/utils";
+import { useFormatCurrency } from "@/lib/hooks/use-currency";
 
 // ─── ProactiveBriefing ────────────────────────────────────────────────────
 //
@@ -131,7 +132,6 @@ export function ProactiveBriefing() {
   // Fetch AI briefing
   // Note: tRPC inference resolves to Record<never, never> for this procedure
   // due to the dynamic import pattern in the server handler. We cast once here.
-  import { useFormatCurrency } from "@/lib/hooks/use-currency";
   const { data: aiBriefing, isError } = trpc.dashboard.getAiBriefing.useQuery(
     undefined,
     {
