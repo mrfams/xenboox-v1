@@ -436,20 +436,21 @@ export async function executeExpensePipeline(
 
     result.claimId = savedClaim?.id ?? params.claim.id;
 
-    // Persist line items
-    for (let i = 0; i < params.claim.lineItems.length; i++) {
-      const li = params.claim.lineItems[i]!;
-      await db.insert(claimLineItems).values({
-        entityId: params.entityId,
-        claimId: result.claimId,
-        lineNumber: i + 1,
-        category: li.category,
-        description: li.description,
-        amount: String(li.amount),
-        taxAmount: li.taxAmount ? String(li.taxAmount) : "0",
-        receiptDocumentRef: li.receiptDocumentRef,
-        ocrConfidence: li.ocrConfidence ? String(li.ocrConfidence) : null,
-      });
+    // Persist line items — batch insert (1 query instead of N)
+    if (params.claim.lineItems.length > 0) {
+      await db.insert(claimLineItems).values(
+        params.claim.lineItems.map((li, i) => ({
+          entityId: params.entityId,
+          claimId: result.claimId,
+          lineNumber: i + 1,
+          category: li.category,
+          description: li.description,
+          amount: String(li.amount),
+          taxAmount: li.taxAmount ? String(li.taxAmount) : "0",
+          receiptDocumentRef: li.receiptDocumentRef,
+          ocrConfidence: li.ocrConfidence ? String(li.ocrConfidence) : null,
+        })),
+      );
     }
 
     result.status = "submitted";
