@@ -122,6 +122,75 @@ function classifyError(message: string): ErrorType {
   return "unknown";
 }
 
+// ─── Plaid Link (hosted, no npm dep) ───────────────────────────────────────
+// Plaid's Link is loaded from their CDN and driven through the global
+// `Plaid.create` API. Returns the public_token on success, or null when the
+// user exits Link without completing.
+
+type PlaidLinkGlobal = {
+  create: (config: {
+    token: string;
+    onSuccess: (publicToken: string, metadata: unknown) => void;
+    onExit?: (err: unknown, metadata: unknown) => void;
+    onLoad?: () => void;
+  }) => { open: () => void; destroy: () => void };
+};
+
+declare global {
+  interface Window {
+    Plaid?: PlaidLinkGlobal;
+  }
+}
+
+function openPlaidLink(linkToken: string): Promise<string | null> {
+  return new Promise((resolve) => {
+    const scriptId = "plaid-link-script";
+    const loadScript = (): Promise<void> =>
+      new Promise((res, rej) => {
+        const existing = document.getElementById(
+          scriptId,
+        ) as HTMLScriptElement | null;
+        if (existing) {
+          // If already loaded (or loading), wait for the global.
+          const wait = () => (window.Plaid ? res() : setTimeout(wait, 100));
+          wait();
+          return;
+        }
+        const script = document.createElement("script");
+        script.id = scriptId;
+        script.src = "https://cdn.plaid.com/link/v2/stable/link-initialize.js";
+        script.async = true;
+        script.onload = () => res();
+        script.onerror = () => rej(new Error("Failed to load Plaid Link"));
+        document.head.appendChild(script);
+      });
+
+    (async () => {
+      try {
+        await loadScript();
+        if (!window.Plaid) {
+          resolve(null);
+          return;
+        }
+        const handler = window.Plaid.create({
+          token: linkToken,
+          onSuccess: (publicToken: string) => {
+            handler.destroy();
+            resolve(publicToken);
+          },
+          onExit: () => {
+            handler.destroy();
+            resolve(null);
+          },
+        });
+        handler.open();
+      } catch {
+        resolve(null);
+      }
+    })();
+  });
+}
+
 // ─── Main Dialog ───────────────────────────────────────────────────────────
 
 export function BankConnectionDialog({
@@ -212,12 +281,8 @@ export function BankConnectionDialog({
 
           // Trigger transaction sync
           try {
-            await fetch("/api/trpc/banking.syncTransactions", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                input: { connectionId },
-              }),
+            await utils.client.banking.syncTransactions.mutate({
+              connectionId,
             });
           } catch {
             // Sync failed but connection succeeded — user can retry later
@@ -235,17 +300,21 @@ export function BankConnectionDialog({
           return;
         }
 
-        // Real Plaid Link — dynamically load the Plaid Link SDK
-        const { PlaidLink } = await import("react-plaid-link");
+        // Real Plaid Link — load Plaid's hosted Link, let the user pick
+        // their bank and authenticate, then exchange the public_token.
+        const publicToken = await openPlaidLink(linkToken);
+        if (!publicToken) {
+          // User closed Link without finishing — go back to bank selection.
+          setState((s) => ({ ...s, step: "select-bank" }));
+          return;
+        }
 
-        // For real Plaid, we'd render the Plaid Link component
-        // For now, simulate the flow
         const exchangeRes = await fetch("/api/plaid/exchange-token", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             entityId,
-            publicToken: "real-token-placeholder", // Plaid Link would provide this
+            publicToken,
             institutionName: bankName,
             institutionId: bankId,
           }),
@@ -257,15 +326,11 @@ export function BankConnectionDialog({
 
         const { connectionId } = await exchangeRes.json();
 
-        // Trigger transaction sync
+        // Trigger transaction sync through the tRPC mutation (job-dispatched).
         setState((s) => ({ ...s, step: "syncing", connectionId }));
         try {
-          await fetch("/api/trpc/banking.syncTransactions", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              input: { connectionId },
-            }),
+          await utils.client.banking.syncTransactions.mutate({
+            connectionId,
           });
         } catch {
           // Sync failed but connection succeeded
@@ -307,6 +372,7 @@ export function BankConnectionDialog({
             .trim()
             .toLowerCase()
             .replace(/\s+/g, ""),
+          mode: "manual",
         }),
       });
 

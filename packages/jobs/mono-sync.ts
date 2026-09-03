@@ -8,7 +8,7 @@
 import { task, logger } from "@trigger.dev/sdk";
 import { triggerClient } from "./trigger-client";
 import { dlqOnFailure } from "./lib/dlq";
-import { db } from "@xenboox/db";
+import { db, decryptConnectionToken } from "@xenboox/db";
 import {
   bankConnections,
   bankTransactions,
@@ -62,7 +62,8 @@ export const syncMonoTransactions = task({
       throw new Error(`Connection not found: ${connectionId}`);
     }
 
-    if (!connection.accessToken) {
+    const accessToken = decryptConnectionToken(connection.accessToken);
+    if (!accessToken) {
       throw new Error(`No access token for connection: ${connectionId}`);
     }
 
@@ -73,7 +74,7 @@ export const syncMonoTransactions = task({
         headers: {
           Accept: "application/json",
           "Content-Type": "application/json",
-          Authorization: `Bearer ${connection.accessToken}`,
+          Authorization: `Bearer ${accessToken}`,
         },
       },
     );
@@ -158,9 +159,7 @@ export const syncMonoTransactions = task({
         const chunk = monoIds.slice(i, i + CHUNK);
         // Check metadata->>'monoId' for dedup
         const existing = await db.query.bankTransactions.findMany({
-          where: and(
-            eq(bankTransactions.entityId, entityId),
-          ),
+          where: and(eq(bankTransactions.entityId, entityId)),
           columns: { metadata: true },
         });
         for (const row of existing) {

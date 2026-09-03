@@ -17,6 +17,7 @@ import {
   bankAccounts,
   auditLog,
 } from "@xenboox/db/schema";
+import { decryptConnectionToken } from "@xenboox/db";
 import { eq, and } from "drizzle-orm";
 
 const PLAID_API_URL =
@@ -62,7 +63,8 @@ export const syncPlaidTransactions = task({
       throw new Error(`Connection not found: ${connectionId}`);
     }
 
-    if (!connection.accessToken) {
+    const accessToken = decryptConnectionToken(connection.accessToken);
+    if (!accessToken) {
       throw new Error(`No access token for connection: ${connectionId}`);
     }
 
@@ -71,10 +73,7 @@ export const syncPlaidTransactions = task({
     const cursor = (metadata.plaidCursor as string) ?? undefined;
 
     // 3. Call Plaid /transactions/sync with cursor
-    const plaidResponse = await callPlaidTransactionsSync(
-      connection.accessToken,
-      cursor,
-    );
+    const plaidResponse = await callPlaidTransactionsSync(accessToken, cursor);
 
     if (!plaidResponse.ok) {
       const errorBody = await plaidResponse.text();
@@ -254,7 +253,7 @@ export const syncPlaidTransactions = task({
     if (plaidData.has_more && nextCursor) {
       // Recursive pagination via re-triggering
       const paginationResult = await paginatePlaidSync(
-        connection.accessToken,
+        accessToken,
         nextCursor,
         entityId,
         bankAccountId!,

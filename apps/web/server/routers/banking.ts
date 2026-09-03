@@ -26,6 +26,7 @@ import {
 } from "@xenboox/db/schema";
 
 import { TRPCError } from "@trpc/server";
+import { decryptConnectionToken } from "@xenboox/db";
 import {
   handleMutationError,
   router,
@@ -34,6 +35,8 @@ import {
   requirePermission,
 } from "@/lib/trpc/server";
 import { db } from "@/lib/db";
+import { removePlaidItem } from "@/lib/plaid-api";
+import { tenantJobOptions, triggerClient } from "@/lib/trigger";
 
 // ─── Banking Router ────────────────────────────────────────────────────────
 
@@ -585,6 +588,21 @@ export const bankingRouter = router({
           throw new Error("Connection not found");
         }
 
+        // Revoke the provider item FIRST (best-effort) so the live credential
+        // dies server-side and Plaid stops billing for the orphaned item.
+        // If revocation fails we still delete locally but surface the error.
+        let revokeError: string | null = null;
+        if (conn.provider === "plaid") {
+          const token = decryptConnectionToken(conn.accessToken);
+          if (token) {
+            try {
+              await removePlaidItem(token);
+            } catch (e) {
+              revokeError = e instanceof Error ? e.message : "Revoke failed";
+            }
+          }
+        }
+
         // Delete the connection
         await db
           .delete(bankConnections)
@@ -614,10 +632,11 @@ export const bankingRouter = router({
           oldValues: {
             institutionName: conn.institutionName,
             provider: conn.provider,
+            revokeError,
           },
         });
 
-        return { success: true };
+        return { success: true, revokeError };
       } catch (error) {
         handleMutationError(error, "Failed to delete connection");
       }
@@ -649,8 +668,60 @@ export const bankingRouter = router({
           });
         }
 
-        // Find the linked bank account
-        const bankAccount = await db.query.bankAccounts.findFirst({
+        // M1 — no more than one sync per connection every 30s (the job has
+        // its own idempotency key so even parallel clicks collapse).
+        if (
+          conn.lastSyncedAt &&
+          Date.now() - new Date(conn.lastSyncedAt).getTime() < 30_000
+        ) {
+          throw new TRPCError({
+            code: "TOO_MANY_REQUESTS",
+            message: "Sync already in progress — try again shortly",
+          });
+        }
+
+        // ── Real provider sync: dispatch to the shared job ────────────
+        // The job owns cursor state (metadata.plaidCursor), dedup, retries and
+        // DLQ. This router previously re-implemented the whole Plaid sync
+        // inline (writing a DIFFERENT cursor key, syncCursor), so manual sync
+        // and the cron reset each other's cursors and full re-syncs happened.
+        // One implementation, one cursor, one retry policy.
+        if (
+          (conn.provider === "plaid" || conn.provider === "mono") &&
+          conn.accessToken
+        ) {
+          const taskId =
+            conn.provider === "plaid"
+              ? "plaid-sync-transactions"
+              : "mono-sync-transactions";
+
+          await triggerClient.tasks.trigger(
+            taskId,
+            {
+              connectionId: conn.id,
+              entityId,
+              ...(conn.provider === "mono"
+                ? { providerConnectionId: conn.providerConnectionId }
+                : {}),
+            },
+            tenantJobOptions(entityId, `manual-sync:${conn.id}`),
+          );
+
+          return { synced: true, triggered: true };
+        }
+
+        // ── Demo connections (provider=manual, no live feed): generate ──
+        // sample transactions so the banking surface is explorable. A Mono or
+        // Stitch connection missing its token is a real error, not a demo.
+        if (conn.provider === "mono" || conn.provider === "stitch") {
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: "Connection is missing its access token — reconnect it",
+          });
+        }
+
+        // Find (or create) the linked bank account for the demo account.
+        let bankAccount = await db.query.bankAccounts.findFirst({
           where: and(
             eq(bankAccounts.entityId, entityId),
             eq(bankAccounts.bankName, conn.institutionName),
@@ -658,176 +729,19 @@ export const bankingRouter = router({
         });
 
         if (!bankAccount) {
-          throw new TRPCError({
-            code: "NOT_FOUND",
-            message: "Bank account not found for this connection",
-          });
-        }
-
-        const meta = (conn.metadata ?? {}) as Record<string, unknown>;
-        const syncCursor = (meta.syncCursor as string) ?? null;
-
-        // ── Real Plaid sync ──────────────────────────────────────────
-        if (conn.provider === "plaid" && conn.accessToken) {
-          const plaidClientId = process.env.PLAID_CLIENT_ID;
-          const plaidSecret = process.env.PLAID_SECRET;
-
-          if (!plaidClientId || !plaidSecret) {
-            throw new TRPCError({
-              code: "INTERNAL_SERVER_ERROR",
-              message: "Plaid not configured",
-            });
-          }
-
-          const { Configuration, PlaidApi, PlaidEnvironments } = await import(
-            "plaid"
-          );
-          const configuration = new Configuration({
-            basePath:
-              process.env.PLAID_ENV === "production"
-                ? PlaidEnvironments.production
-                : process.env.PLAID_ENV === "development"
-                  ? PlaidEnvironments.development
-                  : PlaidEnvironments.sandbox,
-            baseOptions: {
-              headers: {
-                "PLAID-CLIENT-ID": plaidClientId,
-                "PLAID-SECRET": plaidSecret,
-              },
-            },
-          });
-          const plaidClient = new PlaidApi(configuration);
-
-          // Incremental sync using cursor
-          const syncRequest: Record<string, unknown> = {
-            access_token: conn.accessToken,
-          };
-          if (syncCursor) {
-            syncRequest.cursor = syncCursor;
-          }
-
-          const syncResponse = await plaidClient.transactionsSync(
-            syncRequest as any,
-          );
-          const data = syncResponse.data;
-
-          // Map Plaid transactions to our schema
-          const newTransactions = data.added.map((tx) => {
-            const amount = tx.amount ?? 0;
-            // Plaid amounts: positive = money flowing to user (deposit)
-            // Our schema: positive = deposit, negative = withdrawal
-            const type = amount >= 0 ? "deposit" : "withdrawal";
-
-            return {
+          [bankAccount] = await db
+            .insert(bankAccounts)
+            .values({
               entityId,
-              bankAccountId: bankAccount.id,
-              transactionDate: tx.date,
-              valueDate: tx.datetime ?? tx.date,
-              type: type as "deposit" | "withdrawal",
-              amount: Math.abs(amount).toFixed(2),
-              description: tx.name ?? tx.merchant_name ?? "Unknown transaction",
-              reference: tx.payment_channel ?? null,
-              source: "plaid_sync",
-              category: "Uncategorized",
-              metadata: {
-                plaidTransactionId: tx.transaction_id,
-                plaidCategoryId: tx.category_id,
-                plaidCategories: tx.category,
-                merchantName: tx.merchant_name,
-                paymentChannel: tx.payment_channel,
-                pending: tx.pending,
-              },
-            };
-          });
-
-          // Batch-query existing transactions by Plaid ID (one query, not N)
-          const allPlaidIds = [
-            ...data.added.map((tx) => tx.transaction_id),
-            ...data.modified.map((tx) => tx.transaction_id),
-            ...data.removed.map((tx) => tx.transaction_id),
-          ];
-
-          const existing =
-            allPlaidIds.length > 0
-              ? await db
-                  .select({
-                    id: bankTransactions.id,
-                    metadata: bankTransactions.metadata,
-                  })
-                  .from(bankTransactions)
-                  .where(
-                    sql`${bankTransactions.metadata}->>'plaidTransactionId' IN ${allPlaidIds}`,
-                  )
-              : [];
-
-          const existingByPlaidId = new Map(
-            existing.map((e) => {
-              const meta = (e.metadata ?? {}) as Record<string, unknown>;
-              return [meta.plaidTransactionId as string, e.id];
-            }),
-          );
-
-          // Insert new transactions (skip duplicates)
-          const toInsert = newTransactions.filter(
-            (t) =>
-              !existingByPlaidId.has(
-                (t.metadata as Record<string, unknown>)
-                  .plaidTransactionId as string,
-              ),
-          );
-
-          if (toInsert.length > 0) {
-            await db.insert(bankTransactions).values(toInsert);
-          }
-
-          // Handle modified transactions
-          for (const tx of data.modified) {
-            const match = existingByPlaidId.get(tx.transaction_id);
-            if (match) {
-              await db
-                .update(bankTransactions)
-                .set({
-                  description: tx.name ?? tx.merchant_name ?? "Unknown",
-                  amount: String(Math.abs(tx.amount ?? 0)),
-                  type: (tx.amount ?? 0) >= 0 ? "deposit" : "withdrawal",
-                })
-                .where(eq(bankTransactions.id, match));
-            }
-          }
-
-          // Handle removed transactions (soft-delete via metadata flag)
-          for (const tx of data.removed) {
-            const match = existingByPlaidId.get(tx.transaction_id);
-            if (match) {
-              await db
-                .update(bankTransactions)
-                .set({
-                  metadata: sql`jsonb_set(COALESCE(metadata, '{}'::jsonb), '{plaidRemoved}', 'true'::jsonb)`,
-                })
-                .where(eq(bankTransactions.id, match));
-            }
-          }
-
-          // Update cursor and sync time
-          await db
-            .update(bankConnections)
-            .set({
-              lastSyncedAt: new Date(),
-              syncError: null,
-              metadata: sql`jsonb_set(COALESCE(metadata, '{}'::jsonb), '{syncCursor}', ${JSON.stringify(data.next_cursor)}::jsonb)`,
-            } as any)
-            .where(eq(bankConnections.id, conn.id));
-
-          return {
-            synced: true,
-            added: newTransactions.length,
-            modified: data.modified.length,
-            removed: data.removed.length,
-            nextCursor: data.next_cursor,
-          };
+              name: conn.accountName ?? conn.institutionName,
+              bankName: conn.institutionName,
+              accountNumber: conn.accountNumber ?? "00000000",
+              currency: conn.currency ?? "USD",
+              isActive: true,
+            })
+            .returning();
         }
 
-        // ── Demo mode: generate sample transactions ────────────────────
         const sampleTransactions = generateDemoTransactions(
           entityId,
           bankAccount.id,
@@ -851,7 +765,7 @@ export const bankingRouter = router({
 
         return {
           synced: true,
-          added: sampleTransactions.length,
+          added: existingCount[0]?.count === 0 ? sampleTransactions.length : 0,
           modified: 0,
           removed: 0,
           nextCursor: null,

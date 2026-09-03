@@ -8,3 +8,8 @@ export const db = drizzle(sql, { schema });
 // Re-export all table types for convenience
 export type Database = typeof db;
 export * from "./schema";
+export {
+  encryptConnectionToken,
+  decryptConnectionToken,
+  isTokenEncrypted,
+} from "./lib/bank-token-encryption";

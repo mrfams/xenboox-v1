@@ -17,12 +17,15 @@ import {
 import { entities } from "@xenboox/db/schema/organization";
 
 import { db } from "@/lib/db";
+import { decryptConnectionToken } from "@xenboox/db";
 import {
   handleMutationError,
   router,
   rlsProtectedProcedure,
+  rlsMutateProcedure,
 } from "@/lib/trpc/server";
 import { tenantJobOptions, triggerClient } from "@/lib/trigger";
+import { removePlaidItem } from "@/lib/plaid-api";
 
 // ─── CSV Mapping Helpers ───────────────────────────────────────────────────
 
@@ -338,11 +341,30 @@ function isValidDate(val: string): boolean {
 export const integrationsRouter = router({
   // ── Bank Connections (Mono) ──
 
-  getBankConnections: rlsProtectedProcedure.query(({ ctx }) => {
-    return db.query.bankConnections.findMany({
+  getBankConnections: rlsProtectedProcedure.query(async ({ ctx }) => {
+    const rows = await db.query.bankConnections.findMany({
       where: eq(bankConnections.entityId, ctx.entityId!),
       orderBy: [desc(bankConnections.createdAt)],
     });
+
+    // Never expose tokens, raw account numbers, or provider internals to the
+    // client — same masking contract as banking.listConnections.
+    return rows.map((conn) => ({
+      id: conn.id,
+      provider: conn.provider,
+      institutionName: conn.institutionName,
+      institutionId: conn.institutionId,
+      accountName: conn.accountName,
+      accountNumber: conn.accountNumber
+        ? `••${conn.accountNumber.slice(-4)}`
+        : null,
+      accountType: conn.accountType,
+      currency: conn.currency,
+      status: conn.status,
+      lastSyncedAt: conn.lastSyncedAt,
+      syncError: conn.syncError,
+      createdAt: conn.createdAt,
+    }));
   }),
 
   initiateBankConnection: rlsProtectedProcedure
@@ -448,12 +470,41 @@ export const integrationsRouter = router({
       return { triggered: true };
     }),
 
-  disconnectBank: rlsProtectedProcedure
+  disconnectBank: rlsMutateProcedure
     .input(z.object({ connectionId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
+      const existing = await db.query.bankConnections.findFirst({
+        where: and(
+          eq(bankConnections.id, input.connectionId),
+          eq(bankConnections.entityId, ctx.entityId!),
+        ),
+      });
+      if (!existing) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Connection not found",
+        });
+      }
+
+      // Best-effort provider-side revoke so the credential dies server-side.
+      let revokeError: string | null = null;
+      if (existing.provider === "plaid") {
+        const token = decryptConnectionToken(existing.accessToken);
+        if (token) {
+          try {
+            await removePlaidItem(token);
+          } catch (e) {
+            revokeError = e instanceof Error ? e.message : "Revoke failed";
+          }
+        }
+      }
+
       await db
         .update(bankConnections)
-        .set({ status: "disconnected" })
+        .set({
+          status: "disconnected",
+          ...(revokeError ? { syncError: revokeError } : {}),
+        })
         .where(
           and(
             eq(bankConnections.id, input.connectionId),
@@ -461,7 +512,7 @@ export const integrationsRouter = router({
           ),
         );
 
-      return { success: true };
+      return { success: true, revokeError };
     }),
 
   // ── Email Forwarding Rules ──

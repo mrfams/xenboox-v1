@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { bankConnections } from "@xenboox/db/schema/integrations";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import { verifyMonoSignature } from "@/lib/webhook-verify";
@@ -31,46 +31,66 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ received: true, duplicate: true });
     }
 
+    // Resolve the connection by provider id FIRST, then scope every write to
+    // that row's id + entity — never a bare update on providerConnectionId
+    // (entity-scoping rule; prevents cross-entity writes if ids ever collide).
+    const providerConnectionId = data?.id as string | undefined;
+    const connection = providerConnectionId
+      ? await db.query.bankConnections.findFirst({
+          where: eq(bankConnections.providerConnectionId, providerConnectionId),
+        })
+      : null;
+
+    if (!connection) {
+      log.warn({ event, providerConnectionId }, "No connection for webhook");
+      return NextResponse.json({ received: true, unlinked: true });
+    }
+
+    const { id: connectionId, entityId } = connection;
+
     switch (event) {
       case "mono.account.connected":
       case "mono.account.updated": {
-        if (data?.id) {
-          await db
-            .update(bankConnections)
-            .set({
-              status: "active",
-              lastSyncedAt: new Date(),
-            })
-            .where(eq(bankConnections.providerConnectionId, data.id));
-        }
+        await db
+          .update(bankConnections)
+          .set({
+            status: "active",
+            syncError: null,
+            lastSyncedAt: new Date(),
+          })
+          .where(
+            and(
+              eq(bankConnections.id, connectionId),
+              eq(bankConnections.entityId, entityId),
+            ),
+          );
         break;
       }
 
       case "mono.account.synced": {
-        if (data?.id) {
-          const connection = await db.query.bankConnections.findFirst({
-            where: eq(bankConnections.providerConnectionId, data.id),
-          });
-
-          if (connection) {
-            await db
-              .update(bankConnections)
-              .set({ lastSyncedAt: new Date() })
-              .where(eq(bankConnections.id, connection.id));
-
-            log.info({ connectionId: connection.id }, "Sync completed");
-          }
-        }
+        await db
+          .update(bankConnections)
+          .set({ lastSyncedAt: new Date(), syncError: null })
+          .where(
+            and(
+              eq(bankConnections.id, connectionId),
+              eq(bankConnections.entityId, entityId),
+            ),
+          );
+        log.info({ connectionId }, "Sync completed");
         break;
       }
 
       case "mono.account.disconnected": {
-        if (data?.id) {
-          await db
-            .update(bankConnections)
-            .set({ status: "disconnected" })
-            .where(eq(bankConnections.providerConnectionId, data.id));
-        }
+        await db
+          .update(bankConnections)
+          .set({ status: "disconnected" })
+          .where(
+            and(
+              eq(bankConnections.id, connectionId),
+              eq(bankConnections.entityId, entityId),
+            ),
+          );
         break;
       }
 
