@@ -708,21 +708,30 @@ export async function detectReportablePeriods(
     orderBy: [desc(fiscalPeriods.year), desc(fiscalPeriods.month)],
   });
 
+  if (periods.length === 0) return [];
+
+  // Batch count posted entries per period — 1 query instead of N (N+1 fix)
+  const periodIds = periods.map((p) => p.id);
+  const counts = await db
+    .select({
+      periodId: journalEntries.periodId,
+      count: sql<number>`count(*)::int`,
+    })
+    .from(journalEntries)
+    .where(
+      and(
+        eq(journalEntries.entityId, entityId),
+        inArray(journalEntries.periodId, periodIds),
+        eq(journalEntries.status, "posted"),
+      ),
+    )
+    .groupBy(journalEntries.periodId);
+
+  const countByPeriod = new Map(counts.map((c) => [c.periodId, c.count]));
+
   const result: ReportablePeriod[] = [];
-
   for (const period of periods) {
-    const postedEntryCount = await db
-      .select({ count: sql<number>`count(*)` })
-      .from(journalEntries)
-      .where(
-        and(
-          eq(journalEntries.entityId, entityId),
-          eq(journalEntries.periodId, period.id),
-          eq(journalEntries.status, "posted"),
-        ),
-      )
-      .then((r) => Number(r[0]?.count ?? 0));
-
+    const postedEntryCount = countByPeriod.get(period.id) ?? 0;
     if (postedEntryCount >= MIN_ENTRIES_FOR_REPORT) {
       result.push({
         periodId: period.id,
