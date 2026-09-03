@@ -20,16 +20,7 @@ import { eq, and, sql, inArray } from "drizzle-orm";
 import { parseBankCSV } from "./lib/bank-csv-parser";
 import { parseBankStatementPDF } from "./lib/bank-statement-parser";
 import { extractText } from "./lib/ocr";
-import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
-
-const r2 = new S3Client({
-  region: "auto",
-  endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
-  credentials: {
-    accessKeyId: process.env.R2_ACCESS_KEY_ID!,
-    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
-  },
-});
+import { downloadFromR2 } from "./lib/r2";
 
 export const importBankStatement = task({
   id: "import-bank-statement",
@@ -74,15 +65,9 @@ export const importBankStatement = task({
       mimeType,
     });
 
-    // 1. Download file from R2
-    const response = await r2.send(
-      new GetObjectCommand({
-        Bucket: process.env.R2_BUCKET_NAME!,
-        Key: storagePath,
-      }),
-    );
-
-    const fileBuffer = await response.Body?.transformToByteArray();
+    // 1. Download file from R2 (shared helper — validates config and
+    // rejects empty paths instead of silently hitting a bad endpoint)
+    const fileBuffer = await downloadFromR2(storagePath);
     if (!fileBuffer) {
       throw new Error("Failed to read file from R2");
     }
@@ -156,7 +141,11 @@ export const importBankStatement = task({
     const transactions = parseResult.transactions.slice(0, MAX_TRANSACTIONS);
     if (parseResult.transactions.length > MAX_TRANSACTIONS) {
       logger.warn(
-        { documentId, total: parseResult.transactions.length, capped: MAX_TRANSACTIONS },
+        {
+          documentId,
+          total: parseResult.transactions.length,
+          capped: MAX_TRANSACTIONS,
+        },
         "[bank-import] Transaction count capped",
       );
     }

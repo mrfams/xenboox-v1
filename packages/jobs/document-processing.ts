@@ -4,8 +4,8 @@ import { triggerClient } from "./trigger-client";
 import { db } from "@xenboox/db";
 import { documents } from "@xenboox/db/schema";
 import { eq } from "drizzle-orm";
-import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
 import { extractText } from "./lib/ocr";
+import { downloadFromR2 } from "./lib/r2";
 import { classifyDocument } from "./lib/classification";
 import { extractStructuredData } from "./lib/extraction";
 import { runTrustGuard } from "@xenboox/ingestion/engine/trust-guard";
@@ -31,18 +31,26 @@ async function getExistingMetadata(
   return (doc?.metadata as Record<string, unknown>) ?? {};
 }
 
-// ---------------------------------------------------------------------------
-// R2 Client
-// ---------------------------------------------------------------------------
-
-const r2 = new S3Client({
-  region: "auto",
-  endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
-  credentials: {
-    accessKeyId: process.env.R2_ACCESS_KEY_ID!,
-    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
-  },
-});
+/**
+ * Race a promise against a timeout — rejects if the promise does not
+ * settle within `ms`, preventing a hung R2 call from pinning the task.
+ */
+async function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  let timer: NodeJS.Timeout | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(
+          () => reject(new Error(`Operation timed out after ${ms}ms`)),
+          ms,
+        );
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Stage 1: DETECTED — Document received, starting pipeline
@@ -56,7 +64,20 @@ async function stageDetected(
     documentId,
   });
 
-  await updateIngestionStatus(documentId, entityId, "detected");
+  // Only stamp "detected" on a genuinely fresh run. On a task retry the
+  // document is already mid-pipeline (or beyond) — re-setting the status to
+  // stage 1 would regress progress tracking and write a redundant audit row.
+  const current = await db.query.documents.findFirst({
+    where: eq(documents.id, documentId),
+    columns: { status: true },
+  });
+  if (
+    !current ||
+    current.status === "detected" ||
+    current.status === "uploaded"
+  ) {
+    await updateIngestionStatus(documentId, entityId, "detected");
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -78,22 +99,8 @@ async function stageProcessing(
     mimeType,
   });
 
-  const abortController = new AbortController();
-  const timeout = setTimeout(() => abortController.abort(), 30_000); // 30s timeout
-
-  let response;
-  try {
-    response = await r2.send(
-      new GetObjectCommand({
-        Bucket: process.env.R2_BUCKET_NAME!,
-        Key: storagePath,
-      }),
-    );
-  } finally {
-    clearTimeout(timeout);
-  }
-
-  const fileBuffer = await response.Body?.transformToByteArray();
+  // 30s timeout on the R2 download
+  const fileBuffer = await withTimeout(downloadFromR2(storagePath), 30_000);
   if (!fileBuffer) {
     throw new Error("Failed to read file from R2");
   }
@@ -120,6 +127,13 @@ async function stageProcessing(
     documentId,
     size: fileBuffer.length,
   });
+
+  // Record the real downloaded size (the presigned-upload declared size may
+  // be client-supplied; the actual byte count is ground truth).
+  await db
+    .update(documents)
+    .set({ sizeBytes: fileBuffer.length })
+    .where(eq(documents.id, documentId));
 
   return { fileBuffer };
 }
@@ -167,7 +181,7 @@ async function stageExtracted(
           completedAt: new Date().toISOString(),
         },
       },
-    } as any)
+    })
     .where(eq(documents.id, documentId));
 
   await updateIngestionStatus(documentId, entityId, "extracted", {
@@ -207,7 +221,7 @@ async function stageSynced(
   await db
     .update(documents)
     .set({
-      type: classification.category as any,
+      type: classification.category,
     })
     .where(eq(documents.id, documentId));
 
@@ -251,7 +265,7 @@ async function stageSynced(
           data: extraction.data ?? {},
         },
       },
-    } as any)
+    })
     .where(eq(documents.id, documentId));
 
   return { classification, extraction };
@@ -349,7 +363,7 @@ async function stageValidated(
           validatedAt: new Date().toISOString(),
         },
       },
-    } as any)
+    })
     .where(eq(documents.id, documentId));
 
   // Audit log for TrustGuard

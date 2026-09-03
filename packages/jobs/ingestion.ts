@@ -14,6 +14,7 @@ import { db } from "@xenboox/db";
 import { documents, auditLog } from "@xenboox/db/schema";
 import { eq } from "drizzle-orm";
 import { processIngestion } from "@xenboox/ingestion";
+import { mergeFailureMetadata } from "./lib/ingestion-job-helpers";
 
 export const runDocumentIngestion = task({
   id: "run-document-ingestion",
@@ -113,20 +114,33 @@ export const runDocumentIngestion = task({
         error: errorMessage,
       });
 
-      // Update document status to failed
+      // Mark the document failed — MERGE metadata so extraction/
+      // classification/trustGuard context survives for the review queue
+      // (the old code replaced the whole object, losing that context).
+      const existing = await db.query.documents.findFirst({
+        where: eq(documents.id, documentId),
+        columns: { metadata: true },
+      });
+      const existingMetadata =
+        (existing?.metadata as Record<string, unknown>) ?? {};
       await db
         .update(documents)
         .set({
           status: "failed",
-          metadata: {
-            error: errorMessage,
-            failedAt: new Date().toISOString(),
-            pipelineStage: "ingestion",
-          },
-        } as any)
+          metadata: mergeFailureMetadata(
+            existingMetadata,
+            errorMessage,
+            new Date().toISOString(),
+            "ingestion",
+          ),
+        })
         .where(eq(documents.id, documentId));
 
-      return { success: false, error: errorMessage };
+      // RETHROW so Trigger.dev's retry policy and DLQ actually engage — the
+      // old `return { success: false }` made the task look successful, so
+      // retries never ran and dlqOnFailure never fired for the most
+      // important job in the pipeline.
+      throw error;
     }
   },
 });
