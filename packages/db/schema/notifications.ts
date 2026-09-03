@@ -28,6 +28,8 @@ export const notificationTypeEnum = {
   ingestionReview: "ingestion_review",
   ingestionRejected: "ingestion_rejected",
   ingestionPosted: "ingestion_posted",
+  ingestionFailed: "ingestion_failed",
+  ingestionEscalated: "ingestion_escalated",
 } as const;
 
 export const notificationPriorityEnum = {

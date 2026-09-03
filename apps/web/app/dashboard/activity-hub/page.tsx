@@ -61,6 +61,8 @@ type DecisionItem = {
   agentName?: string;
   confidence?: number;
   sourceDoc?: string;
+  /** Real document id when this item resolves to an ingestion document */
+  documentId?: string;
   amount?: string;
   createdAt?: string | Date;
   evidence?: Record<string, unknown>;
@@ -222,8 +224,8 @@ export default function DecisionsPage() {
     }
 
     // All notifications → activity items
-    if (allNotifications?.notifications) {
-      for (const n of allNotifications.notifications) {
+    if (allNotifications?.length) {
+      for (const n of allNotifications) {
         if (seen.has(n.id)) continue;
         seen.add(n.id);
 
@@ -231,10 +233,36 @@ export default function DecisionsPage() {
         const typeKey = n.type ?? "info";
         const activityMeta = ACTIVITY_META[typeKey];
 
-        // Determine if this is a decision or activity
-        const isDecision =
+        // The notification `data` column holds JSON with the real document id
+        // for ingestion notifications — parse it so review actions target the
+        // document, not the notification row.
+        // `data` may already be parsed (web list router returns structured
+        // metadata) or a raw JSON string (older rows / other routers). Handle
+        // both so the real documentId is always found.
+        let notificationData: Record<string, unknown> = {};
+        if (n.data && typeof n.data === "object") {
+          notificationData = n.data as Record<string, unknown>;
+        } else if (typeof n.data === "string") {
+          try {
+            notificationData = JSON.parse(n.data) as Record<string, unknown>;
+          } catch {
+            notificationData = {};
+          }
+        }
+        const documentId =
+          typeof notificationData.documentId === "string"
+            ? notificationData.documentId
+            : undefined;
+
+        const isIngestionNotification =
           typeKey === "ingestion_review" ||
           typeKey === "ingestion_rejected" ||
+          typeKey === "ingestion_failed" ||
+          typeKey === "ingestion_escalated";
+
+        // Determine if this is a decision or activity
+        const isDecision =
+          isIngestionNotification ||
           typeKey === "agent_escalation" ||
           typeKey === "agent_flag" ||
           typeKey === "overdue_invoice" ||
@@ -243,11 +271,12 @@ export default function DecisionsPage() {
         out.push({
           id: n.id,
           itemType: isDecision ? "decision" : "activity",
-          category: "notification",
+          category: isIngestionNotification ? "ingestion" : "notification",
           severity: isDecision ? "approval" : "info",
           title: n.title,
           summary: n.body ?? "",
           createdAt: n.createdAt ?? undefined,
+          documentId,
           icon: activityMeta?.icon,
           tone: activityMeta?.tone,
           actionLabel:
@@ -342,7 +371,7 @@ export default function DecisionsPage() {
           await markNotificationRead.mutateAsync({ id: item.id });
         } else if (item.category === "ingestion") {
           await rejectIngestion.mutateAsync({
-            documentId: item.id,
+            documentId: item.documentId ?? item.id,
             reason: note.trim() || "Rejected from Decisions",
           });
         }
@@ -451,7 +480,7 @@ export default function DecisionsPage() {
             succeeded++;
           } else if (item.category === "ingestion") {
             await rejectIngestion.mutateAsync({
-              documentId: item.id,
+              documentId: item.documentId ?? item.id,
               reason: `Batch ${action}`,
             });
             succeeded++;
@@ -745,12 +774,11 @@ export default function DecisionsPage() {
                       toggleSelect(item.id);
                     } else {
                       setCursor(idx);
-                      // Open ingestion review panel for ingestion items with document IDs
-                      if (
-                        item.category === "ingestion" &&
-                        item.id.length > 20
-                      ) {
-                        setReviewDocumentId(item.id);
+                      // Open ingestion review panel for ingestion items — the
+                      // documentId comes from the notification data JSON, never
+                      // the notification id itself.
+                      if (item.category === "ingestion" && item.documentId) {
+                        setReviewDocumentId(item.documentId);
                       }
                     }
                   }}

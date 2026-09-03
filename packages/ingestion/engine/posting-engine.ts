@@ -444,7 +444,7 @@ export async function executePosting(
             },
           },
         )}::jsonb)`,
-      } as any)
+      })
       .where(eq(documents.id, state.documentId));
 
     // Send notification: document needs review

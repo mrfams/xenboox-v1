@@ -11,17 +11,35 @@
 
 import { db } from "@xenboox/db";
 import { notifications, userEntityAccess } from "@xenboox/db/schema";
-import { eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import type { IngestionState, PostingDecision } from "../core/types";
 
 // ─── Notification Types ─────────────────────────────────────────────────────
 
+/**
+ * Keep in sync with `notificationTypeEnum` in packages/db/schema/notifications.ts.
+ * Adding a type here also requires an entry in NOTIFICATION_DESTINATIONS
+ * (apps/web/lib/hooks/use-attention-signals.ts) so the sidebar routes it.
+ */
 type NotificationType =
   | "ingestion_review"
   | "ingestion_rejected"
-  | "ingestion_posted";
+  | "ingestion_posted"
+  | "ingestion_failed"
+  | "ingestion_escalated";
 
 type NotificationPriority = "critical" | "high" | "medium" | "low";
+
+/**
+ * Build a human-readable document label once, shared by all senders.
+ */
+function buildDocumentName(state: IngestionState): string {
+  return state.extraction?.data?.vendorName
+    ? `${state.classification.category} - ${state.extraction.data.vendorName}`
+    : state.extraction?.data?.customerName
+      ? `${state.classification.category} - ${state.extraction.data.customerName}`
+      : `Document ${state.documentId.slice(0, 8)}`;
+}
 
 // ─── Main Notification Sender ───────────────────────────────────────────────
 
@@ -37,11 +55,7 @@ export async function sendIngestionNotifications(
   decision: PostingDecision,
   journalEntryId?: string,
 ): Promise<void> {
-  const documentName = state.extraction?.data?.vendorName
-    ? `${state.classification.category} - ${state.extraction.data.vendorName}`
-    : state.extraction?.data?.customerName
-      ? `${state.classification.category} - ${state.extraction.data.customerName}`
-      : `Document ${state.documentId.slice(0, 8)}`;
+  const documentName = buildDocumentName(state);
 
   switch (decision.action) {
     case "pending_review":
@@ -59,7 +73,8 @@ export async function sendIngestionNotifications(
 
     case "auto_post":
       if (decision.confidence < 0.95) {
-        // Auto-post with notification (85-94% threshold)
+        // Auto-post with notification — notify whenever confidence is below
+        // the silent threshold (< 0.95), so near-threshold posts get a glance.
         await sendAutoPostWithNotifyNotification(
           entityId,
           state,
@@ -86,11 +101,7 @@ export async function sendPostingFailureNotification(
   state: IngestionState,
   errorMessage: string,
 ): Promise<void> {
-  const documentName = state.extraction?.data?.vendorName
-    ? `${state.classification.category} - ${state.extraction.data.vendorName}`
-    : state.extraction?.data?.customerName
-      ? `${state.classification.category} - ${state.extraction.data.customerName}`
-      : `Document ${state.documentId.slice(0, 8)}`;
+  const documentName = buildDocumentName(state);
 
   await createNotificationForEntity(entityId, {
     type: "ingestion_failed",
@@ -153,7 +164,7 @@ async function sendEscalatedNotification(
   const dominantSignal = state.compositeConfidence?.dominantSignal ?? "unknown";
 
   await createNotificationForEntity(entityId, {
-    type: "ingestion_review",
+    type: "ingestion_escalated",
     priority: "critical",
     title: `⚠️ ${state.workflow?.replace(/_/g, " ")} — escalated`,
     body: `${documentName} — Confidence ${confidencePct}% (below 60% threshold). Issue: ${dominantSignal.replace(/_/g, " ")}. Requires human intervention.`,
@@ -240,12 +251,26 @@ async function createNotificationForEntity(
   input: NotificationInput,
 ): Promise<void> {
   try {
+    // Dedup: if this document already has an unread notification of the same
+    // type (e.g. a retry re-processed the same document), skip the insert so
+    // users are not spammed with identical alerts and badge counts stay honest.
+    const documentId = input.data.documentId as string | undefined;
+    if (documentId) {
+      const existing = await db.query.notifications.findFirst({
+        where: and(
+          eq(notifications.entityId, entityId),
+          eq(notifications.type, input.type),
+          eq(notifications.read, false),
+          eq(sql`${notifications.data}->>'documentId'`, documentId),
+        ),
+      });
+      if (existing) return;
+    }
+
     // Find all users with access to this entity
     const accessRecords = await db.query.userEntityAccess.findMany({
       where: eq(userEntityAccess.entityId, entityId),
-      with: {
-        user: true,
-      },
+      columns: { userId: true },
     });
 
     if (accessRecords.length === 0) {
@@ -270,7 +295,9 @@ async function createNotificationForEntity(
       title: input.title,
       body: input.body,
       data: JSON.stringify(input.data),
-      status: "sent" as const,
+      // "pending" = created in the inbox, not yet acted on. The web surface
+      // reads `read` for the badge; status tracks delivery semantics.
+      status: "pending" as const,
       sentAt: new Date(),
     }));
 

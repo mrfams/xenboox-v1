@@ -14,7 +14,7 @@
  */
 
 import { db } from "@xenboox/db";
-import { documents, auditLog } from "@xenboox/db/schema";
+import { documents, auditLog, agentActivity } from "@xenboox/db/schema";
 import { eq } from "drizzle-orm";
 
 // ─── Unified Pipeline Stages ──────────────────────────────────────────────
@@ -103,8 +103,20 @@ const STAGE_AUDIT_ACTIONS: Record<PipelineStage, string> = {
 
 /**
  * Check whether a transition from `from` to `to` is valid.
- * Valid means: `to` has a higher stage number than `from`,
- * OR `to` is a terminal state (failed, persisted, done, archived, agent_processing).
+ *
+ * Semantics:
+ * - Hard terminal states (failed, persisted, done, archived) can be reached
+ *   from anywhere — failure and completion always win. persisted/done/
+ *   archived LOCK the document (a posted doc must never be re-processed),
+ *   but `failed` stays re-enterable so a fixed document can be retried.
+ * - Pipeline ENTRY points (detected for the document pipeline, resolving for
+ *   the ingestion engine) may be re-entered from any non-locked state — task
+ *   retries re-run stage 1, and ingestion recovery restarts from resolving.
+ * - `agent_processing` is a HANDOFF, not a hard terminal: the document
+ *   pipeline hands off after TrustGuard, and the ingestion engine resumes
+ *   from it (agent_processing -> resolving). Locking it would deadlock
+ *   the entire ingestion flow.
+ * - Otherwise, transitions must move strictly forward through the stages.
  */
 export function isValidTransition(
   from: PipelineStage,
@@ -113,10 +125,47 @@ export function isValidTransition(
   const fromNum = PIPELINE_STAGES[from];
   const toNum = PIPELINE_STAGES[to];
 
-  // Terminal states can be reached from anywhere
-  if (toNum < 0 || toNum >= 99) return true;
+  // Unknown destination — never valid.
+  if (toNum === undefined) return false;
 
-  // Forward transitions only (strictly greater)
+  // Legacy/unknown source states (e.g. the legacy "uploaded" status) are
+  // treated as pipeline entry — the document is starting fresh, so any
+  // destination stage is reachable.
+  if (fromNum === undefined) return true;
+
+  // Same-stage transitions are always valid — retries re-set the current
+  // stage (idempotent status writes).
+  if (from === to) return true;
+
+  // Hard terminal states can be reached from anywhere.
+  if (
+    to === "failed" ||
+    to === "persisted" ||
+    to === "done" ||
+    to === "archived"
+  ) {
+    return true;
+  }
+
+  // Nothing may leave a hard terminal state — a posted, completed, or
+  // archived document must never be re-processed.
+  if (from === "persisted" || from === "done" || from === "archived") {
+    return false;
+  }
+
+  // Pipeline entry points may be re-entered for retry/recovery — a task
+  // retry re-runs stage 1 (detected) and ingestion recovery restarts at
+  // resolving, even if the document is mid-pipeline.
+  if (to === "detected" || to === "resolving") return true;
+
+  // Handoff state: reachable from anywhere, and the ingestion engine may
+  // resume from it (agent_processing -> resolving or later).
+  if (to === "agent_processing") return true;
+  if (from === "agent_processing") {
+    return toNum >= PIPELINE_STAGES.resolving;
+  }
+
+  // Forward transitions only (strictly greater).
   return toNum > fromNum;
 }
 
@@ -170,36 +219,55 @@ export async function updateIngestionStatus(
   entityId: string,
   stage: PipelineStage,
   metadata?: Record<string, unknown>,
-): Promise<void> {
+): Promise<boolean> {
   try {
     await withRetry(async () => {
-      // Update document status
-      await db
-        .update(documents)
-        .set({ status: stage } as any)
-        .where(eq(documents.id, documentId));
+      await db.transaction(async (tx) => {
+        // Read the document's current status so stage transitions are
+        // validated — a doc must never jump ahead or regress.
+        const current = await tx.query.documents.findFirst({
+          where: eq(documents.id, documentId),
+          columns: { status: true },
+        });
+        const currentStage = current?.status ?? "detected";
+        if (!isValidTransition(currentStage as PipelineStage, stage)) {
+          throw new Error(
+            `Invalid status transition for document ${documentId}: ` +
+              `${currentStage} -> ${stage}`,
+          );
+        }
 
-      // Write audit log entry
-      await db.insert(auditLog).values({
-        entityId,
-        action: STAGE_AUDIT_ACTIONS[stage],
-        entityType: "document",
-        entityIdRef: documentId,
-        newValues: {
-          status: stage,
-          stageNumber: PIPELINE_STAGES[stage],
-          stageLabel: STAGE_LABELS[stage],
-          timestamp: new Date().toISOString(),
-          ...metadata,
-        },
+        // Update document status + write audit log atomically — a partial
+        // write (status updated but audit missing, or vice-versa) would
+        // corrupt the audit trail.
+        await tx
+          .update(documents)
+          .set({ status: stage })
+          .where(eq(documents.id, documentId));
+
+        await tx.insert(auditLog).values({
+          entityId,
+          action: STAGE_AUDIT_ACTIONS[stage],
+          entityType: "document",
+          entityIdRef: documentId,
+          newValues: {
+            status: stage,
+            stageNumber: PIPELINE_STAGES[stage],
+            stageLabel: STAGE_LABELS[stage],
+            timestamp: new Date().toISOString(),
+            ...metadata,
+          },
+        });
       });
     });
+    return true;
   } catch (error) {
     // Non-blocking: log warning but don't crash the pipeline
     console.warn(
       `[status-tracker] Failed to update status for document ${documentId} to ${stage}:`,
       error instanceof Error ? error.message : error,
     );
+    return false;
   }
 }
 
@@ -212,33 +280,50 @@ export async function updateTerminalStatus(
   entityId: string,
   status: "persisted" | "done" | "failed" | "agent_processing" | "archived",
   metadata: Record<string, unknown>,
-): Promise<void> {
+): Promise<boolean> {
   try {
     await withRetry(async () => {
-      await db
-        .update(documents)
-        .set({ status } as any)
-        .where(eq(documents.id, documentId));
+      await db.transaction(async (tx) => {
+        // Terminal states are reachable from any stage by design
+        // (see isValidTransition) — but verify the doc exists first so we
+        // never write an audit entry for a phantom document.
+        const current = await tx.query.documents.findFirst({
+          where: eq(documents.id, documentId),
+          columns: { id: true },
+        });
+        if (!current) {
+          throw new Error(
+            `Cannot set terminal status ${status}: document ${documentId} not found`,
+          );
+        }
 
-      await db.insert(auditLog).values({
-        entityId,
-        action: `pipeline.${status}`,
-        entityType: "document",
-        entityIdRef: documentId,
-        newValues: {
-          status,
-          stageNumber: PIPELINE_STAGES[status],
-          stageLabel: STAGE_LABELS[status],
-          timestamp: new Date().toISOString(),
-          ...metadata,
-        },
+        await tx
+          .update(documents)
+          .set({ status })
+          .where(eq(documents.id, documentId));
+
+        await tx.insert(auditLog).values({
+          entityId,
+          action: `pipeline.${status}`,
+          entityType: "document",
+          entityIdRef: documentId,
+          newValues: {
+            status,
+            stageNumber: PIPELINE_STAGES[status],
+            stageLabel: STAGE_LABELS[status],
+            timestamp: new Date().toISOString(),
+            ...metadata,
+          },
+        });
       });
     });
+    return true;
   } catch (error) {
     console.warn(
       `[status-tracker] Failed to update terminal status for document ${documentId} to ${status}:`,
       error instanceof Error ? error.message : error,
     );
+    return false;
   }
 }
 
@@ -251,16 +336,48 @@ export async function transitionToFailed(
   entityId: string,
   error: Error | string,
   pipelineStage?: number | string,
-): Promise<void> {
+): Promise<boolean> {
   const errorMessage = error instanceof Error ? error.message : error;
   const errorStack = error instanceof Error ? error.stack : undefined;
 
-  await updateTerminalStatus(documentId, entityId, "failed", {
+  const ok = await updateTerminalStatus(documentId, entityId, "failed", {
     error: errorMessage,
     stack: errorStack,
     pipelineStage: pipelineStage ?? "unknown",
     failedAt: new Date().toISOString(),
   });
+
+  // Surface the failure in the agent-activity trail so monitoring, the
+  // Activity Hub, and ops dashboards can see it — a failure that is only
+  // console.warn'd is invisible to everyone except the logs.
+  if (ok) {
+    await db
+      .insert(agentActivity)
+      .values({
+        entityId,
+        agentName: "ingestion-status-tracker",
+        action: "ingestion.document_failed",
+        input: {
+          documentId,
+          pipelineStage: pipelineStage ?? "unknown",
+        },
+        output: {
+          error: errorMessage,
+          failedAt: new Date().toISOString(),
+        },
+        status: "failed",
+        errorMessage,
+      })
+      .catch((insertError) => {
+        // Activity-tracking failure must never mask the status transition
+        console.warn(
+          `[status-tracker] Failed to log agent activity for failed document ${documentId}:`,
+          insertError instanceof Error ? insertError.message : insertError,
+        );
+      });
+  }
+
+  return ok;
 }
 
 // ─── Stage Label Helpers ──────────────────────────────────────────────────

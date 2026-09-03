@@ -5,7 +5,7 @@ import {
   NOTIFICATION_DESTINATIONS,
 } from "@/lib/hooks/use-attention-signals";
 
-// All 15 notification types from packages/db/schema/notifications.ts. Every
+// All 17 notification types from packages/db/schema/notifications.ts. Every
 // one MUST route somewhere — a type added to the schema without a sidebar
 // destination would otherwise be silently dropped from the attention map.
 const ALL_NOTIFICATION_TYPES = [
@@ -24,6 +24,8 @@ const ALL_NOTIFICATION_TYPES = [
   "ingestion_review",
   "ingestion_rejected",
   "ingestion_posted",
+  "ingestion_failed",
+  "ingestion_escalated",
 ] as const;
 
 const EMPTY = {
@@ -147,7 +149,10 @@ describe("computeAttentionSignals", () => {
       agentApprovals: 0,
       failed: 0,
     });
-    // overdue_invoice + close_failed + pendingReview = 4 action
-    expect(totals).toEqual({ action: 4, new: 2 });
+    // overdue_invoice + close_failed + pendingReview = 4 action, PLUS
+    // payroll_processed (new) is masked to action because it shares the
+    // operations destination with overdue_invoice — "action beats new"
+    // wins within a destination. report_ready (financial-pulse) stays new.
+    expect(totals).toEqual({ action: 5, new: 1 });
   });
 });

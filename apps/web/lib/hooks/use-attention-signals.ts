@@ -47,6 +47,8 @@ export const NOTIFICATION_DESTINATIONS: Record<
 > = {
   ingestion_review: { key: "activity-hub", tone: "action" },
   ingestion_rejected: { key: "activity-hub", tone: "action" },
+  ingestion_failed: { key: "activity-hub", tone: "action" },
+  ingestion_escalated: { key: "activity-hub", tone: "action" },
   agent_escalation: { key: "activity-hub", tone: "action" },
   agent_flag: { key: "activity-hub", tone: "action" },
   ingestion_posted: { key: "activity-hub", tone: "new" },

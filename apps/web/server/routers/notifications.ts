@@ -49,7 +49,12 @@ export const notificationsRouter = router({
           offset: input.offset,
         });
 
-        return results;
+        // Parse the `data` JSON column so callers get structured metadata
+        // (e.g. the documentId used to deep-link into the review panel).
+        return results.map((n) => ({
+          ...n,
+          data: parseNotificationData(n.data),
+        }));
       } catch (err) {
         logger.warn({ err }, "notifications.list failed — returning empty");
         return [];
@@ -356,3 +361,21 @@ export const notificationsRouter = router({
       }
     }),
 });
+
+// ─── Helpers ────────────────────────────────────────────────────────────────
+
+/**
+ * Parse the `data` JSON column safely. Returns an empty object for null
+ * or malformed payloads so callers never have to try/catch a JSON.parse.
+ */
+function parseNotificationData(data: string | null): Record<string, unknown> {
+  if (!data) return {};
+  try {
+    const parsed = JSON.parse(data) as unknown;
+    return typeof parsed === "object" && parsed !== null
+      ? (parsed as Record<string, unknown>)
+      : {};
+  } catch {
+    return {};
+  }
+}
