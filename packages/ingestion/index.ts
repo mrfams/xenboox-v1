@@ -150,6 +150,32 @@ export async function runIngestionPipeline(
       };
     }
 
+    // ── Review guard: a document awaiting a human decision must NEVER be
+    // re-processed. Retries would otherwise re-run the pipeline and could
+    // auto-post it on a second pass (status "agent_processing" is in the
+    // READY set for the job → ingestion handoff).
+    if ((ingestionMeta.requiresReview as boolean) === true) {
+      return {
+        documentId,
+        entityId,
+        success: true,
+        workflow:
+          (ingestionMeta.workflow as AccountingWorkflow) ??
+          "journal_adjustment",
+        confidence: {
+          overall: (ingestionMeta.confidence as number) ?? 0.5,
+          signals: [],
+          autoPostReady: false,
+        },
+        postingDecision: {
+          action: "pending_review",
+          confidence: (ingestionMeta.confidence as number) ?? 0.5,
+          reason: "Document is awaiting human review — not re-processing.",
+        },
+        pipelineDurationMs: Date.now() - startTime,
+      };
+    }
+
     const extractionMeta = (metadata.extraction ?? {}) as Record<
       string,
       unknown

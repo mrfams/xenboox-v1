@@ -76,6 +76,36 @@ export async function sendIngestionNotifications(
   }
 }
 
+/**
+ * Notify users that auto-posting failed and the document needs attention.
+ * Called from the posting engine's failure path so a stuck document never
+ * disappears silently.
+ */
+export async function sendPostingFailureNotification(
+  entityId: string,
+  state: IngestionState,
+  errorMessage: string,
+): Promise<void> {
+  const documentName = state.extraction?.data?.vendorName
+    ? `${state.classification.category} - ${state.extraction.data.vendorName}`
+    : state.extraction?.data?.customerName
+      ? `${state.classification.category} - ${state.extraction.data.customerName}`
+      : `Document ${state.documentId.slice(0, 8)}`;
+
+  await createNotificationForEntity(entityId, {
+    type: "ingestion_failed",
+    priority: "high",
+    title: `${state.workflow?.replace(/_/g, " ")} — posting failed`,
+    body: `${documentName} — Auto-posting failed: ${errorMessage}. Review the document to fix or retry.`,
+    data: {
+      documentId: state.documentId,
+      workflow: state.workflow,
+      error: errorMessage,
+      action: "failed",
+    },
+  });
+}
+
 // ─── Individual Notification Senders ────────────────────────────────────────
 
 /**

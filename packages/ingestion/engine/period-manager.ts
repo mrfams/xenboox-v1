@@ -22,7 +22,7 @@
  */
 
 import { db } from "@xenboox/db";
-import { eq, and, desc, sql } from "drizzle-orm";
+import { eq, and, desc, sql, inArray, gte, lte } from "drizzle-orm";
 import {
   fiscalPeriods,
   periodStatusEnum,
@@ -174,10 +174,11 @@ async function openPeriod(
     };
   }
 
-  // Can open from "closed" or "locked" status
-  if (!["closed", "locked"].includes(period.status)) {
+  // Locked is terminal — only a system-admin unlock (separate, privileged
+  // flow) may change it. A regular open must never bypass the lock.
+  if (period.status !== "closed") {
     errors.push(
-      `Cannot open period in status "${period.status}". Period must be "closed" or "locked" to open.`,
+      `Cannot open period in status "${period.status}". Period must be "closed" to open.`,
     );
     return {
       success: false,
@@ -205,11 +206,11 @@ async function openPeriod(
     );
   }
 
-  const newStatus = "open";
+  const newStatus = "open" as const;
   await db
     .update(fiscalPeriods)
     .set({
-      status: newStatus as any,
+      status: newStatus,
       ...(userId ? { closedBy: userId, closedAt: null } : {}),
     })
     .where(eq(fiscalPeriods.id, period.id));
@@ -285,17 +286,15 @@ async function closePeriod(
 
   // ── Validation Block (skippable with force/skipValidation) ──
   if (!options?.skipValidation) {
-    // 1. Check all entries are posted
-    const entries = await db.query.journalEntries.findMany({
+    // 1. Check no entries are still draft/pending (targeted query)
+    const draftEntries = await db.query.journalEntries.findMany({
       where: and(
         eq(journalEntries.entityId, entityId),
         eq(journalEntries.periodId, period.id),
+        inArray(journalEntries.status, ["draft", "pending_review"]),
       ),
+      columns: { id: true },
     });
-
-    const draftEntries = entries.filter(
-      (e) => e.status === "draft" || e.status === "pending_review",
-    );
     validations.push({
       check: "all_entries_posted",
       passed: draftEntries.length === 0,
@@ -308,6 +307,19 @@ async function closePeriod(
 
     if (draftEntries.length > 0)
       errors.push(validations[validations.length - 1].message);
+
+    // 1b. Count posted entries (used to require a generated trial balance)
+    const [postedRow] = await db
+      .select({ count: sql<number>`COUNT(*)::int` })
+      .from(journalEntries)
+      .where(
+        and(
+          eq(journalEntries.entityId, entityId),
+          eq(journalEntries.periodId, period.id),
+          eq(journalEntries.status, "posted"),
+        ),
+      );
+    const postedCount = Number(postedRow?.count ?? 0);
 
     // 2. Check trial balance is balanced
     const tbEntries = await db.query.trialBalanceSnapshots.findMany({
@@ -334,6 +346,19 @@ async function closePeriod(
     });
 
     if (!isBalanced) errors.push(validations[validations.length - 1].message);
+
+    // 2b. A period with posted entries must have a generated trial balance —
+    // an empty snapshot set (0 vs 0) must never count as "balanced".
+    if (postedCount > 0 && tbEntries.length === 0) {
+      validations.push({
+        check: "trial_balance_generated",
+        passed: false,
+        message:
+          "Period has posted entries but no trial balance snapshot was generated. Generate the trial balance before closing.",
+        severity: "error",
+      });
+      errors.push(validations[validations.length - 1].message);
+    }
 
     // 3. Check previous period status
     const prevMonth = period.month === 1 ? 12 : period.month - 1;
@@ -369,12 +394,15 @@ async function closePeriod(
       });
     }
 
-    // 4. Check bank reconciliation status (warning level)
-    const periodStr = `${period.year}-${String(period.month).padStart(2, "0")}`;
+    // 4. Check bank reconciliation status (warning level) — scoped to THIS
+    // period's date range. An unreconciled transaction from another period
+    // must not block or warn every close.
     const unReconciledTxs = await db.query.bankTransactions.findMany({
       where: and(
         eq(bankTransactions.entityId, entityId),
         eq(bankTransactions.isReconciled, false),
+        gte(bankTransactions.transactionDate, period.startDate),
+        lte(bankTransactions.transactionDate, period.endDate),
       ),
       limit: 5,
     });
@@ -414,11 +442,11 @@ async function closePeriod(
   }
 
   // ── Execute Close ──
-  const newStatus = "closed";
+  const newStatus = "closed" as const;
   await db
     .update(fiscalPeriods)
     .set({
-      status: newStatus as any,
+      status: newStatus,
       closedBy: userId ?? null,
       closedAt: new Date(),
     })
@@ -489,11 +517,11 @@ async function lockPeriod(
     };
   }
 
-  const newStatus = "locked";
+  const newStatus = "locked" as const;
   await db
     .update(fiscalPeriods)
     .set({
-      status: newStatus as any,
+      status: newStatus,
     })
     .where(eq(fiscalPeriods.id, period.id));
 
@@ -605,11 +633,11 @@ async function reopenPeriod(
     };
   }
 
-  const newStatus = "open";
+  const newStatus = "open" as const;
   await db
     .update(fiscalPeriods)
     .set({
-      status: newStatus as any,
+      status: newStatus,
       closedBy: null,
       closedAt: null,
     })
@@ -651,12 +679,15 @@ export async function getPeriodSummary(
 
   if (!period) return null;
 
-  const entries = await db.query.journalEntries.findMany({
-    where: and(
-      eq(journalEntries.entityId, entityId),
-      eq(journalEntries.periodId, periodId),
-    ),
-  });
+  const [entryRow] = await db
+    .select({ count: sql<number>`COUNT(*)::int` })
+    .from(journalEntries)
+    .where(
+      and(
+        eq(journalEntries.entityId, entityId),
+        eq(journalEntries.periodId, periodId),
+      ),
+    );
 
   const tbEntries = await db.query.trialBalanceSnapshots.findMany({
     where: and(
@@ -669,11 +700,13 @@ export async function getPeriodSummary(
   const totalCredits = tbEntries.reduce((s, t) => s + Number(t.creditTotal), 0);
   const isBalanced = Math.abs(totalDebits - totalCredits) <= 0.01;
 
-  // Check reconciliation status
+  // Reconciliation status scoped to THIS period's date range
   const unReconciledCount = await db.query.bankTransactions.findMany({
     where: and(
       eq(bankTransactions.entityId, entityId),
       eq(bankTransactions.isReconciled, false),
+      gte(bankTransactions.transactionDate, period.startDate),
+      lte(bankTransactions.transactionDate, period.endDate),
     ),
     limit: 1,
   });
@@ -683,7 +716,7 @@ export async function getPeriodSummary(
     year: period.year,
     month: period.month,
     status: period.status,
-    entryCount: entries.length,
+    entryCount: Number(entryRow?.count ?? 0),
     totalDebits,
     totalCredits,
     isBalanced,

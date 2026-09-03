@@ -29,6 +29,17 @@ vi.mock("@xenboox/db", () => ({
         findMany: vi.fn(),
       },
     },
+    select: vi.fn(() => ({
+      from: vi.fn(() => ({
+        // Evaluated lazily at call time so the hoisted mock factory never
+        // touches the binding before it is initialized.
+        where: vi
+          .fn()
+          .mockImplementation(() =>
+            Promise.resolve([{ count: mockSelectCount }]),
+          ),
+      })),
+    })),
     insert: vi.fn(() => ({
       values: vi.fn(() => ({ returning: vi.fn() })),
     })),
@@ -37,6 +48,10 @@ vi.mock("@xenboox/db", () => ({
     })),
   },
 }));
+
+// Configurable COUNT(*) result for the `db.select` count queries used by
+// closePeriod (posted entries) and getPeriodSummary (entry count).
+let mockSelectCount = 0;
 
 import { db } from "@xenboox/db";
 import {
@@ -66,6 +81,7 @@ const mockPeriod = (overrides: Partial<FiscalPeriod> = {}): FiscalPeriod => ({
 
 describe("Period Manager", () => {
   beforeEach(() => {
+    mockSelectCount = 0;
     vi.clearAllMocks();
   });
 
@@ -152,9 +168,9 @@ describe("Period Manager", () => {
         vi.mocked(db.query.fiscalPeriods.findFirst)
           .mockResolvedValueOnce(period)
           .mockResolvedValueOnce(null);
-        vi.mocked(db.query.journalEntries.findMany).mockResolvedValue([
-          { id: "je-1", status: "posted" },
-        ]);
+        // No draft/pending entries; 1 posted entry (via the COUNT query).
+        vi.mocked(db.query.journalEntries.findMany).mockResolvedValue([]);
+        mockSelectCount = 1;
         vi.mocked(db.query.trialBalanceSnapshots.findMany).mockResolvedValue([
           { debitTotal: "1000", creditTotal: "1000", accountId: "acct-1" },
         ]);
@@ -340,14 +356,12 @@ describe("Period Manager", () => {
       vi.mocked(db.query.fiscalPeriods.findFirst).mockResolvedValue(
         mockPeriod({ status: "open" }),
       );
-      vi.mocked(db.query.journalEntries.findMany).mockResolvedValue([
-        { id: "je-1" },
-        { id: "je-2" },
-      ]);
+      mockSelectCount = 2; // 2 journal entries
       vi.mocked(db.query.trialBalanceSnapshots.findMany).mockResolvedValue([
         { debitTotal: "1000", creditTotal: "500", accountId: "acct-1" },
         { debitTotal: "200", creditTotal: "700", accountId: "acct-2" },
       ]);
+      vi.mocked(db.query.bankTransactions.findMany).mockResolvedValue([]);
 
       const result = await getPeriodSummary("entity-1", "period-1");
 

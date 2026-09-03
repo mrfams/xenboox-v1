@@ -17,7 +17,7 @@
  */
 
 import { db } from "@xenboox/db";
-import { eq, and, inArray } from "drizzle-orm";
+import { eq, and, inArray, sql } from "drizzle-orm";
 import {
   journalEntries,
   journalEntryLines,
@@ -138,8 +138,18 @@ export async function propagatePosting(
       journalEntryId
     ) {
       try {
-        await propagateInventory(entityId, entry, workflow, journalEntryId);
+        const quantityEstimated = await propagateInventory(
+          entityId,
+          entry,
+          workflow,
+          journalEntryId,
+        );
         updated.inventory = true;
+        if (quantityEstimated) {
+          errors.push(
+            "Inventory quantity could not be derived from the document — recorded as 1 with an ESTIMATED flag. Verify stock count.",
+          );
+        }
       } catch (e) {
         errors.push(`Inventory update failed: ${extractError(e)}`);
       }
@@ -218,36 +228,39 @@ async function updateTrialBalance(
     accountTotals.set(line.accountId, current);
   }
 
-  // Upsert trial balance snapshots
-  for (const [accountId, totals] of accountTotals) {
-    const balance = totals.debit - totals.credit;
-    await db
-      .insert(trialBalanceSnapshots)
-      .values({
-        entityId,
-        periodId,
-        accountId,
-        debitTotal: String(totals.debit),
-        creditTotal: String(totals.credit),
-        balance: String(Math.abs(balance)),
-        generatedBy: "ingestion-engine",
-        generatedAt: new Date(),
-      })
-      .onConflictDoUpdate({
-        target: [
-          trialBalanceSnapshots.entityId,
-          trialBalanceSnapshots.periodId,
-          trialBalanceSnapshots.accountId,
-        ],
-        set: {
-          debitTotal: String(totals.debit),
-          creditTotal: String(totals.credit),
-          balance: String(Math.abs(balance)),
-          generatedBy: "ingestion-engine",
-          generatedAt: new Date(),
-        },
-      });
-  }
+  // Upsert trial balance snapshots — single batched statement, not N upserts
+  const snapshotValues = [...accountTotals.entries()].map(
+    ([accountId, totals]) => ({
+      entityId,
+      periodId,
+      accountId,
+      debitTotal: String(totals.debit),
+      creditTotal: String(totals.credit),
+      balance: String(Math.abs(totals.debit - totals.credit)),
+      generatedBy: "ingestion-engine",
+      generatedAt: new Date(),
+    }),
+  );
+
+  if (snapshotValues.length === 0) return;
+
+  await db
+    .insert(trialBalanceSnapshots)
+    .values(snapshotValues)
+    .onConflictDoUpdate({
+      target: [
+        trialBalanceSnapshots.entityId,
+        trialBalanceSnapshots.periodId,
+        trialBalanceSnapshots.accountId,
+      ],
+      set: {
+        debitTotal: sql`excluded.debit_total`,
+        creditTotal: sql`excluded.credit_total`,
+        balance: sql`excluded.balance`,
+        generatedBy: sql`excluded.generated_by`,
+        generatedAt: sql`excluded.generated_at`,
+      },
+    });
 }
 
 // ─── AP/AR Sub-ledger Propagation is deferred to dedicated agents.
@@ -263,12 +276,11 @@ async function propagateFixedAsset(
   entry: ProposedJournalEntry,
   journalEntryId: string,
 ): Promise<void> {
-  // Find the asset line
+  // Find the asset line by account code ONLY. The previous `debit > 100`
+  // heuristic silently booked expense lines (e.g. a $1,200 office expense)
+  // as fixed assets whenever the true asset line was missing.
   const assetLine = entry.lines.find(
-    (l) =>
-      l.accountCode.startsWith("15") ||
-      l.accountCode.startsWith("14") ||
-      l.debit > 100,
+    (l) => l.accountCode.startsWith("15") || l.accountCode.startsWith("14"),
   );
 
   if (!assetLine) return;
@@ -315,6 +327,16 @@ async function propagateInventory(
 
   const amount = inventoryLine.debit;
 
+  // The journal line carries only a total. Derive quantity from the
+  // description when present; otherwise flag the receipt as estimated so
+  // stock counts are never silently fabricated.
+  const qtyMatch = entry.description.match(
+    /(\d+(?:\.\d+)?)\s*(?:units?|pcs?|pieces?|boxes?|kg|kgs|liters?)/i,
+  );
+  const quantity = qtyMatch ? Number(qtyMatch[1]) : 1;
+  const quantityEstimated = !qtyMatch;
+  const unitCost = quantity > 0 ? amount / quantity : amount;
+
   // Find or create an inventory item
   const existingItems = await db.query.inventoryItems.findMany({
     where: and(
@@ -340,7 +362,7 @@ async function propagateInventory(
         category: "goods",
         unitOfMeasure: "piece",
         costMethod: "weighted_average",
-        quantityOnHand: 1,
+        quantityOnHand: quantityEstimated ? 0 : quantity,
         glAccountId: inventoryLine.accountId,
         isActive: true,
       })
@@ -353,15 +375,19 @@ async function propagateInventory(
     entityId,
     inventoryItemId: itemId,
     type: workflow === "inventory_adjustment" ? "adjustment" : "receipt",
-    quantity: 1,
-    unitCost: String(amount),
+    quantity,
+    unitCost: String(unitCost),
     totalCost: String(amount),
     referenceType: "journal_entry",
     referenceId: journalEntryId,
     journalEntryId,
     transactionDate: entry.date,
-    notes: entry.description,
+    notes: quantityEstimated
+      ? `${entry.description} | QUANTITY ESTIMATED — VERIFY (no quantity found in document)`
+      : entry.description,
   });
+
+  return quantityEstimated;
 }
 
 // ─── Budget & KPI Staleness ─────────────────────────────────────────────────
@@ -428,7 +454,9 @@ function extractError(e: unknown): string {
 }
 
 function affectsCash(entry: ProposedJournalEntry): boolean {
-  const cashAccountCodes = ["1000", "1010", "1020", "1100"];
+  // True cash accounts only (1000/1010/1020). AR (11xx) affects receivables,
+  // not the cash position, and must not mark cash-flow projections stale.
+  const cashAccountCodes = ["1000", "1010", "1020"];
   return entry.lines.some((l) =>
     cashAccountCodes.some((code) => l.accountCode.startsWith(code)),
   );

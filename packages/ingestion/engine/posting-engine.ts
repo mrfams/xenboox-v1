@@ -13,7 +13,10 @@ import type {
 import { getReviewItems } from "../core/confidence";
 import { postJournalEntry } from "./journal-generator";
 import { propagatePosting } from "./propagation";
-import { sendIngestionNotifications } from "./notifications";
+import {
+  sendIngestionNotifications,
+  sendPostingFailureNotification,
+} from "./notifications";
 import { runTrustGuard, type TrustGuardResult } from "./trust-guard";
 
 // ─── Thresholds ─────────────────────────────────────────────────────────────
@@ -64,9 +67,12 @@ export function decidePosting(
     };
   }
 
-  // Run TrustGuard cross-validation if not already done
-  let trustGuardResult: TrustGuardResult | undefined = state.validation
-    ?.trustGuard as TrustGuardResult | undefined;
+  // Reuse the Stage 10b TrustGuard result — it is stored on `state.trustGuard`
+  // (which is what confidence.ts consumes). Checking only
+  // `state.validation?.trustGuard` caused TrustGuard to run 3× per document.
+  let trustGuardResult: TrustGuardResult | undefined =
+    (state.trustGuard as TrustGuardResult | undefined) ??
+    (state.validation?.trustGuard as TrustGuardResult | undefined);
   if (!trustGuardResult) {
     trustGuardResult = runTrustGuard(state);
   }
@@ -81,22 +87,10 @@ export function decidePosting(
 
   // ── TrustGuard override: if deterministic checks fail, never auto-post ──
   if (trustGuardFailed) {
-    const reviewItems = getReviewItems(state);
-    // Add TrustGuard failures as review items
-    for (const check of failedErrorChecks) {
-      reviewItems.push({
-        field: check.name,
-        label: check.description,
-        value: check.actual,
-        confidence: 0,
-      });
-    }
-
-    return {
-      action: "escalated",
-      confidence: Math.min(overall, trustGuardResult.confidenceImpact),
-      reason: `TrustGuard cross-validation failed: ${failedErrorChecks.map((c) => c.message).join("; ")}. Extraction requires human review regardless of LLM confidence.`,
-      reviewItems: reviewItems.map((item) => ({
+    // Failed checks suggest the DETERMINISTICALLY CORRECT value
+    // (check.expected), never the (wrong) extracted value.
+    const reviewItems: ReviewItem[] = [
+      ...getReviewItems(state).map((item) => ({
         field: item.field,
         label: item.label,
         extractedValue: item.value,
@@ -104,6 +98,21 @@ export function decidePosting(
         confidence: item.confidence,
         editable: true,
       })),
+      ...failedErrorChecks.map((check) => ({
+        field: check.name,
+        label: check.description,
+        extractedValue: check.actual,
+        suggestedValue: check.expected,
+        confidence: 0,
+        editable: true,
+      })),
+    ];
+
+    return {
+      action: "escalated",
+      confidence: Math.min(overall, trustGuardResult.confidenceImpact),
+      reason: `TrustGuard cross-validation failed: ${failedErrorChecks.map((c) => c.message).join("; ")}. Extraction requires human review regardless of LLM confidence.`,
+      reviewItems,
     };
   }
 
@@ -204,10 +213,11 @@ export async function executePosting(
 ): Promise<IngestionPipelineResult> {
   const startTime = Date.now();
 
-  // Run TrustGuard if not already run (ensures result is always available)
-  let trustGuardResult = state.validation?.trustGuard as
-    | TrustGuardResult
-    | undefined;
+  // Reuse the Stage 10b TrustGuard result (see decidePosting) — never re-run
+  // deterministic checks that already ran.
+  let trustGuardResult: TrustGuardResult | undefined =
+    (state.trustGuard as TrustGuardResult | undefined) ??
+    (state.validation?.trustGuard as TrustGuardResult | undefined);
   if (!trustGuardResult) {
     trustGuardResult = runTrustGuard(state);
   }
@@ -218,7 +228,11 @@ export async function executePosting(
     success: false,
     workflow: state.workflow ?? "journal_adjustment",
     proposedEntry: state.proposedJournal,
-    confidence: state.compositeConfidence!,
+    confidence: state.compositeConfidence ?? {
+      overall: decision.confidence,
+      signals: [],
+      autoPostReady: decision.action === "auto_post",
+    },
     postingDecision: decision,
     pipelineDurationMs: 0,
   };
@@ -236,10 +250,17 @@ export async function executePosting(
   // Handle auto-posting
   if (decision.action === "auto_post") {
     try {
+      // Guard: never attempt to post an entry that doesn't exist
+      if (!state.proposedJournal) {
+        throw new Error(
+          "Auto-post decision reached but no proposed journal entry exists — refusing to post an empty entry.",
+        );
+      }
+
       // Post the journal entry
       const { journalEntryId, entryNumber } = await postJournalEntry(
         state.entityId,
-        state.proposedJournal!,
+        state.proposedJournal,
         decision.confidence,
       );
 
@@ -355,6 +376,40 @@ export async function executePosting(
         status: "failed",
         errorMessage,
       });
+
+      // Never leave the document stuck in "posting": mark it failed with
+      // full context so the review queue and retries can act on it.
+      await db
+        .update(documents)
+        .set({
+          status: "failed",
+          metadata: sql`jsonb_set(COALESCE(metadata, '{}'::jsonb), '{ingestion}', ${JSON.stringify(
+            {
+              action: "failed",
+              error: errorMessage,
+              confidence: decision.confidence,
+              workflow: state.workflow,
+              postedAt: new Date().toISOString(),
+            },
+          )}::jsonb)`,
+        } as any)
+        .where(eq(documents.id, state.documentId));
+
+      await db.insert(auditLog).values({
+        entityId: state.entityId,
+        action: "ingestion.post_failed",
+        entityType: "document",
+        entityIdRef: state.documentId,
+        newValues: {
+          error: errorMessage,
+          workflow: state.workflow,
+          confidence: decision.confidence,
+        },
+        confidence: String(decision.confidence),
+      });
+
+      // Surface the failure to users — no silent stuck documents
+      await sendPostingFailureNotification(state.entityId, state, errorMessage);
     }
   }
 
