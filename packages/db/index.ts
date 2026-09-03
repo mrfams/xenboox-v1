@@ -14,3 +14,15 @@ export {
   isTokenEncrypted,
 } from "./lib/bank-token-encryption";
 export { isMoneyIn, signedBankAmount } from "./lib/bank-amount";
+export type { BankTxType } from "./lib/bank-amount";
+export {
+  categorizeByDescription,
+  matchBankRules,
+  mapProviderCategory,
+  normalizeTxType,
+  CANONICAL_CATEGORIES,
+  type CategoryMatch,
+  type CategorizeInput,
+  type BankRuleLike,
+  type CanonicalCategory,
+} from "./lib/bank-categorizer";

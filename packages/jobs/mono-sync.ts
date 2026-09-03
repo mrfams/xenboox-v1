@@ -8,7 +8,11 @@
 import { task, logger } from "@trigger.dev/sdk";
 import { triggerClient } from "./trigger-client";
 import { dlqOnFailure } from "./lib/dlq";
-import { db, decryptConnectionToken } from "@xenboox/db";
+import {
+  db,
+  decryptConnectionToken,
+  categorizeByDescription,
+} from "@xenboox/db";
 import {
   bankConnections,
   bankTransactions,
@@ -234,6 +238,15 @@ export const syncMonoTransactions = task({
       }
 
       const amountMajor = toMajor(tx.amount);
+      const txType = tx.type === "credit" ? "deposit" : "withdrawal";
+      // Categorize on arrival using the provider category signal (Mono sends
+      // a category per transaction) — confident matches land immediately.
+      const categoryMatch = categorizeByDescription({
+        description: tx.narration,
+        amount: Math.abs(amountMajor),
+        type: txType,
+        providerCategory: tx.category ?? null,
+      });
       await db.insert(bankTransactions).values({
         entityId,
         bankAccountId: bankAccountId!,
@@ -241,12 +254,22 @@ export const syncMonoTransactions = task({
         description: tx.narration,
         reference: tx.reference,
         amount: String(Math.abs(amountMajor)),
-        type: tx.type === "credit" ? "deposit" : "withdrawal",
+        type: txType,
         balance:
           tx.balance !== undefined && tx.balance !== null
             ? String(toMajor(tx.balance))
             : undefined,
         source: "mono",
+        category:
+          categoryMatch && categoryMatch.confidence >= 0.7
+            ? categoryMatch.category
+            : "Uncategorized",
+        categorizedBy:
+          categoryMatch && categoryMatch.confidence >= 0.7 ? "ai" : undefined,
+        categorizationConfidence:
+          categoryMatch && categoryMatch.confidence >= 0.7
+            ? String(categoryMatch.confidence)
+            : undefined,
         metadata: {
           monoId: tx.id,
           monoCategory: tx.category,

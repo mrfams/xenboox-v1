@@ -168,20 +168,46 @@ function TransactionsTab({
     (tx) => !tx.category || tx.category === "Uncategorized",
   ).length;
 
-  // Batch operations
-  const undoBatch = useUndo<{ ids: string[] }>({
+  // Batch operations — Undo now calls a REAL revert mutation that restores
+  // the prior category/GL account/confidence captured at categorize time.
+  const revertCategorization = trpc.banking.revertCategorization.useMutation();
+  const undoBatch = useUndo<{
+    restorations: Array<{
+      id: string;
+      category: string | null;
+      glAccountId: string | null;
+      categorizedBy: string | null;
+      confidence: string | null;
+    }>;
+  }>({
     message: "Categorized transactions",
-    onUndo: async ({ ids }) => {
-      toast.success(`Categorization reverted for ${ids.length} transactions`);
+    onUndo: async ({ restorations }) => {
+      await revertCategorization.mutateAsync({ restorations });
+      toast.success(
+        `Categorization reverted for ${restorations.length} transactions`,
+      );
       refetch();
     },
   });
   const batchCategorize = trpc.banking.batchCategorize.useMutation({
-    onSuccess: (_data, vars) => {
+    onSuccess: (data, vars) => {
       const ids =
         (vars as { transactionIds: string[] })?.transactionIds ??
         Array.from(selectedIds);
-      undoBatch.pushUndo({ ids });
+      undoBatch.pushUndo({
+        restorations:
+          (
+            data as {
+              previousState?: Array<{
+                id: string;
+                category: string | null;
+                glAccountId: string | null;
+                categorizedBy: string | null;
+                confidence: string | null;
+              }>;
+            }
+          ).previousState ?? [],
+      });
       setSelectedIds(new Set());
       refetch();
     },

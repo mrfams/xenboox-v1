@@ -5,6 +5,8 @@
  * Uses PDF.js text extraction + pattern matching for structured tables.
  */
 
+import { categorizeByDescription } from "@xenboox/db/lib";
+
 // ─── Types ─────────────────────────────────────────────────────────────────
 
 export interface ParsedTransaction {
@@ -16,6 +18,7 @@ export interface ParsedTransaction {
   type: "credit" | "debit";
   balance?: number;
   category?: string;
+  categoryConfidence?: number;
 }
 
 export interface ParseResult {
@@ -78,8 +81,22 @@ export function parseBankStatementPDF(text: string): ParseResult {
     .filter((t) => t.type === "debit")
     .reduce((sum, t) => sum + Math.abs(t.amount), 0);
 
+  // Auto-categorize transactions with the shared, direction-aware
+  // categorizer (canonical taxonomy). Only confident matches (>= 0.7) are
+  // surfaced — everything else stays "Uncategorized" for rule/human review.
   transactions.forEach((tx) => {
-    tx.category = categorizeTransaction(tx.description);
+    const match = categorizeByDescription({
+      description: tx.description,
+      amount: tx.amount,
+      type: tx.type,
+    });
+    if (match && match.confidence >= 0.7) {
+      tx.category = match.category;
+      tx.categoryConfidence = match.confidence;
+    } else {
+      tx.category = undefined;
+      tx.categoryConfidence = undefined;
+    }
   });
 
   // ── Balance equation validation ──
@@ -484,62 +501,6 @@ function normalizeDate(dateStr: string): string {
 }
 
 // ─── Categorization ───────────────────────────────────────────────────────
-
-function categorizeTransaction(description: string): string {
-  const lower = description.toLowerCase();
-
-  if (lower.includes("salary") || lower.includes("payroll")) return "payroll";
-  if (lower.includes("rent") || lower.includes("lease")) return "rent";
-  if (
-    lower.includes("electric") ||
-    lower.includes("power") ||
-    lower.includes("nedec") ||
-    lower.includes("pra")
-  )
-    return "utilities";
-  if (lower.includes("water") || lower.includes("nawec")) return "utilities";
-  if (
-    lower.includes("internet") ||
-    lower.includes("wifi") ||
-    lower.includes("data")
-  )
-    return "telecom";
-  if (lower.includes("airtime") || lower.includes("credit")) return "telecom";
-  if (lower.includes("transfer") || lower.includes("wire")) return "transfer";
-  if (
-    lower.includes("fee") ||
-    lower.includes("charges") ||
-    lower.includes("commission")
-  )
-    return "bank_charges";
-  if (lower.includes("interest")) return "interest";
-  if (lower.includes("tax") || lower.includes("vat") || lower.includes("paye"))
-    return "tax";
-  if (lower.includes("insurance")) return "insurance";
-  if (
-    lower.includes("fuel") ||
-    lower.includes("petrol") ||
-    lower.includes("diesel")
-  )
-    return "transport";
-  if (lower.includes("office") || lower.includes("supplies"))
-    return "office_supplies";
-  if (lower.includes("marketing")) return "marketing";
-  if (
-    lower.includes("travel") ||
-    lower.includes("hotel") ||
-    lower.includes("flight")
-  )
-    return "travel";
-  if (
-    lower.includes("food") ||
-    lower.includes("catering") ||
-    lower.includes("restaurant")
-  )
-    return "entertainment";
-
-  return "other";
-}
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
 

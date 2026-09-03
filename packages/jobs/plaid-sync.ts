@@ -18,7 +18,7 @@ import {
   bankAccounts,
   auditLog,
 } from "@xenboox/db/schema";
-import { decryptConnectionToken } from "@xenboox/db";
+import { decryptConnectionToken, categorizeByDescription } from "@xenboox/db";
 import { eq, and, sql } from "drizzle-orm";
 
 const PLAID_API_URL =
@@ -179,6 +179,21 @@ export const syncPlaidTransactions = task({
 
       // Plaid amount semantics (see lib/plaid-mapping.ts): POSITIVE = money
       // OUT, NEGATIVE = money IN. Stored as magnitude + direction in `type`.
+      const type = plaidType(tx);
+      // Provider category signal — Plaid ships a per-transaction category.
+      // Categorize on arrival so confident matches land immediately instead of
+      // leaving everything "Uncategorized" until a human clicks a button.
+      const categoryMatch = categorizeByDescription({
+        description: tx.name,
+        amount: plaidMagnitude(tx),
+        type,
+        providerCategory:
+          Array.isArray(tx.category) && tx.category.length > 0
+            ? String(tx.category[0])
+            : tx.category && typeof tx.category === "string"
+              ? tx.category
+              : null,
+      });
       await db.insert(bankTransactions).values({
         entityId,
         bankAccountId: bankAccountId!,
@@ -187,9 +202,19 @@ export const syncPlaidTransactions = task({
         description: tx.name,
         reference: tx.payment_channel ?? undefined,
         amount: plaidMagnitude(tx),
-        type: plaidType(tx),
+        type,
         balance: undefined,
         source: "plaid",
+        category:
+          categoryMatch && categoryMatch.confidence >= 0.7
+            ? categoryMatch.category
+            : "Uncategorized",
+        categorizedBy:
+          categoryMatch && categoryMatch.confidence >= 0.7 ? "ai" : undefined,
+        categorizationConfidence:
+          categoryMatch && categoryMatch.confidence >= 0.7
+            ? String(categoryMatch.confidence)
+            : undefined,
         metadata: {
           plaidTransactionId: tx.transaction_id,
           plaidAccountId: tx.account_id,
@@ -433,6 +458,19 @@ async function paginatePlaidSync(
       const amount = plaidMagnitude(tx);
       const txType = plaidType(tx);
 
+      // Categorize on arrival using the provider category signal.
+      const categoryMatch = categorizeByDescription({
+        description: tx.name,
+        amount,
+        type: txType,
+        providerCategory:
+          Array.isArray(tx.category) && tx.category.length > 0
+            ? String(tx.category[0])
+            : tx.category && typeof tx.category === "string"
+              ? tx.category
+              : null,
+      });
+
       await db.insert(bankTransactions).values({
         entityId,
         bankAccountId,
@@ -443,6 +481,16 @@ async function paginatePlaidSync(
         amount: String(amount),
         type: txType,
         source: "plaid",
+        category:
+          categoryMatch && categoryMatch.confidence >= 0.7
+            ? categoryMatch.category
+            : "Uncategorized",
+        categorizedBy:
+          categoryMatch && categoryMatch.confidence >= 0.7 ? "ai" : undefined,
+        categorizationConfidence:
+          categoryMatch && categoryMatch.confidence >= 0.7
+            ? String(categoryMatch.confidence)
+            : undefined,
         metadata: {
           plaidTransactionId: tx.transaction_id,
           plaidAccountId: tx.account_id,

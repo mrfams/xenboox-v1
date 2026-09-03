@@ -8,15 +8,16 @@
 
 import { task, logger } from "@trigger.dev/sdk";
 import { dlqOnFailure } from "./lib/dlq";
-import { db } from "@xenboox/db";
+import { db, matchBankRules } from "@xenboox/db";
 import {
   bankTransactions,
   bankAccounts,
+  bankRules,
   documents,
   reconciliations,
   auditLog,
 } from "@xenboox/db/schema";
-import { eq, and, sql, inArray } from "drizzle-orm";
+import { eq, and, sql, asc, inArray } from "drizzle-orm";
 import { parseBankCSV } from "./lib/bank-csv-parser";
 import { parseBankStatementPDF } from "./lib/bank-statement-parser";
 import { extractText } from "./lib/ocr";
@@ -140,14 +141,11 @@ export const importBankStatement = task({
     // Cap transaction count to prevent memory/DB exhaustion
     const transactions = parseResult.transactions.slice(0, MAX_TRANSACTIONS);
     if (parseResult.transactions.length > MAX_TRANSACTIONS) {
-      logger.warn(
-        {
-          documentId,
-          total: parseResult.transactions.length,
-          capped: MAX_TRANSACTIONS,
-        },
-        "[bank-import] Transaction count capped",
-      );
+      logger.warn("[bank-import] Transaction count capped", {
+        documentId,
+        total: parseResult.transactions.length,
+        capped: MAX_TRANSACTIONS,
+      });
     }
 
     // Batch dedup: collect all references, query once
@@ -173,16 +171,77 @@ export const importBankStatement = task({
       }
     }
 
+    // Load the entity's active rules once — rules outrank parser heuristics
+    // so user intent wins over generic keyword matching at import time.
+    const rules = await db.query.bankRules.findMany({
+      where: and(
+        eq(bankRules.entityId, entityId),
+        eq(bankRules.isActive, true),
+      ),
+      orderBy: [asc(bankRules.priority)],
+    });
+
     // Insert non-duplicate transactions in batches
     const BATCH_SIZE = 100;
     for (let i = 0; i < transactions.length; i += BATCH_SIZE) {
       const batch = transactions.slice(i, i + BATCH_SIZE);
-      const values = [];
+      const values: Array<{
+        entityId: string;
+        bankAccountId: string;
+        transactionDate: string;
+        valueDate?: string;
+        description: string;
+        reference?: string;
+        amount: string;
+        type: "deposit" | "withdrawal";
+        balance?: string;
+        source: string;
+        category: string;
+        glAccountId?: string;
+        categorizedBy?: string;
+        categorizationConfidence?: string;
+        metadata: Record<string, unknown>;
+      }> = [];
       for (const tx of batch) {
         if (tx.reference && existingRefs.has(tx.reference)) {
           skippedCount++;
           continue;
         }
+
+        // Categorize: user rules first, then the parser's shared-categorizer
+        // match (canonical taxonomy, direction-aware, confidence >= 0.7).
+        // Confident matches land in the category column immediately;
+        // everything else stays "Uncategorized" for rule/human review.
+        let category: string | undefined;
+        let glAccountId: string | null | undefined;
+        let categorizedBy: "rule" | "ai" | undefined;
+        let categoryConfidence: string | undefined;
+
+        const ruleMatch = matchBankRules(
+          {
+            description: tx.description,
+            reference: tx.reference,
+            amount: tx.amount,
+            type: tx.type === "credit" ? "deposit" : "withdrawal",
+          },
+          rules.map((r) => ({
+            matchType: r.matchType,
+            matchValue: r.matchValue,
+            category: r.category,
+            glAccountId: r.glAccountId,
+          })),
+        );
+        if (ruleMatch) {
+          category = ruleMatch.category;
+          glAccountId = ruleMatch.glAccountId ?? null;
+          categorizedBy = "rule";
+          categoryConfidence = String(ruleMatch.confidence);
+        } else if (tx.category && (tx.categoryConfidence ?? 0) >= 0.7) {
+          category = tx.category;
+          categorizedBy = "ai";
+          categoryConfidence = String(tx.categoryConfidence);
+        }
+
         values.push({
           entityId,
           bankAccountId: resolvedBankAccountId!,
@@ -194,9 +253,11 @@ export const importBankStatement = task({
           type: tx.type === "credit" ? "deposit" : "withdrawal",
           balance: tx.balance ? String(tx.balance) : undefined,
           source: "bank_statement",
+          category: category ?? "Uncategorized",
+          glAccountId: glAccountId ?? undefined,
+          categorizedBy,
+          categorizationConfidence: categoryConfidence,
           metadata: {
-            category: tx.category,
-            confidence: "1.0",
             documentId,
           },
         });

@@ -11,6 +11,7 @@ import {
   gte,
   lte,
   inArray,
+  notInArray,
 } from "drizzle-orm";
 import {
   bankAccounts,
@@ -20,6 +21,7 @@ import {
   bankTxTypeEnum,
   statementLines,
   auditLog,
+  aiCorrections,
   journalEntries,
   journalEntryLines,
   reconciliations,
@@ -30,6 +32,8 @@ import {
   decryptConnectionToken,
   isMoneyIn,
   signedBankAmount,
+  categorizeByDescription,
+  matchBankRules,
 } from "@xenboox/db";
 import {
   handleMutationError,
@@ -548,6 +552,12 @@ export const bankingRouter = router({
           amount: parseFloat(tx.amount),
           balance: tx.balance ? parseFloat(tx.balance) : null,
           isReconciled: tx.isReconciled,
+          category: tx.category,
+          glAccountId: tx.glAccountId,
+          categorizedBy: tx.categorizedBy,
+          categorizationConfidence: tx.categorizationConfidence
+            ? parseFloat(tx.categorizationConfidence)
+            : null,
           accountName: tx.bankAccount?.name ?? "Unknown Account",
           bankName: tx.bankAccount?.bankName ?? "",
           currency: tx.bankAccount?.currency ?? "USD",
@@ -1086,7 +1096,10 @@ export const bankingRouter = router({
 
   /**
    * Update a transaction's category (inline override).
-   * Sets categorizedBy to 'manual' so the AI learns from this override.
+   * Sets categorizedBy to 'manual' AND records an aiCorrections learning entry
+   * so the system actually learns from the override (pattern keyed on the
+   * transaction's normalized description) — previously the comment promised
+   * learning but nothing consumed the override.
    */
   updateTransactionCategory: rlsMutateProcedure
     .input(
@@ -1098,10 +1111,13 @@ export const bankingRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       try {
+        const entityId = ctx.entityId!;
+        const userId = ctx.session?.user?.id ?? null;
+
         const existing = await db.query.bankTransactions.findFirst({
           where: and(
             eq(bankTransactions.id, input.transactionId),
-            eq(bankTransactions.entityId, ctx.entityId!),
+            eq(bankTransactions.entityId, entityId),
           ),
         });
         if (!existing) {
@@ -1116,11 +1132,16 @@ export const bankingRouter = router({
             categorizedBy: "manual",
             categorizationConfidence: "1.0",
           })
-          .where(eq(bankTransactions.id, input.transactionId));
+          .where(
+            and(
+              eq(bankTransactions.id, input.transactionId),
+              eq(bankTransactions.entityId, entityId),
+            ),
+          );
 
         await db.insert(auditLog).values({
-          entityId: ctx.entityId!,
-          userId: ctx.session!.user!.id!,
+          entityId,
+          userId,
           action: "banking.updateCategory",
           entityType: "bank_transaction",
           entityIdRef: input.transactionId,
@@ -1133,6 +1154,71 @@ export const bankingRouter = router({
             categorizedBy: "manual",
           },
         });
+
+        // Learning loop: record the correction when the user changed an
+        // AI/rule decision (or an Uncategorized row) to something else.
+        const wasAuto =
+          existing.categorizedBy === "ai" || existing.categorizedBy === "rule";
+        const changedCategory =
+          (existing.category ?? "Uncategorized") !== input.category;
+        if (wasAuto || changedCategory) {
+          const descKey = (existing.description ?? "")
+            .toLowerCase()
+            .trim()
+            .slice(0, 200);
+          const patternKey = descKey ? `desc:${descKey}` : null;
+
+          // Upsert by pattern so the same description corrected repeatedly
+          // increments timesSeen instead of spawning duplicate rows (mirrors
+          // the ai-corrections router's dedup semantics).
+          const prior = patternKey
+            ? await db.query.aiCorrections.findFirst({
+                where: and(
+                  eq(aiCorrections.entityId, entityId),
+                  eq(aiCorrections.patternKey, patternKey),
+                  eq(aiCorrections.correctionType, "categorization"),
+                ),
+              })
+            : null;
+
+          if (prior) {
+            await db
+              .update(aiCorrections)
+              .set({
+                timesSeen: prior.timesSeen + 1,
+                correctedDecision: {
+                  category: input.category,
+                  glAccountId: input.glAccountId ?? null,
+                },
+                correctedBy: userId ?? undefined,
+              })
+              .where(eq(aiCorrections.id, prior.id));
+          } else {
+            await db.insert(aiCorrections).values({
+              entityId,
+              agentName: "banking-agent",
+              taskType: "categorize_bank_transaction",
+              originalDecision: {
+                category: existing.category ?? "Uncategorized",
+                glAccountId: existing.glAccountId,
+              },
+              originalConfidence: existing.categorizationConfidence
+                ? existing.categorizationConfidence
+                : null,
+              correctedDecision: {
+                category: input.category,
+                glAccountId: input.glAccountId ?? null,
+              },
+              correctionType: "categorization",
+              referenceEntityType: "bank_transaction",
+              referenceEntityId: input.transactionId,
+              correctedBy: userId ?? undefined,
+              patternKey,
+              timesSeen: 1,
+              learned: false,
+            });
+          }
+        }
 
         return { success: true };
       } catch (error) {
@@ -1159,8 +1245,8 @@ export const bankingRouter = router({
           orderBy: [asc(bankRules.priority)],
         });
 
-        // Get uncategorized transactions
-        const conditions = [
+        // Build the uncategorized-transaction selector once (entity-scoped).
+        const uncategorizedConditions = [
           eq(bankTransactions.entityId, entityId),
           or(
             sql`${bankTransactions.category} IS NULL`,
@@ -1168,39 +1254,87 @@ export const bankingRouter = router({
           ),
         ];
         if (input.accountId) {
-          conditions.push(eq(bankTransactions.bankAccountId, input.accountId));
+          uncategorizedConditions.push(
+            eq(bankTransactions.bankAccountId, input.accountId),
+          );
         }
 
-        const uncategorized = await db.query.bankTransactions.findMany({
-          where: and(...conditions),
-          limit: 100,
-        });
+        const ruleInputs = rules.map((r) => ({
+          matchType: r.matchType,
+          matchValue: r.matchValue,
+          category: r.category,
+          glAccountId: r.glAccountId,
+        }));
+
+        // Confidence gate: only matches at/above 0.7 auto-apply. Below that
+        // the transaction stays uncategorized and counts toward needsReview.
+        const MIN_AUTO_CONFIDENCE = 0.7;
+        const PAGE_SIZE = 500;
+        const MAX_PER_RUN = 5_000;
 
         let categorizedCount = 0;
-        const updates: Array<{
-          id: string;
-          category: string;
-          glAccountId: string | null;
-          categorizedBy: string;
-          confidence: string;
-        }> = [];
+        let needsReviewCount = 0;
+        let totalProcessed = 0;
+        // Rows we cannot auto-classify (no rule/heuristic match) stay
+        // uncategorized — track them so we never re-fetch the same rows in a
+        // tight loop and can stop once only unclassifiable rows remain.
+        const skippedIds: string[] = [];
 
-        for (const tx of uncategorized) {
-          const match = categorizeTransaction(
-            {
-              description: tx.description,
-              reference: tx.reference,
-              amount: tx.amount,
-              type: tx.type,
+        // Loop over pages until no uncategorized transactions remain (or a
+        // run cap is hit) — previously this silently stopped at 100.
+        while (totalProcessed < MAX_PER_RUN) {
+          const pageConditions = skippedIds.length
+            ? and(
+                ...uncategorizedConditions,
+                notInArray(bankTransactions.id, skippedIds),
+              )
+            : and(...uncategorizedConditions);
+
+          const uncategorized = await db.query.bankTransactions.findMany({
+            where: pageConditions,
+            columns: {
+              id: true,
+              description: true,
+              reference: true,
+              amount: true,
+              type: true,
+              metadata: true,
             },
-            rules.map((r) => ({
-              matchType: r.matchType,
-              matchValue: r.matchValue,
-              category: r.category,
-              glAccountId: r.glAccountId,
-            })),
-          );
-          if (match) {
+            limit: PAGE_SIZE,
+          });
+          if (uncategorized.length === 0) break;
+
+          totalProcessed += uncategorized.length;
+
+          const updates: Array<{
+            id: string;
+            category: string;
+            glAccountId: string | null;
+            categorizedBy: string;
+            confidence: string;
+          }> = [];
+
+          for (const tx of uncategorized) {
+            const match = categorizeTransaction(
+              {
+                description: tx.description,
+                reference: tx.reference,
+                amount: tx.amount,
+                type: tx.type,
+                metadata: tx.metadata ?? undefined,
+              },
+              ruleInputs,
+            );
+            if (!match) {
+              needsReviewCount++;
+              skippedIds.push(tx.id);
+              continue;
+            }
+            if (match.confidence < MIN_AUTO_CONFIDENCE) {
+              needsReviewCount++;
+              skippedIds.push(tx.id);
+              continue;
+            }
             updates.push({
               id: tx.id,
               category: match.category,
@@ -1209,27 +1343,37 @@ export const bankingRouter = router({
               confidence: match.confidence.toString(),
             });
           }
+
+          // Apply this page's matches. Each update is entity-scoped; page
+          // size is bounded so this stays cheap.
+          if (updates.length > 0) {
+            await Promise.all(
+              updates.map((u) =>
+                db
+                  .update(bankTransactions)
+                  .set({
+                    category: u.category,
+                    glAccountId: u.glAccountId ?? undefined,
+                    categorizedBy: u.categorizedBy,
+                    categorizationConfidence: u.confidence,
+                  })
+                  .where(
+                    and(
+                      eq(bankTransactions.id, u.id),
+                      eq(bankTransactions.entityId, entityId),
+                    ),
+                  ),
+              ),
+            );
+            categorizedCount += updates.length;
+          }
         }
 
-        // Batch update to avoid N+1 queries
-        if (updates.length > 0) {
-          await Promise.all(
-            updates.map((u) =>
-              db
-                .update(bankTransactions)
-                .set({
-                  category: u.category,
-                  glAccountId: u.glAccountId ?? undefined,
-                  categorizedBy: u.categorizedBy,
-                  categorizationConfidence: u.confidence,
-                })
-                .where(eq(bankTransactions.id, u.id)),
-            ),
-          );
-          categorizedCount = updates.length;
-        }
-
-        return { categorizedCount, totalProcessed: uncategorized.length };
+        return {
+          categorizedCount,
+          needsReviewCount,
+          totalProcessed,
+        };
       } catch (error) {
         handleMutationError(error, "Failed to auto-categorize");
       }
@@ -1253,13 +1397,24 @@ export const bankingRouter = router({
           orderBy: [asc(bankRules.priority)],
         });
 
-        // Get selected transactions
+        // Get selected transactions (entity-scoped, batch IN)
         const transactions = await db.query.bankTransactions.findMany({
           where: and(
             eq(bankTransactions.entityId, entityId),
-            sql`${bankTransactions.id} IN ${input.transactionIds}`,
+            inArray(bankTransactions.id, input.transactionIds),
           ),
         });
+
+        const ruleInputs = rules.map((r) => ({
+          matchType: r.matchType,
+          matchValue: r.matchValue,
+          category: r.category,
+          glAccountId: r.glAccountId,
+        }));
+
+        // Confidence gate: batch categorize is an explicit user action, but we
+        // still refuse to stamp low-confidence guesses as fact.
+        const MIN_AUTO_CONFIDENCE = 0.7;
 
         const updates: Array<{
           id: string;
@@ -1267,7 +1422,14 @@ export const bankingRouter = router({
           glAccountId: string | null;
           categorizedBy: string;
           confidence: string;
+          previous: {
+            category: string | null;
+            glAccountId: string | null;
+            categorizedBy: string | null;
+            confidence: string | null;
+          };
         }> = [];
+        let needsReviewCount = 0;
 
         for (const tx of transactions) {
           const match = categorizeTransaction(
@@ -1276,26 +1438,34 @@ export const bankingRouter = router({
               reference: tx.reference,
               amount: tx.amount,
               type: tx.type,
+              metadata: tx.metadata ?? undefined,
             },
-            rules.map((r) => ({
-              matchType: r.matchType,
-              matchValue: r.matchValue,
-              category: r.category,
-              glAccountId: r.glAccountId,
-            })),
+            ruleInputs,
           );
-          if (match) {
-            updates.push({
-              id: tx.id,
-              category: match.category,
-              glAccountId: match.glAccountId,
-              categorizedBy: match.categorizedBy,
-              confidence: match.confidence.toString(),
-            });
+          if (!match) {
+            needsReviewCount++;
+            continue;
           }
+          if (match.confidence < MIN_AUTO_CONFIDENCE) {
+            needsReviewCount++;
+            continue;
+          }
+          updates.push({
+            id: tx.id,
+            category: match.category,
+            glAccountId: match.glAccountId,
+            categorizedBy: match.categorizedBy,
+            confidence: match.confidence.toString(),
+            previous: {
+              category: tx.category ?? null,
+              glAccountId: tx.glAccountId ?? null,
+              categorizedBy: tx.categorizedBy ?? null,
+              confidence: tx.categorizationConfidence ?? null,
+            },
+          });
         }
 
-        // Batch update
+        // Batch update (entity-scoped per row)
         if (updates.length > 0) {
           await Promise.all(
             updates.map((u) =>
@@ -1307,22 +1477,85 @@ export const bankingRouter = router({
                   categorizedBy: u.categorizedBy,
                   categorizationConfidence: u.confidence,
                 })
-                .where(eq(bankTransactions.id, u.id)),
+                .where(
+                  and(
+                    eq(bankTransactions.id, u.id),
+                    eq(bankTransactions.entityId, entityId),
+                  ),
+                ),
             ),
           );
         }
 
         return {
           categorizedCount: updates.length,
+          needsReviewCount,
           totalProcessed: transactions.length,
+          previousState: updates.map((u) => ({
+            id: u.id,
+            ...u.previous,
+          })),
         };
       } catch (error) {
         handleMutationError(error, "Failed to batch categorize");
       }
     }),
+
+  /**
+   * Revert a batch categorization back to its captured previous state.
+   * Powers the banking-view Undo action — restores the real prior category,
+   * GL account, categorizer and confidence, not a fake toast.
+   */
+  revertCategorization: rlsMutateProcedure
+    .input(
+      z.object({
+        restorations: z.array(
+          z.object({
+            id: z.string().uuid(),
+            category: z.string().nullable(),
+            glAccountId: z.string().uuid().nullable(),
+            categorizedBy: z.string().nullable(),
+            confidence: z.string().nullable(),
+          }),
+        ),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      try {
+        const entityId = ctx.entityId!;
+        if (input.restorations.length === 0) {
+          return { restoredCount: 0 };
+        }
+
+        await Promise.all(
+          input.restorations.map((r) =>
+            db
+              .update(bankTransactions)
+              .set({
+                category: r.category ?? "Uncategorized",
+                glAccountId: r.glAccountId ?? undefined,
+                categorizedBy: r.categorizedBy ?? undefined,
+                categorizationConfidence: r.confidence ?? undefined,
+              })
+              .where(
+                and(
+                  eq(bankTransactions.id, r.id),
+                  eq(bankTransactions.entityId, entityId),
+                ),
+              ),
+          ),
+        );
+
+        return { restoredCount: input.restorations.length };
+      } catch (error) {
+        handleMutationError(error, "Failed to revert categorization");
+      }
+    }),
 });
 
 // ─── Shared categorization logic ──────────────────────────────────────────
+// Thin wrappers over packages/db/lib/bank-categorizer — the single source of
+// truth shared with the sync jobs and statement/CSV parsers.
 
 interface CategoryMatch {
   category: string;
@@ -1332,8 +1565,9 @@ interface CategoryMatch {
 }
 
 /**
- * Match a bank transaction against rules + AI keyword heuristics.
- * Shared by autoCategorize and batchCategorize to avoid duplication.
+ * Categorize one transaction: user rules first (highest authority), then the
+ * shared direction-aware categorizer (provider category signal → keyword
+ * heuristics). Returns null when nothing matches with confidence >= MIN.
  */
 function categorizeTransaction(
   tx: {
@@ -1341,6 +1575,7 @@ function categorizeTransaction(
     reference: string | null;
     amount: string;
     type: string;
+    metadata?: Record<string, unknown> | null;
   },
   rules: Array<{
     matchType: string;
@@ -1349,191 +1584,59 @@ function categorizeTransaction(
     glAccountId: string | null;
   }>,
 ): CategoryMatch | null {
-  const desc = tx.description.toLowerCase();
+  // 1. User rules (highest authority — they encode explicit intent).
+  const ruleMatch = matchBankRules(
+    {
+      description: tx.description,
+      reference: tx.reference,
+      amount: tx.amount,
+      type: tx.type,
+    },
+    rules,
+  );
+  if (ruleMatch) {
+    return {
+      category: ruleMatch.category,
+      glAccountId: ruleMatch.glAccountId ?? null,
+      categorizedBy: "rule",
+      confidence: ruleMatch.confidence,
+    };
+  }
 
-  // Try rules first (highest confidence)
-  for (const rule of rules) {
-    const matchVal = rule.matchValue.toLowerCase();
-    let matches = false;
-
-    switch (rule.matchType) {
-      case "description_contains":
-        matches = desc.includes(matchVal);
-        break;
-      case "description_equals":
-        matches = desc === matchVal;
-        break;
-      case "reference_contains":
-        matches = (tx.reference ?? "").toLowerCase().includes(matchVal);
-        break;
-      case "amount_equals":
-        matches = Number(tx.amount) === Number(rule.matchValue);
-        break;
-      case "amount_above":
-        matches = Number(tx.amount) > Number(rule.matchValue);
-        break;
-      case "amount_below":
-        matches = Number(tx.amount) < Number(rule.matchValue);
-        break;
-    }
-
-    if (matches) {
-      return {
-        category: rule.category,
-        glAccountId: rule.glAccountId,
-        categorizedBy: "rule",
-        confidence: 0.95,
-      };
+  // 2. Provider category signal (Plaid/Mono ship a category per tx) + shared
+  // direction-aware heuristics. Plaid category arrays look like
+  // ["FOOD_AND_DRINK", ...] — map the primary (first) entry.
+  const metadata = tx.metadata;
+  let providerCategory: string | null = null;
+  if (metadata) {
+    const plaid = metadata.plaidCategory;
+    if (Array.isArray(plaid) && plaid.length > 0) {
+      providerCategory = String(plaid[0]);
+    } else if (typeof plaid === "string") {
+      providerCategory = plaid;
+    } else {
+      const mono = metadata.monoCategory;
+      if (typeof mono === "string") providerCategory = mono;
     }
   }
 
-  // AI keyword heuristics fallback
-  if (
-    desc.includes("stripe") ||
-    desc.includes("fee") ||
-    desc.includes("charge")
-  ) {
+  const heuristic = categorizeByDescription({
+    description: tx.description,
+    reference: tx.reference,
+    amount: tx.amount,
+    type: tx.type,
+    providerCategory,
+  });
+  if (heuristic) {
     return {
-      category: "Bank Fees",
+      category: heuristic.category,
       glAccountId: null,
       categorizedBy: "ai",
-      confidence: 0.8,
-    };
-  }
-  if (
-    desc.includes("salary") ||
-    desc.includes("payroll") ||
-    desc.includes("wage")
-  ) {
-    return {
-      category: "Payroll",
-      glAccountId: null,
-      categorizedBy: "ai",
-      confidence: 0.85,
-    };
-  }
-  if (desc.includes("rent") || desc.includes("lease")) {
-    return {
-      category: "Rent & Lease",
-      glAccountId: null,
-      categorizedBy: "ai",
-      confidence: 0.8,
-    };
-  }
-  if (
-    desc.includes("electric") ||
-    desc.includes("water") ||
-    desc.includes("internet") ||
-    desc.includes("utility")
-  ) {
-    return {
-      category: "Utilities",
-      glAccountId: null,
-      categorizedBy: "ai",
-      confidence: 0.8,
-    };
-  }
-  if (
-    desc.includes("uber") ||
-    desc.includes("lyft") ||
-    desc.includes("taxi") ||
-    desc.includes("fuel")
-  ) {
-    return {
-      category: "Travel & Transport",
-      glAccountId: null,
-      categorizedBy: "ai",
-      confidence: 0.75,
-    };
-  }
-  if (
-    desc.includes("restaurant") ||
-    desc.includes("food") ||
-    desc.includes("meal") ||
-    desc.includes("coffee")
-  ) {
-    return {
-      category: "Meals & Entertainment",
-      glAccountId: null,
-      categorizedBy: "ai",
-      confidence: 0.75,
-    };
-  }
-  if (
-    desc.includes("software") ||
-    desc.includes("saas") ||
-    desc.includes("subscription")
-  ) {
-    return {
-      category: "Software & Subscriptions",
-      glAccountId: null,
-      categorizedBy: "ai",
-      confidence: 0.75,
-    };
-  }
-  if (
-    desc.includes("marketing") ||
-    desc.includes("ad ") ||
-    desc.includes("facebook ads") ||
-    desc.includes("google ads")
-  ) {
-    return {
-      category: "Marketing",
-      glAccountId: null,
-      categorizedBy: "ai",
-      confidence: 0.7,
-    };
-  }
-  if (Number(tx.amount) > 0) {
-    return {
-      category: "Revenue",
-      glAccountId: null,
-      categorizedBy: "ai",
-      confidence: 0.6,
+      confidence: heuristic.confidence,
     };
   }
 
   return null;
-}
-
-// ─── Rule match helpers ────────────────────────────────────────────────────
-
-function countRuleMatches(
-  entityId: string,
-  rule: { matchType: string; matchValue: string },
-) {
-  const conditions = [eq(bankTransactions.entityId, entityId)];
-  switch (rule.matchType) {
-    case "description_contains":
-      conditions.push(
-        sql`${bankTransactions.description} ILIKE ${`%${rule.matchValue}%`}`,
-      );
-      break;
-    case "description_equals":
-      conditions.push(
-        sql`${bankTransactions.description} = ${rule.matchValue}`,
-      );
-      break;
-    case "reference_contains":
-      conditions.push(
-        sql`${bankTransactions.reference} ILIKE ${`%${rule.matchValue}%`}`,
-      );
-      break;
-    case "amount_equals":
-      conditions.push(sql`${bankTransactions.amount} = ${rule.matchValue}`);
-      break;
-    case "amount_above":
-      conditions.push(sql`${bankTransactions.amount} > ${rule.matchValue}`);
-      break;
-    case "amount_below":
-      conditions.push(sql`${bankTransactions.amount} < ${rule.matchValue}`);
-      break;
-  }
-  return db
-    .select({ count: count() })
-    .from(bankTransactions)
-    .where(and(...conditions))
-    .then((r) => r[0]?.count ?? 0);
 }
 
 // ─── Extended Banking Router ──────────────────────────────────────────────
