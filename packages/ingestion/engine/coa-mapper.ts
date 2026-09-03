@@ -23,22 +23,21 @@ export async function mapToChartOfAccounts(
     ...treatment.creditAccounts.map((a) => ({ ...a, side: "credit" as const })),
   ];
 
+  // Load all active accounts ONCE and match in memory — avoids N+1 queries
+  // per suggestion (previously 2 full-table queries per line).
+  const accounts = await db.query.chartOfAccounts.findMany({
+    where: and(
+      eq(chartOfAccounts.entityId, entityId),
+      eq(chartOfAccounts.isActive, true),
+    ),
+  });
+
   const debitLines: CoaLine[] = [];
   const creditLines: CoaLine[] = [];
   const unmapped: SuggestedAccount[] = [];
 
   for (const suggestion of allSuggestions) {
-    // Try exact code match first
-    let account = await findAccountByCode(entityId, suggestion.suggestedCode);
-
-    // If no exact code match, try name/subtype fuzzy match
-    if (!account) {
-      account = await findAccountByLabel(
-        entityId,
-        suggestion.label,
-        suggestion.accountType,
-      );
-    }
+    const account = findAccount(suggestion, accounts);
 
     if (account) {
       const line: CoaLine = {
@@ -151,19 +150,39 @@ export async function registerUnmappedAccounts(
       ? (subtype as (typeof validSubtypes)[number])
       : "other_expense";
 
-    // Register the account
-    const [account] = await db
-      .insert(chartOfAccounts)
-      .values({
-        entityId,
-        code,
-        name: suggestion.label,
-        type: accountType,
-        subtype: accountSubtype,
-        description: `Auto-created by ingestion engine: ${suggestion.label}`,
-        isActive: true,
-      })
-      .returning();
+    // Register the account. If a concurrent process already created this code
+    // (race on the in-memory code set), reuse the existing account instead of
+    // failing the whole registration.
+    let account;
+    try {
+      [account] = await db
+        .insert(chartOfAccounts)
+        .values({
+          entityId,
+          code,
+          name: suggestion.label,
+          type: accountType,
+          subtype: accountSubtype,
+          description: `Auto-created by ingestion engine: ${suggestion.label}`,
+          isActive: true,
+        })
+        .returning();
+    } catch (error) {
+      const isUniqueViolation =
+        typeof error === "object" &&
+        error !== null &&
+        (error as { code?: string }).code === "23505";
+      if (!isUniqueViolation) throw error;
+
+      const existing = await db.query.chartOfAccounts.findFirst({
+        where: and(
+          eq(chartOfAccounts.entityId, entityId),
+          eq(chartOfAccounts.code, code),
+        ),
+      });
+      if (!existing) throw error;
+      account = existing;
+    }
 
     existingCodes.add(code);
 
@@ -182,64 +201,69 @@ export async function registerUnmappedAccounts(
 
 // ─── Account Lookup Helpers ─────────────────────────────────────────────────
 
-async function findAccountByCode(entityId: string, code?: string) {
-  if (!code) return null;
-
-  return db.query.chartOfAccounts.findFirst({
-    where: and(
-      eq(chartOfAccounts.entityId, entityId),
-      eq(chartOfAccounts.code, code),
-      eq(chartOfAccounts.isActive, true),
-    ),
-  });
+interface AccountCandidate {
+  id: string;
+  code: string;
+  name: string;
+  type: string;
+  subtype: string;
+  description: string | null;
 }
 
-async function findAccountByLabel(
-  entityId: string,
-  label: string,
-  accountType: string,
+/**
+ * Match a suggested account against the entity's COA in memory.
+ * Exact code match wins; otherwise score by name, type, subtype, description.
+ * Accounts whose type directly contradicts the suggestion are penalized so we
+ * never book revenue against an expense account (or vice versa).
+ */
+function findAccount(
+  suggestion: SuggestedAccount,
+  accounts: AccountCandidate[],
 ) {
-  // Try matching against name or description
-  const accounts = await db.query.chartOfAccounts.findMany({
-    where: and(
-      eq(chartOfAccounts.entityId, entityId),
-      eq(chartOfAccounts.isActive, true),
-    ),
-  });
+  // Try exact code match first
+  if (suggestion.suggestedCode) {
+    const byCode = accounts.find((a) => a.code === suggestion.suggestedCode);
+    if (byCode) return byCode;
+  }
 
-  const labelLower = label.toLowerCase();
-  const typeMapped = mapLabelToType(label);
+  const labelLower = suggestion.label.toLowerCase();
+  const typeMapped = mapLabelToType(suggestion.label);
 
-  // Score each account by how well it matches
-  const scored = accounts
-    .map((acc) => {
-      let score = 0;
+  let best: { account: AccountCandidate; score: number } | null = null;
 
-      // Exact name match
-      if (acc.name.toLowerCase() === labelLower) score += 10;
-      // Partial name match
-      else if (
-        acc.name.toLowerCase().includes(labelLower) ||
-        labelLower.includes(acc.name.toLowerCase())
-      )
-        score += 5;
+  for (const acc of accounts) {
+    let score = 0;
 
-      // Type match
-      if (acc.type === typeMapped || acc.type === accountType) score += 3;
+    // Exact name match
+    if (acc.name.toLowerCase() === labelLower) score += 10;
+    // Partial name match
+    else if (
+      acc.name.toLowerCase().includes(labelLower) ||
+      labelLower.includes(acc.name.toLowerCase())
+    )
+      score += 5;
 
-      // Subtype match
-      if (acc.subtype && labelLower.includes(acc.subtype.replace(/_/g, " ")))
-        score += 2;
+    // Type match
+    if (acc.type === typeMapped || acc.type === suggestion.accountType) {
+      score += 3;
+    } else if (acc.type !== suggestion.accountType && suggestion.accountType) {
+      // Hard penalty: wrong-typed accounts should lose, not tie
+      score -= 4;
+    }
 
-      // Description match
-      if (acc.description?.toLowerCase().includes(labelLower)) score += 2;
+    // Subtype match
+    if (acc.subtype && labelLower.includes(acc.subtype.replace(/_/g, " ")))
+      score += 2;
 
-      return { account: acc, score };
-    })
-    .filter((s) => s.score > 0)
-    .sort((a, b) => b.score - a.score);
+    // Description match
+    if (acc.description?.toLowerCase().includes(labelLower)) score += 2;
 
-  return scored[0]?.account ?? null;
+    if (score > 0 && (!best || score > best.score)) {
+      best = { account: acc, score };
+    }
+  }
+
+  return best?.account ?? null;
 }
 
 // ─── Type Helpers ───────────────────────────────────────────────────────────

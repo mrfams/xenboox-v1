@@ -11,6 +11,7 @@ import type {
   CoaLine,
   ProposedJournalEntry,
   IngestionValidation,
+  TransactionSource,
   ValidationError,
   ValidationWarning,
 } from "../core/types";
@@ -33,7 +34,7 @@ export async function generateJournalEntry(
   entityId: string,
   treatment: AccountingTreatment,
   mapping: CoaMapping,
-  source: string,
+  source: TransactionSource,
   transactionDate?: string,
 ): Promise<{
   entry: ProposedJournalEntry;
@@ -81,9 +82,9 @@ export async function generateJournalEntry(
   ];
 
   // Calculate totals
-  const totalDebit = lines.reduce((sum, l) => sum + l.debit, 0);
-  const totalCredit = lines.reduce((sum, l) => sum + l.credit, 0);
-  const balanced = Math.abs(totalDebit - totalCredit) <= 0.01;
+  let totalDebit = lines.reduce((sum, l) => sum + l.debit, 0);
+  let totalCredit = lines.reduce((sum, l) => sum + l.credit, 0);
+  let balanced = Math.abs(totalDebit - totalCredit) <= 0.01;
 
   if (!balanced) {
     const diff = totalDebit - totalCredit;
@@ -94,15 +95,15 @@ export async function generateJournalEntry(
         severity: "error",
       });
 
-      // Auto-balance by adding a rounding adjustment if the difference is small
-      if (Math.abs(diff) <= 0.05) {
+      // Auto-balance by adding a rounding adjustment if the difference is small.
+      // Only when we have a real account to park the rounding on — otherwise the
+      // balance error stands and the entry goes to review.
+      const adjustmentSource = mapping.debitLines[0] ?? mapping.creditLines[0];
+      if (Math.abs(diff) <= 0.05 && adjustmentSource) {
         lines.push({
-          accountId:
-            mapping.debitLines[0]?.accountId ??
-            mapping.creditLines[0]?.accountId ??
-            "",
-          accountCode: "9999",
-          accountName: "Rounding Adjustment",
+          accountId: adjustmentSource.accountId,
+          accountCode: adjustmentSource.accountCode,
+          accountName: adjustmentSource.accountName,
           debit: diff < 0 ? Math.abs(diff) : 0,
           credit: diff > 0 ? diff : 0,
           description: "Rounding adjustment for balanced entry",
@@ -113,6 +114,11 @@ export async function generateJournalEntry(
           field: "balance",
           message: `Auto-balanced with rounding adjustment of ${Math.abs(diff).toFixed(2)}`,
         });
+
+        // Recompute totals and balance now that the rounding line was added
+        totalDebit = lines.reduce((sum, l) => sum + l.debit, 0);
+        totalCredit = lines.reduce((sum, l) => sum + l.credit, 0);
+        balanced = Math.abs(totalDebit - totalCredit) <= 0.01;
       }
     }
   }
@@ -160,7 +166,7 @@ export async function generateJournalEntry(
     totalCredit,
     balanced,
     periodId: periodId ?? undefined,
-    source: "document_upload",
+    source,
     reasoning: treatment.reasoning,
   };
 
@@ -198,71 +204,177 @@ export async function postJournalEntry(
     );
   }
 
-  // ── Atomic reference check: prevent race condition double-posting ──
-  // If two pipelines run simultaneously for the same entity+reference,
-  // only one should post. The first to insert wins; the second gets the existing entry.
-  if (entry.reference) {
-    const existing = await db.query.journalEntries.findFirst({
-      where: and(
-        eq(journalEntries.entityId, entityId),
-        eq(journalEntries.reference, entry.reference),
-      ),
-    });
-    if (existing) {
-      // Already posted by a concurrent pipeline — return existing entry
-      return {
-        journalEntryId: existing.id,
-        entryNumber: existing.entryNumber,
-      };
-    }
+  // ── Defense-in-depth: never post an unbalanced or malformed entry ──
+  // decidePosting already rejects critical validation errors; this guards
+  // against any caller forcing a bad entry into the GL.
+  if (!entry.balanced) {
+    throw new Error(
+      `Cannot post journal entry: entry is not balanced ` +
+        `(debits ${entry.totalDebit.toFixed(2)} != credits ${entry.totalCredit.toFixed(2)}). ` +
+        "Fix the entry or send it to review instead of posting.",
+    );
+  }
+  const invalidLine = entry.lines.find((l) => !l.accountId);
+  if (invalidLine) {
+    throw new Error(
+      `Cannot post journal entry: line "${invalidLine.description ?? invalidLine.accountName}" has no accountId. ` +
+        "Resolve the account mapping before posting.",
+    );
   }
 
-  // Get the next entry number
-  const lastEntry = await db.query.journalEntries.findFirst({
-    where: eq(journalEntries.entityId, entityId),
-    orderBy: [desc(journalEntries.entryNumber)],
+  // ── Single transaction: header + lines post together or not at all ──
+  // Uniqueness is enforced by the DB (je_entity_reference, je_entity_entry_number):
+  //   - Concurrent retry with the same reference → onConflictDoNothing returns the
+  //     existing entry (true atomic dedup, no TOCTOU window).
+  //   - Concurrent posts racing for the same entryNumber → unique violation is
+  //     caught and the number is re-allocated (bounded retry).
+  return db.transaction(async (tx) => {
+    if (entry.reference) {
+      const lastEntry = await tx.query.journalEntries.findFirst({
+        where: eq(journalEntries.entityId, entityId),
+        orderBy: [desc(journalEntries.entryNumber)],
+      });
+      const entryNumber = (lastEntry?.entryNumber ?? 0) + 1;
+
+      const [inserted] = await tx
+        .insert(journalEntries)
+        .values(
+          headerValues(
+            entry,
+            entityId,
+            entry.reference,
+            entryNumber,
+            confidence,
+            sourceAgent,
+          ),
+        )
+        .onConflictDoNothing({
+          target: [journalEntries.entityId, journalEntries.reference],
+        })
+        .returning();
+
+      if (inserted) {
+        await insertLines(tx, inserted.id, entry.lines);
+        return {
+          journalEntryId: inserted.id,
+          entryNumber: inserted.entryNumber,
+        };
+      }
+
+      // Conflict — the reference was already posted (by this pipeline or a
+      // concurrent one). Return the existing entry instead of double-posting.
+      const existing = await tx.query.journalEntries.findFirst({
+        where: and(
+          eq(journalEntries.entityId, entityId),
+          eq(journalEntries.reference, entry.reference),
+        ),
+      });
+      if (existing) {
+        return {
+          journalEntryId: existing.id,
+          entryNumber: existing.entryNumber,
+        };
+      }
+    }
+
+    // No reference (or unreachable conflict edge) — allocate the next entry
+    // number with a bounded retry to survive concurrent races.
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const lastEntry = await tx.query.journalEntries.findFirst({
+        where: eq(journalEntries.entityId, entityId),
+        orderBy: [desc(journalEntries.entryNumber)],
+      });
+      const entryNumber = (lastEntry?.entryNumber ?? 0) + 1;
+
+      try {
+        const [journalEntry] = await tx
+          .insert(journalEntries)
+          .values(
+            headerValues(
+              entry,
+              entityId,
+              entry.reference,
+              entryNumber,
+              confidence,
+              sourceAgent,
+            ),
+          )
+          .returning();
+
+        await insertLines(tx, journalEntry.id, entry.lines);
+        return {
+          journalEntryId: journalEntry.id,
+          entryNumber: journalEntry.entryNumber,
+        };
+      } catch (error) {
+        // 23505 = unique_violation: another transaction claimed this entry
+        // number first. Re-allocate and retry.
+        if (
+          typeof error === "object" &&
+          error !== null &&
+          (error as { code?: string }).code === "23505" &&
+          attempt < 2
+        ) {
+          continue;
+        }
+        throw error;
+      }
+    }
+
+    throw new Error(
+      `Cannot post journal entry: could not allocate a unique entry number ` +
+        `for entity ${entityId} after 3 attempts.`,
+    );
   });
-  const entryNumber = (lastEntry?.entryNumber ?? 0) + 1;
+}
 
-  // Insert the journal entry header
-  const [journalEntry] = await db
-    .insert(journalEntries)
-    .values({
-      entityId,
-      entryNumber,
-      description: entry.description,
-      reference: entry.reference,
-      date: entry.date,
-      periodId: entry.periodId,
-      status: "posted",
-      postedBy: sourceAgent,
-      postedAt: new Date(),
-      confidence: String(confidence),
-      source: entry.source,
-      metadata: {
-        ingestionRef: entry.reference,
-        reasoning: entry.reasoning,
-        autoGenerated: true,
-        postedAt: new Date().toISOString(),
-      },
-    })
-    .returning();
+// ─── Posting Helpers ────────────────────────────────────────────────────────
 
-  // Insert journal entry lines
-  const lineValues = entry.lines.map((line) => ({
-    journalEntryId: journalEntry.id,
-    accountId: line.accountId,
-    debit: String(line.debit),
-    credit: String(line.credit),
-    description: line.description,
-  }));
-
-  await db.insert(journalEntryLines).values(lineValues);
-
+function headerValues(
+  entry: ProposedJournalEntry,
+  entityId: string,
+  reference: string | null,
+  entryNumber: number,
+  confidence: number,
+  sourceAgent: string,
+) {
   return {
-    journalEntryId: journalEntry.id,
-    entryNumber: journalEntry.entryNumber,
+    entityId,
+    entryNumber,
+    description: entry.description,
+    reference,
+    date: entry.date,
+    periodId: entry.periodId!,
+    status: "posted" as const,
+    postedBy: sourceAgent,
+    postedAt: new Date(),
+    confidence: String(confidence),
+    source: entry.source,
+    metadata: {
+      ingestionRef: entry.reference,
+      reasoning: entry.reasoning,
+      autoGenerated: true,
+      postedAt: new Date().toISOString(),
+    },
   };
+}
+
+async function insertLines(
+  tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
+  journalEntryId: string,
+  lines: ProposedJournalEntry["lines"],
+) {
+  if (lines.length === 0) return;
+
+  await tx.insert(journalEntryLines).values(
+    lines.map((line) => ({
+      journalEntryId,
+      accountId: line.accountId,
+      debit: String(line.debit),
+      credit: String(line.credit),
+      description: line.description,
+    })),
+  );
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -272,14 +384,17 @@ async function resolvePeriod(
   date: string,
 ): Promise<string | null> {
   const entryDate = new Date(date);
+  if (Number.isNaN(entryDate.getTime())) return null;
   const year = entryDate.getFullYear();
   const month = entryDate.getMonth() + 1;
 
+  // Only resolve to an OPEN period — never post into closed/locked books.
   const period = await db.query.fiscalPeriods.findFirst({
     where: and(
       eq(fiscalPeriods.entityId, entityId),
       eq(fiscalPeriods.year, year),
       eq(fiscalPeriods.month, month),
+      eq(fiscalPeriods.status, "open"),
     ),
   });
 

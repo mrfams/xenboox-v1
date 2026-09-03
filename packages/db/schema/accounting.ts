@@ -162,6 +162,10 @@ export const journalEntries = pgTable(
     ...timestamps,
   },
   (t) => [
+    // Uniqueness guarantees: prevents double-posting of the same reference and
+    // duplicate entry numbers under concurrent pipelines. (See postJournalEntry.)
+    uniqueIndex("je_entity_reference").on(t.entityId, t.reference),
+    uniqueIndex("je_entity_entry_number").on(t.entityId, t.entryNumber),
     index("je_entity_date").on(t.entityId, t.date),
     index("je_period").on(t.entityId, t.periodId),
     index("je_status").on(t.entityId, t.status),

@@ -20,7 +20,12 @@
  */
 
 import { db } from "@xenboox/db";
-import { documents, auditLog, agentActivity } from "@xenboox/db/schema";
+import {
+  documents,
+  auditLog,
+  agentActivity,
+  entities,
+} from "@xenboox/db/schema";
 import { eq, and, gte } from "drizzle-orm";
 import type {
   AccountingWorkflow,
@@ -216,10 +221,16 @@ export async function runIngestionPipeline(
     await updateIngestionStatus(documentId, entityId, "calculating_tax", {
       workflow: state.workflow,
     });
+    // Tax rates must follow the entity's jurisdiction — never infer from the
+    // document alone (e.g. USD would otherwise default to Gambia).
+    const entity = await db.query.entities.findFirst({
+      where: eq(entities.id, entityId),
+      columns: { country: true },
+    });
     state.taxCalculation = calculateTax(
       state,
       state.accountingTreatment,
-      // Entity jurisdiction could come from entity settings
+      entity?.country ?? undefined,
     );
 
     // Extract date from document data if available

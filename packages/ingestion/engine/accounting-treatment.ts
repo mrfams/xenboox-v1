@@ -75,42 +75,11 @@ const TREATMENT_RULES: TreatmentRule[] = [
         debitAccounts,
         creditAccounts,
         taxTreatment: hasTax ? "input_vat" : "no_tax",
-        taxRate: hasTax ? taxAmount / (totalAmount - taxAmount) : undefined,
+        taxRate:
+          hasTax && totalAmount !== taxAmount
+            ? taxAmount / (totalAmount - taxAmount)
+            : undefined,
         reasoning: `Supplier invoice${data.vendorName ? ` from ${data.vendorName}` : ""} for ${formatCurrency(totalAmount)}. ${hasTax ? `Tax of ${formatCurrency(taxAmount)} (${((taxAmount / subtotal) * 100).toFixed(1)}%) treated as recoverable input VAT. ` : ""}Expense debited, AP credited.`,
-      };
-    },
-  },
-
-  // ── AP Payment ──────────────────────────────────────────────────────────
-  {
-    workflow: "ap_payment",
-    categoryMatch: ["receipt"],
-    fieldPatterns: { vendorName: /.*/ },
-    getTreatment: (state) => {
-      const data = state.extraction.data;
-      const totalAmount = (data.totalAmount as number) ?? 0;
-
-      return {
-        workflow: "ap_payment",
-        description: `Payment${data.merchantName ? ` to ${data.merchantName}` : ""}`,
-        debitAccounts: [
-          {
-            label: "Accounts Payable",
-            suggestedCode: "2000",
-            accountType: "liability",
-            amount: totalAmount,
-          },
-        ],
-        creditAccounts: [
-          {
-            label: "Cash / Bank",
-            suggestedCode: "1000",
-            accountType: "asset",
-            amount: totalAmount,
-          },
-        ],
-        taxTreatment: "no_tax",
-        reasoning: `Payment of ${formatCurrency(totalAmount)}${data.merchantName ? ` to ${data.merchantName}` : ""}. AP debited (reducing liability), Cash credited.`,
       };
     },
   },
@@ -119,7 +88,6 @@ const TREATMENT_RULES: TreatmentRule[] = [
   {
     workflow: "ar_invoice",
     categoryMatch: ["invoice"],
-    fieldPatterns: { customerName: /.*/ },
     getTreatment: (state) => {
       const data = state.extraction.data;
       const totalAmount = (data.totalAmount as number) ?? 0;
@@ -160,13 +128,15 @@ const TREATMENT_RULES: TreatmentRule[] = [
         debitAccounts,
         creditAccounts,
         taxTreatment: hasTax ? "output_vat" : "no_tax",
-        taxRate: hasTax ? taxAmount / subtotal : undefined,
+        taxRate: hasTax && subtotal > 0 ? taxAmount / subtotal : undefined,
         reasoning: `Sales invoice${data.customerName ? ` to ${data.customerName}` : ""} for ${formatCurrency(totalAmount)}. AR debited, Revenue credited${hasTax ? ` with ${formatCurrency(taxAmount)} output VAT` : ""}.`,
       };
     },
   },
 
   // ── AR Payment (receipt from customer) ──────────────────────────────────
+  // Ordered before AP Payment so an ambiguous plain receipt defaults to
+  // money-in (the common SME case) rather than money-out.
   {
     workflow: "ar_payment",
     categoryMatch: ["receipt"],
@@ -195,6 +165,39 @@ const TREATMENT_RULES: TreatmentRule[] = [
         ],
         taxTreatment: "no_tax",
         reasoning: `Customer payment received: ${formatCurrency(totalAmount)}. Cash debited, AR credited.`,
+      };
+    },
+  },
+
+  // ── AP Payment ──────────────────────────────────────────────────────────
+  {
+    workflow: "ap_payment",
+    categoryMatch: ["receipt"],
+    getTreatment: (state) => {
+      const data = state.extraction.data;
+      const totalAmount = (data.totalAmount as number) ?? 0;
+
+      return {
+        workflow: "ap_payment",
+        description: `Payment${data.merchantName ? ` to ${data.merchantName}` : ""}`,
+        debitAccounts: [
+          {
+            label: "Accounts Payable",
+            suggestedCode: "2000",
+            accountType: "liability",
+            amount: totalAmount,
+          },
+        ],
+        creditAccounts: [
+          {
+            label: "Cash / Bank",
+            suggestedCode: "1000",
+            accountType: "asset",
+            amount: totalAmount,
+          },
+        ],
+        taxTreatment: "no_tax",
+        reasoning: `Payment of ${formatCurrency(totalAmount)}${data.merchantName ? ` to ${data.merchantName}` : ""}. AP debited (reducing liability), Cash credited.`,
       };
     },
   },
@@ -599,6 +602,22 @@ export function determineAccountingTreatment(
   const category = state.classification.category;
   const data = state.extraction.data;
   const dataStr = JSON.stringify(data).toLowerCase();
+  // Field patterns must only scan descriptive text — scanning the full JSON
+  // lets entity names leak into matches (e.g. a vendor named "Acme Supplies"
+  // would trigger the inventory rule and book purchases as stock). Keyword
+  // scoring below still uses the full blob for AR/AP direction signals.
+  const patternStr = [
+    data.description,
+    data.merchantName,
+    data.category,
+    data.expenseNature,
+    ...((data.lineItems as Array<{ description?: string }> | undefined)?.map(
+      (item) => item.description,
+    ) ?? []),
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
 
   // Score each rule
   const scored = TREATMENT_RULES.map((rule) => {
@@ -609,10 +628,10 @@ export function determineAccountingTreatment(
       score += 3;
     }
 
-    // Field pattern matches
+    // Field pattern matches (descriptive text only)
     if (rule.fieldPatterns) {
       for (const [, regex] of Object.entries(rule.fieldPatterns)) {
-        if (regex.test(dataStr)) {
+        if (regex.test(patternStr)) {
           score += 2;
         }
       }
@@ -709,7 +728,8 @@ function inferExpenseCategory(data: Record<string, unknown>): ExpenseCategory {
 
 function getExpenseCodeFromLineItems(data: Record<string, unknown>): string {
   const lineItems = data.lineItems as
-    Array<{ description: string }> | undefined;
+    | Array<{ description: string }>
+    | undefined;
   if (!lineItems || lineItems.length === 0) {
     return "7000"; // Default to other expense
   }

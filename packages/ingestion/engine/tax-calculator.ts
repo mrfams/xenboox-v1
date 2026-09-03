@@ -163,8 +163,12 @@ export function calculateTax(
   const extractedData = state.extraction.data;
   const totalAmount = (extractedData.totalAmount as number) ?? 0;
   const taxAmount = (extractedData.taxAmount as number) ?? 0;
-  const subtotal =
-    (extractedData.subtotal as number) ?? totalAmount - taxAmount;
+  // Clamp subtotal to >= 0 — extracted taxAmount could exceed totalAmount
+  // (bad OCR/LLM), which would otherwise produce a negative taxable base.
+  const subtotal = Math.max(
+    0,
+    (extractedData.subtotal as number) ?? totalAmount - taxAmount,
+  );
   const lineItems =
     (extractedData.lineItems as Array<Record<string, unknown>>) ?? [];
 
@@ -186,42 +190,54 @@ export function calculateTax(
 
   switch (taxTreatment) {
     case "input_vat":
-      // Recoverable VAT on purchases
+    case "output_vat": {
+      // Recoverable VAT on purchases / output VAT on sales.
+      // Category exemptions and zero-rating apply to BOTH directions.
       taxableAmount = subtotal;
       effectiveRate =
-        categoryRule?.rateType === "reduced"
-          ? config.reducedVatRate
-          : categoryRule?.rateType === "zero"
-            ? 0
-            : categoryRule?.rateType === "exempt"
-              ? 0
-              : config.standardVatRate;
+        categoryRule?.rateType === "zero" || categoryRule?.rateType === "exempt"
+          ? 0
+          : categoryRule?.rateType === "reduced"
+            ? config.reducedVatRate
+            : config.standardVatRate;
 
       if (taxAmount > 0) {
-        // Use the extracted tax amount if available (e.g., from an invoice)
-        calculatedTax = taxAmount;
-        effectiveRate = subtotal > 0 ? taxAmount / subtotal : 0;
-        confidence = 0.95;
+        const extractedRate = subtotal > 0 ? taxAmount / subtotal : 0;
+
+        if (effectiveRate === 0) {
+          // Exempt/zero-rated category but a tax amount was extracted —
+          // contradiction. Never claim/charge VAT on exempt items.
+          calculatedTax = 0;
+          effectiveRate = 0;
+          confidence = 0.4;
+        } else {
+          // Don't blindly trust the LLM: accept the extracted tax only if its
+          // implied rate matches a legitimate rate for this jurisdiction
+          // (standard or reduced). Anything else is recomputed deterministically
+          // and flagged with low confidence.
+          const matchesExpected =
+            Math.abs(extractedRate - effectiveRate) <= 0.002;
+          const otherRate =
+            Math.abs(effectiveRate - config.standardVatRate) <= 0.002
+              ? config.reducedVatRate
+              : config.standardVatRate;
+          const matchesOther = Math.abs(extractedRate - otherRate) <= 0.002;
+
+          if (matchesExpected || matchesOther) {
+            calculatedTax = taxAmount;
+            effectiveRate = extractedRate;
+            confidence = 0.95;
+          } else {
+            calculatedTax = roundCurrency(taxableAmount * effectiveRate);
+            confidence = 0.45;
+          }
+        }
       } else {
         calculatedTax = roundCurrency(taxableAmount * effectiveRate);
         confidence = categoryRule ? 0.85 : 0.6;
       }
       break;
-
-    case "output_vat":
-      // Output VAT on sales
-      taxableAmount = subtotal;
-      effectiveRate = config.standardVatRate;
-
-      if (taxAmount > 0) {
-        calculatedTax = taxAmount;
-        effectiveRate = subtotal > 0 ? taxAmount / subtotal : 0;
-        confidence = 0.95;
-      } else {
-        calculatedTax = roundCurrency(taxableAmount * effectiveRate);
-        confidence = 0.85;
-      }
-      break;
+    }
 
     case "vat_exempt":
       // No VAT — exempt category

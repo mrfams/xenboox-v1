@@ -15,6 +15,7 @@
 
 import { db } from "@xenboox/db";
 import { eq, and, desc, asc, inArray, sql } from "drizzle-orm";
+import type { SQL } from "drizzle-orm";
 import {
   journalEntries,
   journalEntryLines,
@@ -130,7 +131,7 @@ export async function getAccountBalance(
   if (!account) return null;
 
   // Build the query conditions
-  const conditions: any[] = [
+  const conditions: SQL[] = [
     eq(journalEntryLines.accountId, accountId),
     eq(journalEntries.entityId, entityId),
     eq(journalEntries.status, "posted"),
@@ -216,23 +217,64 @@ export async function getAccountHistory(
     limit: periods,
   });
 
+  if (recentPeriods.length === 0) {
+    return {
+      accountId: account.id,
+      accountCode: account.code,
+      accountName: account.name,
+      periodBalances: [],
+    };
+  }
+
+  // Single GROUP BY query across all requested periods instead of
+  // one query per period.
+  const periodIds = recentPeriods.map((p) => p.id);
+  const rows = await db
+    .select({
+      periodId: journalEntries.periodId,
+      totalDebits: sql<string>`COALESCE(SUM(CAST(${journalEntryLines.debit} AS numeric)), 0)::text`,
+      totalCredits: sql<string>`COALESCE(SUM(CAST(${journalEntryLines.credit} AS numeric)), 0)::text`,
+    })
+    .from(journalEntryLines)
+    .innerJoin(
+      journalEntries,
+      eq(journalEntryLines.journalEntryId, journalEntries.id),
+    )
+    .where(
+      and(
+        eq(journalEntryLines.accountId, accountId),
+        eq(journalEntries.entityId, entityId),
+        eq(journalEntries.status, "posted"),
+        inArray(journalEntries.periodId, periodIds),
+      ),
+    )
+    .groupBy(journalEntries.periodId);
+
+  const rowMap = new Map(rows.map((r) => [r.periodId, r]));
+  const normalBalance: "debit" | "credit" =
+    account.type === "asset" || account.type === "expense" ? "debit" : "credit";
+
   const periodBalances: AccountHistory["periodBalances"] = [];
   let runningBalance = 0;
 
   // Process oldest to newest for running balance
   for (const period of recentPeriods.reverse()) {
-    const balance = await getAccountBalance(entityId, accountId, period.id);
-    if (balance) {
-      runningBalance += balance.netBalance;
-      periodBalances.push({
-        periodId: period.id,
-        periodLabel: `${period.year}-${String(period.month).padStart(2, "0")}`,
-        totalDebits: balance.totalDebits,
-        totalCredits: balance.totalCredits,
-        netChange: balance.netBalance,
-        runningBalance,
-      });
-    }
+    const row = rowMap.get(period.id);
+    const totalDebits = Number(row?.totalDebits ?? 0);
+    const totalCredits = Number(row?.totalCredits ?? 0);
+    const netBalance =
+      normalBalance === "debit"
+        ? totalDebits - totalCredits
+        : totalCredits - totalDebits;
+    runningBalance += netBalance;
+    periodBalances.push({
+      periodId: period.id,
+      periodLabel: `${period.year}-${String(period.month).padStart(2, "0")}`,
+      totalDebits,
+      totalCredits,
+      netChange: netBalance,
+      runningBalance,
+    });
   }
 
   return {
@@ -321,10 +363,57 @@ export async function getTrialBalance(
       }
     }
   } else {
-    // Real-time computation across all periods
+    // Real-time computation across all periods — single GROUP BY query
+    // instead of N per-account queries.
+    const rows = await db
+      .select({
+        accountId: journalEntryLines.accountId,
+        totalDebits: sql<string>`COALESCE(SUM(CAST(${journalEntryLines.debit} AS numeric)), 0)::text`,
+        totalCredits: sql<string>`COALESCE(SUM(CAST(${journalEntryLines.credit} AS numeric)), 0)::text`,
+        entryCount: sql<number>`COUNT(*)::int`,
+      })
+      .from(journalEntryLines)
+      .innerJoin(
+        journalEntries,
+        eq(journalEntryLines.journalEntryId, journalEntries.id),
+      )
+      .where(
+        and(
+          eq(journalEntries.entityId, entityId),
+          eq(journalEntries.status, "posted"),
+        ),
+      )
+      .groupBy(journalEntryLines.accountId);
+
+    const balanceMap = new Map(rows.map((r) => [r.accountId, r]));
+
     for (const account of allAccounts) {
-      const balance = await getAccountBalance(entityId, account.id);
-      if (balance) accounts.push(balance);
+      const row = balanceMap.get(account.id);
+      const totalDebits = Number(row?.totalDebits ?? 0);
+      const totalCredits = Number(row?.totalCredits ?? 0);
+      const normalBalance: "debit" | "credit" =
+        account.type === "asset" || account.type === "expense"
+          ? "debit"
+          : "credit";
+      const netBalance =
+        normalBalance === "debit"
+          ? totalDebits - totalCredits
+          : totalCredits - totalDebits;
+
+      accounts.push({
+        accountId: account.id,
+        accountCode: account.code,
+        accountName: account.name,
+        accountType: account.type,
+        subtype: account.subtype,
+        periodId: "all",
+        periodLabel: "All periods",
+        totalDebits,
+        totalCredits,
+        netBalance,
+        normalBalance,
+        entryCount: Number(row?.entryCount ?? 0),
+      });
     }
   }
 
@@ -508,7 +597,7 @@ export async function listJournalEntries(
     toDate?: string;
   } = {},
 ): Promise<{ entries: JournalEntryDetail[]; total: number }> {
-  const conditions: any[] = [eq(journalEntries.entityId, entityId)];
+  const conditions: SQL[] = [eq(journalEntries.entityId, entityId)];
 
   if (options.periodId)
     conditions.push(eq(journalEntries.periodId, options.periodId));
@@ -519,12 +608,12 @@ export async function listJournalEntries(
   if (options.toDate)
     conditions.push(sql`${journalEntries.date} <= ${options.toDate}`);
 
-  // Get total count first (unpaginated)
-  const allMatching = await db.query.journalEntries.findMany({
-    where: and(...conditions),
-    columns: { id: true },
-  });
-  const total = allMatching.length;
+  // Get total count first (COUNT — not loading full rows)
+  const [countRow] = await db
+    .select({ count: sql<number>`COUNT(*)::int` })
+    .from(journalEntries)
+    .where(and(...conditions));
+  const total = Number(countRow?.count ?? 0);
 
   // Get paginated results
   const entries = await db.query.journalEntries.findMany({
@@ -534,11 +623,83 @@ export async function listJournalEntries(
     offset: options.offset ?? 0,
   });
 
-  const details: JournalEntryDetail[] = [];
-  for (const entry of entries) {
-    const detail = await getJournalEntryDetail(entityId, entry.id);
-    if (detail) details.push(detail);
+  if (entries.length === 0) {
+    return { entries: [], total };
   }
+
+  // ── Batch detail composition (3 queries total, not 3 per entry) ──
+  const entryIds = entries.map((e) => e.id);
+
+  const allLines = await db.query.journalEntryLines.findMany({
+    where: inArray(journalEntryLines.journalEntryId, entryIds),
+  });
+  const linesByEntry = new Map<string, (typeof allLines)[number][]>();
+  for (const line of allLines) {
+    const bucket = linesByEntry.get(line.journalEntryId) ?? [];
+    bucket.push(line);
+    linesByEntry.set(line.journalEntryId, bucket);
+  }
+
+  const accountIds = [...new Set(allLines.map((l) => l.accountId))];
+  const accounts =
+    accountIds.length > 0
+      ? await db.query.chartOfAccounts.findMany({
+          where: inArray(chartOfAccounts.id, accountIds),
+        })
+      : [];
+  const accountMap = new Map(accounts.map((a) => [a.id, a]));
+
+  const periodIds = [
+    ...new Set(
+      entries.filter((e) => e.periodId).map((e) => e.periodId as string),
+    ),
+  ];
+  const periods =
+    periodIds.length > 0
+      ? await db.query.fiscalPeriods.findMany({
+          where: inArray(fiscalPeriods.id, periodIds),
+        })
+      : [];
+  const periodMap = new Map(periods.map((p) => [p.id, p]));
+
+  const details: JournalEntryDetail[] = entries.map((entry) => {
+    const lines = linesByEntry.get(entry.id) ?? [];
+    const lineDetails = lines.map((line) => {
+      const account = accountMap.get(line.accountId);
+      return {
+        accountId: line.accountId,
+        accountCode: account?.code ?? "???",
+        accountName: account?.name ?? "Unknown Account",
+        debit: Number(line.debit),
+        credit: Number(line.credit),
+        description: line.description ?? entry.description,
+      };
+    });
+
+    const totalDebit = lineDetails.reduce((s, l) => s + l.debit, 0);
+    const totalCredit = lineDetails.reduce((s, l) => s + l.credit, 0);
+    const period = entry.periodId ? periodMap.get(entry.periodId) : undefined;
+
+    return {
+      id: entry.id,
+      entryNumber: entry.entryNumber,
+      description: entry.description,
+      reference: entry.reference,
+      date: entry.date,
+      status: entry.status,
+      periodId: entry.periodId,
+      periodLabel: period
+        ? `${period.year}-${String(period.month).padStart(2, "0")}`
+        : "",
+      totalDebit,
+      totalCredit,
+      isBalanced: Math.abs(totalDebit - totalCredit) <= 0.01,
+      postedBy: entry.postedBy,
+      postedAt: entry.postedAt,
+      confidence: entry.confidence ? Number(entry.confidence) : null,
+      lines: lineDetails,
+    };
+  });
 
   return { entries: details, total };
 }

@@ -428,14 +428,17 @@ export async function checkDuplicate(
 ): Promise<number> {
   if (!reference) return 0;
 
-  const existing = await db.query.journalEntries.findMany({
-    where: and(
-      eq(journalEntries.entityId, entityId),
-      eq(journalEntries.reference, reference),
-    ),
-  });
+  const [row] = await db
+    .select({ count: sql<number>`COUNT(*)::int` })
+    .from(journalEntries)
+    .where(
+      and(
+        eq(journalEntries.entityId, entityId),
+        eq(journalEntries.reference, reference),
+      ),
+    );
 
-  return existing.length;
+  return Number(row?.count ?? 0);
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
