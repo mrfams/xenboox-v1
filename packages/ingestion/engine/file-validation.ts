@@ -78,24 +78,10 @@ const MAGIC_BYTES: Array<{ mime: string; match: (b: Uint8Array) => boolean }> =
       },
     },
     // Office docs are ZIP containers ("PK\x03\x04" / "PK\x05\x06" empty / "PK\x07\x08").
+    // ZIP-based Office formats (xlsx, docx, pptx) all share the same magic bytes.
+    // We detect "zip-office" and let the caller match against their declared MIME.
     {
-      mime: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      match: (b) =>
-        b.length >= 4 &&
-        b[0] === 0x50 &&
-        b[1] === 0x4b &&
-        (b[2] === 0x03 || b[2] === 0x05 || b[2] === 0x07),
-    },
-    {
-      mime: "application/vnd.ms-excel",
-      match: (b) =>
-        b.length >= 4 &&
-        b[0] === 0x50 &&
-        b[1] === 0x4b &&
-        (b[2] === 0x03 || b[2] === 0x05 || b[2] === 0x07),
-    },
-    {
-      mime: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      mime: "zip-office",
       match: (b) =>
         b.length >= 4 &&
         b[0] === 0x50 &&
@@ -106,8 +92,10 @@ const MAGIC_BYTES: Array<{ mime: string; match: (b: Uint8Array) => boolean }> =
       mime: "application/msword",
       match: (b) =>
         b.length >= 4 &&
-        ((b[0] === 0xd0 && b[1] === 0xcf && b[2] === 0x11 && b[3] === 0xe0) ||
-          (b[0] === 0x50 && b[1] === 0x4b && (b[2] === 0x03 || b[2] === 0x05))),
+        b[0] === 0xd0 &&
+        b[1] === 0xcf &&
+        b[2] === 0x11 &&
+        b[3] === 0xe0,
     },
   ];
 
@@ -120,6 +108,15 @@ export function sniffMimeType(buffer: Uint8Array): string | null {
   return null;
 }
 
+/** MIME types that are ZIP-based Office documents (all share PK magic bytes). */
+const ZIP_OFFICE_MIMES = new Set([
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  "application/zip",
+]);
+
 /** Throw when the actual bytes don't match the declared MIME. */
 export function assertMimeMatches(
   buffer: Uint8Array,
@@ -128,6 +125,15 @@ export function assertMimeMatches(
   const detected = sniffMimeType(buffer);
   if (!detected) {
     throw new Error("File content could not be identified — upload rejected");
+  }
+  // ZIP-based Office formats all share the same magic bytes.
+  // If we detected "zip-office" and the claimed MIME is a known ZIP Office type,
+  // that's a match.
+  if (detected === "zip-office") {
+    if (ZIP_OFFICE_MIMES.has(claimedMime)) return;
+    throw new Error(
+      `File content (ZIP/Office archive) does not match the declared type (${claimedMime})`,
+    );
   }
   if (detected !== claimedMime) {
     throw new Error(

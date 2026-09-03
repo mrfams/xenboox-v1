@@ -81,6 +81,9 @@ describe("TrustGuard — Invoice Validation", () => {
         },
       },
     });
+    // Include amounts in OCR text so OCR cross-check passes
+    state.ocrText =
+      "Invoice from Widget Corp. Subtotal: 500.00, Tax: 75.00, Total: 575.00";
 
     const result = runTrustGuard(state);
 
@@ -660,6 +663,8 @@ describe("TrustGuard — Edge Cases", () => {
         },
       },
     });
+    // Include amount in OCR text so OCR cross-check passes
+    state.ocrText = "Invoice total: 100.00";
 
     const result = runTrustGuard(state);
 
@@ -703,5 +708,146 @@ describe("TrustGuard — Edge Cases", () => {
     expect(
       result.passedCount + result.checks.filter((c) => !c.passed).length,
     ).toBe(result.totalCount);
+  });
+});
+
+// ─── Date Sanity Tests ──────────────────────────────────────────────────────
+
+describe("TrustGuard — Date Sanity", () => {
+  it("warns when invoice date is more than 30 days in the future", () => {
+    const futureDate = new Date();
+    futureDate.setDate(futureDate.getDate() + 60);
+    const state = makeState({
+      classification: { category: "invoice" },
+      extraction: {
+        data: {
+          invoiceDate: futureDate.toISOString().split("T")[0],
+          subtotal: 100,
+          totalAmount: 100,
+        },
+      },
+    });
+
+    const result = runTrustGuard(state);
+    const dateCheck = result.checks.find(
+      (c) => c.name === "date_future_invoiceDate",
+    );
+    expect(dateCheck).toBeDefined();
+    expect(dateCheck!.passed).toBe(false);
+    expect(dateCheck!.severity).toBe("warning");
+  });
+
+  it("warns when invoice date is more than 5 years old", () => {
+    const oldDate = new Date();
+    oldDate.setFullYear(oldDate.getFullYear() - 6);
+    const state = makeState({
+      classification: { category: "invoice" },
+      extraction: {
+        data: {
+          invoiceDate: oldDate.toISOString().split("T")[0],
+          subtotal: 100,
+          totalAmount: 100,
+        },
+      },
+    });
+
+    const result = runTrustGuard(state);
+    const dateCheck = result.checks.find(
+      (c) => c.name === "date_too_old_invoiceDate",
+    );
+    expect(dateCheck).toBeDefined();
+    expect(dateCheck!.passed).toBe(false);
+    expect(dateCheck!.severity).toBe("warning");
+  });
+
+  it("passes for a reasonable recent date", () => {
+    const state = makeState({
+      classification: { category: "invoice" },
+      extraction: {
+        data: {
+          invoiceDate: "2026-08-15",
+          subtotal: 100,
+          totalAmount: 100,
+        },
+      },
+    });
+
+    const result = runTrustGuard(state);
+    const futureCheck = result.checks.find(
+      (c) => c.name === "date_future_invoiceDate",
+    );
+    if (futureCheck) expect(futureCheck.passed).toBe(true);
+    const oldCheck = result.checks.find(
+      (c) => c.name === "date_too_old_invoiceDate",
+    );
+    if (oldCheck) expect(oldCheck.passed).toBe(true);
+  });
+});
+
+// ─── OCR Cross-Check Tests ──────────────────────────────────────────────────
+
+describe("TrustGuard — OCR Cross-Check", () => {
+  it("warns when extracted total is not found in OCR text", () => {
+    const state = makeState({
+      classification: { category: "invoice" },
+      extraction: {
+        data: {
+          totalAmount: 5000.0,
+          subtotal: 5000.0,
+        },
+      },
+    });
+    // OCR text does NOT contain 5000
+    state.ocrText =
+      "Invoice from Acme Corp. Amount due: $500.00. Please pay within 30 days.";
+
+    const result = runTrustGuard(state);
+    const ocrCheck = result.checks.find(
+      (c) => c.name === "ocr_total_amount_found",
+    );
+    expect(ocrCheck).toBeDefined();
+    expect(ocrCheck!.passed).toBe(false);
+    expect(ocrCheck!.severity).toBe("warning");
+  });
+
+  it("passes when extracted total is found in OCR text", () => {
+    const state = makeState({
+      classification: { category: "invoice" },
+      extraction: {
+        data: {
+          totalAmount: 5000.0,
+          subtotal: 5000.0,
+        },
+      },
+    });
+    state.ocrText =
+      "Invoice from Acme Corp. Total: $5,000.00. Please pay within 30 days.";
+
+    const result = runTrustGuard(state);
+    const ocrCheck = result.checks.find(
+      (c) => c.name === "ocr_total_amount_found",
+    );
+    expect(ocrCheck).toBeDefined();
+    expect(ocrCheck!.passed).toBe(true);
+  });
+
+  it("passes when OCR text contains amount without decimals", () => {
+    const state = makeState({
+      classification: { category: "invoice" },
+      extraction: {
+        data: {
+          totalAmount: 1500.0,
+          subtotal: 1500.0,
+        },
+      },
+    });
+    state.ocrText = "Total: 1500. Please remit payment.";
+
+    const result = runTrustGuard(state);
+    const ocrCheck = result.checks.find(
+      (c) => c.name === "ocr_total_amount_found",
+    );
+    expect(ocrCheck).toBeDefined();
+    expect(ocrCheck!.passed).toBe(true);
   });
 });

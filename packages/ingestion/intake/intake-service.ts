@@ -18,7 +18,7 @@
 
 import { db } from "@xenboox/db";
 import { documents } from "@xenboox/db/schema";
-import { eq, and, gte, desc } from "drizzle-orm";
+import { eq, and, gte, desc, sql } from "drizzle-orm";
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
@@ -134,13 +134,6 @@ const MAGIC_BYTES: Array<{
     offset: 0,
     mimeType: "application/vnd.ms-excel",
   },
-  {
-    signature: [0x50, 0x4b, 0x03, 0x04],
-    offset: 0,
-    mimeType:
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  },
-  { signature: [0xef, 0xbb, 0xbf], offset: 0, mimeType: "text/csv" },
 ];
 
 // ─── Main Entry Point ───────────────────────────────────────────────────────
@@ -326,34 +319,40 @@ async function detectDuplicate(
   sha256: string,
 ): Promise<DuplicateResult | null> {
   // Search recent documents for this entity (last 30 days for practical perf)
-  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 3600_000).toISOString();
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 3600_000);
 
   const recentDocs = await db.query.documents.findMany({
     where: and(
       eq(documents.entityId, entityId),
-      // Only check recently created docs to keep query fast
+      gte(documents.createdAt, thirtyDaysAgo),
     ),
     orderBy: [desc(documents.createdAt)],
     limit: 500,
   });
 
+  let bestMatch: DuplicateResult | null = null;
+
   for (const doc of recentDocs) {
     const docMeta = (doc.metadata ?? {}) as Record<string, unknown>;
     const intakeMeta = (docMeta.intake ?? {}) as Record<string, unknown>;
 
-    // 1. SHA-256 exact match (highest confidence)
+    // 1. SHA-256 exact match (highest confidence) — can't beat this, return immediately
     if (intakeMeta.hashSha256 === sha256) {
       return { id: doc.id, documentName: doc.name, confidence: 1.0 };
     }
 
     // 2. MD5 exact match
     if (intakeMeta.hashMd5 === md5) {
-      return { id: doc.id, documentName: doc.name, confidence: 0.99 };
+      if (!bestMatch || bestMatch.confidence < 0.99) {
+        bestMatch = { id: doc.id, documentName: doc.name, confidence: 0.99 };
+      }
     }
 
     // 3. Same name + same size
     if (doc.name === fileName && doc.sizeBytes === sizeBytes) {
-      return { id: doc.id, documentName: doc.name, confidence: 0.9 };
+      if (!bestMatch || bestMatch.confidence < 0.9) {
+        bestMatch = { id: doc.id, documentName: doc.name, confidence: 0.9 };
+      }
     }
 
     // 4. Same name + similar size (within 5%)
@@ -362,12 +361,14 @@ async function detectDuplicate(
         Math.abs(sizeBytes - doc.sizeBytes) /
         Math.max(sizeBytes, doc.sizeBytes);
       if (sizeRatio < 0.05) {
-        return { id: doc.id, documentName: doc.name, confidence: 0.7 };
+        if (!bestMatch || bestMatch.confidence < 0.7) {
+          bestMatch = { id: doc.id, documentName: doc.name, confidence: 0.7 };
+        }
       }
     }
   }
 
-  return null;
+  return bestMatch;
 }
 
 // ─── Rate Limiting ──────────────────────────────────────────────────────────
@@ -379,16 +380,17 @@ async function detectDuplicate(
 async function checkRateLimit(entityId: string): Promise<boolean> {
   const oneHourAgo = new Date(Date.now() - RATE_LIMIT_WINDOW_MS);
 
-  const recentUploads = await db.query.documents.findMany({
-    where: and(
-      eq(documents.entityId, entityId),
-      gte(documents.createdAt, oneHourAgo),
-    ),
-    orderBy: [desc(documents.createdAt)],
-    limit: RATE_LIMIT_UPLOADS + 1,
-  });
+  const [{ count }] = await db
+    .select({ count: sql<number>`count(*)::int` })
+    .from(documents)
+    .where(
+      and(
+        eq(documents.entityId, entityId),
+        gte(documents.createdAt, oneHourAgo),
+      ),
+    );
 
-  return recentUploads.length < RATE_LIMIT_UPLOADS;
+  return count < RATE_LIMIT_UPLOADS;
 }
 
 // ─── MIME Type Detection ────────────────────────────────────────────────────
@@ -423,21 +425,13 @@ function detectMimeType(buffer: Uint8Array): string | null {
 // ─── Hash Helpers ───────────────────────────────────────────────────────────
 
 async function computeMd5(buffer: Uint8Array): Promise<string> {
-  try {
-    const { createHash } = await import("node:crypto");
-    return createHash("md5").update(Buffer.from(buffer)).digest("hex");
-  } catch {
-    return `md5-${buffer.length}-${buffer[0]?.toString(16) ?? "00"}`;
-  }
+  const { createHash } = await import("node:crypto");
+  return createHash("md5").update(Buffer.from(buffer)).digest("hex");
 }
 
 async function computeSha256(buffer: Uint8Array): Promise<string> {
-  try {
-    const { createHash } = await import("node:crypto");
-    return createHash("sha256").update(Buffer.from(buffer)).digest("hex");
-  } catch {
-    return `sha256-${buffer.length}-${buffer[0]?.toString(16) ?? "00"}`;
-  }
+  const { createHash } = await import("node:crypto");
+  return createHash("sha256").update(Buffer.from(buffer)).digest("hex");
 }
 
 // ─── Format Helpers ─────────────────────────────────────────────────────────

@@ -78,12 +78,20 @@ async function stageProcessing(
     mimeType,
   });
 
-  const response = await r2.send(
-    new GetObjectCommand({
-      Bucket: process.env.R2_BUCKET_NAME!,
-      Key: storagePath,
-    }),
-  );
+  const abortController = new AbortController();
+  const timeout = setTimeout(() => abortController.abort(), 30_000); // 30s timeout
+
+  let response;
+  try {
+    response = await r2.send(
+      new GetObjectCommand({
+        Bucket: process.env.R2_BUCKET_NAME!,
+        Key: storagePath,
+      }),
+    );
+  } finally {
+    clearTimeout(timeout);
+  }
 
   const fileBuffer = await response.Body?.transformToByteArray();
   if (!fileBuffer) {

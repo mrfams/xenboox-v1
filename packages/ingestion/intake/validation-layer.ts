@@ -283,19 +283,6 @@ async function detectFraud(state: IngestionState): Promise<ValidationFlag[]> {
     });
   }
 
-  // ── Amount Ending Pattern ──
-  // Invoices ending in .00 are suspicious; .99 is common in legitimate retail
-  if (totalAmount > 0 && totalAmount % 1 === 0 && totalAmount > 1000) {
-    flags.push({
-      type: "fraud",
-      severity: "low",
-      code: "NO_CENTS",
-      message: `Amount ${formatCurrency(totalAmount)} has no cents. Legitimate invoices rarely have exact dollar amounts above $1,000.`,
-      field: "totalAmount",
-      value: totalAmount,
-    });
-  }
-
   // ── Velocity Check: duplicate invoice number across vendors ──
   if (data.invoiceNumber) {
     const dupInvoice = await findDuplicateInvoiceNumber(
@@ -418,20 +405,27 @@ async function findDuplicateInvoiceNumber(
   invoiceNumber: string,
   currentVendorName?: string,
 ): Promise<{ vendorName: string; date: string } | null> {
-  const recentDocs = await db.query.documents.findMany({
-    where: and(
-      eq(documents.entityId, entityId),
-      eq(documents.status, "done"),
-      gte(documents.createdAt, new Date(Date.now() - 365 * 24 * 3600_000)), // Last year
-    ),
-    orderBy: [desc(documents.createdAt)],
-    limit: 200,
-  });
+  // Use JSON path query to search extraction data without loading full metadata
+  const recentDocs = await db
+    .select({
+      id: documents.id,
+      name: documents.name,
+      createdAt: documents.createdAt,
+      extractionData: sql`metadata->'extraction'->'data'`,
+    })
+    .from(documents)
+    .where(
+      and(
+        eq(documents.entityId, entityId),
+        eq(documents.status, "done"),
+        gte(documents.createdAt, new Date(Date.now() - 365 * 24 * 3600_000)),
+      ),
+    )
+    .orderBy(desc(documents.createdAt))
+    .limit(100);
 
   for (const doc of recentDocs) {
-    const meta = (doc.metadata ?? {}) as Record<string, unknown>;
-    const extraction = (meta.extraction ?? {}) as Record<string, unknown>;
-    const docData = (extraction.data ?? {}) as Record<string, unknown>;
+    const docData = (doc.extractionData ?? {}) as Record<string, unknown>;
 
     if (docData.invoiceNumber === invoiceNumber) {
       const docVendor = (docData.vendorName as string) ?? "";
@@ -441,7 +435,7 @@ async function findDuplicateInvoiceNumber(
         currentVendorName &&
         docVendor.toLowerCase() === currentVendorName.toLowerCase()
       ) {
-        continue; // Same vendor — could be legitimate
+        continue;
       }
 
       return {

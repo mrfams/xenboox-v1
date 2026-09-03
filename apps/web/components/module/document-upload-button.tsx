@@ -11,6 +11,27 @@ import {
 } from "@/lib/hooks/use-document-upload";
 import { cn } from "@/lib/utils";
 
+/** Max file sizes per category (in bytes) — mirrors intake-service constants */
+const MAX_FILE_SIZES: Record<string, number> = {
+  pdf: 50 * 1024 * 1024,
+  image: 25 * 1024 * 1024,
+  spreadsheet: 10 * 1024 * 1024,
+  document: 25 * 1024 * 1024,
+  text: 5 * 1024 * 1024,
+  default: 10 * 1024 * 1024,
+};
+
+/** Map file extension to category */
+function getFileCategory(file: File): string {
+  const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
+  if (ext === "pdf") return "pdf";
+  if (["jpg", "jpeg", "png", "tiff", "webp"].includes(ext)) return "image";
+  if (["csv", "xlsx", "xls"].includes(ext)) return "spreadsheet";
+  if (["doc", "docx"].includes(ext)) return "document";
+  if (["txt", "eml", "msg"].includes(ext)) return "text";
+  return "default";
+}
+
 /**
  * DocumentUploadButton — a real upload button for any page.
  *
@@ -43,6 +64,24 @@ export function DocumentUploadButton({
 
   const handleFile = async (file: File | undefined) => {
     if (!file || !entityId) return;
+
+    // Client-side file size validation
+    const category = getFileCategory(file);
+    const maxSize = MAX_FILE_SIZES[category] ?? MAX_FILE_SIZES.default;
+    if (file.size > maxSize) {
+      const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
+      const maxMB = (maxSize / (1024 * 1024)).toFixed(0);
+      toast.error(
+        `${file.name} is ${sizeMB}MB — maximum for ${category} files is ${maxMB}MB.`,
+      );
+      return;
+    }
+
+    if (file.size === 0) {
+      toast.error("File is empty — please select a valid file.");
+      return;
+    }
+
     toast.promise(upload(file), {
       loading: `Uploading ${file.name}…`,
       success: (documentId) => {

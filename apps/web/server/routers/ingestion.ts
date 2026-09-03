@@ -33,6 +33,7 @@ import { db } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import {
   handleMutationError,
+  requireRole,
   router,
   rlsMutateProcedure,
   rlsProtectedProcedure,
@@ -406,6 +407,15 @@ export const ingestionRouter = router({
    * Can optionally edit the proposed entry before posting.
    */
   approveReview: rlsMutateProcedure
+    .use(
+      requireRole(
+        "owner",
+        "admin",
+        "finance_director",
+        "accountant",
+        "manager",
+      ),
+    )
     .input(
       z.object({
         documentId: z.string().uuid(),
@@ -603,6 +613,15 @@ export const ingestionRouter = router({
    * Reject a pending review. The document will not be posted.
    */
   rejectReview: rlsMutateProcedure
+    .use(
+      requireRole(
+        "owner",
+        "admin",
+        "finance_director",
+        "accountant",
+        "manager",
+      ),
+    )
     .input(
       z.object({
         documentId: z.string().uuid(),

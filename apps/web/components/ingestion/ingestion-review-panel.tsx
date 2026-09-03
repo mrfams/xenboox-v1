@@ -173,6 +173,7 @@ export function IngestionReviewPanel({
           <button
             onClick={onClose}
             className="rounded-lg p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+            aria-label="Close review panel"
           >
             <X className="h-4 w-4" />
           </button>
@@ -403,8 +404,9 @@ export function IngestionReviewPanel({
                     value={rejectReason}
                     onChange={(e) => setRejectReason(e.target.value)}
                     placeholder="Why are you rejecting?"
-                    className="flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500"
+                    className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500"
                     autoFocus
+                    aria-label="Rejection reason"
                   />
                   <button
                     type="button"
@@ -432,7 +434,8 @@ export function IngestionReviewPanel({
                       setShowRejectForm(false);
                       setRejectReason("");
                     }}
-                    className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                    className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-muted-foreground hover:bg-accent"
+                    aria-label="Cancel rejection"
                   >
                     Cancel
                   </button>
@@ -441,7 +444,8 @@ export function IngestionReviewPanel({
                 <button
                   type="button"
                   onClick={() => setShowRejectForm(true)}
-                  className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
+                  className="inline-flex items-center gap-2 rounded-lg border border-border bg-background px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent"
+                  aria-label="Reject document"
                 >
                   <Trash2 className="h-4 w-4" />
                   Reject
@@ -456,7 +460,9 @@ export function IngestionReviewPanel({
                       editedEntry: editedEntry ?? undefined,
                     })
                   }
-                  disabled={approveMutation.isPending}
+                  disabled={
+                    approveMutation.isPending || totalDebit !== totalCredit
+                  }
                   className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
                 >
                   {approveMutation.isPending ? (
@@ -502,10 +508,13 @@ function Section({
 
   return (
     <div className="rounded-xl border border-border">
+      {" "}
       <button
         type="button"
         onClick={toggle}
         className="flex w-full items-center gap-2 px-4 py-3 text-sm font-medium text-foreground hover:bg-accent/50 transition-colors"
+        aria-expanded={open}
+        aria-controls={`section-${title.replace(/\s+/g, "-").toLowerCase()}`}
       >
         {icon}
         {title}
@@ -517,7 +526,14 @@ function Section({
           )}
         </span>
       </button>
-      {open && <div className="px-4 pb-4">{children}</div>}
+      {open && (
+        <div
+          className="px-4 pb-4"
+          id={`section-${title.replace(/\s+/g, "-").toLowerCase()}`}
+        >
+          {children}
+        </div>
+      )}
     </div>
   );
 }
