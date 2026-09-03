@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { eq, and, desc, sql, count, sum, gte } from "drizzle-orm";
+import { eq, and, desc, sql, count, sum, gte, inArray } from "drizzle-orm";
 import {
   invoicesAp,
   suppliers,
@@ -210,11 +210,14 @@ export const billsRouter = router({
       }
     }
 
-    // Get supplier names
+    // Get supplier names — entity-scoped + parameterized
     const supplierIds = Object.keys(vendorBalances);
     if (supplierIds.length > 0) {
       const supplierList = await db.query.suppliers.findMany({
-        where: sql`${suppliers.id} IN ${supplierIds}`,
+        where: and(
+          eq(suppliers.entityId, entityId),
+          inArray(suppliers.id, supplierIds),
+        ),
         columns: { id: true, name: true },
       });
 
@@ -317,7 +320,7 @@ export const billsRouter = router({
           ])
           .default("all"),
         vendorId: z.string().uuid().optional(),
-        search: z.string().optional(),
+        search: z.string().trim().max(100).optional(),
         sortBy: z.enum(["date", "amount", "status", "vendor"]).default("date"),
         sortOrder: z.enum(["asc", "desc"]).default("desc"),
         limit: z.number().min(1).max(100).default(10),
@@ -468,12 +471,18 @@ export const billsRouter = router({
       if (!bill) return null;
 
       const supplier = await db.query.suppliers.findFirst({
-        where: eq(suppliers.id, bill.supplierId),
+        where: and(
+          eq(suppliers.id, bill.supplierId),
+          eq(suppliers.entityId, entityId),
+        ),
       });
 
-      // Get payments
+      // Get payments — entity-scoped
       const payments = await db.query.paymentsAp.findMany({
-        where: eq(paymentsAp.invoiceApId, input.billId),
+        where: and(
+          eq(paymentsAp.invoiceApId, input.billId),
+          eq(paymentsAp.entityId, entityId),
+        ),
         orderBy: [desc(paymentsAp.paymentDate)],
       });
 
@@ -732,11 +741,26 @@ export const billsRouter = router({
     );
 
     if (unusualBills.length > 0) {
+      const topUnusual = unusualBills.sort(
+        (a, b) => parseFloat(b.totalAmount) - parseFloat(a.totalAmount),
+      )[0]!;
+      const supplier = await db.query.suppliers.findFirst({
+        where: and(
+          eq(suppliers.id, topUnusual.supplierId),
+          eq(suppliers.entityId, entityId),
+        ),
+      });
+      const pct =
+        avgAmount > 0
+          ? Math.round(
+              (parseFloat(topUnusual.totalAmount) / avgAmount - 1) * 100,
+            )
+          : 0;
       insights.push({
         id: "unusual-amount",
         type: "warning",
-        title: "1 bill with unusual amount",
-        description: `BuildCo Ltd invoice is 180% higher than usual`,
+        title: `${unusualBills.length} bill${unusualBills.length > 1 ? "s" : ""} with unusual amount`,
+        description: `${supplier?.name ?? "Vendor"} invoice is ${pct}% higher than average (GMD ${parseFloat(topUnusual.totalAmount).toLocaleString()})`,
         actionLabel: "View analysis →",
       });
     }

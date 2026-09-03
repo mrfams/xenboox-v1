@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { eq, and, desc, sql, count, sum, gte, lte } from "drizzle-orm";
+import { eq, and, desc, sql, count, sum, gte, lte, inArray } from "drizzle-orm";
 import {
   suppliers,
   purchaseOrders,
@@ -192,7 +192,7 @@ export const apRouter = router({
     .input(
       z.object({
         status: z.enum(["all", "active", "inactive", "on_hold"]).default("all"),
-        search: z.string().optional(),
+        search: z.string().trim().max(100).optional(),
         vendorType: z.string().optional(),
         paymentTerms: z.string().optional(),
         is1099: z.boolean().optional(),
@@ -277,7 +277,12 @@ export const apRouter = router({
             overdue: sum(invoicesAp.balance),
           })
           .from(invoicesAp)
-          .where(sql`${invoicesAp.supplierId} IN ${supplierIds}`)
+          .where(
+            and(
+              eq(invoicesAp.entityId, entityId),
+              inArray(invoicesAp.supplierId, supplierIds),
+            ),
+          )
           .groupBy(invoicesAp.supplierId);
 
         for (const p of payables) {
@@ -1039,20 +1044,22 @@ export const apRouter = router({
 
           if (!po) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
 
-          for (const line of lines) {
-            const qty = line.quantity;
-            const price = parseFloat(line.unitPrice);
-            const amount = (qty * price).toFixed(2);
-
-            await tx.insert(poLines).values({
-              purchaseOrderId: po.id,
-              accountId: line.accountId,
-              description: line.description,
-              quantity: qty.toFixed(2),
-              unitPrice: line.unitPrice,
-              amount,
-            });
-          }
+          // Batch insert — 1 query instead of N
+          await tx.insert(poLines).values(
+            lines.map((line) => {
+              const qty = line.quantity;
+              const price = parseFloat(line.unitPrice);
+              const amount = (qty * price).toFixed(2);
+              return {
+                purchaseOrderId: po.id,
+                accountId: line.accountId,
+                description: line.description,
+                quantity: qty.toFixed(2),
+                unitPrice: line.unitPrice,
+                amount,
+              };
+            }),
+          );
 
           await tx.insert(auditLog).values({
             entityId: ctx.entityId!,
@@ -1256,20 +1263,22 @@ export const apRouter = router({
 
           if (!invoice) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
 
-          for (const line of lines) {
-            const qty = line.quantity;
-            const price = parseFloat(line.unitPrice);
-            const amount = (qty * price).toFixed(2);
-
-            await tx.insert(invoiceApLines).values({
-              invoiceApId: invoice.id,
-              accountId: line.accountId,
-              description: line.description,
-              quantity: qty.toFixed(2),
-              unitPrice: line.unitPrice,
-              amount,
-            });
-          }
+          // Batch insert — 1 query instead of N
+          await tx.insert(invoiceApLines).values(
+            lines.map((line) => {
+              const qty = line.quantity;
+              const price = parseFloat(line.unitPrice);
+              const amount = (qty * price).toFixed(2);
+              return {
+                invoiceApId: invoice.id,
+                accountId: line.accountId,
+                description: line.description,
+                quantity: qty.toFixed(2),
+                unitPrice: line.unitPrice,
+                amount,
+              };
+            }),
+          );
 
           await tx.insert(auditLog).values({
             entityId: ctx.entityId!,

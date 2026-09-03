@@ -10,6 +10,7 @@ import {
   notificationStatusEnum,
   salesInvoices,
   invoicesAp,
+  auditLog,
 } from "@xenboox/db/schema";
 import { eq, and, desc, sql, lt } from "drizzle-orm";
 import { users } from "@xenboox/db/schema/auth";
@@ -180,6 +181,22 @@ export const markOverdueInvoices = task({
       count: overdueSales.length,
     });
 
+    // Audit trail for AR overdue transitions (system actor)
+    if (overdueSales.length > 0) {
+      await db.insert(auditLog).values(
+        overdueSales.map((r) => ({
+          entityId: r.entityId,
+          userId: null,
+          action: "system.markOverdue",
+          entityType: "sales_invoice",
+          entityIdRef: r.id,
+          newValues: { status: "overdue", invoiceNumber: r.invoiceNumber },
+          actorType: "system",
+          reason: "Daily overdue scan — dueDate < today",
+        })),
+      );
+    }
+
     // 2. Mark overdue purchase invoices (pending/partial with dueDate < today)
     const overdueBills = await db
       .update(invoicesAp)
@@ -199,6 +216,21 @@ export const markOverdueInvoices = task({
     logger.info("Marked overdue purchase invoices", {
       count: overdueBills.length,
     });
+
+    if (overdueBills.length > 0) {
+      await db.insert(auditLog).values(
+        overdueBills.map((r) => ({
+          entityId: r.entityId,
+          userId: null,
+          action: "system.markOverdue",
+          entityType: "invoice_ap",
+          entityIdRef: r.id,
+          newValues: { status: "overdue", invoiceNumber: r.invoiceNumber },
+          actorType: "system",
+          reason: "Daily overdue scan — dueDate < today",
+        })),
+      );
+    }
 
     // 3. Create notifications for entities with newly overdue invoices
     const affectedEntityIds = new Set([

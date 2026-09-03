@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { eq, and, desc, sql, count, sum, gte, lte } from "drizzle-orm";
+import { eq, and, desc, sql, count, sum, gte, lte, inArray } from "drizzle-orm";
 import {
   salesInvoices,
   customers,
@@ -107,13 +107,13 @@ export const invoicingRouter = router({
               return sum + days;
             }, 0) / paidInvoices.length,
           )
-        : 18;
+        : 0;
 
-    // Conversion rate (paid / total)
+    // Conversion rate (paid / total) — truthful, no hardcoded 82%
     const conversionRate =
       invoices.length > 0
         ? Math.round((paidInvoices.length / invoices.length) * 100)
-        : 82;
+        : 0;
 
     // Previous month overdue, collection days, and conversion for comparison
     const prevOverdueAmount = prevInvoices
@@ -166,11 +166,14 @@ export const invoicingRouter = router({
       }
     }
 
-    // Get customer names
+    // Get customer names — entity-scoped + parameterized (no raw IN)
     const customerIds = Object.keys(customerOutstanding);
     if (customerIds.length > 0) {
       const customerList = await db.query.customers.findMany({
-        where: sql`${customers.id} IN ${customerIds}`,
+        where: and(
+          eq(customers.entityId, entityId),
+          inArray(customers.id, customerIds),
+        ),
         columns: { id: true, name: true },
       });
 
@@ -252,7 +255,7 @@ export const invoicingRouter = router({
           ])
           .default("all"),
         customerId: z.string().uuid().optional(),
-        search: z.string().optional(),
+        search: z.string().trim().max(100).optional(),
         sortBy: z
           .enum(["date", "amount", "status", "customer"])
           .default("date"),
@@ -412,7 +415,10 @@ export const invoicingRouter = router({
       }
 
       const customer = await db.query.customers.findFirst({
-        where: eq(customers.id, invoice.customerId),
+        where: and(
+          eq(customers.id, invoice.customerId),
+          eq(customers.entityId, entityId),
+        ),
       });
 
       const entity = await db.query.entities.findFirst({
@@ -490,7 +496,10 @@ export const invoicingRouter = router({
         }
 
         const customer = await db.query.customers.findFirst({
-          where: eq(customers.id, invoice.customerId),
+          where: and(
+            eq(customers.id, invoice.customerId),
+            eq(customers.entityId, entityId),
+          ),
         });
 
         if (!customer?.contactEmail) {
@@ -584,19 +593,25 @@ export const invoicingRouter = router({
         return null;
       }
 
-      // Get customer info
+      // Get customer info — entity-scoped (defense in depth)
       const customer = await db.query.customers.findFirst({
-        where: eq(customers.id, invoice.customerId),
+        where: and(
+          eq(customers.id, invoice.customerId),
+          eq(customers.entityId, entityId),
+        ),
       });
 
-      // Get line items
+      // Get line items (scoped via invoice ownership already verified)
       const lines = await db.query.salesInvoiceLines.findMany({
         where: eq(salesInvoiceLines.salesInvoiceId, input.invoiceId),
       });
 
-      // Get payments
+      // Get payments — entity-scoped to prevent cross-entity leak
       const payments = await db.query.paymentsAr.findMany({
-        where: eq(paymentsAr.salesInvoiceId, input.invoiceId),
+        where: and(
+          eq(paymentsAr.salesInvoiceId, input.invoiceId),
+          eq(paymentsAr.entityId, entityId),
+        ),
         orderBy: [desc(paymentsAr.paymentDate)],
       });
 
@@ -772,15 +787,39 @@ export const invoicingRouter = router({
 
     if (topPayingCustomer.length > 0) {
       const customer = await db.query.customers.findFirst({
-        where: eq(customers.id, topPayingCustomer[0].customerId),
+        where: and(
+          eq(customers.id, topPayingCustomer[0]!.customerId),
+          eq(customers.entityId, entityId),
+        ),
       });
 
       if (customer) {
+        // Compute actual avg collection days for this customer (truthful, not hardcoded 12)
+        const customerPaid = await db.query.salesInvoices.findMany({
+          where: and(
+            eq(salesInvoices.entityId, entityId),
+            eq(salesInvoices.customerId, customer.id),
+            eq(salesInvoices.status, "paid"),
+          ),
+        });
+        const avgDays =
+          customerPaid.length > 0
+            ? Math.round(
+                customerPaid.reduce((s, inv) => {
+                  const d1 = new Date(inv.invoiceDate).getTime();
+                  const d2 = inv.sentAt ? new Date(inv.sentAt).getTime() : d1;
+                  return s + Math.abs(d2 - d1) / 86_400_000;
+                }, 0) / customerPaid.length,
+              )
+            : null;
         insights.push({
           id: "best-paying-customer",
           type: "info",
           title: "Best paying customer",
-          description: `${customer.name} pays on average in 12 days`,
+          description:
+            avgDays !== null
+              ? `${customer.name} pays on average in ${avgDays} days`
+              : `${customer.name} — top paid invoice`,
           actionLabel: "View customer report →",
         });
       }
@@ -802,23 +841,30 @@ export const invoicingRouter = router({
       limit: 5,
     });
 
-    // Get invoice info for each payment
-    const activities = await Promise.all(
-      recentPayments.map(async (payment) => {
-        const invoice = await db.query.salesInvoices.findFirst({
-          where: eq(salesInvoices.id, payment.salesInvoiceId),
-          columns: { invoiceNumber: true },
-        });
-
-        return {
-          id: payment.id,
-          invoiceNumber: invoice?.invoiceNumber ?? "Unknown",
-          action: `was paid`,
-          date: payment.paymentDate,
-          amount: parseFloat(payment.amount),
-        };
-      }),
+    // Batch fetch invoice numbers — fixes N+1 (1 query instead of 5)
+    if (recentPayments.length === 0) return [];
+    const invoiceIds = [
+      ...new Set(recentPayments.map((p) => p.salesInvoiceId)),
+    ];
+    const invoiceMap = new Map(
+      (
+        await db.query.salesInvoices.findMany({
+          where: and(
+            inArray(salesInvoices.id, invoiceIds),
+            eq(salesInvoices.entityId, entityId),
+          ),
+          columns: { id: true, invoiceNumber: true },
+        })
+      ).map((inv) => [inv.id, inv.invoiceNumber]),
     );
+
+    const activities = recentPayments.map((payment) => ({
+      id: payment.id,
+      invoiceNumber: invoiceMap.get(payment.salesInvoiceId) ?? "Unknown",
+      action: `was paid` as const,
+      date: payment.paymentDate,
+      amount: parseFloat(payment.amount),
+    }));
 
     return activities;
   }),

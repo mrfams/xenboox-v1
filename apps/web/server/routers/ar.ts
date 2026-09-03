@@ -217,20 +217,22 @@ export const arRouter = router({
 
           if (!invoice) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
 
-          for (const line of lines) {
-            const qty = line.quantity;
-            const price = parseFloat(line.unitPrice);
-            const amount = (qty * price).toFixed(2);
-
-            await tx.insert(salesInvoiceLines).values({
-              salesInvoiceId: invoice.id,
-              accountId: line.accountId,
-              description: line.description,
-              quantity: qty.toFixed(2),
-              unitPrice: line.unitPrice,
-              amount,
-            });
-          }
+          // Batch insert — 1 query instead of N (N+1 fix)
+          await tx.insert(salesInvoiceLines).values(
+            lines.map((line) => {
+              const qty = line.quantity;
+              const price = parseFloat(line.unitPrice);
+              const amount = (qty * price).toFixed(2);
+              return {
+                salesInvoiceId: invoice.id,
+                accountId: line.accountId,
+                description: line.description,
+                quantity: qty.toFixed(2),
+                unitPrice: line.unitPrice,
+                amount,
+              };
+            }),
+          );
 
           await tx.insert(auditLog).values({
             entityId: ctx.entityId!,
