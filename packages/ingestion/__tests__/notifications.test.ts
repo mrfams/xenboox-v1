@@ -208,6 +208,37 @@ describe("sendIngestionNotifications", () => {
     expect(insertValues).not.toHaveBeenCalled();
   });
 
+  it("queries the dedup check against jsonb-cast data (data is a text column)", async () => {
+    // Regression: notifications.data is `text` (JSON-stringified at insert).
+    // If the dedup query uses `->>` without a ::jsonb cast, Postgres throws
+    // and the try/catch swallows the notification entirely. The unit mock
+    // never exercises real SQL, so assert the query shape here instead.
+    findFirstValues.mockResolvedValue({ id: "existing" });
+    const state = makeState();
+    const decision: PostingDecision = {
+      action: "pending_review",
+      confidence: 0.7,
+      reason: "Low confidence",
+    };
+
+    await sendIngestionNotifications("entity-1", state, decision);
+
+    const queryArgs = findFirstValues.mock.calls[0][0] as { where?: unknown };
+    // The where clause embeds circular drizzle table objects, so serialize
+    // with a seen-set replacer and pull the raw SQL text out.
+    const seen = new WeakSet<object>();
+    const serialized = JSON.stringify(queryArgs.where ?? {}, (_key, value) => {
+      if (typeof value === "object" && value !== null) {
+        if (seen.has(value)) return "[Circular]";
+        seen.add(value);
+      }
+      return value;
+    });
+    // The uncast form (`data->>'documentId'`) throws on a text column in
+    // Postgres, so the cast must be present for the query to survive.
+    expect(serialized).toContain("::jsonb->>'documentId'");
+  });
+
   it("selects only userId from userEntityAccess", async () => {
     findManyValues.mockResolvedValue([{ userId: "user-1" }]);
     const state = makeState();

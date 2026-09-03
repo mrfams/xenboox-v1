@@ -261,7 +261,10 @@ async function createNotificationForEntity(
           eq(notifications.entityId, entityId),
           eq(notifications.type, input.type),
           eq(notifications.read, false),
-          eq(sql`${notifications.data}->>'documentId'`, documentId),
+          // data is a `text` column holding JSON; cast to jsonb so the ->>
+          // operator works against real Postgres (without the cast this query
+          // throws, silently killing the entire notification insert).
+          eq(sql`${notifications.data}::jsonb->>'documentId'`, documentId),
         ),
       });
       if (existing) return;
