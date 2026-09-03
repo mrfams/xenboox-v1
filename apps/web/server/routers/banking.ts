@@ -25,6 +25,8 @@ import {
   journalEntries,
   journalEntryLines,
   reconciliations,
+  chartOfAccounts,
+  fiscalPeriods,
 } from "@xenboox/db/schema";
 
 import { TRPCError } from "@trpc/server";
@@ -34,7 +36,11 @@ import {
   signedBankAmount,
   categorizeByDescription,
   matchBankRules,
+  buildBankJournalLines,
+  resolveBankGlAccount,
+  resolveCategoryGlAccount,
 } from "@xenboox/db";
+import { validateJournalEntry, trustGuardToError } from "@xenboox/agents";
 import {
   handleMutationError,
   router,
@@ -558,6 +564,7 @@ export const bankingRouter = router({
           categorizationConfidence: tx.categorizationConfidence
             ? parseFloat(tx.categorizationConfidence)
             : null,
+          journalEntryId: tx.journalEntryId,
           accountName: tx.bankAccount?.name ?? "Unknown Account",
           bankName: tx.bankAccount?.bankName ?? "",
           currency: tx.bankAccount?.currency ?? "USD",
@@ -1549,6 +1556,313 @@ export const bankingRouter = router({
         return { restoredCount: input.restorations.length };
       } catch (error) {
         handleMutationError(error, "Failed to revert categorization");
+      }
+    }),
+
+  /**
+   * Post categorized bank transactions to the general ledger.
+   *
+   * The missing link in the pipeline: without this, money imported from the
+   * bank never reaches the P&L / trial balance (which read posted journal
+   * entries only). For each transaction:
+   *   - skip already-posted (journalEntryId set), uncategorized, or
+   *     unresolvable-GL-account rows (surfaced as skipped with a reason)
+   *   - build balanced double-entry lines (bank asset account ↔ category
+   *     account) via the shared bank-ledger module
+   *   - run TrustGuard validateJournalEntry + open-period check
+   *   - insert the JE (status posted, reference `bank-tx-{id}` so a duplicate
+   *     can never be created even racing) + lines, link the bank tx back
+   */
+  postToLedger: rlsMutateProcedure
+    .input(z.object({ transactionIds: z.array(z.string().uuid()) }))
+    .mutation(async ({ ctx, input }) => {
+      try {
+        const entityId = ctx.entityId!;
+        if (input.transactionIds.length === 0) {
+          return { postedCount: 0, skipped: [] };
+        }
+
+        // Fetch the target transactions (entity-scoped).
+        const txs = await db.query.bankTransactions.findMany({
+          where: and(
+            eq(bankTransactions.entityId, entityId),
+            inArray(bankTransactions.id, input.transactionIds),
+          ),
+        });
+        if (txs.length === 0) return { postedCount: 0, skipped: [] };
+
+        // Resolve COA once for the whole entity (bank side + category side).
+        const coaRows = (await db.query.chartOfAccounts.findMany({
+          where: eq(chartOfAccounts.entityId, entityId),
+          columns: {
+            id: true,
+            code: true,
+            name: true,
+            type: true,
+            subtype: true,
+          },
+        })) as Array<{
+          id: string;
+          code: string;
+          name: string;
+          type: string;
+          subtype: string;
+        }>;
+
+        // Bank account → GL asset account (create deterministically if missing).
+        const bankAccountsRows = await db.query.bankAccounts.findMany({
+          where: eq(bankAccounts.entityId, entityId),
+        });
+        const bankGlByAccountId = new Map<string, string>();
+        for (const ba of bankAccountsRows) {
+          const resolved = resolveBankGlAccount(coaRows, {
+            bankAccountName: ba.name,
+            bankName: ba.bankName,
+            key: ba.accountNumber,
+          });
+          if (resolved.account) {
+            bankGlByAccountId.set(ba.id, resolved.account.id);
+          } else if (resolved.toCreate) {
+            // Create the asset row now (stable code from the helper).
+            const [created] = await db
+              .insert(chartOfAccounts)
+              .values({
+                entityId,
+                code: resolved.toCreate.code,
+                name: resolved.toCreate.name,
+                type: "asset",
+                subtype: "bank_account",
+              })
+              .returning({ id: chartOfAccounts.id });
+            if (created) {
+              bankGlByAccountId.set(ba.id, created.id);
+              await db
+                .update(bankAccounts)
+                .set({ glAccountId: created.id })
+                .where(
+                  and(
+                    eq(bankAccounts.id, ba.id),
+                    eq(bankAccounts.entityId, entityId),
+                  ),
+                );
+            }
+          }
+        }
+
+        const results: Array<{
+          transactionId: string;
+          status: "posted" | "skipped";
+          reason?: string;
+          journalEntryId?: string;
+        }> = [];
+        let postedCount = 0;
+
+        for (const tx of txs) {
+          // Guards (M3 idempotency + correctness):
+          if (tx.journalEntryId) {
+            results.push({
+              transactionId: tx.id,
+              status: "skipped",
+              reason: "already_posted",
+            });
+            continue;
+          }
+          if (!tx.category || tx.category === "Uncategorized") {
+            results.push({
+              transactionId: tx.id,
+              status: "skipped",
+              reason: "uncategorized",
+            });
+            continue;
+          }
+
+          const bankGl = bankGlByAccountId.get(tx.bankAccountId);
+          if (!bankGl) {
+            results.push({
+              transactionId: tx.id,
+              status: "skipped",
+              reason: "no_bank_gl_account",
+            });
+            continue;
+          }
+
+          const categoryGl = resolveCategoryGlAccount(coaRows, {
+            category: tx.category,
+            ruleGlAccountId: tx.glAccountId,
+          });
+          if (!categoryGl) {
+            results.push({
+              transactionId: tx.id,
+              status: "skipped",
+              reason: "no_category_gl_account",
+            });
+            continue;
+          }
+
+          // Resolve the fiscal period from the transaction date (must be open).
+          const year = Number(tx.transactionDate.slice(0, 4));
+          const month = Number(tx.transactionDate.slice(5, 7));
+          const period = await db.query.fiscalPeriods.findFirst({
+            where: and(
+              eq(fiscalPeriods.entityId, entityId),
+              eq(fiscalPeriods.year, year),
+              eq(fiscalPeriods.month, month),
+            ),
+          });
+          if (!period) {
+            results.push({
+              transactionId: tx.id,
+              status: "skipped",
+              reason: "no_fiscal_period",
+            });
+            continue;
+          }
+          if (period.status !== "open") {
+            results.push({
+              transactionId: tx.id,
+              status: "skipped",
+              reason: "period_not_open",
+            });
+            continue;
+          }
+
+          // Build + TrustGuard-validate the balanced entry.
+          const lines = buildBankJournalLines(
+            {
+              amount: tx.amount,
+              type: tx.type,
+              description: tx.description,
+            },
+            bankGl,
+            categoryGl,
+          );
+          const trustResult = await validateJournalEntry({
+            entityId,
+            periodId: period.id,
+            date: tx.transactionDate,
+            lines: lines.map((l) => ({
+              accountId: l.accountId,
+              debit: l.debit,
+              credit: l.credit,
+            })),
+            description: tx.description,
+          });
+          if (!trustResult.passed) {
+            results.push({
+              transactionId: tx.id,
+              status: "skipped",
+              reason: `validation:${trustGuardToError(trustResult) ?? "failed"}`,
+            });
+            continue;
+          }
+
+          // Insert JE + lines in a transaction (reference guard = idempotent).
+          const reference = `bank-tx-${tx.id}`;
+          const jeResult = await db.transaction(async (tdb) => {
+            // Idempotency: a concurrent/retried run may have already posted
+            // this exact bank tx — reuse that JE instead of creating a second.
+            const existing = await tdb.query.journalEntries.findFirst({
+              where: and(
+                eq(journalEntries.entityId, entityId),
+                eq(journalEntries.reference, reference),
+              ),
+              columns: { id: true },
+            });
+            if (existing) return existing.id;
+
+            // entryNumber: unique per entity — compute under the transaction.
+            const [last] = await tdb
+              .select({ n: journalEntries.entryNumber })
+              .from(journalEntries)
+              .where(eq(journalEntries.entityId, entityId))
+              .orderBy(desc(journalEntries.entryNumber))
+              .limit(1);
+
+            const [entry] = await tdb
+              .insert(journalEntries)
+              .values({
+                entityId,
+                entryNumber: (last?.n ?? 0) + 1,
+                description: tx.description,
+                reference,
+                date: tx.transactionDate,
+                periodId: period.id,
+                status: "posted",
+                postedBy: ctx.session?.user?.id ?? "system",
+                postedAt: new Date(),
+                source: "bank_feed",
+                confidence: tx.categorizationConfidence ?? "0.95",
+              })
+              .onConflictDoNothing({ target: journalEntries.reference })
+              .returning({ id: journalEntries.id });
+
+            if (!entry) {
+              // Lost the race — another run posted this reference first.
+              const winner = await tdb.query.journalEntries.findFirst({
+                where: and(
+                  eq(journalEntries.entityId, entityId),
+                  eq(journalEntries.reference, reference),
+                ),
+                columns: { id: true },
+              });
+              return winner?.id ?? null;
+            }
+
+            await tdb.insert(journalEntryLines).values(
+              lines.map((l) => ({
+                journalEntryId: entry.id,
+                accountId: l.accountId,
+                debit: l.debit,
+                credit: l.credit,
+                description: l.description,
+              })),
+            );
+            return entry.id;
+          });
+
+          if (!jeResult) {
+            results.push({
+              transactionId: tx.id,
+              status: "skipped",
+              reason: "journal_creation_failed",
+            });
+            continue;
+          }
+
+          // Link the bank tx to the JE + audit.
+          await db
+            .update(bankTransactions)
+            .set({ journalEntryId: jeResult })
+            .where(
+              and(
+                eq(bankTransactions.id, tx.id),
+                eq(bankTransactions.entityId, entityId),
+              ),
+            );
+          await db.insert(auditLog).values({
+            entityId,
+            userId: ctx.session?.user?.id ?? null,
+            action: "banking.postToLedger",
+            entityType: "bank_transaction",
+            entityIdRef: tx.id,
+            newValues: {
+              journalEntryId: jeResult,
+              amount: tx.amount,
+              category: tx.category,
+            },
+          });
+
+          postedCount++;
+          results.push({
+            transactionId: tx.id,
+            status: "posted",
+            journalEntryId: jeResult,
+          });
+        }
+
+        return { postedCount, skipped: results };
+      } catch (error) {
+        handleMutationError(error, "Failed to post to ledger");
       }
     }),
 });

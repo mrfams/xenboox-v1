@@ -13,6 +13,7 @@ import {
   Loader2,
   Plus,
   Zap,
+  FileText,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -189,6 +190,7 @@ function TransactionsTab({
       refetch();
     },
   });
+  const postToLedger = trpc.banking.postToLedger.useMutation();
   const batchCategorize = trpc.banking.batchCategorize.useMutation({
     onSuccess: (data, vars) => {
       const ids =
@@ -377,6 +379,61 @@ function TransactionsTab({
               <Sparkles className="h-3.5 w-3.5" />
             )}
             Categorize Selected
+          </button>
+          <button
+            onClick={() => {
+              const categorized = transactions
+                .filter(
+                  (tx) =>
+                    selectedIds.has(tx.id) &&
+                    tx.category &&
+                    tx.category !== "Uncategorized" &&
+                    !tx.journalEntryId,
+                )
+                .map((tx) => tx.id);
+              if (categorized.length === 0) {
+                toast.info(
+                  "Select categorized transactions to post to the ledger",
+                );
+                return;
+              }
+              postToLedger.mutate(
+                { transactionIds: categorized },
+                {
+                  onSuccess: (res) => {
+                    if (res.postedCount > 0) {
+                      toast.success(
+                        `${res.postedCount} transaction${res.postedCount === 1 ? "" : "s"} posted to the ledger`,
+                      );
+                    }
+                    const skippedReasons = new Set(
+                      res.skipped
+                        .filter((s) => s.status === "skipped" && s.reason)
+                        .map((s) => s.reason),
+                    );
+                    if (skippedReasons.size > 0) {
+                      toast.info(
+                        `Skipped ${res.skipped.length}: ${Array.from(skippedReasons).join(", ")}`,
+                      );
+                    }
+                    setSelectedIds(new Set());
+                    refetch();
+                  },
+                  onError: () => {
+                    toast.error("Failed to post to ledger");
+                  },
+                },
+              );
+            }}
+            disabled={postToLedger.isPending}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/5 px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/10 transition-colors"
+          >
+            {postToLedger.isPending ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <FileText className="h-3.5 w-3.5" />
+            )}
+            Post to Ledger
           </button>
           <button
             onClick={() => setSelectedIds(new Set())}

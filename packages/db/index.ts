@@ -26,3 +26,12 @@ export {
   type BankRuleLike,
   type CanonicalCategory,
 } from "./lib/bank-categorizer";
+export {
+  buildBankJournalLines,
+  deriveBankCode,
+  resolveBankGlAccount,
+  resolveCategoryGlAccount,
+  type BankLedgerLine,
+  type BankLedgerTx,
+  type CoaRow,
+} from "./lib/bank-ledger";

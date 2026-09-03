@@ -1,9 +1,11 @@
 import { z } from "zod";
+import { TRPCError } from "@trpc/server";
 import { eq, and, desc, sql, count, sum, gte, lte, inArray } from "drizzle-orm";
 import {
   bankAccounts,
   bankTransactions,
   reconciliations,
+  auditLog,
 } from "@xenboox/db/schema";
 import {
   journalEntries,
@@ -480,6 +482,51 @@ export const reconciliationRouter = router({
     .mutation(async ({ ctx, input }) => {
       const entityId = ctx.entityId!;
 
+      // Verify the account's transactions are actually reconciled before
+      // claiming the books match the bank. Previously this wrote
+      // bookBalance = statementBalance with difference "0" unconditionally —
+      // fake assurance that masked unreconciled transactions.
+      const account = await db.query.bankAccounts.findFirst({
+        where: and(
+          eq(bankAccounts.id, input.bankAccountId),
+          eq(bankAccounts.entityId, entityId),
+        ),
+        columns: { id: true, currentBalance: true },
+      });
+      if (!account) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Bank account not found",
+        });
+      }
+
+      const unreconciledResult = await db
+        .select({ count: count() })
+        .from(bankTransactions)
+        .where(
+          and(
+            eq(bankTransactions.entityId, entityId),
+            eq(bankTransactions.bankAccountId, input.bankAccountId),
+            eq(bankTransactions.isReconciled, false),
+          ),
+        );
+      const unreconciledCount = unreconciledResult[0]?.count ?? 0;
+
+      if (unreconciledCount > 0) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: `Cannot finalize: ${unreconciledCount} transaction(s) are not reconciled`,
+        });
+      }
+
+      // Real difference: book (GL-side) vs bank statement. The statement is
+      // authoritative for cash; record the honest difference instead of 0.
+      const bookBalance = account.currentBalance ?? "0";
+      const difference = (
+        parseFloat(bookBalance || "0") -
+        parseFloat(input.statementBalance || "0")
+      ).toFixed(2);
+
       // Create reconciliation record
       const [reconciliation] = await db
         .insert(reconciliations)
@@ -488,17 +535,33 @@ export const reconciliationRouter = router({
           bankAccountId: input.bankAccountId,
           statementDate: input.statementDate,
           statementBalance: input.statementBalance,
-          bookBalance: input.statementBalance, // Should match after reconciliation
-          difference: "0",
+          bookBalance,
+          difference,
           status: "closed",
           closedBy: ctx.session!.user!.id!,
           closedAt: new Date(),
         })
         .returning();
 
+      await db.insert(auditLog).values({
+        entityId,
+        userId: ctx.session?.user?.id ?? null,
+        action: "banking.finalizeReconciliation",
+        entityType: "bank_account",
+        entityIdRef: input.bankAccountId,
+        newValues: {
+          statementBalance: input.statementBalance,
+          bookBalance,
+          difference,
+          unreconciledCount,
+        },
+      });
+
       return {
         success: !!reconciliation,
         reconciliationId: reconciliation?.id,
+        unreconciledCount,
+        difference,
       };
     }),
 
