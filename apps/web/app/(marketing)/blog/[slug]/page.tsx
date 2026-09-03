@@ -47,22 +47,35 @@ export async function generateMetadata({
 }
 
 // Simple markdown-to-HTML converter
+/**
+ * HTML-escape to prevent stored XSS (OWASP A03).
+ * All dynamic content must pass through this before injection into HTML.
+ */
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 function renderMarkdown(content: string): string {
   return content
     .split("\n")
     .map((line) => {
       // Headers
       if (line.startsWith("## "))
-        return `<h2 class="text-2xl font-bold text-foreground mt-8 mb-4">${line.slice(3)}</h2>`;
+        return `<h2 class="text-2xl font-bold text-foreground mt-8 mb-4">${escapeHtml(line.slice(3))}</h2>`;
       if (line.startsWith("### "))
-        return `<h3 class="text-xl font-semibold text-foreground mt-6 mb-3">${line.slice(4)}</h3>`;
+        return `<h3 class="text-xl font-semibold text-foreground mt-6 mb-3">${escapeHtml(line.slice(4))}</h3>`;
       if (line.startsWith("#### "))
-        return `<h4 class="text-lg font-semibold text-foreground mt-4 mb-2">${line.slice(5)}</h4>`;
+        return `<h4 class="text-lg font-semibold text-foreground mt-4 mb-2">${escapeHtml(line.slice(5))}</h4>`;
 
       // Lists
       if (line.match(/^\d+\.\s/)) {
-        const text = line
-          .replace(/^\d+\.\s/, "")
+        const raw = line.replace(/^\d+\.\s/, "");
+        const text = escapeHtml(raw)
           .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
           .replace(
             /\[(.*?)\]\((.*?)\)/g,
@@ -71,8 +84,8 @@ function renderMarkdown(content: string): string {
         return `<li class="ml-6 mb-2 list-decimal text-foreground">${text}</li>`;
       }
       if (line.startsWith("- ")) {
-        const text = line
-          .slice(2)
+        const raw = line.slice(2);
+        const text = escapeHtml(raw)
           .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
           .replace(
             /\[(.*?)\]\((.*?)\)/g,
@@ -84,12 +97,12 @@ function renderMarkdown(content: string): string {
       // Code blocks
       if (line.startsWith("```")) return "";
       if (line.startsWith("`") && line.endsWith("`")) {
-        return `<code class="bg-muted px-1.5 py-0.5 rounded text-sm font-mono text-foreground">${line.slice(1, -1)}</code>`;
+        return `<code class="bg-muted px-1.5 py-0.5 rounded text-sm font-mono text-foreground">${escapeHtml(line.slice(1, -1))}</code>`;
       }
 
       // Blockquotes
       if (line.startsWith("> ")) {
-        return `<blockquote class="border-l-4 border-primary pl-4 py-2 my-4 text-muted-foreground italic">${line.slice(2)}</blockquote>`;
+        return `<blockquote class="border-l-4 border-primary pl-4 py-2 my-4 text-muted-foreground italic">${escapeHtml(line.slice(2))}</blockquote>`;
       }
 
       // Horizontal rule
@@ -99,7 +112,7 @@ function renderMarkdown(content: string): string {
       if (line.trim() === "") return "";
 
       // Regular paragraphs with inline formatting
-      const formatted = line
+      const formatted = escapeHtml(line)
         .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
         .replace(/\*(.*?)\*/g, "<em>$1</em>")
         .replace(
