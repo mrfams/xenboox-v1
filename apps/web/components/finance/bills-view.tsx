@@ -101,7 +101,15 @@ function BillStatusBadge({ status }: { status: string }) {
 // ─── AI Payment Priority Strip ────────────────────────────────────────────
 // Shows AI-recommended payment order based on urgency and amount.
 
-function AiPaymentPriority({ bills }: { bills: Bill[] }) {
+function AiPaymentPriority({
+  bills,
+  format,
+  entityCurrency,
+}: {
+  bills: Bill[];
+  format: (n: number, c?: string) => string;
+  entityCurrency?: string;
+}) {
   const { openWithFocus } = useModuleAi();
 
   // Compute priority: overdue first, then by days-to-due ascending
@@ -201,10 +209,14 @@ function SummaryCards({
   totalOutstanding,
   overdueCount,
   pendingCount,
+  format,
+  entityCurrency,
 }: {
   totalOutstanding: number;
   overdueCount: number;
   pendingCount: number;
+  format: (n: number, c?: string) => string;
+  entityCurrency?: string;
 }) {
   const cards = [
     {
@@ -446,10 +458,16 @@ export function BillsView() {
         totalOutstanding={totalOutstanding}
         overdueCount={overdueCount}
         pendingCount={pendingCount}
+        format={format}
+        entityCurrency={entityCurrency}
       />
 
       {/* AI Payment Priority */}
-      <AiPaymentPriority bills={bills} />
+      <AiPaymentPriority
+        bills={bills}
+        format={format}
+        entityCurrency={entityCurrency}
+      />
 
       {/* Filters + Create */}
       <div className="flex items-center gap-3">

@@ -125,28 +125,51 @@ export const recurringRouter = router({
         offset: input.offset,
       });
 
-      // Enrich with party names
-      const enriched = await Promise.all(
-        schedules.map(async (s) => {
-          let partyName = "";
-          if (s.direction === "ar" && s.customerId) {
-            const c = await db.query.customers.findFirst({
-              where: eq(customers.id, s.customerId),
-              columns: { name: true },
-            });
-            partyName = c?.name ?? "";
-          } else if (s.direction === "ap" && s.supplierId) {
-            const sup = await db.query.suppliers.findFirst({
-              where: eq(suppliers.id, s.supplierId),
-              columns: { name: true },
-            });
-            partyName = sup?.name ?? "";
-          }
-          return { ...s, partyName };
-        }),
-      );
+      // Batch-enrich with party names (single query each, not N+1)
+      const customerIds = [
+        ...new Set(
+          schedules
+            .filter((s) => s.direction === "ar" && s.customerId)
+            .map((s) => s.customerId!),
+        ),
+      ];
+      const supplierIds = [
+        ...new Set(
+          schedules
+            .filter((s) => s.direction === "ap" && s.supplierId)
+            .map((s) => s.supplierId!),
+        ),
+      ];
 
-      return enriched;
+      const [customerRows, supplierRows] = await Promise.all([
+        customerIds.length > 0
+          ? db.query.customers.findMany({
+              where: sql`${customers.id} IN ${customerIds}`,
+              columns: { id: true, name: true },
+            })
+          : [],
+        supplierIds.length > 0
+          ? db.query.suppliers.findMany({
+              where: sql`${suppliers.id} IN ${supplierIds}`,
+              columns: { id: true, name: true },
+            })
+          : [],
+      ]);
+
+      const customerMap = new Map(customerRows.map((c) => [c.id, c.name]));
+      const supplierMap = new Map(supplierRows.map((s) => [s.id, s.name]));
+
+      return schedules.map((s) => ({
+        ...s,
+        partyName:
+          s.direction === "ar"
+            ? s.customerId
+              ? (customerMap.get(s.customerId) ?? "")
+              : ""
+            : s.supplierId
+              ? (supplierMap.get(s.supplierId) ?? "")
+              : "",
+      }));
     }),
 
   /**
