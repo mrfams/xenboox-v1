@@ -342,7 +342,7 @@ export const journalRouter = router({
         }
 
         // Generate entry number display
-        const entryDisplay = `JE-2025-${String(e.entryNumber).padStart(4, "0")}`;
+        const entryDisplay = `JE-${new Date().getFullYear()}-${String(e.entryNumber).padStart(4, "0")}`;
 
         return {
           id: e.id,
@@ -552,7 +552,7 @@ export const journalRouter = router({
 
       return {
         id: e.id,
-        entryNumber: `JE-2025-${String(e.entryNumber).padStart(4, "0")}`,
+        entryNumber: `JE-${new Date().getFullYear()}-${String(e.entryNumber).padStart(4, "0")}`,
         action,
         timestamp: e.createdAt?.toISOString() ?? new Date().toISOString(),
         user: "System (AI)",

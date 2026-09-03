@@ -1179,6 +1179,9 @@ function EntryDetailDrawer({
                 )}
               </div>
 
+              {/* Actions: Post / Reverse for pending/posted entries */}
+              <EntryActions entry={entry} onClose={onClose} />
+
               {/* AI Actions */}
               <div className="space-y-2">
                 <button
@@ -1328,6 +1331,134 @@ function AccountDetailDrawer({
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ─── Entry Actions (Post / Reverse) ────────────────────────────────────────
+
+function EntryActions({
+  entry,
+  onClose,
+}: {
+  entry: {
+    id: string;
+    status?: string;
+    description?: string | null;
+    entryNumber?: number | null;
+  };
+  onClose: () => void;
+}) {
+  const { format } = useFormatCurrency();
+  const utils = trpc.useUtils();
+  const [reverseReason, setReverseReason] = useState("");
+  const [showReverse, setShowReverse] = useState(false);
+
+  const postMutation = trpc.journal.post.useMutation({
+    onSuccess: () => {
+      utils.journal.invalidate();
+      onClose();
+    },
+  });
+
+  const reverseMutation = trpc.journal.reverse.useMutation({
+    onSuccess: () => {
+      utils.journal.invalidate();
+      onClose();
+    },
+  });
+
+  const isDraft = entry.status === "draft";
+  const isPending = entry.status === "pending_review";
+  const isPosted = entry.status === "posted";
+
+  if (!isDraft && !isPending && !isPosted) return null;
+
+  return (
+    <div className="rounded-xl border border-border/50 bg-muted/30 p-4 space-y-3">
+      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
+        Actions
+      </p>
+
+      {(isDraft || isPending) && (
+        <button
+          type="button"
+          onClick={() => postMutation.mutate({ id: entry.id })}
+          disabled={postMutation.isPending}
+          className="flex w-full items-center justify-center gap-2 rounded-lg bg-balanced-green px-3 py-2 text-xs font-medium text-white hover:bg-balanced-green/90 transition-colors disabled:opacity-50"
+        >
+          {postMutation.isPending ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <CheckCircle2 className="h-3.5 w-3.5" />
+          )}
+          {isPending ? "Approve & Post" : "Post Entry"}
+        </button>
+      )}
+
+      {isPosted && !showReverse && (
+        <button
+          type="button"
+          onClick={() => setShowReverse(true)}
+          className="flex w-full items-center justify-center gap-2 rounded-lg border border-error-clay/30 bg-error-clay/5 px-3 py-2 text-xs font-medium text-error-clay hover:bg-error-clay/10 transition-colors"
+        >
+          <X className="h-3.5 w-3.5" />
+          Reverse Entry
+        </button>
+      )}
+
+      {isPosted && showReverse && (
+        <div className="space-y-2">
+          <input
+            type="text"
+            placeholder="Reason for reversal (required)..."
+            value={reverseReason}
+            onChange={(e) => setReverseReason(e.target.value)}
+            className="flex h-9 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+          />
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setShowReverse(false);
+                setReverseReason("");
+              }}
+              className="flex-1 rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                reverseMutation.mutate({
+                  id: entry.id,
+                  reason: reverseReason,
+                })
+              }
+              disabled={!reverseReason.trim() || reverseMutation.isPending}
+              className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg bg-error-clay px-3 py-1.5 text-xs font-medium text-white hover:bg-error-clay/90 transition-colors disabled:opacity-50"
+            >
+              {reverseMutation.isPending ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                <X className="h-3 w-3" />
+              )}
+              Confirm Reverse
+            </button>
+          </div>
+        </div>
+      )}
+
+      {postMutation.isError && (
+        <p className="text-[10px] text-error-clay">
+          {postMutation.error.message}
+        </p>
+      )}
+      {reverseMutation.isError && (
+        <p className="text-[10px] text-error-clay">
+          {reverseMutation.error.message}
+        </p>
+      )}
     </div>
   );
 }
