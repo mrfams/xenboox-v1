@@ -13,3 +13,4 @@ export {
   decryptConnectionToken,
   isTokenEncrypted,
 } from "./lib/bank-token-encryption";
+export { isMoneyIn, signedBankAmount } from "./lib/bank-amount";

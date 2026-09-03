@@ -7,8 +7,13 @@ import {
   journalEntryLines,
   chartOfAccounts,
 } from "@xenboox/db/schema";
+import { isMoneyIn, signedBankAmount } from "@xenboox/db";
 
-import { router, rlsProtectedProcedure, handleMutationError } from "@/lib/trpc/server";
+import {
+  router,
+  rlsProtectedProcedure,
+  handleMutationError,
+} from "@/lib/trpc/server";
 import { db } from "@/lib/db";
 
 // ─── Transactions Router ───────────────────────────────────────────────────
@@ -411,8 +416,11 @@ export const transactionsRouter = router({
 
       // Map transactions to response format
       const mappedTransactions = transactions.map((t) => {
-        const amount = parseFloat(t.amount);
-        const isPositive = amount > 0;
+        // Stored amounts are positive magnitudes; direction lives in `type`.
+        const isPositive = isMoneyIn(t.type);
+        const amount = isPositive
+          ? Math.abs(parseFloat(t.amount))
+          : -Math.abs(parseFloat(t.amount));
 
         // Determine source based on reference pattern
         let source = "Manual";
@@ -599,14 +607,19 @@ export const transactionsRouter = router({
         });
       }
 
+      const detailAmount = signedBankAmount(
+        transaction.type,
+        transaction.amount,
+      );
+
       return {
         id: transaction.id,
         date: transaction.transactionDate,
         description: transaction.description,
         reference: transaction.reference,
-        amount: amount,
-        amountFormatted: `${amount >= 0 ? "+" : "-"}GMD ${Math.abs(amount).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-        isPositive: amount >= 0,
+        amount: detailAmount,
+        amountFormatted: `${detailAmount >= 0 ? "+" : "-"}GMD ${Math.abs(detailAmount).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        isPositive: detailAmount >= 0,
         status: transaction.isReconciled
           ? "matched"
           : transaction.journalEntryId

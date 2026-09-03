@@ -26,7 +26,11 @@ import {
 } from "@xenboox/db/schema";
 
 import { TRPCError } from "@trpc/server";
-import { decryptConnectionToken } from "@xenboox/db";
+import {
+  decryptConnectionToken,
+  isMoneyIn,
+  signedBankAmount,
+} from "@xenboox/db";
 import {
   handleMutationError,
   router,
@@ -225,46 +229,57 @@ export const bankingRouter = router({
         orderBy: [bankTransactions.transactionDate],
       });
 
-      // Calculate daily balances
-      const dailyBalances: Record<string, number> = {};
-      let runningBalance = 0;
+      // Stored amounts are positive magnitudes; the type carries direction
+      // (deposit/interest = money in, everything else = money out).
+      const signed = (tx: (typeof transactions)[number]) =>
+        signedBankAmount(tx.type, tx.amount);
 
-      for (const tx of transactions) {
-        const date = tx.transactionDate;
-        const amount = parseFloat(tx.amount);
-        runningBalance += amount;
-        dailyBalances[date] = runningBalance;
-      }
-
-      // Calculate incoming and outgoing
-      // Amounts are stored as positive; the `type` field indicates direction
+      // Incoming / outgoing split (always positive magnitudes).
       const incoming = transactions
-        .filter((tx) => tx.type === "deposit")
+        .filter((tx) => isMoneyIn(tx.type))
         .reduce((sum, tx) => sum + parseFloat(tx.amount), 0);
-
       const outgoing = transactions
-        .filter(
-          (tx) =>
-            tx.type === "withdrawal" ||
-            tx.type === "transfer" ||
-            tx.type === "fee",
-        )
+        .filter((tx) => !isMoneyIn(tx.type))
         .reduce((sum, tx) => sum + parseFloat(tx.amount), 0);
 
-      // Get current balance
+      // Current balance is the authoritative anchor. When accounts were
+      // created by demo/sync with a zero balance, fall back to openingBalance
+      // so the series does not silently start at zero.
       const accounts = await db.query.bankAccounts.findMany({
         where: eq(bankAccounts.entityId, entityId),
-        columns: { currentBalance: true },
+        columns: { currentBalance: true, openingBalance: true },
       });
-
       const currentBalance = accounts.reduce(
         (sum, acc) => sum + parseFloat(acc.currentBalance ?? "0"),
         0,
       );
+      const anchoredBalance =
+        currentBalance !== 0
+          ? currentBalance
+          : accounts.reduce(
+              (sum, acc) => sum + parseFloat(acc.openingBalance ?? "0"),
+              0,
+            );
+
+      // Daily balances: end-of-day balance per date. Start from the balance
+      // just before the period (anchor − net change over the whole period),
+      // then walk forward applying each day's signed net change.
+      const totalNet = transactions.reduce((sum, tx) => sum + signed(tx), 0);
+      const netByDate = new Map<string, number>();
+      for (const tx of transactions) {
+        const date = tx.transactionDate;
+        netByDate.set(date, (netByDate.get(date) ?? 0) + signed(tx));
+      }
+      const dailyBalances: Record<string, number> = {};
+      let runningBalance = anchoredBalance - totalNet;
+      for (const date of [...netByDate.keys()].sort()) {
+        runningBalance += netByDate.get(date) ?? 0;
+        dailyBalances[date] = runningBalance;
+      }
 
       return {
         dailyBalances,
-        currentBalance,
+        currentBalance: anchoredBalance,
         incoming,
         outgoing,
         netChange: incoming - outgoing,
@@ -299,15 +314,17 @@ export const bankingRouter = router({
         limit: 20,
       });
 
-      // Get transaction summary
+      // Get transaction summary. Stored amounts are positive magnitudes with
+      // direction in `type` (deposit/interest = in; rest = out) — never infer
+      // direction from the amount sign.
       const txSummary = await db
         .select({
           count: count(),
           totalDeposits: sum(
-            sql`CASE WHEN ${bankTransactions.amount} > 0 THEN ${bankTransactions.amount} ELSE 0 END`,
+            sql`CASE WHEN ${bankTransactions.type} IN ('deposit', 'interest') THEN ${bankTransactions.amount} ELSE 0 END`,
           ),
           totalWithdrawals: sum(
-            sql`CASE WHEN ${bankTransactions.amount} < 0 THEN ABS(${bankTransactions.amount}) ELSE 0 END`,
+            sql`CASE WHEN ${bankTransactions.type} IN ('deposit', 'interest') THEN 0 ELSE ${bankTransactions.amount} END`,
           ),
         })
         .from(bankTransactions)
@@ -319,7 +336,7 @@ export const bankingRouter = router({
         recentTransactions: recentTransactions.map((tx) => ({
           id: tx.id,
           description: tx.description,
-          amount: parseFloat(tx.amount),
+          amount: signedBankAmount(tx.type, tx.amount),
           type: tx.type,
           date: tx.transactionDate,
           isReconciled: tx.isReconciled,

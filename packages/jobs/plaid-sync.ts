@@ -10,6 +10,7 @@
 
 import { task, logger } from "@trigger.dev/sdk";
 import { dlqOnFailure } from "./lib/dlq";
+import { plaidMagnitude, plaidType } from "./lib/plaid-mapping";
 import { db } from "@xenboox/db";
 import {
   bankConnections,
@@ -18,7 +19,7 @@ import {
   auditLog,
 } from "@xenboox/db/schema";
 import { decryptConnectionToken } from "@xenboox/db";
-import { eq, and } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 
 const PLAID_API_URL =
   process.env.PLAID_ENV === "production"
@@ -107,18 +108,38 @@ export const syncPlaidTransactions = task({
       hasMore: plaidData.has_more,
     });
 
-    // 4. Find or create bank account for this connection
+    // 4. Find or create bank account for this connection. Scope the lookup to
+    // (entityId + connection identity) — a bare accountNumber match can cross
+    // entities or pick the wrong account when two are linked to one bank.
     let bankAccountId: string | undefined;
 
-    const existingAccount = await db.query.bankAccounts.findFirst({
+    const accountMetadataMatch = await db.query.bankAccounts.findFirst({
       where: and(
         eq(bankAccounts.entityId, entityId),
-        eq(bankAccounts.accountNumber, connection.accountNumber ?? ""),
+        sql`${bankAccounts.metadata}->>'connectionId' = ${connectionId}`,
       ),
     });
+    const existingAccount =
+      accountMetadataMatch ??
+      (await db.query.bankAccounts.findFirst({
+        where: and(
+          eq(bankAccounts.entityId, entityId),
+          eq(bankAccounts.bankName, connection.institutionName),
+          connection.accountNumber
+            ? eq(bankAccounts.accountNumber, connection.accountNumber)
+            : undefined,
+        ),
+      }));
 
     if (existingAccount) {
       bankAccountId = existingAccount.id;
+      // Tag the account with its connection so future syncs resolve exactly.
+      await db
+        .update(bankAccounts)
+        .set({
+          metadata: sql`jsonb_set(COALESCE(metadata, '{}'::jsonb), '{connectionId}', ${JSON.stringify(connectionId)}::jsonb)`,
+        })
+        .where(eq(bankAccounts.id, existingAccount.id));
     } else {
       const [newAccount] = await db
         .insert(bankAccounts)
@@ -129,6 +150,7 @@ export const syncPlaidTransactions = task({
           accountNumber: connection.accountNumber ?? "",
           currency: connection.currency ?? "USD",
           currentBalance: "0",
+          metadata: { connectionId },
         })
         .returning();
 
@@ -145,29 +167,8 @@ export const syncPlaidTransactions = task({
       ...plaidData.removed.map((tx) => tx.transaction_id),
     ];
 
-    // Batch-query all entity transactions with metadata (one query, not N)
-    const allEntityTx =
-      allPlaidIds.length > 0
-        ? await db.query.bankTransactions.findMany({
-            where: and(eq(bankTransactions.entityId, entityId)),
-            columns: { id: true, metadata: true },
-          })
-        : [];
-
-    // Build lookup maps: plaidTransactionId → { id, metadata }
-    const txByPlaidId = new Map<
-      string,
-      { id: string; metadata: Record<string, unknown> }
-    >();
-    for (const row of allEntityTx) {
-      const meta = (row.metadata ?? {}) as Record<string, unknown>;
-      if (meta.plaidTransactionId) {
-        txByPlaidId.set(meta.plaidTransactionId as string, {
-          id: row.id,
-          metadata: meta,
-        });
-      }
-    }
+    // Query ONLY the IDs on this page (one IN query, not a full-table scan).
+    const txByPlaidId = await fetchTxByPlaidIds(entityId, allPlaidIds);
 
     // 5a. Insert added transactions
     for (const tx of plaidData.added) {
@@ -176,9 +177,8 @@ export const syncPlaidTransactions = task({
         continue;
       }
 
-      const amount = Math.abs(tx.amount);
-      const txType = tx.amount >= 0 ? "deposit" : "withdrawal";
-
+      // Plaid amount semantics (see lib/plaid-mapping.ts): POSITIVE = money
+      // OUT, NEGATIVE = money IN. Stored as magnitude + direction in `type`.
       await db.insert(bankTransactions).values({
         entityId,
         bankAccountId: bankAccountId!,
@@ -186,8 +186,8 @@ export const syncPlaidTransactions = task({
         valueDate: tx.datetime?.split("T")[0] ?? tx.date,
         description: tx.name,
         reference: tx.payment_channel ?? undefined,
-        amount: String(amount),
-        type: txType,
+        amount: plaidMagnitude(tx),
+        type: plaidType(tx),
         balance: undefined,
         source: "plaid",
         metadata: {
@@ -214,12 +214,13 @@ export const syncPlaidTransactions = task({
           .update(bankTransactions)
           .set({
             description: tx.name,
-            amount: String(Math.abs(tx.amount)),
-            type: tx.amount >= 0 ? "deposit" : "withdrawal",
+            amount: plaidMagnitude(tx),
+            type: plaidType(tx),
             metadata: {
               ...match.metadata,
-              plaidPending: tx.pending,
+              plaidCategory: tx.category,
               plaidMerchantName: tx.merchant_name,
+              plaidPending: tx.pending,
             },
           })
           .where(eq(bankTransactions.id, match.id));
@@ -340,6 +341,7 @@ type PlaidTransactionsSyncResponse = {
     date: string;
     name: string;
     merchant_name?: string;
+    category?: string[];
     pending: boolean;
   }>;
   removed: Array<{
@@ -413,41 +415,23 @@ async function paginatePlaidSync(
     const data = (await response.json()) as PlaidTransactionsSyncResponse;
     pages++;
 
-    // Batch-query entity transactions for dedup (one query per page, not per tx)
+    // Query ONLY the IDs on this page (one IN query per page, not a
+    // full-table scan of every entity transaction on every page).
     const allPlaidIds = [
       ...data.added.map((tx) => tx.transaction_id),
       ...data.modified.map((tx) => tx.transaction_id),
       ...data.removed.map((tx) => tx.transaction_id),
     ];
 
-    const allEntityTx =
-      allPlaidIds.length > 0
-        ? await db.query.bankTransactions.findMany({
-            where: and(eq(bankTransactions.entityId, entityId)),
-            columns: { id: true, metadata: true },
-          })
-        : [];
-
-    const txByPlaidId = new Map<
-      string,
-      { id: string; metadata: Record<string, unknown> }
-    >();
-    for (const row of allEntityTx) {
-      const meta = (row.metadata ?? {}) as Record<string, unknown>;
-      if (meta.plaidTransactionId) {
-        txByPlaidId.set(meta.plaidTransactionId as string, {
-          id: row.id,
-          metadata: meta,
-        });
-      }
-    }
+    const txByPlaidId = await fetchTxByPlaidIds(entityId, allPlaidIds);
 
     // Process added
     for (const tx of data.added) {
       if (txByPlaidId.has(tx.transaction_id)) continue;
 
-      const amount = Math.abs(tx.amount);
-      const txType = tx.amount >= 0 ? "deposit" : "withdrawal";
+      // Plaid: positive = money OUT (withdrawal); negative = money IN.
+      const amount = plaidMagnitude(tx);
+      const txType = plaidType(tx);
 
       await db.insert(bankTransactions).values({
         entityId,
@@ -481,12 +465,13 @@ async function paginatePlaidSync(
           .update(bankTransactions)
           .set({
             description: tx.name,
-            amount: String(Math.abs(tx.amount)),
-            type: tx.amount >= 0 ? "deposit" : "withdrawal",
+            amount: plaidMagnitude(tx),
+            type: plaidType(tx),
             metadata: {
               ...match.metadata,
-              plaidPending: tx.pending,
+              plaidCategory: tx.category,
               plaidMerchantName: tx.merchant_name,
+              plaidPending: tx.pending,
             },
           })
           .where(eq(bankTransactions.id, match.id));
@@ -517,4 +502,41 @@ async function paginatePlaidSync(
   }
 
   return { inserted, updated, removed, pages, finalCursor: cursor };
+}
+
+/**
+ * Fetch existing bank transactions by their Plaid IDs (entity-scoped).
+ * Chunked IN query — never a full-table scan of the entity's transactions.
+ */
+async function fetchTxByPlaidIds(
+  entityId: string,
+  plaidIds: string[],
+): Promise<Map<string, { id: string; metadata: Record<string, unknown> }>> {
+  const result = new Map<
+    string,
+    { id: string; metadata: Record<string, unknown> }
+  >();
+  if (plaidIds.length === 0) return result;
+
+  const CHUNK = 500;
+  for (let i = 0; i < plaidIds.length; i += CHUNK) {
+    const chunk = plaidIds.slice(i, i + CHUNK);
+    const rows = await db
+      .select({ id: bankTransactions.id, metadata: bankTransactions.metadata })
+      .from(bankTransactions)
+      .where(
+        and(
+          eq(bankTransactions.entityId, entityId),
+          sql`${bankTransactions.metadata}->>'plaidTransactionId' IN ${chunk}`,
+        ),
+      );
+    for (const row of rows) {
+      const meta = (row.metadata ?? {}) as Record<string, unknown>;
+      const plaidId = meta.plaidTransactionId as string | undefined;
+      if (plaidId) {
+        result.set(plaidId, { id: row.id, metadata: meta });
+      }
+    }
+  }
+  return result;
 }

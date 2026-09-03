@@ -5,7 +5,7 @@
 
 import { langfuse } from "./langfuse";
 import { getAgentGraph } from "./orchestrator";
-import type { AgentState } from "./orchestrator";
+import type { AgentId, AgentResultState, AgentState } from "./orchestrator";
 import { createAuditEntry } from "./state";
 import { db } from "@xenboox/db";
 import { dailyCloseRuns } from "@xenboox/db/schema/daily-close";
@@ -108,14 +108,16 @@ export async function runDailyClose(
 
     if (reconResult.result) {
       const r = reconResult.result as ReconciliationResult;
-      autoMatched += r.matchedCount ?? 0;
-      transactionsProcessed += (r.matchedCount ?? 0) + (r.unmatchedCount ?? 0);
-      if (r.unmatchedCount > 0) {
-        anomaliesDetected += r.unmatchedCount;
-        needsHumanReview += r.unmatchedCount;
+      const matched = r.matchedCount ?? 0;
+      const unmatched = r.unmatchedCount ?? 0;
+      autoMatched += matched;
+      transactionsProcessed += matched + unmatched;
+      if (unmatched > 0) {
+        anomaliesDetected += unmatched;
+        needsHumanReview += unmatched;
         exceptions.push({
           type: "unmatched_transactions",
-          description: `${r.unmatchedCount} bank transactions could not be auto-matched`,
+          description: `${unmatched} bank transactions could not be auto-matched`,
           agentId: "reconciliation",
           confidence: reconResult.confidence,
         });
@@ -137,12 +139,13 @@ export async function runDailyClose(
     if (mmResult.result) {
       const r = mmResult.result as MobileMoneyResult;
       autoMatched += r.matchedCount ?? 0;
-      if (r.discrepancies?.length > 0) {
-        anomaliesDetected += r.discrepancies.length;
-        needsHumanReview += r.discrepancies.length;
+      const discrepancies = r.discrepancies ?? [];
+      if (discrepancies.length > 0) {
+        anomaliesDetected += discrepancies.length;
+        needsHumanReview += discrepancies.length;
         exceptions.push({
           type: "mm_discrepancy",
-          description: `${r.discrepancies.length} mobile money discrepancies detected`,
+          description: `${discrepancies.length} mobile money discrepancies detected`,
           agentId: "mobile_money",
           confidence: mmResult.confidence,
         });
@@ -189,12 +192,13 @@ export async function runDailyClose(
 
     if (controllerResult.result) {
       const r = controllerResult.result as ControllerResult;
-      if (r.rejectedEntries?.length > 0) {
-        anomaliesDetected += r.rejectedEntries.length;
-        needsHumanReview += r.rejectedEntries.length;
+      const rejectedEntries = r.rejectedEntries ?? [];
+      if (rejectedEntries.length > 0) {
+        anomaliesDetected += rejectedEntries.length;
+        needsHumanReview += rejectedEntries.length;
         exceptions.push({
           type: "rejected_entries",
-          description: `${r.rejectedEntries.length} journal entries rejected by Controller`,
+          description: `${rejectedEntries.length} journal entries rejected by Controller`,
           agentId: "controller",
           confidence: controllerResult.confidence,
         });
@@ -215,9 +219,10 @@ export async function runDailyClose(
 
     if (categorizeResult.result) {
       const r = categorizeResult.result as CategorizeResult;
-      if (r.categorizedCount > 0) {
-        autoMatched += r.categorizedCount;
-        transactionsProcessed += r.categorizedCount;
+      const categorizedCount = r.categorizedCount ?? 0;
+      if (categorizedCount > 0) {
+        autoMatched += categorizedCount;
+        transactionsProcessed += categorizedCount;
       }
     }
 
@@ -291,7 +296,12 @@ export async function runDailyClose(
       .set({
         status: "failed",
         exceptions: [
-          { type: "pipeline_error", description: msg, agentId: "orchestrator", confidence: 0 },
+          {
+            type: "pipeline_error",
+            description: msg,
+            agentId: "orchestrator",
+            confidence: 0,
+          },
         ],
         completedAt: new Date(),
       })
@@ -307,7 +317,12 @@ export async function runDailyClose(
       autoMatched,
       needsHumanReview,
       exceptions: [
-        { type: "pipeline_error", description: msg, agentId: "orchestrator", confidence: 0 },
+        {
+          type: "pipeline_error",
+          description: msg,
+          agentId: "orchestrator",
+          confidence: 0,
+        },
       ],
       overallConfidence: 0,
       duration: Date.now() - startTime,
@@ -324,4 +339,68 @@ async function runAgentStep(params: {
   entityName: string;
   currency: string;
   input: Record<string, unknown>;
-  
+  trace: Awaited<ReturnType<typeof langfuse.trace>>;
+  stepName: string;
+}): Promise<AgentStepResult> {
+  const startTime = Date.now();
+  const span = await params.trace.span({
+    name: `daily-close-${params.stepName}`,
+    input: {
+      agentId: params.agentId,
+      operationType: params.operationType,
+      entityId: params.entityId,
+    },
+  });
+
+  try {
+    const graph = await getAgentGraph(params.agentId as AgentId);
+
+    const initialState: AgentState = {
+      entityId: params.entityId,
+      entityName: params.entityName,
+      currency: params.currency,
+      currentOperation: {
+        type: params.operationType,
+        status: "processing",
+        input: params.input,
+        output: null,
+        error: null,
+      },
+    };
+
+    const result = (await graph.invoke(initialState)) as AgentResultState;
+
+    const stepResult: AgentStepResult = {
+      confidence: result.confidence ?? 0,
+      result: result.result ?? null,
+      errors: result.errors ?? [],
+    };
+
+    await span.update({
+      output: {
+        agentId: params.agentId,
+        confidence: stepResult.confidence,
+        errorCount: stepResult.errors.length,
+        durationMs: Date.now() - startTime,
+      },
+    });
+
+    return stepResult;
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+
+    await span.update({
+      output: {
+        agentId: params.agentId,
+        error: msg,
+        durationMs: Date.now() - startTime,
+      },
+    });
+
+    return {
+      confidence: 0,
+      result: null,
+      errors: [msg],
+    };
+  }
+}
