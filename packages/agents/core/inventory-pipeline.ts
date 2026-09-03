@@ -22,7 +22,18 @@
 //   Inventory Agent never posts directly to the ledger.
 
 import { db } from "@xenboox/db";
-import { eq, and, desc, lt, gte, lte, inArray, isNull, sql } from "drizzle-orm";
+import {
+  eq,
+  and,
+  desc,
+  lt,
+  gte,
+  lte,
+  inArray,
+  isNull,
+  sql,
+  max,
+} from "drizzle-orm";
 import {
   inventoryItems,
   inventoryTransactions,
@@ -39,6 +50,7 @@ import {
   journalEntries,
   journalEntryLines,
   chartOfAccounts,
+  fiscalPeriods,
 } from "@xenboox/db/schema/accounting";
 import { auditLog } from "@xenboox/db/schema/documents";
 import { purchaseOrders, poLines } from "@xenboox/db/schema/ap-ar";
@@ -59,7 +71,12 @@ export type InventoryStepId =
   | "audit_trail";
 
 export type InventoryStepStatus =
-  "pending" | "in_progress" | "completed" | "skipped" | "failed" | "flagged";
+  | "pending"
+  | "in_progress"
+  | "completed"
+  | "skipped"
+  | "failed"
+  | "flagged";
 
 export interface InventoryStep {
   id: InventoryStepId;
@@ -516,45 +533,67 @@ export async function runInventoryPipeline(
         };
         warnings.push("Inventory/COGS accounts not found — journal not posted");
       } else {
-        const [je] = await db
-          .insert(journalEntries)
-          .values({
-            entityId,
-            entryNumber: parseInt(Date.now().toString().slice(-8), 10),
-            description: `Inventory COGS for ${period} — ${cogsEntries.length} items`,
-            date: new Date().toISOString().slice(0, 10),
-            periodId: "",
-            status: "posted",
-            postedAt: new Date(),
-            postedBy: userId,
-          })
-          .returning();
-
-        if (je) {
-          await db.insert(journalEntryLines).values({
-            journalEntryId: je.id,
-            accountId: cogsAcct.id,
-            debit: totalCOGS.toFixed(2),
-            credit: "0",
-            description: `COGS for ${period}`,
-          });
-
-          await db.insert(journalEntryLines).values({
-            journalEntryId: je.id,
-            accountId: inventoryAcct.id,
-            debit: "0",
-            credit: totalCOGS.toFixed(2),
-            description: `Inventory reduction for ${period}`,
-          });
+        let createdJeId: string | undefined;
+        const [iY, iM] = period.split("-");
+        const invPeriod = await db.query.fiscalPeriods.findFirst({
+          where: and(
+            eq(fiscalPeriods.entityId, entityId),
+            eq(fiscalPeriods.year, parseInt(iY ?? "0", 10)),
+            eq(fiscalPeriods.month, parseInt(iM ?? "0", 10)),
+          ),
+        });
+        if (!invPeriod) {
+          step8.status = "failed";
+          step8.error = `No fiscal period for ${period}`;
+          warnings.push(`No fiscal period for ${period} — journal not posted`);
+        } else {
+          const maxInv = await db
+            .select({ maxNum: max(journalEntries.entryNumber) })
+            .from(journalEntries)
+            .where(eq(journalEntries.entityId, entityId));
+          const nextInv = (maxInv[0]?.maxNum ?? 0) + 1;
+          const [je] = await db
+            .insert(journalEntries)
+            .values({
+              entityId,
+              entryNumber: nextInv,
+              description: `Inventory COGS for ${period} — ${cogsEntries.length} items`,
+              date: new Date().toISOString().slice(0, 10),
+              periodId: invPeriod.id,
+              status: "posted",
+              postedAt: new Date(),
+              postedBy: userId,
+            })
+            .returning();
+          createdJeId = je?.id;
+          if (je) {
+            await db.insert(journalEntryLines).values([
+              {
+                journalEntryId: je.id,
+                accountId: cogsAcct.id,
+                debit: totalCOGS.toFixed(2),
+                credit: "0",
+                description: `COGS for ${period}`,
+              },
+              {
+                journalEntryId: je.id,
+                accountId: inventoryAcct.id,
+                debit: "0",
+                credit: totalCOGS.toFixed(2),
+                description: `Inventory reduction for ${period}`,
+              },
+            ]);
+          }
         }
-
-        step8.status = "completed";
-        step8.completedAt = new Date().toISOString();
-        step8.result = {
-          journalEntryId: je?.id,
-          cogsTotal: totalCOGS,
-          lineCount: 2,
-        };
+        if (step8.status !== "failed") {
+          step8.status = "completed";
+          step8.completedAt = new Date().toISOString();
+          step8.result = {
+            journalEntryId: createdJeId,
+            cogsTotal: totalCOGS,
+            lineCount: 2,
+          };
+        }
       }
     }
   } catch (err) {

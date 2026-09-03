@@ -19,7 +19,18 @@
 //   Disposal requires explicit human approval recording before proceeding.
 
 import { db } from "@xenboox/db";
-import { eq, and, desc, lt, gte, lte, inArray, isNull, sql } from "drizzle-orm";
+import {
+  eq,
+  and,
+  desc,
+  lt,
+  gte,
+  lte,
+  inArray,
+  isNull,
+  sql,
+  max,
+} from "drizzle-orm";
 import {
   fixedAssets,
   depreciationSchedule,
@@ -50,7 +61,12 @@ export type AssetStepId =
   | "audit_trail";
 
 export type AssetStepStatus =
-  "pending" | "in_progress" | "completed" | "skipped" | "failed" | "flagged";
+  | "pending"
+  | "in_progress"
+  | "completed"
+  | "skipped"
+  | "failed"
+  | "flagged";
 
 export interface AssetStep {
   id: AssetStepId;
@@ -623,15 +639,37 @@ export async function runAssetPipeline(
           "Depreciation accounts (6040/1520) not configured — journal not posted",
         );
       } else {
+        // Resolve period + sequential entryNumber (Sub-Part D fix — was periodId "" + Date.now random)
+        const [aY, aM] = period.split("-");
+        const matchedPeriod = await db.query.fiscalPeriods.findFirst({
+          where: and(
+            eq(fiscalPeriods.entityId, entityId),
+            eq(fiscalPeriods.year, parseInt(aY ?? "0", 10)),
+            eq(fiscalPeriods.month, parseInt(aM ?? "0", 10)),
+          ),
+        });
+        if (!matchedPeriod) {
+          return {
+            success: false,
+            error: `No fiscal period for ${period}`,
+            warnings,
+          } as any;
+        }
+        const maxEntry = await db
+          .select({ maxNum: max(journalEntries.entryNumber) })
+          .from(journalEntries)
+          .where(eq(journalEntries.entityId, entityId));
+        const nextEntry = (maxEntry[0]?.maxNum ?? 0) + 1;
+
         // Create batch journal entry
         const [je] = await db
           .insert(journalEntries)
           .values({
             entityId,
-            entryNumber: parseInt(Date.now().toString().slice(-8), 10),
+            entryNumber: nextEntry,
             description: `Monthly depreciation for ${period} — ${allDepreciationEntries.length} assets`,
             date: new Date().toISOString().slice(0, 10),
-            periodId: "",
+            periodId: matchedPeriod.id,
             status: "posted",
             postedAt: new Date(),
             postedBy: userId,
@@ -639,23 +677,23 @@ export async function runAssetPipeline(
           .returning();
 
         if (je) {
-          // Debit: Depreciation expense (6040)
-          await db.insert(journalEntryLines).values({
-            journalEntryId: je.id,
-            accountId: depreciationExpenseAccount.id,
-            debit: totalDepreciationAmount.toFixed(2),
-            credit: "0",
-            description: `Depreciation for ${period}`,
-          });
-
-          // Credit: Accumulated depreciation (1520)
-          await db.insert(journalEntryLines).values({
-            journalEntryId: je.id,
-            accountId: accumDeprAccount.id,
-            debit: "0",
-            credit: totalDepreciationAmount.toFixed(2),
-            description: `Accumulated depreciation for ${period}`,
-          });
+          // Debit/Credit batch — 1 query instead of 2
+          await db.insert(journalEntryLines).values([
+            {
+              journalEntryId: je.id,
+              accountId: depreciationExpenseAccount.id,
+              debit: totalDepreciationAmount.toFixed(2),
+              credit: "0",
+              description: `Depreciation for ${period}`,
+            },
+            {
+              journalEntryId: je.id,
+              accountId: accumDeprAccount.id,
+              debit: "0",
+              credit: totalDepreciationAmount.toFixed(2),
+              description: `Accumulated depreciation for ${period}`,
+            },
+          ]);
 
           // Update pipeline run with journal entry ID
           if (pipelineRunId) {

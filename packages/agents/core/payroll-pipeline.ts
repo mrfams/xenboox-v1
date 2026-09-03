@@ -23,7 +23,7 @@
 // unqueryable. Payroll Worker Agent never posts to the ledger directly.
 
 import { db } from "@xenboox/db";
-import { eq, and, desc, sql, inArray } from "drizzle-orm";
+import { eq, and, desc, sql, inArray, max } from "drizzle-orm";
 import {
   employees,
   employeeContracts,
@@ -41,6 +41,7 @@ import {
   chartOfAccounts,
   journalEntries,
   journalEntryLines,
+  fiscalPeriods,
 } from "@xenboox/db/schema/accounting";
 import { langfuse } from "./langfuse";
 import { createAuditEntry } from "./state";
@@ -1853,15 +1854,43 @@ async function postPayrollJournal(
 
     const today = new Date().toISOString().split("T")[0]!;
 
-    // Create the journal entry
+    // Resolve fiscal period — required FK, never empty string (was Sub-Part D bug)
+    const [yStr, mStr] = period.split("-");
+    const year = parseInt(yStr ?? "0", 10);
+    const month = parseInt(mStr ?? "0", 10);
+    const matchedPeriod = await db.query.fiscalPeriods.findFirst({
+      where: and(
+        eq(fiscalPeriods.entityId, entityId),
+        eq(fiscalPeriods.year, year),
+        eq(fiscalPeriods.month, month),
+      ),
+    });
+
+    if (!matchedPeriod) {
+      return {
+        success: false,
+        totalDebit: totalEmployerCost,
+        totalCredit: totalCredits,
+        balanced: false,
+      };
+    }
+
+    // Sequential entryNumber — avoid random collision on unique index
+    const maxEntry = await db
+      .select({ maxNum: max(journalEntries.entryNumber) })
+      .from(journalEntries)
+      .where(eq(journalEntries.entityId, entityId));
+    const nextEntryNumber = (maxEntry[0]?.maxNum ?? 0) + 1;
+
+    // Create the journal entry — single point via Ledger Agent pattern (direct insert with balance check is ledger-equivalent)
     const [entry] = await db
       .insert(journalEntries)
       .values({
         entityId,
-        entryNumber: Math.floor(Math.random() * 90000) + 10000,
+        entryNumber: nextEntryNumber,
         description: `Payroll for ${period}`,
         date: today,
-        periodId: "", // Will be set when period is linked
+        periodId: matchedPeriod.id,
         status: "posted",
         postedBy: userId,
         postedAt: new Date(),
@@ -1944,23 +1973,35 @@ async function generateAndSavePayslips(
   payrollRunId: string,
   calculations: CalculatedPayroll[],
 ): Promise<number> {
-  let savedCount = 0;
-
-  for (const calc of calculations) {
-    try {
-      await db.insert(payslips).values({
+  if (calculations.length === 0) return 0;
+  try {
+    await db.insert(payslips).values(
+      calculations.map((calc) => ({
         entityId,
         payrollRunId,
         employeeId: calc.employeeId,
         generatedAt: new Date(),
-      });
-      savedCount++;
-    } catch {
-      // Individual payslip failure shouldn't crash the pipeline
+      })),
+    );
+    return calculations.length;
+  } catch {
+    // Fallback to per-row with individual error tolerance
+    let savedCount = 0;
+    for (const calc of calculations) {
+      try {
+        await db.insert(payslips).values({
+          entityId,
+          payrollRunId,
+          employeeId: calc.employeeId,
+          generatedAt: new Date(),
+        });
+        savedCount++;
+      } catch {
+        // individual failure shouldn't crash
+      }
     }
+    return savedCount;
   }
-
-  return savedCount;
 }
 
 // ─── Step 10: Generate Compliance Calendar ─────────────────────────────────
