@@ -17,7 +17,9 @@ import type { IngestionState, PostingDecision } from "../core/types";
 // ─── Notification Types ─────────────────────────────────────────────────────
 
 type NotificationType =
-  "ingestion_review" | "ingestion_rejected" | "ingestion_posted";
+  | "ingestion_review"
+  | "ingestion_rejected"
+  | "ingestion_posted";
 
 type NotificationPriority = "critical" | "high" | "medium" | "low";
 
@@ -217,8 +219,14 @@ async function createNotificationForEntity(
     });
 
     if (accessRecords.length === 0) {
+      // eslint-disable-next-line no-console
       console.warn(
-        `[notifications] No users found for entity ${entityId}. Skipping notification.`,
+        JSON.stringify({
+          level: "warn",
+          module: "notifications",
+          message: "No users found for entity",
+          entityId,
+        }),
       );
       return;
     }
@@ -238,11 +246,26 @@ async function createNotificationForEntity(
 
     await db.insert(notifications).values(notificationValues);
 
+    // eslint-disable-next-line no-console
     console.info(
-      `[notifications] ${input.type} notification sent to ${accessRecords.length} users for entity ${entityId}`,
+      JSON.stringify({
+        level: "info",
+        module: "notifications",
+        type: input.type,
+        recipientCount: accessRecords.length,
+        entityId,
+      }),
     );
   } catch (error) {
     // Notification failure should never break the ingestion pipeline
-    console.error("[notifications] Failed to send notification:", error);
+    // eslint-disable-next-line no-console
+    console.error(
+      JSON.stringify({
+        level: "error",
+        module: "notifications",
+        message: "Failed to send notification",
+        error: error instanceof Error ? error.message : String(error),
+      }),
+    );
   }
 }

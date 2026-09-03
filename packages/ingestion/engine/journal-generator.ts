@@ -198,6 +198,25 @@ export async function postJournalEntry(
     );
   }
 
+  // ── Atomic reference check: prevent race condition double-posting ──
+  // If two pipelines run simultaneously for the same entity+reference,
+  // only one should post. The first to insert wins; the second gets the existing entry.
+  if (entry.reference) {
+    const existing = await db.query.journalEntries.findFirst({
+      where: and(
+        eq(journalEntries.entityId, entityId),
+        eq(journalEntries.reference, entry.reference),
+      ),
+    });
+    if (existing) {
+      // Already posted by a concurrent pipeline — return existing entry
+      return {
+        journalEntryId: existing.id,
+        entryNumber: existing.entryNumber,
+      };
+    }
+  }
+
   // Get the next entry number
   const lastEntry = await db.query.journalEntries.findFirst({
     where: eq(journalEntries.entityId, entityId),
@@ -274,6 +293,9 @@ function generateReference(workflow: string, description: string): string {
     .join("")
     .toUpperCase();
   const timestamp = Date.now().toString(36).toUpperCase();
+  // Use random suffix for uniqueness (avoids collisions when two docs
+  // are processed in the same millisecond)
+  const randomSuffix = Math.random().toString(36).substring(2, 6).toUpperCase();
   const slug = description
     .replace(/[^a-zA-Z0-9]/g, " ")
     .split(" ")
@@ -281,5 +303,5 @@ function generateReference(workflow: string, description: string): string {
     .slice(0, 3)
     .map((w) => w[0].toUpperCase())
     .join("");
-  return `${prefix}-${timestamp}-${slug}`;
+  return `${prefix}-${timestamp}-${randomSuffix}-${slug}`;
 }

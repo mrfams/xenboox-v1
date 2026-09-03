@@ -21,7 +21,7 @@
 
 import { db } from "@xenboox/db";
 import { documents, auditLog, agentActivity } from "@xenboox/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, and, gte } from "drizzle-orm";
 import type {
   AccountingWorkflow,
   IngestionState,
@@ -40,6 +40,7 @@ import {
 import { resolveEntities } from "./engine/entity-resolution";
 import { calculateTax } from "./engine/tax-calculator";
 import { runTrustGuard } from "./engine/trust-guard";
+import { runValidation } from "./intake/validation-layer";
 import { updateIngestionStatus } from "./engine/status-tracker";
 
 // ─── Main Pipeline Orchestrator ─────────────────────────────────────────────
@@ -111,6 +112,39 @@ export async function runIngestionPipeline(
     }
 
     const metadata = (doc.metadata ?? {}) as Record<string, unknown>;
+    const ingestionMeta = (metadata.ingestion ?? {}) as Record<string, unknown>;
+
+    // ── Idempotency check: skip if already posted ──
+    if (ingestionMeta.postedAt && ingestionMeta.journalEntryId) {
+      return {
+        documentId,
+        entityId,
+        success: true,
+        workflow:
+          (ingestionMeta.workflow as AccountingWorkflow) ??
+          "journal_adjustment",
+        confidence: {
+          overall: (ingestionMeta.confidence as number) ?? 1,
+          signals: [],
+          autoPostReady: true,
+        },
+        postingDecision: {
+          action: "auto_post",
+          confidence: (ingestionMeta.confidence as number) ?? 1,
+          reason: `Already posted at ${ingestionMeta.postedAt} — idempotent skip.`,
+        },
+        postingResult: {
+          posted: true,
+          journalEntryId: ingestionMeta.journalEntryId as string,
+          entryNumber: (ingestionMeta.entryNumber as number) ?? 0,
+          postedAt: ingestionMeta.postedAt as string,
+          auditEntries: [],
+          linksCreated: [],
+        },
+        pipelineDurationMs: Date.now() - startTime,
+      };
+    }
+
     const extractionMeta = (metadata.extraction ?? {}) as Record<
       string,
       unknown
@@ -240,14 +274,53 @@ export async function runIngestionPipeline(
     }
 
     // ── Stage 10b: TrustGuard — deterministic cross-validation ──
-    // Recomputes the math independently and compares to LLM extraction.
-    // If numbers don't match, the document is flagged for human review.
-    state.trustGuard = runTrustGuard(state);
+    // Reuse TrustGuard result from Trigger.dev pipeline if available
+    // (avoids double-running the same deterministic checks).
+    const existingTrustGuard =
+      (metadata.trustGuard as Record<string, unknown>) ?? undefined;
+    if (existingTrustGuard && typeof existingTrustGuard.passed === "boolean") {
+      // TrustGuard already ran in document-processing.ts Stage 5 — reuse it
+      state.trustGuard = {
+        passed: existingTrustGuard.passed as boolean,
+        checks: [], // Individual checks not stored in metadata
+        passedCount: (existingTrustGuard.passedCount as number) ?? 0,
+        totalCount: (existingTrustGuard.checks as number) ?? 0,
+        confidenceImpact:
+          (existingTrustGuard.confidenceImpact as number) ?? 1.0,
+        summary:
+          (existingTrustGuard.summary as string) ?? "Reused from pipeline",
+      };
+    } else {
+      // First run (e.g. pipeline recovery/retry) — run TrustGuard now
+      state.trustGuard = runTrustGuard(state);
+    }
     if (!state.trustGuard.passed) {
       state.validation.warnings.push({
         field: "trust_guard",
         message: `TrustGuard failed: ${state.trustGuard.summary}`,
       });
+    }
+
+    // ── Stage 10c: Content-level validation (fraud, compliance, math) ──
+    // This was previously dead code — now wired in.
+    // Detects: round amounts, Benford's Law deviation, duplicate invoice numbers,
+    // missing tax IDs, amount threshold violations, weekend transactions.
+    const contentValidation = await runValidation(state);
+    if (contentValidation.flags.length > 0) {
+      for (const flag of contentValidation.flags) {
+        if (flag.severity === "critical" || flag.severity === "high") {
+          state.validation.errors.push({
+            field: flag.field ?? flag.code,
+            message: flag.message,
+            severity: flag.severity === "critical" ? "error" : "warning",
+          });
+        } else {
+          state.validation.warnings.push({
+            field: flag.field ?? flag.code,
+            message: flag.message,
+          });
+        }
+      }
     }
 
     // ── Stage 11: Composite Confidence ──
@@ -452,7 +525,15 @@ async function logAgentActivity(
       status: "success",
     });
   } catch {
-    console.warn(`[ingestion] Failed to log agent activity: ${action}`);
+    // eslint-disable-next-line no-console
+    console.warn(
+      JSON.stringify({
+        level: "warn",
+        module: "ingestion",
+        message: "Failed to log agent activity",
+        action,
+      }),
+    );
   }
 }
 
@@ -471,12 +552,18 @@ async function checkDocumentDuplicate(
   const data = state.extraction.data;
 
   // Check 1: Same file hash
-  const metadata = (doc.metadata ?? {}) as Record<string, unknown>;
-  const checksum = metadata.checksum as string | undefined;
+  const docMetadata = (doc.metadata ?? {}) as Record<string, unknown>;
+  const checksum = docMetadata.checksum as string | undefined;
   if (checksum) {
+    // Scope to last 30 days to avoid full table scan on large entities
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 3600_000);
     const existingDocs = await db.query.documents.findMany({
-      where: eq(documents.entityId, entityId),
+      where: and(
+        eq(documents.entityId, entityId),
+        gte(documents.createdAt, thirtyDaysAgo),
+      ),
       columns: { id: true, metadata: true, name: true },
+      limit: 500,
     });
 
     for (const existing of existingDocs) {
@@ -501,9 +588,14 @@ async function checkDocumentDuplicate(
     const invoiceDate = (data.invoiceDate ?? data.date) as string | undefined;
 
     if (vendorName && totalAmount && invoiceDate) {
+      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 3600_000);
       const existingDocs = await db.query.documents.findMany({
-        where: eq(documents.entityId, entityId),
+        where: and(
+          eq(documents.entityId, entityId),
+          gte(documents.createdAt, thirtyDaysAgo),
+        ),
         columns: { id: true, name: true, metadata: true, type: true },
+        limit: 500,
       });
 
       for (const existing of existingDocs) {

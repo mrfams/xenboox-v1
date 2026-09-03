@@ -971,23 +971,58 @@ export const bankingRouter = router({
       orderBy: [asc(bankRules.priority), asc(bankRules.createdAt)],
     });
 
-    // Live match stats — how many current transactions each rule would match.
-    // Explicit column projection: never spread the full row (entityId,
-    // timestamps) to the client.
-    const withStats = await Promise.all(
-      rules.map(async (rule) => ({
-        id: rule.id,
-        name: rule.name,
-        matchType: rule.matchType,
-        matchValue: rule.matchValue,
-        category: rule.category,
-        glAccountId: rule.glAccountId,
-        isActive: rule.isActive,
-        priority: rule.priority,
-        matchCount: await countRuleMatches(entityId, rule),
-      })),
+    // Live match stats — batch ALL rules in one query instead of N+1.
+    // Build a single CASE/WHEN query that counts matches per rule.
+    const matchCountResults =
+      rules.length > 0
+        ? await db
+            .select({
+              matchCount: count(),
+              ruleIndex: sql`(
+              CASE
+                ${rules
+                  .map((rule, i) => {
+                    switch (rule.matchType) {
+                      case "description_contains":
+                        return sql`WHEN ${bankTransactions.description} ILIKE ${"%" + rule.matchValue + "%"} THEN ${i}`;
+                      case "description_equals":
+                        return sql`WHEN ${bankTransactions.description} = ${rule.matchValue} THEN ${i}`;
+                      case "reference_contains":
+                        return sql`WHEN ${bankTransactions.reference} ILIKE ${"%" + rule.matchValue + "%"} THEN ${i}`;
+                      case "amount_equals":
+                        return sql`WHEN ${bankTransactions.amount} = ${rule.matchValue} THEN ${i}`;
+                      case "amount_above":
+                        return sql`WHEN ${bankTransactions.amount} > ${rule.matchValue} THEN ${i}`;
+                      case "amount_below":
+                        return sql`WHEN ${bankTransactions.amount} < ${rule.matchValue} THEN ${i}`;
+                      default:
+                        return sql`WHEN false THEN ${i}`;
+                    }
+                  })
+                  .join("\n              ")}
+              END
+            )`,
+            })
+            .from(bankTransactions)
+            .where(eq(bankTransactions.entityId, entityId))
+            .groupBy(sql`ruleIndex`)
+        : [];
+
+    const matchCountByIndex = new Map(
+      matchCountResults.map((r) => [Number(r.ruleIndex), Number(r.matchCount)]),
     );
-    return withStats;
+
+    return rules.map((rule, i) => ({
+      id: rule.id,
+      name: rule.name,
+      matchType: rule.matchType,
+      matchValue: rule.matchValue,
+      category: rule.category,
+      glAccountId: rule.glAccountId,
+      isActive: rule.isActive,
+      priority: rule.priority,
+      matchCount: matchCountByIndex.get(i) ?? 0,
+    }));
   }),
 
   createRule: rlsMutateProcedure
@@ -1220,119 +1255,27 @@ export const bankingRouter = router({
         }> = [];
 
         for (const tx of uncategorized) {
-          let matchedCategory: string | null = null;
-          let matchedGlAccountId: string | null = null;
-          let matchedBy: string = "ai";
-          let confidence: number = 0.7;
-
-          // Try rules first
-          for (const rule of rules) {
-            const desc = tx.description.toLowerCase();
-            const matchVal = rule.matchValue.toLowerCase();
-            let matches = false;
-
-            switch (rule.matchType) {
-              case "description_contains":
-                matches = desc.includes(matchVal);
-                break;
-              case "description_equals":
-                matches = desc === matchVal;
-                break;
-              case "reference_contains":
-                matches = (tx.reference ?? "").toLowerCase().includes(matchVal);
-                break;
-              case "amount_equals":
-                matches = Number(tx.amount) === Number(rule.matchValue);
-                break;
-              case "amount_above":
-                matches = Number(tx.amount) > Number(rule.matchValue);
-                break;
-              case "amount_below":
-                matches = Number(tx.amount) < Number(rule.matchValue);
-                break;
-            }
-
-            if (matches) {
-              matchedCategory = rule.category;
-              matchedGlAccountId = rule.glAccountId;
-              matchedBy = "rule";
-              confidence = 0.95;
-              break;
-            }
-          }
-
-          // AI keyword heuristics fallback
-          if (!matchedCategory) {
-            const desc = tx.description.toLowerCase();
-            if (
-              desc.includes("stripe") ||
-              desc.includes("fee") ||
-              desc.includes("charge")
-            ) {
-              matchedCategory = "Bank Fees";
-              confidence = 0.8;
-            } else if (
-              desc.includes("salary") ||
-              desc.includes("payroll") ||
-              desc.includes("wage")
-            ) {
-              matchedCategory = "Payroll";
-              confidence = 0.85;
-            } else if (desc.includes("rent") || desc.includes("lease")) {
-              matchedCategory = "Rent & Lease";
-              confidence = 0.8;
-            } else if (
-              desc.includes("electric") ||
-              desc.includes("water") ||
-              desc.includes("internet") ||
-              desc.includes("utility")
-            ) {
-              matchedCategory = "Utilities";
-              confidence = 0.8;
-            } else if (
-              desc.includes("uber") ||
-              desc.includes("lyft") ||
-              desc.includes("taxi") ||
-              desc.includes("fuel")
-            ) {
-              matchedCategory = "Travel & Transport";
-              confidence = 0.75;
-            } else if (
-              desc.includes("restaurant") ||
-              desc.includes("food") ||
-              desc.includes("meal") ||
-              desc.includes("coffee")
-            ) {
-              matchedCategory = "Meals & Entertainment";
-              confidence = 0.75;
-            } else if (
-              desc.includes("software") ||
-              desc.includes("saas") ||
-              desc.includes("subscription")
-            ) {
-              matchedCategory = "Software & Subscriptions";
-              confidence = 0.75;
-            } else if (
-              desc.includes("marketing") ||
-              desc.includes("ad ") ||
-              desc.includes("facebook ads") ||
-              desc.includes("google ads")
-            ) {
-              matchedCategory = "Marketing";
-              confidence = 0.7;
-            } else if (Number(tx.amount) > 0) {
-              matchedCategory = "Revenue";
-              confidence = 0.6;
-            }
-          }
-
-          if (matchedCategory) {
+          const match = categorizeTransaction(
+            {
+              description: tx.description,
+              reference: tx.reference,
+              amount: tx.amount,
+              type: tx.type,
+            },
+            rules.map((r) => ({
+              matchType: r.matchType,
+              matchValue: r.matchValue,
+              category: r.category,
+              glAccountId: r.glAccountId,
+            })),
+          );
+          if (match) {
             updates.push({
               id: tx.id,
-              category: matchedCategory,
-              glAccountId: matchedGlAccountId,
-              categorizedBy: matchedBy,
-              confidence: confidence.toString(),
+              category: match.category,
+              glAccountId: match.glAccountId,
+              categorizedBy: match.categorizedBy,
+              confidence: match.confidence.toString(),
             });
           }
         }
@@ -1396,119 +1339,27 @@ export const bankingRouter = router({
         }> = [];
 
         for (const tx of transactions) {
-          let matchedCategory: string | null = null;
-          let matchedGlAccountId: string | null = null;
-          let matchedBy: string = "ai";
-          let confidence: number = 0.7;
-
-          // Try rules first
-          for (const rule of rules) {
-            const desc = tx.description.toLowerCase();
-            const matchVal = rule.matchValue.toLowerCase();
-            let matches = false;
-
-            switch (rule.matchType) {
-              case "description_contains":
-                matches = desc.includes(matchVal);
-                break;
-              case "description_equals":
-                matches = desc === matchVal;
-                break;
-              case "reference_contains":
-                matches = (tx.reference ?? "").toLowerCase().includes(matchVal);
-                break;
-              case "amount_equals":
-                matches = Number(tx.amount) === Number(rule.matchValue);
-                break;
-              case "amount_above":
-                matches = Number(tx.amount) > Number(rule.matchValue);
-                break;
-              case "amount_below":
-                matches = Number(tx.amount) < Number(rule.matchValue);
-                break;
-            }
-
-            if (matches) {
-              matchedCategory = rule.category;
-              matchedGlAccountId = rule.glAccountId;
-              matchedBy = "rule";
-              confidence = 0.95;
-              break;
-            }
-          }
-
-          // AI keyword heuristics fallback
-          if (!matchedCategory) {
-            const desc = tx.description.toLowerCase();
-            if (
-              desc.includes("stripe") ||
-              desc.includes("fee") ||
-              desc.includes("charge")
-            ) {
-              matchedCategory = "Bank Fees";
-              confidence = 0.8;
-            } else if (
-              desc.includes("salary") ||
-              desc.includes("payroll") ||
-              desc.includes("wage")
-            ) {
-              matchedCategory = "Payroll";
-              confidence = 0.85;
-            } else if (desc.includes("rent") || desc.includes("lease")) {
-              matchedCategory = "Rent & Lease";
-              confidence = 0.8;
-            } else if (
-              desc.includes("electric") ||
-              desc.includes("water") ||
-              desc.includes("internet") ||
-              desc.includes("utility")
-            ) {
-              matchedCategory = "Utilities";
-              confidence = 0.8;
-            } else if (
-              desc.includes("uber") ||
-              desc.includes("lyft") ||
-              desc.includes("taxi") ||
-              desc.includes("fuel")
-            ) {
-              matchedCategory = "Travel & Transport";
-              confidence = 0.75;
-            } else if (
-              desc.includes("restaurant") ||
-              desc.includes("food") ||
-              desc.includes("meal") ||
-              desc.includes("coffee")
-            ) {
-              matchedCategory = "Meals & Entertainment";
-              confidence = 0.75;
-            } else if (
-              desc.includes("software") ||
-              desc.includes("saas") ||
-              desc.includes("subscription")
-            ) {
-              matchedCategory = "Software & Subscriptions";
-              confidence = 0.75;
-            } else if (
-              desc.includes("marketing") ||
-              desc.includes("ad ") ||
-              desc.includes("facebook ads") ||
-              desc.includes("google ads")
-            ) {
-              matchedCategory = "Marketing";
-              confidence = 0.7;
-            } else if (Number(tx.amount) > 0) {
-              matchedCategory = "Revenue";
-              confidence = 0.6;
-            }
-          }
-
-          if (matchedCategory) {
+          const match = categorizeTransaction(
+            {
+              description: tx.description,
+              reference: tx.reference,
+              amount: tx.amount,
+              type: tx.type,
+            },
+            rules.map((r) => ({
+              matchType: r.matchType,
+              matchValue: r.matchValue,
+              category: r.category,
+              glAccountId: r.glAccountId,
+            })),
+          );
+          if (match) {
             updates.push({
               id: tx.id,
-              category: matchedCategory,
-              glAccountId: matchedGlAccountId,
-              categorizedBy: matchedBy,
-              confidence: confidence.toString(),
+              category: match.category,
+              glAccountId: match.glAccountId,
+              categorizedBy: match.categorizedBy,
+              confidence: match.confidence.toString(),
             });
           }
         }
@@ -1539,6 +1390,180 @@ export const bankingRouter = router({
       }
     }),
 });
+
+// ─── Shared categorization logic ──────────────────────────────────────────
+
+interface CategoryMatch {
+  category: string;
+  glAccountId: string | null;
+  categorizedBy: string;
+  confidence: number;
+}
+
+/**
+ * Match a bank transaction against rules + AI keyword heuristics.
+ * Shared by autoCategorize and batchCategorize to avoid duplication.
+ */
+function categorizeTransaction(
+  tx: {
+    description: string;
+    reference: string | null;
+    amount: string;
+    type: string;
+  },
+  rules: Array<{
+    matchType: string;
+    matchValue: string;
+    category: string;
+    glAccountId: string | null;
+  }>,
+): CategoryMatch | null {
+  const desc = tx.description.toLowerCase();
+
+  // Try rules first (highest confidence)
+  for (const rule of rules) {
+    const matchVal = rule.matchValue.toLowerCase();
+    let matches = false;
+
+    switch (rule.matchType) {
+      case "description_contains":
+        matches = desc.includes(matchVal);
+        break;
+      case "description_equals":
+        matches = desc === matchVal;
+        break;
+      case "reference_contains":
+        matches = (tx.reference ?? "").toLowerCase().includes(matchVal);
+        break;
+      case "amount_equals":
+        matches = Number(tx.amount) === Number(rule.matchValue);
+        break;
+      case "amount_above":
+        matches = Number(tx.amount) > Number(rule.matchValue);
+        break;
+      case "amount_below":
+        matches = Number(tx.amount) < Number(rule.matchValue);
+        break;
+    }
+
+    if (matches) {
+      return {
+        category: rule.category,
+        glAccountId: rule.glAccountId,
+        categorizedBy: "rule",
+        confidence: 0.95,
+      };
+    }
+  }
+
+  // AI keyword heuristics fallback
+  if (
+    desc.includes("stripe") ||
+    desc.includes("fee") ||
+    desc.includes("charge")
+  ) {
+    return {
+      category: "Bank Fees",
+      glAccountId: null,
+      categorizedBy: "ai",
+      confidence: 0.8,
+    };
+  }
+  if (
+    desc.includes("salary") ||
+    desc.includes("payroll") ||
+    desc.includes("wage")
+  ) {
+    return {
+      category: "Payroll",
+      glAccountId: null,
+      categorizedBy: "ai",
+      confidence: 0.85,
+    };
+  }
+  if (desc.includes("rent") || desc.includes("lease")) {
+    return {
+      category: "Rent & Lease",
+      glAccountId: null,
+      categorizedBy: "ai",
+      confidence: 0.8,
+    };
+  }
+  if (
+    desc.includes("electric") ||
+    desc.includes("water") ||
+    desc.includes("internet") ||
+    desc.includes("utility")
+  ) {
+    return {
+      category: "Utilities",
+      glAccountId: null,
+      categorizedBy: "ai",
+      confidence: 0.8,
+    };
+  }
+  if (
+    desc.includes("uber") ||
+    desc.includes("lyft") ||
+    desc.includes("taxi") ||
+    desc.includes("fuel")
+  ) {
+    return {
+      category: "Travel & Transport",
+      glAccountId: null,
+      categorizedBy: "ai",
+      confidence: 0.75,
+    };
+  }
+  if (
+    desc.includes("restaurant") ||
+    desc.includes("food") ||
+    desc.includes("meal") ||
+    desc.includes("coffee")
+  ) {
+    return {
+      category: "Meals & Entertainment",
+      glAccountId: null,
+      categorizedBy: "ai",
+      confidence: 0.75,
+    };
+  }
+  if (
+    desc.includes("software") ||
+    desc.includes("saas") ||
+    desc.includes("subscription")
+  ) {
+    return {
+      category: "Software & Subscriptions",
+      glAccountId: null,
+      categorizedBy: "ai",
+      confidence: 0.75,
+    };
+  }
+  if (
+    desc.includes("marketing") ||
+    desc.includes("ad ") ||
+    desc.includes("facebook ads") ||
+    desc.includes("google ads")
+  ) {
+    return {
+      category: "Marketing",
+      glAccountId: null,
+      categorizedBy: "ai",
+      confidence: 0.7,
+    };
+  }
+  if (Number(tx.amount) > 0) {
+    return {
+      category: "Revenue",
+      glAccountId: null,
+      categorizedBy: "ai",
+      confidence: 0.6,
+    };
+  }
+
+  return null;
+}
 
 // ─── Rule match helpers ────────────────────────────────────────────────────
 
@@ -2101,7 +2126,7 @@ function generateDemoTransactions(
       description: template.desc,
       reference: `DEMO-${Date.now()}-${i}`,
       source: "demo_sync",
-      category: "Uncategorized",
+      category: template.category,
       metadata: {
         demo: true,
         generatedAt: new Date().toISOString(),
