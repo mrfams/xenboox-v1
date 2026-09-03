@@ -54,7 +54,7 @@ export interface TrustGuardResult {
 
 // ─── Configuration ──────────────────────────────────────────────────────────
 
-const DEFAULT_TOLERANCE = 0.0; // Exact match for accounting
+const DEFAULT_TOLERANCE = 0.01; // $0.01 tolerance for floating-point rounding in accounting
 const WARNING_MULTIPLIER = 0.8; // Warnings reduce confidence by 20%
 const ERROR_MULTIPLIER = 0.0; // Errors zero out confidence for that check
 
@@ -69,8 +69,10 @@ export function runTrustGuard(state: IngestionState): TrustGuardResult {
   const data = state.extraction.data;
   const checks: TrustGuardCheck[] = [];
 
-  // Always run cross-field consistency checks
-  checks.push(...validateAmountConsistency(data));
+  // Cross-field consistency checks (skip for invoices — covered by invoice-specific checks)
+  if (category !== "invoice") {
+    checks.push(...validateAmountConsistency(data));
+  }
 
   // Always run date sanity checks
   checks.push(...validateDateSanity(data));
@@ -94,7 +96,12 @@ export function runTrustGuard(state: IngestionState): TrustGuardResult {
     case "payroll_report":
       checks.push(...validatePayrollExtraction(data));
       break;
-    // Other document types: no specific checks yet
+    case "purchase_order":
+    case "contract":
+    case "tax_document":
+      // These types get basic amount validation (no line-item detail expected)
+      checks.push(...validateBasicAmountExtraction(data));
+      break;
     default:
       break;
   }
@@ -287,6 +294,33 @@ function validateInvoiceExtraction(
     });
   }
 
+  // Check 5: Currency consistency across line items
+  if (lineItems && lineItems.length > 1) {
+    const docCurrency = (data.currency as string) ?? "";
+    const currencies = new Set<string>();
+    if (docCurrency) currencies.add(docCurrency);
+
+    for (const item of lineItems) {
+      const itemCurrency = (item as Record<string, unknown>).currency as
+        | string
+        | undefined;
+      if (itemCurrency) currencies.add(itemCurrency);
+    }
+
+    if (currencies.size > 1) {
+      checks.push({
+        name: "invoice_currency_consistent",
+        description: `Line items use multiple currencies: ${Array.from(currencies).join(", ")}`,
+        passed: false,
+        expected: 1,
+        actual: currencies.size,
+        difference: currencies.size - 1,
+        severity: "error",
+        message: `Multiple currencies detected in line items: ${Array.from(currencies).join(", ")}. All amounts should be in the same currency.`,
+      });
+    }
+  }
+
   return checks;
 }
 
@@ -397,8 +431,7 @@ function validateBankStatementExtraction(
     const expectedClosing =
       Math.round((openingBalance + totalCredits - totalDebits) * 100) / 100;
     const diff = Math.abs(expectedClosing - closingBalance);
-    // Bank statements can have small rounding, allow 0.01 tolerance
-    const passed = diff <= 0.01;
+    const passed = diff <= DEFAULT_TOLERANCE;
 
     checks.push({
       name: "bank_balance_equation",
@@ -427,7 +460,7 @@ function validateBankStatementExtraction(
       const diff = Math.abs(
         Math.round(computedCredits * 100) / 100 - totalCredits,
       );
-      const passed = diff <= 0.01;
+      const passed = diff <= DEFAULT_TOLERANCE;
 
       checks.push({
         name: "bank_credits_sum",
@@ -447,7 +480,7 @@ function validateBankStatementExtraction(
       const diff = Math.abs(
         Math.round(computedDebits * 100) / 100 - totalDebits,
       );
-      const passed = diff <= 0.01;
+      const passed = diff <= DEFAULT_TOLERANCE;
 
       checks.push({
         name: "bank_debits_sum",
@@ -475,6 +508,38 @@ function validateBankStatementExtraction(
         difference: zeros.length,
         severity: "warning",
         message: `${zeros.length} transaction(s) have zero amount`,
+      });
+    }
+
+    // Check 4: Per-transaction running balance consistency
+    const balanceErrors: number[] = [];
+    let prevBalance = openingBalance;
+    for (let i = 0; i < transactions.length; i++) {
+      const tx = transactions[i]!;
+      if (tx.balance !== undefined && prevBalance !== undefined) {
+        const sign = tx.type === "credit" ? 1 : -1;
+        const expectedBalance =
+          Math.round((prevBalance + sign * Math.abs(tx.amount)) * 100) / 100;
+        const actualBalance = Math.round(tx.balance * 100) / 100;
+        if (Math.abs(expectedBalance - actualBalance) > 0.02) {
+          balanceErrors.push(i + 1);
+        }
+      }
+      if (tx.balance !== undefined) {
+        prevBalance = tx.balance;
+      }
+    }
+
+    if (balanceErrors.length > 0) {
+      checks.push({
+        name: "bank_running_balance",
+        description: `${balanceErrors.length} transaction(s) have incorrect running balances`,
+        passed: false,
+        expected: 0,
+        actual: balanceErrors.length,
+        difference: balanceErrors.length,
+        severity: "warning",
+        message: `Transactions ${balanceErrors.slice(0, 5).join(", ")}${balanceErrors.length > 5 ? ` (+${balanceErrors.length - 5} more)` : ""} have incorrect running balances`,
       });
     }
   }
@@ -510,7 +575,7 @@ function validatePayrollExtraction(
       (deductions ?? []).reduce((sum, d) => sum + d.amount, 0) + taxAmount;
     const expectedNet = Math.round((grossPay - totalDeductions) * 100) / 100;
     const diff = Math.abs(expectedNet - netPay);
-    const passed = diff <= 0.01; // Allow 1 cent tolerance for rounding
+    const passed = diff <= DEFAULT_TOLERANCE;
 
     checks.push({
       name: "payroll_gross_deductions_net",
@@ -565,6 +630,63 @@ function validatePayrollExtraction(
   return checks;
 }
 
+// ─── Basic Amount Validation (PO, Contract, Tax Document) ─────────────────
+
+/**
+ * Basic amount validation for document types without detailed line items.
+ * Checks that total amount is present and positive.
+ */
+function validateBasicAmountExtraction(
+  data: Record<string, unknown>,
+): TrustGuardCheck[] {
+  const checks: TrustGuardCheck[] = [];
+  const totalAmount = data.totalAmount as number | undefined;
+
+  if (totalAmount !== undefined) {
+    checks.push({
+      name: "basic_total_positive",
+      description: "Total amount should be positive",
+      passed: totalAmount > 0,
+      expected: 1,
+      actual: totalAmount,
+      difference: totalAmount <= 0 ? 1 : 0,
+      severity: "error",
+      message:
+        totalAmount > 0
+          ? `Total amount is positive: ${totalAmount}`
+          : `Total amount is non-positive: ${totalAmount}`,
+    });
+  }
+
+  // Check subtotal + tax = total if all present
+  const subtotal = data.subtotal as number | undefined;
+  const taxAmount = data.taxAmount as number | undefined;
+  if (
+    subtotal !== undefined &&
+    taxAmount !== undefined &&
+    totalAmount !== undefined
+  ) {
+    const expected = Math.round((subtotal + taxAmount) * 100) / 100;
+    const diff = Math.abs(expected - totalAmount);
+    const passed = diff <= DEFAULT_TOLERANCE;
+
+    checks.push({
+      name: "basic_amount_formula",
+      description: `Subtotal (${subtotal}) + Tax (${taxAmount}) should equal Total (${totalAmount})`,
+      passed,
+      expected,
+      actual: totalAmount,
+      difference: diff,
+      severity: "error",
+      message: passed
+        ? `Amount formula correct: ${subtotal} + ${taxAmount} = ${totalAmount}`
+        : `Amount formula error: ${subtotal} + ${taxAmount} = ${expected}, but extracted total is ${totalAmount} (diff: ${diff.toFixed(2)})`,
+    });
+  }
+
+  return checks;
+}
+
 // ─── Date Sanity Checks ────────────────────────────────────────────────────
 
 /**
@@ -576,10 +698,17 @@ function validatePayrollExtraction(
  * 3. Due date should be after invoice/date (if both present)
  * 4. No zero/empty dates that slipped through extraction
  */
-function validateDateSanity(data: Record<string, unknown>): TrustGuardCheck[] {
+function validateDateSanity(
+  data: Record<string, unknown>,
+  now?: Date,
+): TrustGuardCheck[] {
   const checks: TrustGuardCheck[] = [];
-  const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const refDate = now ?? new Date();
+  const today = new Date(
+    refDate.getFullYear(),
+    refDate.getMonth(),
+    refDate.getDate(),
+  );
 
   // Collect all date fields from the extraction
   const dateFields: Array<{ name: string; value: unknown }> = [
@@ -796,6 +925,29 @@ function validateOcrVsExtraction(
       message: found
         ? `Invoice number ${invoiceNumber} found in OCR text`
         : `Invoice number ${invoiceNumber} NOT found in OCR text — may be extraction error`,
+    });
+  }
+
+  // Check 3: Vendor/merchant name should appear in OCR text (if extracted with confidence)
+  const vendorName =
+    (data.vendorName as string) ?? (data.merchantName as string) ?? undefined;
+  if (vendorName && vendorName.length > 2) {
+    // Case-insensitive search for vendor name in OCR text
+    const ocrLower = ocrText.toLowerCase();
+    const vendorLower = vendorName.toLowerCase();
+    const found = ocrLower.includes(vendorLower);
+
+    checks.push({
+      name: "ocr_vendor_name_found",
+      description: `Vendor name (${vendorName}) should appear in OCR text`,
+      passed: found,
+      expected: 1,
+      actual: found ? 1 : 0,
+      difference: found ? 0 : 1,
+      severity: "warning",
+      message: found
+        ? `Vendor name "${vendorName}" found in OCR text`
+        : `Vendor name "${vendorName}" NOT found in OCR text — extraction may have hallucinated this name`,
     });
   }
 

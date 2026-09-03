@@ -26,28 +26,34 @@ const DEFAULT_WEIGHTS: Record<string, number> = {
 
 // ─── Signal Constructors ────────────────────────────────────────────────────
 
-function ocrSignal(state: IngestionState): IngestionConfidenceSignal {
-  // OCR confidence is already computed by the pipeline (0-1)
+function ocrSignal(
+  state: IngestionState,
+  weights: Record<string, number>,
+): IngestionConfidenceSignal {
   return {
     name: "ocr_quality",
     value: state.ocrConfidence,
-    weight: DEFAULT_WEIGHTS.ocr_quality,
+    weight: weights.ocr_quality,
     description: `OCR quality: ${(state.ocrConfidence * 100).toFixed(0)}% confidence`,
   };
 }
 
 function classificationSignal(
   state: IngestionState,
+  weights: Record<string, number>,
 ): IngestionConfidenceSignal {
   return {
     name: "classification_confidence",
     value: state.classification.confidence,
-    weight: DEFAULT_WEIGHTS.classification_confidence,
+    weight: weights.classification_confidence,
     description: `Document classified as "${state.classification.category}" with ${(state.classification.confidence * 100).toFixed(0)}% confidence`,
   };
 }
 
-function extractionSignal(state: IngestionState): IngestionConfidenceSignal {
+function extractionSignal(
+  state: IngestionState,
+  weights: Record<string, number>,
+): IngestionConfidenceSignal {
   const fieldValues = Object.values(state.extraction.fieldConfidence);
   const avgFieldConfidence =
     fieldValues.length > 0
@@ -57,17 +63,22 @@ function extractionSignal(state: IngestionState): IngestionConfidenceSignal {
   return {
     name: "extraction_field_confidence",
     value: avgFieldConfidence,
-    weight: DEFAULT_WEIGHTS.extraction_field_confidence,
+    weight: weights.extraction_field_confidence,
     description: `Average extraction field confidence: ${(avgFieldConfidence * 100).toFixed(0)}% across ${fieldValues.length} fields`,
   };
 }
 
-function duplicateSignal(existingEntries: number): IngestionConfidenceSignal {
-  const value = existingEntries === 0 ? 1.0 : 0.3;
+function duplicateSignal(
+  existingEntries: number,
+  weights: Record<string, number>,
+): IngestionConfidenceSignal {
+  // Scale inversely with count: 0 dupes = 1.0, 1 = 0.8, 5 = 0.2, 10+ = 0.1
+  const value =
+    existingEntries === 0 ? 1.0 : Math.max(0.1, 1.0 - existingEntries * 0.15);
   return {
     name: "duplicate_check",
     value,
-    weight: DEFAULT_WEIGHTS.duplicate_check,
+    weight: weights.duplicate_check,
     description:
       existingEntries === 0
         ? "No duplicates detected"
@@ -76,13 +87,14 @@ function duplicateSignal(existingEntries: number): IngestionConfidenceSignal {
 }
 
 function entityResolutionSignal(
-  resolved?: ResolvedEntities,
+  resolved: ResolvedEntities | undefined,
+  weights: Record<string, number>,
 ): IngestionConfidenceSignal {
   if (!resolved) {
     return {
       name: "entity_resolution",
       value: 0,
-      weight: DEFAULT_WEIGHTS.entity_resolution,
+      weight: weights.entity_resolution,
       description: "Entity resolution not performed",
     };
   }
@@ -104,19 +116,20 @@ function entityResolutionSignal(
   return {
     name: "entity_resolution",
     value: Math.max(0, Math.min(1, avgConfidence - unmatchedPenalty)),
-    weight: DEFAULT_WEIGHTS.entity_resolution,
+    weight: weights.entity_resolution,
     description: `Entity resolution: ${confidences.length} entities matched, ${resolved.unmatched?.length ?? 0} unmatched`,
   };
 }
 
 function trustGuardSignal(
-  trustGuard?: TrustGuardResult,
+  trustGuard: TrustGuardResult | undefined,
+  weights: Record<string, number>,
 ): IngestionConfidenceSignal {
   if (!trustGuard) {
     return {
       name: "trust_guard",
-      value: 0.5,
-      weight: DEFAULT_WEIGHTS.trust_guard,
+      value: 0.3, // Cautious default — TrustGuard should always run
+      weight: weights.trust_guard,
       description: "TrustGuard not yet run",
     };
   }
@@ -125,7 +138,7 @@ function trustGuardSignal(
     return {
       name: "trust_guard",
       value: 1.0,
-      weight: DEFAULT_WEIGHTS.trust_guard,
+      weight: weights.trust_guard,
       description: `TrustGuard: all ${trustGuard.totalCount} checks passed — extraction mathematically verified`,
     };
   }
@@ -146,17 +159,20 @@ function trustGuardSignal(
   return {
     name: "trust_guard",
     value,
-    weight: DEFAULT_WEIGHTS.trust_guard,
+    weight: weights.trust_guard,
     description: `TrustGuard: ${failedCount}/${trustGuard.totalCount} checks failed — ${errorChecks.length} errors, ${warningChecks.length} warnings. ${trustGuard.summary}`,
   };
 }
 
-function coaMappingSignal(mapping?: CoaMapping): IngestionConfidenceSignal {
+function coaMappingSignal(
+  mapping: CoaMapping | undefined,
+  weights: Record<string, number>,
+): IngestionConfidenceSignal {
   if (!mapping) {
     return {
       name: "coa_mapping",
       value: 0,
-      weight: DEFAULT_WEIGHTS.coa_mapping,
+      weight: weights.coa_mapping,
       description: "COA mapping not performed",
     };
   }
@@ -167,25 +183,26 @@ function coaMappingSignal(mapping?: CoaMapping): IngestionConfidenceSignal {
       ? allLines.reduce((s, l) => s + l.confidence, 0) / allLines.length
       : 0;
 
-  // Penalize for unmapped accounts
-  const unmappedPenalty = mapping.unmapped.length * 0.2;
+  // Diminishing penalty for unmapped accounts (max 0.3 penalty)
+  const unmappedPenalty = Math.min(0.3, mapping.unmapped.length * 0.1);
 
   return {
     name: "coa_mapping",
     value: Math.max(0, Math.min(1, avgConfidence - unmappedPenalty)),
-    weight: DEFAULT_WEIGHTS.coa_mapping,
+    weight: weights.coa_mapping,
     description: `COA mapping: ${allLines.length} lines mapped, ${mapping.unmapped.length} unmapped`,
   };
 }
 
 function validationSignal(
-  validation?: IngestionValidation,
+  validation: IngestionValidation | undefined,
+  weights: Record<string, number>,
 ): IngestionConfidenceSignal {
   if (!validation) {
     return {
       name: "accounting_rule_validation",
       value: 0,
-      weight: DEFAULT_WEIGHTS.accounting_rule_validation,
+      weight: weights.accounting_rule_validation,
       description: "Validation not performed",
     };
   }
@@ -205,13 +222,14 @@ function validationSignal(
   return {
     name: "accounting_rule_validation",
     value,
-    weight: DEFAULT_WEIGHTS.accounting_rule_validation,
+    weight: weights.accounting_rule_validation,
     description: `Validation: ${passCount}/${checks.length} checks passed, ${validation.errors.length} errors`,
   };
 }
 
 function amountConsistencySignal(
   state: IngestionState,
+  weights: Record<string, number>,
 ): IngestionConfidenceSignal {
   const extractedData = state.extraction.data;
   const totalAmount = (extractedData.totalAmount as number) ?? 0;
@@ -221,7 +239,7 @@ function amountConsistencySignal(
     return {
       name: "amount_consistency",
       value: 0.5,
-      weight: DEFAULT_WEIGHTS.amount_consistency,
+      weight: weights.amount_consistency,
       description: "Amount consistency check not applicable",
     };
   }
@@ -230,27 +248,31 @@ function amountConsistencySignal(
   const maxLineAmount = Math.max(
     ...proposedEntry.lines.map((l) => Math.max(l.debit, l.credit)),
   );
-  const ratio = maxLineAmount > 0 ? Math.abs(totalAmount) / maxLineAmount : 1;
+  const absTotal = Math.abs(totalAmount);
+  const ratio = maxLineAmount > 0 ? absTotal / maxLineAmount : 1;
   const consistent = ratio > 0.95 && ratio < 1.05;
 
   return {
     name: "amount_consistency",
     value: consistent ? 0.95 : 0.5,
-    weight: DEFAULT_WEIGHTS.amount_consistency,
+    weight: weights.amount_consistency,
     description: consistent
       ? "Extracted amounts match proposed entry"
       : `Amount mismatch: extracted ${totalAmount} vs proposed ${maxLineAmount}`,
   };
 }
 
-function periodSignal(state: IngestionState): IngestionConfidenceSignal {
+function periodSignal(
+  state: IngestionState,
+  weights: Record<string, number>,
+): IngestionConfidenceSignal {
   const validation = state.validation;
   const periodOpen = validation?.periodOpen ?? false;
 
   return {
     name: "period_validity",
     value: periodOpen ? 1.0 : 0.0,
-    weight: DEFAULT_WEIGHTS.period_validity,
+    weight: weights.period_validity,
     description: periodOpen
       ? "Target fiscal period is open"
       : "Target fiscal period is closed or not found",
@@ -274,22 +296,22 @@ export function computeIngestionConfidence(
   existingDuplicateCount: number = 0,
   customWeights?: Record<string, number>,
 ): IngestionConfidence {
-  // Override weights if provided
-  if (customWeights) {
-    Object.assign(DEFAULT_WEIGHTS, customWeights);
-  }
+  // Merge weights without mutating the defaults (critical for concurrent jobs)
+  const weights = customWeights
+    ? { ...DEFAULT_WEIGHTS, ...customWeights }
+    : DEFAULT_WEIGHTS;
 
   const signals: IngestionConfidenceSignal[] = [
-    ocrSignal(state),
-    classificationSignal(state),
-    extractionSignal(state),
-    trustGuardSignal(state.trustGuard),
-    duplicateSignal(existingDuplicateCount),
-    entityResolutionSignal(state.resolvedEntities),
-    coaMappingSignal(state.coaMapping),
-    validationSignal(state.validation),
-    amountConsistencySignal(state),
-    periodSignal(state),
+    ocrSignal(state, weights),
+    classificationSignal(state, weights),
+    extractionSignal(state, weights),
+    trustGuardSignal(state.trustGuard, weights),
+    duplicateSignal(existingDuplicateCount, weights),
+    entityResolutionSignal(state.resolvedEntities, weights),
+    coaMappingSignal(state.coaMapping, weights),
+    validationSignal(state.validation, weights),
+    amountConsistencySignal(state, weights),
+    periodSignal(state, weights),
   ];
 
   // Compute weighted average
