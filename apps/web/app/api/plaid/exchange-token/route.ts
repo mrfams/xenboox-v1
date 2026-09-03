@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
     if (!entityId || !institutionName) {
       return NextResponse.json(
         { error: "entityId and institutionName required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -54,9 +54,16 @@ export async function POST(request: NextRequest) {
     let accountNumber = "00000000";
     let currency = "USD";
 
-    if (plaidClientId && plaidSecret && publicToken && !publicToken.startsWith("demo-")) {
+    if (
+      plaidClientId &&
+      plaidSecret &&
+      publicToken &&
+      !publicToken.startsWith("demo-")
+    ) {
       // Real Plaid exchange
-      const { Configuration, PlaidApi, PlaidEnvironments } = await import("plaid");
+      const { Configuration, PlaidApi, PlaidEnvironments } = await import(
+        "plaid"
+      );
 
       const configuration = new Configuration({
         basePath:
@@ -134,6 +141,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Demo mode — create a mock connection
+    // Don't create a bank account here — syncTransactions will create it
+    // with proper demo transactions to avoid duplicates.
     const [connection] = await db
       .insert(bankConnections)
       .values({
@@ -151,17 +160,6 @@ export async function POST(request: NextRequest) {
       })
       .returning();
 
-    // Create demo bank account
-    await db.insert(bankAccounts).values({
-      entityId,
-      name: accountName,
-      bankName: institutionName,
-      accountNumber,
-      currency,
-      currentBalance: (Math.random() * 50000 + 10000).toFixed(2),
-      isActive: true,
-    });
-
     return NextResponse.json({
       success: true,
       connectionId: connection.id,
@@ -172,7 +170,7 @@ export async function POST(request: NextRequest) {
     console.error("Failed to exchange token:", error);
     return NextResponse.json(
       { error: "Failed to connect bank account" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

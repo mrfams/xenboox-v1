@@ -97,25 +97,35 @@ export function RecordPaymentDialog({
 
   if (success) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center">
-        <div
-          className="absolute inset-0 bg-black/50"
-          onClick={onPaymentRecorded}
-        />
-        <div className="relative z-10 w-full max-w-md rounded-2xl bg-white p-8 shadow-2xl">
-          <div className="flex flex-col items-center gap-4 text-center">
-            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-50">
-              <CheckCircle2 className="h-7 w-7 text-emerald-500" />
-            </div>
-            <h2 className="text-xl font-semibold text-slate-900">
-              Payment Recorded
-            </h2>
-            <p className="text-sm text-slate-500">
-              {format(parseFloat(amount))} has been applied to this invoice.
-            </p>
+      <CreateRecordModal
+        title="Payment Recorded"
+        icon={<CheckCircle2 className="h-4 w-4 text-emerald-600" />}
+        onClose={onPaymentRecorded}
+        maxWidth="max-w-md"
+        footer={
+          <button
+            type="button"
+            onClick={onPaymentRecorded}
+            className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-emerald-700"
+          >
+            Done
+          </button>
+        }
+      >
+        <div className="flex flex-col items-center gap-3 py-4 text-center">
+          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-50">
+            <CheckCircle2 className="h-7 w-7 text-emerald-500" />
           </div>
+          <p className="text-sm text-slate-500">
+            {format(parseFloat(amount))} has been applied to this invoice.
+          </p>
+          {balance - parseFloat(amount) > 0.01 && (
+            <p className="text-xs text-slate-400">
+              Remaining balance: {format(balance - parseFloat(amount))}
+            </p>
+          )}
         </div>
-      </div>
+      </CreateRecordModal>
     );
   }
 

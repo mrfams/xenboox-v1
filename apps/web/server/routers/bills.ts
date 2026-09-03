@@ -10,7 +10,11 @@ import {
   cashAccounts,
 } from "@xenboox/db/schema";
 
-import { router, rlsProtectedProcedure, handleMutationError } from "@/lib/trpc/server";
+import {
+  router,
+  rlsProtectedProcedure,
+  handleMutationError,
+} from "@/lib/trpc/server";
 import { db } from "@/lib/db";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -443,6 +447,63 @@ export const billsRouter = router({
         page: Math.floor(input.offset / input.limit) + 1,
         pageSize: input.limit,
         totalPages: Math.ceil(totalCount / input.limit),
+      };
+    }),
+
+  /**
+   * Get bill detail for the detail panel.
+   */
+  getBillDetail: rlsProtectedProcedure
+    .input(z.object({ billId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const entityId = ctx.entityId!;
+
+      const bill = await db.query.invoicesAp.findFirst({
+        where: and(
+          eq(invoicesAp.id, input.billId),
+          eq(invoicesAp.entityId, entityId),
+        ),
+      });
+
+      if (!bill) return null;
+
+      const supplier = await db.query.suppliers.findFirst({
+        where: eq(suppliers.id, bill.supplierId),
+      });
+
+      // Get payments
+      const payments = await db.query.paymentsAp.findMany({
+        where: eq(paymentsAp.invoiceApId, input.billId),
+        orderBy: [desc(paymentsAp.paymentDate)],
+      });
+
+      return {
+        id: bill.id,
+        invoiceNumber: bill.invoiceNumber,
+        invoiceDate: bill.invoiceDate,
+        dueDate: bill.dueDate,
+        totalAmount: parseFloat(bill.totalAmount),
+        paidAmount: parseFloat(bill.paidAmount),
+        balance: parseFloat(bill.balance),
+        status: bill.status,
+        currency: bill.currency,
+        notes: bill.notes,
+        purchaseOrderId: bill.purchaseOrderId,
+        supplier: supplier
+          ? {
+              id: supplier.id,
+              name: supplier.name,
+              email: supplier.contactEmail,
+              phone: supplier.contactPhone,
+            }
+          : null,
+        payments: payments.map((p) => ({
+          id: p.id,
+          amount: parseFloat(p.amount),
+          paymentDate: p.paymentDate,
+          method: p.method,
+          reference: p.reference,
+        })),
       };
     }),
 
@@ -897,5 +958,38 @@ export const billsRouter = router({
           .reduce((s, d) => s + d.amount, 0),
       },
     };
+  }),
+
+  /**
+   * Get the next sequential bill number for this entity.
+   * Format: BILL-YYYY-MM-NNNNN (5-digit zero-padded sequence, resets monthly)
+   */
+  getNextBillNumber: rlsProtectedProcedure.query(async ({ ctx }) => {
+    const entityId = ctx.entityId!;
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const prefix = `BILL-${year}-${month}`;
+
+    const startDate = `${year}-${month}-01`;
+    const endMonth = now.getMonth() + 1;
+    const endDate = new Date(year, endMonth, 0);
+    const endDateStr = endDate.toISOString().slice(0, 10);
+
+    const [result] = await db
+      .select({ count: count() })
+      .from(invoicesAp)
+      .where(
+        and(
+          eq(invoicesAp.entityId, entityId),
+          gte(invoicesAp.invoiceDate, startDate),
+          lte(invoicesAp.invoiceDate, endDateStr),
+        ),
+      );
+
+    const sequence = (result?.count ?? 0) + 1;
+    const billNumber = `${prefix}-${String(sequence).padStart(5, "0")}`;
+
+    return { billNumber };
   }),
 });

@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import { Plus, Trash2 } from "lucide-react";
 
 import { modalInputCls } from "./create-record-modal";
@@ -15,33 +16,60 @@ interface InvoiceLinesEditorProps {
   lines: InvoiceLine[];
   onChange: (lines: InvoiceLine[]) => void;
   accounts: Array<{ id: string; code: string; name: string }>;
+  /** Currency code for formatting line totals (e.g. "USD", "GMD") */
+  currency?: string;
 }
 
 /**
  * Line-items editor shared by the invoice, bill and expense create dialogs.
  * Emits the same shape the AR/AP createInvoice mutations expect.
  */
+const EMPTY_LINE: InvoiceLine = {
+  description: "",
+  accountId: "",
+  quantity: "1",
+  unitPrice: "",
+};
+
 export function InvoiceLinesEditor({
   lines,
   onChange,
   accounts,
+  currency = "USD",
 }: InvoiceLinesEditorProps) {
+  const didInit = useRef(false);
+
+  // Auto-create first empty line when lines are empty (on mount or after clearing)
+  useEffect(() => {
+    if (lines.length === 0 && accounts.length > 0) {
+      // Use ref to skip the initial render if parent already provides lines
+      if (didInit.current || lines.length === 0) {
+        onChange([{ ...EMPTY_LINE, accountId: accounts[0]?.id ?? "" }]);
+      }
+    }
+    didInit.current = true;
+  }, [lines.length, accounts, onChange]);
+
   const updateLine = (index: number, patch: Partial<InvoiceLine>) => {
     onChange(lines.map((l, i) => (i === index ? { ...l, ...patch } : l)));
   };
 
   const removeLine = (index: number) => {
-    onChange(lines.filter((_, i) => i !== index));
+    const next = lines.filter((_, i) => i !== index);
+    // Always keep at least one line — auto-add empty line when last is removed
+    if (next.length === 0) {
+      onChange([{ ...EMPTY_LINE, accountId: accounts[0]?.id ?? "" }]);
+    } else {
+      onChange(next);
+    }
   };
 
   const addLine = () => {
     onChange([
       ...lines,
       {
-        description: "",
+        ...EMPTY_LINE,
         accountId: accounts[0]?.id ?? "",
-        quantity: "1",
-        unitPrice: "",
       },
     ]);
   };
@@ -60,9 +88,11 @@ export function InvoiceLinesEditor({
       </div>
 
       {lines.length === 0 ? (
-        <p className="rounded-lg border border-dashed border-slate-200 bg-slate-50 p-3 text-center text-xs text-slate-400">
-          Add at least one line item to this document.
-        </p>
+        <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 p-4 text-center">
+          <p className="text-xs text-slate-400">
+            Adding your first line item...
+          </p>
+        </div>
       ) : (
         <div className="space-y-2">
           {lines.map((line, i) => {
@@ -136,10 +166,12 @@ export function InvoiceLinesEditor({
                 </div>
                 <p className="text-right text-xs font-medium tabular-nums text-slate-600">
                   Total:{" "}
-                  {total.toLocaleString("en-US", {
+                  {new Intl.NumberFormat("en-US", {
+                    style: "currency",
+                    currency,
                     minimumFractionDigits: 2,
                     maximumFractionDigits: 2,
-                  })}
+                  }).format(total)}
                 </p>
               </div>
             );

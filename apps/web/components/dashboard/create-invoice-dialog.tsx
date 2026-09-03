@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { FileText, Loader2, AlertCircle } from "lucide-react";
 
 import {
@@ -10,6 +10,7 @@ import {
   modalSelectCls,
 } from "./create-record-modal";
 import { InvoiceLinesEditor, type InvoiceLine } from "./invoice-lines-editor";
+import { CustomerCombobox } from "@/components/shared/customer-combobox";
 
 import { trpc } from "@/lib/trpc/client";
 import { useEntity } from "@/lib/entity-context";
@@ -24,8 +25,6 @@ interface CreateInvoiceDialogProps {
 const today = () => new Date().toISOString().slice(0, 10);
 const inDays = (days: number) =>
   new Date(Date.now() + days * 86400000).toISOString().slice(0, 10);
-const defaultInvoiceNumber = () =>
-  `INV-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}`;
 
 export function CreateInvoiceDialog({
   open,
@@ -40,15 +39,36 @@ export function CreateInvoiceDialog({
   const { data: accounts } = trpc.coa.list.useQuery(undefined, {
     enabled: open,
   });
+  const { data: nextNumberData } = trpc.invoicing.getNextInvoiceNumber.useQuery(
+    undefined,
+    { enabled: open },
+  );
 
   const [customerId, setCustomerId] = useState("");
-  const [invoiceNumber, setInvoiceNumber] = useState(defaultInvoiceNumber());
+  const [invoiceNumber, setInvoiceNumber] = useState("");
   const [invoiceDate, setInvoiceDate] = useState(today());
   const [dueDate, setDueDate] = useState(inDays(30));
   const [currency, setCurrency] = useState(entityCurrency ?? "USD");
   const [notes, setNotes] = useState("");
   const [lines, setLines] = useState<InvoiceLine[]>([]);
   const [error, setError] = useState<string | null>(null);
+
+  const createCustomer = trpc.ar.createCustomer.useMutation();
+
+  // Pre-fill invoice number when server responds
+  useEffect(() => {
+    if (nextNumberData?.invoiceNumber && !invoiceNumber) {
+      setInvoiceNumber(nextNumberData.invoiceNumber);
+    }
+  }, [nextNumberData, invoiceNumber]);
+
+  const handleCreateCustomer = async (name: string) => {
+    const result = await createCustomer.mutateAsync({ name });
+    if (!result) throw new Error("Failed to create customer");
+    utils.customers.invalidate();
+    utils.ar.invalidate();
+    return { id: result.id, name: result.name };
+  };
 
   const createInvoice = trpc.ar.createInvoice.useMutation({
     onSuccess: () => {
@@ -61,7 +81,7 @@ export function CreateInvoiceDialog({
         currency,
       });
       setCustomerId("");
-      setInvoiceNumber(defaultInvoiceNumber());
+      setInvoiceNumber("");
       setInvoiceDate(today());
       setDueDate(inDays(30));
       setNotes("");
@@ -148,45 +168,31 @@ export function CreateInvoiceDialog({
       }
     >
       <div className="space-y-4">
-        {customers && customers.length === 0 ? (
-          <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-            No customers yet. Add a customer from the{" "}
-            <span className="font-medium">Customers</span> module first, then
-            create invoices for them.
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className={modalLabelCls} htmlFor="inv-customer">
+              Customer
+            </label>
+            <CustomerCombobox
+              value={customerId}
+              onChange={setCustomerId}
+              items={customers ?? []}
+              onCreate={handleCreateCustomer}
+              placeholder="Search or type a new customer name..."
+            />
           </div>
-        ) : (
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className={modalLabelCls} htmlFor="inv-customer">
-                Customer
-              </label>
-              <select
-                id="inv-customer"
-                value={customerId}
-                onChange={(e) => setCustomerId(e.target.value)}
-                className={modalSelectCls}
-              >
-                <option value="">Select customer</option>
-                {customers?.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className={modalLabelCls} htmlFor="inv-number">
-                Invoice number
-              </label>
-              <input
-                id="inv-number"
-                value={invoiceNumber}
-                onChange={(e) => setInvoiceNumber(e.target.value)}
-                className={modalInputCls}
-              />
-            </div>
+          <div>
+            <label className={modalLabelCls} htmlFor="inv-number">
+              Invoice number
+            </label>
+            <input
+              id="inv-number"
+              value={invoiceNumber}
+              onChange={(e) => setInvoiceNumber(e.target.value)}
+              className={modalInputCls}
+            />
           </div>
-        )}
+        </div>
 
         <div className="grid grid-cols-3 gap-4">
           <div>
@@ -236,6 +242,7 @@ export function CreateInvoiceDialog({
           lines={lines}
           onChange={setLines}
           accounts={revenueAccounts}
+          currency={currency}
         />
 
         <div>

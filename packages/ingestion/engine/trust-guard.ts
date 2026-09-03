@@ -72,6 +72,14 @@ export function runTrustGuard(state: IngestionState): TrustGuardResult {
   // Always run cross-field consistency checks
   checks.push(...validateAmountConsistency(data));
 
+  // Always run date sanity checks
+  checks.push(...validateDateSanity(data));
+
+  // Always run OCR-vs-extraction cross-check (if OCR text available)
+  if (state.ocrText && state.ocrText.length > 10) {
+    checks.push(...validateOcrVsExtraction(state.ocrText, data));
+  }
+
   // Run type-specific checks
   switch (category) {
     case "invoice":
@@ -557,6 +565,105 @@ function validatePayrollExtraction(
   return checks;
 }
 
+// ─── Date Sanity Checks ────────────────────────────────────────────────────
+
+/**
+ * Validate that extracted dates are plausible for any document type.
+ *
+ * Checks:
+ * 1. No future dates beyond 30 days (invoices/receipts shouldn't be dated far in the future)
+ * 2. No dates older than 5 years (likely extraction error)
+ * 3. Due date should be after invoice/date (if both present)
+ * 4. No zero/empty dates that slipped through extraction
+ */
+function validateDateSanity(data: Record<string, unknown>): TrustGuardCheck[] {
+  const checks: TrustGuardCheck[] = [];
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+  // Collect all date fields from the extraction
+  const dateFields: Array<{ name: string; value: unknown }> = [
+    { name: "invoiceDate", value: data.invoiceDate },
+    { name: "date", value: data.date },
+    { name: "transactionDate", value: data.transactionDate },
+    { name: "statementDate", value: data.statementDate },
+    { name: "receivedDate", value: data.receivedDate },
+  ];
+
+  for (const field of dateFields) {
+    if (!field.value || typeof field.value !== "string") continue;
+
+    const date = new Date(field.value);
+    if (isNaN(date.getTime())) {
+      checks.push({
+        name: `date_invalid_${field.name}`,
+        description: `${field.name} ("${field.value}") is not a valid date`,
+        passed: false,
+        expected: -1,
+        actual: 0,
+        difference: 1,
+        severity: "error",
+        message: `${field.name} is not a valid date: "${field.value}"`,
+      });
+      continue;
+    }
+
+    // Check: no future dates beyond 30 days
+    const thirtyDaysFromNow = new Date(today);
+    thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
+    if (date > thirtyDaysFromNow) {
+      checks.push({
+        name: `date_future_${field.name}`,
+        description: `${field.name} (${field.value}) is more than 30 days in the future`,
+        passed: false,
+        expected: -1,
+        actual: date.getTime(),
+        difference: 1,
+        severity: "warning",
+        message: `${field.name} is in the future: ${field.value} (more than 30 days from now)`,
+      });
+    }
+
+    // Check: no dates older than 5 years
+    const fiveYearsAgo = new Date(today);
+    fiveYearsAgo.setFullYear(fiveYearsAgo.getFullYear() - 5);
+    if (date < fiveYearsAgo) {
+      checks.push({
+        name: `date_too_old_${field.name}`,
+        description: `${field.name} (${field.value}) is more than 5 years old`,
+        passed: false,
+        expected: -1,
+        actual: date.getTime(),
+        difference: 1,
+        severity: "warning",
+        message: `${field.name} is very old: ${field.value} (more than 5 years ago)`,
+      });
+    }
+  }
+
+  // Check: due date should be after invoice date
+  const invoiceDate = data.invoiceDate as string | undefined;
+  const dueDate = data.dueDate as string | undefined;
+  if (invoiceDate && dueDate) {
+    const inv = new Date(invoiceDate);
+    const due = new Date(dueDate);
+    if (!isNaN(inv.getTime()) && !isNaN(due.getTime()) && due < inv) {
+      checks.push({
+        name: "date_due_before_invoice",
+        description: `Due date (${dueDate}) is before invoice date (${invoiceDate})`,
+        passed: false,
+        expected: inv.getTime(),
+        actual: due.getTime(),
+        difference: 1,
+        severity: "warning",
+        message: `Due date ${dueDate} is before invoice date ${invoiceDate}`,
+      });
+    }
+  }
+
+  return checks;
+}
+
 // ─── Cross-Field Amount Consistency ─────────────────────────────────────────
 
 /**
@@ -610,6 +717,85 @@ function validateAmountConsistency(
         totalAmount > 0
           ? `Total amount is positive: ${totalAmount}`
           : `Total amount is non-positive: ${totalAmount}`,
+    });
+  }
+
+  return checks;
+}
+
+// ─── OCR vs Extraction Cross-Check ────────────────────────────────────────
+
+/**
+ * Verify that key extracted amounts actually appear in the OCR text.
+ * This catches hallucinated numbers that the LLM extracted but don't
+ * exist in the original document.
+ *
+ * Checks:
+ * 1. Total amount appears in OCR text (as a number pattern)
+ * 2. Invoice number appears in OCR text
+ */
+function validateOcrVsExtraction(
+  ocrText: string,
+  data: Record<string, unknown>,
+): TrustGuardCheck[] {
+  const checks: TrustGuardCheck[] = [];
+
+  // Check 1: Total amount should appear in OCR text
+  const totalAmount = data.totalAmount as number | undefined;
+  if (totalAmount !== undefined && totalAmount > 0) {
+    // Format the amount in common ways it might appear in OCR
+    const amountStr = totalAmount.toFixed(2);
+    const amountNoDec = totalAmount.toFixed(0);
+    const amountComma = totalAmount.toLocaleString("en-US", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+    const amountCommaNoDec = totalAmount.toLocaleString("en-US", {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    });
+
+    const found =
+      ocrText.includes(amountStr) ||
+      ocrText.includes(amountNoDec) ||
+      ocrText.includes(amountComma) ||
+      ocrText.includes(amountCommaNoDec) ||
+      ocrText.includes(String(totalAmount));
+
+    checks.push({
+      name: "ocr_total_amount_found",
+      description: `Total amount (${amountComma}) should appear in OCR text`,
+      passed: found,
+      expected: totalAmount,
+      actual: found ? totalAmount : 0,
+      difference: found ? 0 : 1,
+      severity: "warning",
+      message: found
+        ? `Total amount ${amountComma} found in OCR text`
+        : `Total amount ${amountComma} NOT found in OCR text — extraction may have hallucinated this number`,
+    });
+  }
+
+  // Check 2: Invoice/bill number should appear in OCR text
+  const invoiceNumber =
+    (data.invoiceNumber as string) ?? (data.billNumber as string) ?? undefined;
+  if (invoiceNumber && invoiceNumber.length > 2) {
+    const numberPart = invoiceNumber.replace(/[^0-9]/g, "");
+    const found =
+      ocrText.includes(invoiceNumber) ||
+      (numberPart.length > 3 && ocrText.includes(numberPart));
+
+    checks.push({
+      name: "ocr_invoice_number_found",
+      description: `Invoice number (${invoiceNumber}) should appear in OCR text`,
+      passed: found,
+      expected: 1,
+      actual: found ? 1 : 0,
+      difference: found ? 0 : 1,
+      severity: "warning",
+      message: found
+        ? `Invoice number ${invoiceNumber} found in OCR text`
+        : `Invoice number ${invoiceNumber} NOT found in OCR text — may be extraction error`,
     });
   }
 

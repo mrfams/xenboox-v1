@@ -100,23 +100,39 @@ export function CreatePaymentLinkDialog({
   // Success state — show the generated link
   if (generated) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center">
-        <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-        <div className="relative z-10 w-full max-w-lg rounded-2xl bg-white p-8 shadow-2xl">
-          <div className="mb-6 flex flex-col items-center gap-3 text-center">
-            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-50">
-              <CheckCircle2 className="h-7 w-7 text-emerald-500" />
-            </div>
-            <h2 className="text-xl font-semibold text-slate-900">
-              Payment Link Created
-            </h2>
-            <p className="text-sm text-slate-500">
-              Share this link with your customer to collect payment.
-            </p>
-          </div>
+      <CreateRecordModal
+        title="Payment Link Created"
+        icon={<CheckCircle2 className="h-4 w-4 text-emerald-600" />}
+        onClose={onClose}
+        maxWidth="max-w-lg"
+        footer={
+          <>
+            <a
+              href={generated.link}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
+            >
+              <ExternalLink className="h-4 w-4" />
+              Preview
+            </a>
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-slate-800"
+            >
+              Done
+            </button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <p className="text-center text-sm text-slate-500">
+            Share this link with your customer to collect payment.
+          </p>
 
           {/* Link display */}
-          <div className="mb-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
             <p className="mb-2 text-xs font-medium text-slate-500">
               Payment Link
             </p>
@@ -139,7 +155,7 @@ export function CreatePaymentLinkDialog({
           </div>
 
           {/* Summary */}
-          <div className="mb-6 rounded-xl border border-slate-200 p-4">
+          <div className="rounded-xl border border-slate-200 p-4">
             <div className="flex items-center justify-between text-sm">
               <span className="text-slate-500">Amount</span>
               <span className="font-semibold text-slate-900">
@@ -157,28 +173,8 @@ export function CreatePaymentLinkDialog({
               </span>
             </div>
           </div>
-
-          {/* Actions */}
-          <div className="flex gap-3">
-            <a
-              href={generated.link}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
-            >
-              <ExternalLink className="h-4 w-4" />
-              Open Preview
-            </a>
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-slate-800"
-            >
-              Done
-            </button>
-          </div>
         </div>
-      </div>
+      </CreateRecordModal>
     );
   }
 

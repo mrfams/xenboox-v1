@@ -82,6 +82,41 @@ export function parseBankStatementPDF(text: string): ParseResult {
     tx.category = categorizeTransaction(tx.description);
   });
 
+  // ── Balance equation validation ──
+  // Verify: openingBalance + totalCredits - totalDebits ≈ closingBalance
+  // This is the deterministic check that catches garbage extraction.
+  if (
+    metadata.openingBalance !== undefined &&
+    metadata.closingBalance !== undefined
+  ) {
+    const expectedClosing =
+      metadata.openingBalance + totalCredits - totalDebits;
+    const diff = Math.abs(expectedClosing - metadata.closingBalance);
+    const tolerance = Math.max(
+      0.01, // At least 1 cent tolerance
+      Math.abs(metadata.closingBalance) * 0.001, // 0.1% of balance
+    );
+
+    if (diff > tolerance) {
+      parseErrors.push(
+        `Balance equation mismatch: opening (${metadata.openingBalance}) + credits (${totalCredits}) - debits (${totalDebits}) = ${expectedClosing.toFixed(2)}, but closing balance is ${metadata.closingBalance}. Difference: ${diff.toFixed(2)}`,
+      );
+    }
+  }
+
+  // ── Reasonableness checks ──
+  if (transactions.length === 0 && lines.length > 10) {
+    parseErrors.push(
+      "No transactions found in statement despite having content — file may be corrupted or in an unsupported format",
+    );
+  }
+
+  if (totalCredits === 0 && totalDebits === 0 && transactions.length > 0) {
+    parseErrors.push(
+      "All transaction amounts are zero — extraction may have failed",
+    );
+  }
+
   return {
     transactions,
     accountNumber: metadata.accountNumber,

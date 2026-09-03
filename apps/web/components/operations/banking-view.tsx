@@ -23,6 +23,7 @@ import { TransactionRow } from "@/components/banking/transaction-row";
 import { BankConnectionCard } from "@/components/banking/bank-connection-card";
 import { BankConnectionDialog } from "@/components/banking/bank-connection-dialog";
 import { BankRulesManager } from "@/components/banking/bank-rules-manager";
+import { StatementUploadZone } from "@/components/banking/statement-upload-zone";
 import { useUndo } from "@/lib/hooks/use-undo";
 
 // ─── Banking View ──────────────────────────────────────────────────────────
@@ -469,56 +470,83 @@ function ConnectionsTab({
 }) {
   const { data: connections, isLoading } =
     trpc.banking.listConnections.useQuery(undefined, { enabled: !!entityId });
+  const utils = trpc.useUtils();
 
   return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <p className="text-xs text-muted-foreground">
-          {connections?.length ?? 0} connected accounts
+    <div className="space-y-4">
+      {/* Statement Upload Zone */}
+      <div>
+        <p className="text-[10px] font-medium text-muted-foreground mb-2 uppercase tracking-wider">
+          Import Statement
         </p>
-        <button
-          onClick={onConnect}
-          className="inline-flex items-center gap-1.5 rounded-lg bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/15 transition-colors"
-        >
-          <Plus className="h-3.5 w-3.5" />
-          Connect Account
-        </button>
+        <StatementUploadZone
+          onUploadComplete={() => {
+            utils.banking.listTransactions.invalidate();
+            utils.banking.getOverview.invalidate();
+          }}
+        />
       </div>
 
-      {isLoading ? (
-        <div className="space-y-2">
-          {[1, 2].map((i) => (
-            <div
-              key={i}
-              className="h-20 animate-pulse rounded-lg bg-muted/30"
-            />
-          ))}
+      {/* Divider */}
+      <div className="relative">
+        <div className="absolute inset-0 flex items-center">
+          <div className="w-full border-t border-border/30" />
         </div>
-      ) : connections?.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-border/50 py-12 text-center">
-          <Link2 className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
-          <p className="text-sm font-medium text-foreground mb-1">
-            No bank connections
-          </p>
-          <p className="text-xs text-muted-foreground mb-4">
-            Connect your bank to automatically import and categorize
-            transactions
+        <div className="relative flex justify-center text-[10px]">
+          <span className="bg-card px-2 text-muted-foreground">or</span>
+        </div>
+      </div>
+
+      {/* Connected Accounts */}
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+            Connected Accounts
           </p>
           <button
             onClick={onConnect}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-primary/10 px-4 py-2 text-xs font-medium text-primary hover:bg-primary/15 transition-colors"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/15 transition-colors"
           >
-            <Sparkles className="h-3.5 w-3.5" />
-            Connect with AI
+            <Plus className="h-3.5 w-3.5" />
+            Connect Account
           </button>
         </div>
-      ) : (
-        <div className="grid gap-3 sm:grid-cols-2">
-          {connections?.map((conn) => (
-            <BankConnectionCard key={conn.id} connection={conn} />
-          ))}
-        </div>
-      )}
+
+        {isLoading ? (
+          <div className="space-y-2">
+            {[1, 2].map((i) => (
+              <div
+                key={i}
+                className="h-20 animate-pulse rounded-lg bg-muted/30"
+              />
+            ))}
+          </div>
+        ) : connections?.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-border/50 py-12 text-center">
+            <Link2 className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
+            <p className="text-sm font-medium text-foreground mb-1">
+              No bank connections
+            </p>
+            <p className="text-xs text-muted-foreground mb-4">
+              Connect your bank to automatically import and categorize
+              transactions
+            </p>
+            <button
+              onClick={onConnect}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-primary/10 px-4 py-2 text-xs font-medium text-primary hover:bg-primary/15 transition-colors"
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              Connect with AI
+            </button>
+          </div>
+        ) : (
+          <div className="grid gap-3 sm:grid-cols-2">
+            {connections?.map((conn) => (
+              <BankConnectionCard key={conn.id} connection={conn} />
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

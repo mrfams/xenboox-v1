@@ -12,7 +12,7 @@
  *   7.   COA mapping − map to chart of accounts
  *   8.   Tax calculation − compute taxes
  *   9.   Journal entry generation − create balanced double-entry entries
- *   10.  Validation − validate journal integrity
+ *   10.  Validation − validate journal integrity + TrustGuard deterministic checks
  *   11.  Composite confidence − combine all confidence signals
  *   12.  Posting decision − auto-post (≥95%) or request review
  *   13.  Posting execution − commit to database
@@ -39,6 +39,7 @@ import {
 } from "./engine/posting-engine";
 import { resolveEntities } from "./engine/entity-resolution";
 import { calculateTax } from "./engine/tax-calculator";
+import { runTrustGuard } from "./engine/trust-guard";
 import { updateIngestionStatus } from "./engine/status-tracker";
 
 // ─── Main Pipeline Orchestrator ─────────────────────────────────────────────
@@ -218,13 +219,34 @@ export async function runIngestionPipeline(
       balanced: entry.balanced,
       lineCount: entry.lines.length,
     });
-    // Duplicate check
+    // Duplicate check — journal entry reference
     const duplicateCount = await checkDuplicate(entityId, entry.reference);
     state.validation.noDuplicates = duplicateCount === 0;
     if (duplicateCount > 0) {
       state.validation.warnings.push({
         field: "reference",
         message: `Found ${duplicateCount} existing entries with reference "${entry.reference}"`,
+      });
+    }
+
+    // Duplicate check — document-level (same file hash or same vendor+amount+date)
+    const docDuplicates = await checkDocumentDuplicate(entityId, doc, state);
+    if (docDuplicates.isDuplicate) {
+      state.validation.noDuplicates = false;
+      state.validation.warnings.push({
+        field: "document_duplicate",
+        message: docDuplicates.reason,
+      });
+    }
+
+    // ── Stage 10b: TrustGuard — deterministic cross-validation ──
+    // Recomputes the math independently and compares to LLM extraction.
+    // If numbers don't match, the document is flagged for human review.
+    state.trustGuard = runTrustGuard(state);
+    if (!state.trustGuard.passed) {
+      state.validation.warnings.push({
+        field: "trust_guard",
+        message: `TrustGuard failed: ${state.trustGuard.summary}`,
       });
     }
 
@@ -434,6 +456,100 @@ async function logAgentActivity(
   }
 }
 
+// ─── Document Duplicate Detection ──────────────────────────────────────────
+
+/**
+ * Check if a document is a duplicate based on:
+ * 1. Same file hash (SHA-256) — exact same file uploaded twice
+ * 2. Same vendor + amount + date — same invoice from same vendor
+ */
+async function checkDocumentDuplicate(
+  entityId: string,
+  doc: typeof documents.$inferSelect,
+  state: IngestionState,
+): Promise<{ isDuplicate: boolean; reason: string }> {
+  const data = state.extraction.data;
+
+  // Check 1: Same file hash
+  const metadata = (doc.metadata ?? {}) as Record<string, unknown>;
+  const checksum = metadata.checksum as string | undefined;
+  if (checksum) {
+    const existingDocs = await db.query.documents.findMany({
+      where: eq(documents.entityId, entityId),
+      columns: { id: true, metadata: true, name: true },
+    });
+
+    for (const existing of existingDocs) {
+      if (existing.id === doc.id) continue;
+      const existingMeta = (existing.metadata ?? {}) as Record<string, unknown>;
+      if (existingMeta.checksum === checksum) {
+        return {
+          isDuplicate: true,
+          reason: `Exact duplicate: same file hash as document "${existing.name}"`,
+        };
+      }
+    }
+  }
+
+  // Check 2: Same vendor + amount + date (invoice/receipt only)
+  const category = state.classification.category;
+  if (category === "invoice" || category === "receipt") {
+    const vendorName = (data.vendorName ?? data.customerName) as
+      | string
+      | undefined;
+    const totalAmount = data.totalAmount as number | undefined;
+    const invoiceDate = (data.invoiceDate ?? data.date) as string | undefined;
+
+    if (vendorName && totalAmount && invoiceDate) {
+      const existingDocs = await db.query.documents.findMany({
+        where: eq(documents.entityId, entityId),
+        columns: { id: true, name: true, metadata: true, type: true },
+      });
+
+      for (const existing of existingDocs) {
+        if (existing.id === doc.id) continue;
+        if (existing.type !== category) continue;
+
+        const existingMeta = (existing.metadata ?? {}) as Record<
+          string,
+          unknown
+        >;
+        const existingExtraction = (existingMeta.extraction ?? {}) as Record<
+          string,
+          unknown
+        >;
+        const existingData = (existingExtraction.data ?? {}) as Record<
+          string,
+          unknown
+        >;
+
+        const existingVendor = (existingData.vendorName ??
+          existingData.customerName) as string | undefined;
+        const existingAmount = existingData.totalAmount as number | undefined;
+        const existingDate = (existingData.invoiceDate ?? existingData.date) as
+          | string
+          | undefined;
+
+        if (
+          existingVendor &&
+          existingAmount &&
+          existingDate &&
+          existingVendor.toLowerCase() === vendorName.toLowerCase() &&
+          Math.abs(existingAmount - totalAmount) < 0.01 &&
+          existingDate === invoiceDate
+        ) {
+          return {
+            isDuplicate: true,
+            reason: `Possible duplicate: same vendor (${vendorName}), amount (${totalAmount}), and date (${invoiceDate}) as document "${existing.name}"`,
+          };
+        }
+      }
+    }
+  }
+
+  return { isDuplicate: false, reason: "" };
+}
+
 // ─── Barrel Exports ─────────────────────────────────────────────────────────
 
 export type {
@@ -480,6 +596,8 @@ export {
 export { propagatePosting } from "./engine/propagation";
 export { resolveEntities } from "./engine/entity-resolution";
 export { calculateTax } from "./engine/tax-calculator";
+export { runTrustGuard } from "./engine/trust-guard";
+export type { TrustGuardCheck, TrustGuardResult } from "./engine/trust-guard";
 export { sendIngestionNotifications } from "./engine/notifications";
 export {
   updateIngestionStatus,

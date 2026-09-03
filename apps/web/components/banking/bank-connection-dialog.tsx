@@ -38,14 +38,89 @@ const POPULAR_BANKS = [
 
 // ─── Connection Steps ──────────────────────────────────────────────────────
 
-type Step = "select-bank" | "connecting" | "success" | "error" | "manual";
+type Step =
+  | "select-bank"
+  | "connecting"
+  | "syncing"
+  | "success"
+  | "error"
+  | "manual";
+
+type ErrorType =
+  | "network"
+  | "bank_unavailable"
+  | "auth_failed"
+  | "sync_failed"
+  | "unknown";
 
 type ConnectionState = {
   step: Step;
   selectedBank: string | null;
   error: string | null;
+  errorType: ErrorType;
   connectionId: string | null;
 };
+
+// Error recovery suggestions per error type
+const ERROR_RECOVERY: Record<
+  ErrorType,
+  { title: string; suggestion: string; action?: string }
+> = {
+  network: {
+    title: "Connection timed out",
+    suggestion:
+      "Check your internet connection and try again. If the problem persists, the bank's servers may be temporarily down.",
+    action: "Retry",
+  },
+  bank_unavailable: {
+    title: "Bank unavailable",
+    suggestion:
+      "This bank's connection service is temporarily unavailable. You can try again later or upload a CSV/PDF statement instead.",
+    action: "Upload Statement",
+  },
+  auth_failed: {
+    title: "Authentication failed",
+    suggestion:
+      "The bank rejected the connection. This can happen if your bank requires additional verification. Try connecting again or use manual entry.",
+    action: "Try Again",
+  },
+  sync_failed: {
+    title: "Sync partial",
+    suggestion:
+      "The bank account was connected but transaction sync failed. Your connection is saved — you can retry sync from the Connections tab.",
+    action: "Continue",
+  },
+  unknown: {
+    title: "Connection failed",
+    suggestion:
+      "An unexpected error occurred. You can try again, connect manually, or upload a statement instead.",
+    action: "Try Again",
+  },
+};
+
+function classifyError(message: string): ErrorType {
+  const lower = message.toLowerCase();
+  if (
+    lower.includes("timeout") ||
+    lower.includes("network") ||
+    lower.includes("fetch")
+  )
+    return "network";
+  if (
+    lower.includes("unavailable") ||
+    lower.includes("503") ||
+    lower.includes("502")
+  )
+    return "bank_unavailable";
+  if (
+    lower.includes("auth") ||
+    lower.includes("credential") ||
+    lower.includes("401")
+  )
+    return "auth_failed";
+  if (lower.includes("sync")) return "sync_failed";
+  return "unknown";
+}
 
 // ─── Main Dialog ───────────────────────────────────────────────────────────
 
@@ -61,6 +136,7 @@ export function BankConnectionDialog({
     step: "select-bank",
     selectedBank: null,
     error: null,
+    errorType: "unknown",
     connectionId: null,
   });
   const [searchQuery, setSearchQuery] = useState("");
@@ -76,6 +152,7 @@ export function BankConnectionDialog({
         step: "select-bank",
         selectedBank: null,
         error: null,
+        errorType: "unknown",
         connectionId: null,
       });
       setSearchQuery("");
@@ -86,7 +163,7 @@ export function BankConnectionDialog({
 
   // Filter banks by search
   const filteredBanks = POPULAR_BANKS.filter((bank) =>
-    bank.name.toLowerCase().includes(searchQuery.toLowerCase())
+    bank.name.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
   // ── Handle bank selection ──
@@ -129,13 +206,32 @@ export function BankConnectionDialog({
 
           setState((s) => ({
             ...s,
-            step: "success",
+            step: "syncing",
             connectionId,
+          }));
+
+          // Trigger transaction sync
+          try {
+            await fetch("/api/trpc/banking.syncTransactions", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                input: { connectionId },
+              }),
+            });
+          } catch {
+            // Sync failed but connection succeeded — user can retry later
+          }
+
+          setState((s) => ({
+            ...s,
+            step: "success",
           }));
 
           // Invalidate queries
           utils.banking.listConnections.invalidate();
           utils.banking.getOverview.invalidate();
+          utils.banking.listTransactions.invalidate();
           return;
         }
 
@@ -160,19 +256,38 @@ export function BankConnectionDialog({
         }
 
         const { connectionId } = await exchangeRes.json();
-        setState((s) => ({ ...s, step: "success", connectionId }));
+
+        // Trigger transaction sync
+        setState((s) => ({ ...s, step: "syncing", connectionId }));
+        try {
+          await fetch("/api/trpc/banking.syncTransactions", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              input: { connectionId },
+            }),
+          });
+        } catch {
+          // Sync failed but connection succeeded
+        }
+
+        setState((s) => ({ ...s, step: "success" }));
         utils.banking.listConnections.invalidate();
         utils.banking.getOverview.invalidate();
+        utils.banking.listTransactions.invalidate();
       } catch (error) {
         console.error("Bank connection error:", error);
+        const errMsg =
+          error instanceof Error ? error.message : "Connection failed";
         setState((s) => ({
           ...s,
           step: "error",
-          error: error instanceof Error ? error.message : "Connection failed",
+          error: errMsg,
+          errorType: classifyError(errMsg),
         }));
       }
     },
-    [entityId, utils]
+    [entityId, utils],
   );
 
   // ── Handle manual connection ──
@@ -188,7 +303,10 @@ export function BankConnectionDialog({
         body: JSON.stringify({
           entityId,
           institutionName: manualBankName.trim(),
-          institutionId: manualBankName.trim().toLowerCase().replace(/\s+/g, ""),
+          institutionId: manualBankName
+            .trim()
+            .toLowerCase()
+            .replace(/\s+/g, ""),
         }),
       });
 
@@ -201,10 +319,13 @@ export function BankConnectionDialog({
       utils.banking.listConnections.invalidate();
       utils.banking.getOverview.invalidate();
     } catch (error) {
+      const errMsg =
+        error instanceof Error ? error.message : "Connection failed";
       setState((s) => ({
         ...s,
         step: "error",
-        error: error instanceof Error ? error.message : "Connection failed",
+        error: errMsg,
+        errorType: classifyError(errMsg),
       }));
     }
   }, [entityId, manualBankName, manualAccountNumber, utils]);
@@ -385,7 +506,20 @@ export function BankConnectionDialog({
                   Connecting to {state.selectedBank}...
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  Setting up secure connection and importing transactions
+                  Setting up secure connection
+                </p>
+              </div>
+            )}
+
+            {/* Step: Syncing transactions */}
+            {state.step === "syncing" && (
+              <div className="py-8 text-center">
+                <Loader2 className="h-10 w-10 text-primary mx-auto mb-3 animate-spin" />
+                <p className="text-sm font-medium text-foreground mb-1">
+                  Syncing transactions...
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Importing your recent transactions from {state.selectedBank}
                 </p>
               </div>
             )}
@@ -415,31 +549,64 @@ export function BankConnectionDialog({
 
             {/* Step: Error */}
             {state.step === "error" && (
-              <div className="py-8 text-center">
+              <div className="py-6 text-center">
                 <div className="flex h-12 w-12 items-center justify-center rounded-full bg-red-500/10 mx-auto mb-3">
                   <AlertTriangle className="h-6 w-6 text-red-500" />
                 </div>
                 <p className="text-sm font-medium text-foreground mb-1">
-                  Connection failed
+                  {ERROR_RECOVERY[state.errorType].title}
                 </p>
-                <p className="text-xs text-muted-foreground mb-4">
+                <p className="text-xs text-muted-foreground mb-2 max-w-sm mx-auto">
+                  {ERROR_RECOVERY[state.errorType].suggestion}
+                </p>
+                <p className="text-[10px] text-muted-foreground/60 mb-4 font-mono">
                   {state.error}
                 </p>
                 <div className="flex items-center justify-center gap-2">
-                  <button
-                    onClick={() =>
-                      setState((s) => ({ ...s, step: "select-bank", error: null }))
-                    }
-                    className="rounded-lg border border-border/50 bg-background px-3 py-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    Try Again
-                  </button>
-                  <button
-                    onClick={onClose}
-                    className="rounded-lg bg-primary px-3 py-2 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
-                  >
-                    Close
-                  </button>
+                  {state.errorType === "sync_failed" ? (
+                    <button
+                      onClick={onClose}
+                      className="rounded-lg bg-primary px-4 py-2 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+                    >
+                      Continue
+                      <ArrowRight className="ml-1.5 h-3 w-3 inline" />
+                    </button>
+                  ) : (
+                    <>
+                      <button
+                        onClick={() =>
+                          setState((s) => ({
+                            ...s,
+                            step: "select-bank",
+                            error: null,
+                            errorType: "unknown",
+                          }))
+                        }
+                        className="rounded-lg border border-border/50 bg-background px-3 py-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        {ERROR_RECOVERY[state.errorType].action ?? "Try Again"}
+                      </button>
+                      <button
+                        onClick={() =>
+                          setState((s) => ({
+                            ...s,
+                            step: "manual",
+                            error: null,
+                            errorType: "unknown",
+                          }))
+                        }
+                        className="rounded-lg border border-border/50 bg-background px-3 py-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        Manual Entry
+                      </button>
+                      <button
+                        onClick={onClose}
+                        className="rounded-lg bg-primary px-3 py-2 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+                      >
+                        Close
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
             )}

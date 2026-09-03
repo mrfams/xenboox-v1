@@ -185,20 +185,14 @@ export function SessionExpiryProvider({
   return (
     <>
       {children}
-      {/* Block all dashboard interaction when session expiry modal is open */}
       {open && (
-        <div
-          className="fixed inset-0 z-[9998] bg-background/80 backdrop-blur-sm"
-          aria-hidden="true"
-          style={{ pointerEvents: "auto" }}
+        <SessionExpiryModal
+          open={open}
+          onOpenChange={handleOpenChange}
+          countdown={countdown}
+          callbackUrl={callbackUrl}
         />
       )}
-      <SessionExpiryModal
-        open={open}
-        onOpenChange={handleOpenChange}
-        countdown={countdown}
-        callbackUrl={callbackUrl}
-      />
     </>
   );
 }

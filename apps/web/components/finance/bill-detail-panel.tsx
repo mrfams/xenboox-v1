@@ -15,23 +15,21 @@ import {
   Building2,
   Smartphone,
   Loader2,
+  ShoppingCart,
 } from "lucide-react";
 
 import { trpc } from "@/lib/trpc/client";
 import { useEntity } from "@/lib/entity-context";
-import { cn, formatCurrency } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import { Button } from "@xenboox/ui";
 import { toast } from "sonner";
-import { RecordPaymentDialog } from "@/components/dashboard/record-payment-dialog";
-import { CreatePaymentLinkDialog } from "@/components/dashboard/create-payment-link-dialog";
 import { useFormatCurrency } from "@/lib/hooks/use-currency";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
-interface InvoiceDetailPanelProps {
-  invoiceId: string;
+interface BillDetailPanelProps {
+  billId: string;
   onClose: () => void;
-  onRecordPayment?: () => void;
 }
 
 // ─── Status Config ─────────────────────────────────────────────────────────
@@ -77,62 +75,28 @@ const METHOD_ICONS: Record<string, typeof CreditCard> = {
 
 // ─── Component ─────────────────────────────────────────────────────────────
 
-export function InvoiceDetailPanel({
-  invoiceId,
-  onClose,
-}: InvoiceDetailPanelProps) {
+export function BillDetailPanel({ billId, onClose }: BillDetailPanelProps) {
   const { format } = useFormatCurrency();
   const { entityId } = useEntity();
   const [showRecordPayment, setShowRecordPayment] = useState(false);
-  const [showPaymentLink, setShowPaymentLink] = useState(false);
 
-  const { data: detail, isLoading } = trpc.invoicing.getInvoiceDetail.useQuery(
-    { invoiceId },
-    { enabled: !!entityId && !!invoiceId },
+  const { data: detail, isLoading } = trpc.bills.getBillDetail.useQuery(
+    { billId },
+    { enabled: !!entityId && !!billId },
   );
 
-  const generatePdf = trpc.invoicing.generatePdf.useQuery(
-    { invoiceId },
-    { enabled: false },
-  );
-
-  const sendEmail = trpc.invoicing.sendInvoiceEmail.useMutation({
-    onSuccess: (data) => {
-      toast.success(`Invoice sent to ${data.sentTo}`);
+  const recordPayment = trpc.ap.createPayment.useMutation({
+    onSuccess: () => {
+      toast.success("Payment recorded");
+      setShowRecordPayment(false);
     },
-    onError: (err) => {
-      toast.error(err.message);
-    },
+    onError: (err) => toast.error(err.message),
   });
 
-  const handleDownloadPdf = async () => {
-    try {
-      const result = await generatePdf.refetch();
-      if (result.data) {
-        const byteChars = atob(result.data.pdf);
-        const byteArray = new Uint8Array(byteChars.length);
-        for (let i = 0; i < byteChars.length; i++) {
-          byteArray[i] = byteChars.charCodeAt(i);
-        }
-        const blob = new Blob([byteArray], { type: result.data.mimeType });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = result.data.fileName;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        toast.success("PDF downloaded");
-      }
-    } catch {
-      toast.error("Failed to generate PDF");
-    }
-  };
-
-  const handleSendInvoice = () => {
-    sendEmail.mutate({ invoiceId });
-  };
+  const [payAmount, setPayAmount] = useState("");
+  const [payMethod, setPayMethod] = useState("bank_transfer");
+  const [payDate, setPayDate] = useState(new Date().toISOString().slice(0, 10));
+  const [payRef, setPayRef] = useState("");
 
   if (isLoading) {
     return (
@@ -145,9 +109,7 @@ export function InvoiceDetailPanel({
     );
   }
 
-  if (!detail) {
-    return null;
-  }
+  if (!detail) return null;
 
   const status = STATUS_CONFIG[detail.status] ?? STATUS_CONFIG.pending;
   const StatusIcon = status.icon;
@@ -166,15 +128,15 @@ export function InvoiceDetailPanel({
           {/* Header */}
           <div className="flex items-center justify-between border-b border-border px-6 py-4">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
-                <FileText className="h-5 w-5 text-primary" />
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-500/10">
+                <FileText className="h-5 w-5 text-indigo-600" />
               </div>
               <div>
                 <h2 className="text-lg font-semibold text-foreground">
                   {detail.invoiceNumber}
                 </h2>
                 <p className="text-sm text-muted-foreground">
-                  {detail.customer?.name ?? "No customer"}
+                  {detail.supplier?.name ?? "No vendor"}
                 </p>
               </div>
             </div>
@@ -202,11 +164,13 @@ export function InvoiceDetailPanel({
               </span>
               <span className="text-sm text-muted-foreground">
                 Due{" "}
-                {new Date(detail.dueDate).toLocaleDateString("en-US", {
-                  month: "long",
-                  day: "numeric",
-                  year: "numeric",
-                })}
+                {detail.dueDate
+                  ? new Date(detail.dueDate).toLocaleDateString("en-US", {
+                      month: "long",
+                      day: "numeric",
+                      year: "numeric",
+                    })
+                  : "—"}
               </span>
             </div>
 
@@ -240,121 +204,152 @@ export function InvoiceDetailPanel({
             {/* Action Buttons */}
             {canPay && (
               <div className="mb-6 flex flex-wrap gap-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={handleSendInvoice}
-                  disabled={sendEmail.isPending}
-                >
-                  {sendEmail.isPending ? (
-                    <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    <Send className="mr-1.5 h-3.5 w-3.5" />
-                  )}
-                  Send Invoice
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setShowPaymentLink(true)}
-                >
-                  <Link2 className="mr-1.5 h-3.5 w-3.5" />
-                  Share Payment Link
-                </Button>
                 <Button size="sm" onClick={() => setShowRecordPayment(true)}>
                   <DollarSign className="mr-1.5 h-3.5 w-3.5" />
                   Record Payment
                 </Button>
+                {detail.purchaseOrderId && (
+                  <Button size="sm" variant="outline">
+                    <ShoppingCart className="mr-1.5 h-3.5 w-3.5" />
+                    View PO
+                  </Button>
+                )}
               </div>
             )}
 
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={handleDownloadPdf}
-              className="mb-6"
-            >
-              <Download className="mr-1.5 h-3.5 w-3.5" />
-              Download PDF
-            </Button>
-
-            {/* Line Items */}
-            <div className="mb-6">
-              <h3 className="mb-3 text-sm font-semibold text-foreground">
-                Line Items
-              </h3>
-              <div className="rounded-xl border border-border overflow-hidden">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-border bg-muted/50">
-                      <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">
-                        Description
-                      </th>
-                      <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground">
-                        Qty
-                      </th>
-                      <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground">
-                        Price
-                      </th>
-                      <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground">
-                        Amount
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {detail.lines && detail.lines.length > 0 ? (
-                      detail.lines.map((line) => (
-                        <tr
-                          key={line.id}
-                          className="border-b border-border last:border-0"
-                        >
-                          <td className="px-3 py-2 text-sm text-foreground">
-                            {line.description}
-                          </td>
-                          <td className="px-3 py-2 text-right text-sm text-muted-foreground tabular-nums">
-                            {line.quantity}
-                          </td>
-                          <td className="px-3 py-2 text-right text-sm text-muted-foreground tabular-nums">
-                            {format(line.unitPrice)}
-                          </td>
-                          <td className="px-3 py-2 text-right text-sm font-medium text-foreground tabular-nums">
-                            {format(line.amount)}
-                          </td>
-                        </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td
-                          colSpan={4}
-                          className="px-3 py-4 text-center text-muted-foreground"
-                        >
-                          No line items
-                        </td>
-                      </tr>
+            {/* Inline Record Payment Form */}
+            {showRecordPayment && canPay && (
+              <div className="mb-6 rounded-xl border border-border p-4 space-y-3">
+                <h4 className="text-sm font-semibold text-foreground">
+                  Record Payment
+                </h4>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground">
+                    Amount
+                  </label>
+                  <div className="relative mt-1">
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      max={detail.balance}
+                      value={payAmount}
+                      onChange={(e) => setPayAmount(e.target.value)}
+                      placeholder={detail.balance.toFixed(2)}
+                      className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm tabular-nums"
+                    />
+                  </div>
+                  <div className="flex gap-2 mt-1">
+                    {[
+                      { label: "Full", value: detail.balance },
+                      { label: "50%", value: detail.balance * 0.5 },
+                      { label: "25%", value: detail.balance * 0.25 },
+                    ].map((opt) => (
+                      <button
+                        key={opt.label}
+                        type="button"
+                        onClick={() => setPayAmount(opt.value.toFixed(2))}
+                        className="rounded-md border border-border px-2 py-0.5 text-[10px] font-medium text-muted-foreground hover:text-foreground"
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground">
+                      Method
+                    </label>
+                    <select
+                      value={payMethod}
+                      onChange={(e) => setPayMethod(e.target.value)}
+                      className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                    >
+                      <option value="bank_transfer">Bank Transfer</option>
+                      <option value="cash">Cash</option>
+                      <option value="mobile_money">Mobile Money</option>
+                      <option value="check">Check</option>
+                      <option value="card">Card</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground">
+                      Date
+                    </label>
+                    <input
+                      type="date"
+                      value={payDate}
+                      onChange={(e) => setPayDate(e.target.value)}
+                      className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground">
+                    Reference (optional)
+                  </label>
+                  <input
+                    value={payRef}
+                    onChange={(e) => setPayRef(e.target.value)}
+                    placeholder="Transaction ID, check number..."
+                    className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                  />
+                </div>
+                <div className="flex gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setShowRecordPayment(false)}
+                    className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const amt = parseFloat(payAmount) || detail.balance;
+                      if (amt <= 0 || amt > detail.balance * 1.01) {
+                        toast.error("Invalid amount");
+                        return;
+                      }
+                      recordPayment.mutate({
+                        invoiceApId: billId,
+                        amount: amt.toFixed(2),
+                        paymentDate: payDate,
+                        method: payMethod as any,
+                        reference: payRef || undefined,
+                      });
+                    }}
+                    disabled={recordPayment.isPending}
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
+                  >
+                    {recordPayment.isPending && (
+                      <Loader2 className="h-3 w-3 animate-spin" />
                     )}
-                  </tbody>
-                </table>
+                    Record Payment
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
 
-            {/* Customer Info */}
-            {detail.customer && (
+            {/* Vendor Info */}
+            {detail.supplier && (
               <div className="mb-6">
                 <h3 className="mb-3 text-sm font-semibold text-foreground">
-                  Customer
+                  Vendor
                 </h3>
                 <div className="rounded-xl border border-border p-4">
                   <p className="text-sm font-medium text-foreground">
-                    {detail.customer.name}
+                    {detail.supplier.name}
                   </p>
-                  {detail.customer.email && (
+                  {detail.supplier.email && (
                     <p className="text-sm text-muted-foreground">
-                      {detail.customer.email}
+                      {detail.supplier.email}
                     </p>
                   )}
-                  {detail.customer.phone && (
+                  {detail.supplier.phone && (
                     <p className="text-sm text-muted-foreground">
-                      {detail.customer.phone}
+                      {detail.supplier.phone}
                     </p>
                   )}
                 </div>
@@ -421,27 +416,6 @@ export function InvoiceDetailPanel({
           </div>
         </div>
       </div>
-
-      {/* Dialogs */}
-      {showRecordPayment && (
-        <RecordPaymentDialog
-          invoiceId={invoiceId}
-          balance={detail.balance}
-          onClose={() => setShowRecordPayment(false)}
-          onPaymentRecorded={() => {
-            setShowRecordPayment(false);
-          }}
-        />
-      )}
-
-      {showPaymentLink && (
-        <CreatePaymentLinkDialog
-          invoiceId={invoiceId}
-          balance={detail.balance}
-          currency={detail.currency}
-          onClose={() => setShowPaymentLink(false)}
-        />
-      )}
     </>
   );
 }

@@ -6,18 +6,20 @@ import type {
   CoaMapping,
   IngestionValidation,
 } from "./types";
+import type { TrustGuardResult } from "../engine/trust-guard";
 
 // ─── Default Weights ────────────────────────────────────────────────────────
 
 const DEFAULT_WEIGHTS: Record<string, number> = {
-  ocr_quality: 0.1,
-  classification_confidence: 0.1,
-  extraction_field_confidence: 0.15,
-  duplicate_check: 0.1,
-  entity_resolution: 0.15,
-  coa_mapping: 0.15,
+  ocr_quality: 0.08,
+  classification_confidence: 0.08,
+  extraction_field_confidence: 0.12,
+  trust_guard: 0.15,
+  duplicate_check: 0.08,
+  entity_resolution: 0.12,
+  coa_mapping: 0.12,
   tax_calculation: 0.05,
-  accounting_rule_validation: 0.1,
+  accounting_rule_validation: 0.08,
   amount_consistency: 0.05,
   period_validity: 0.05,
 };
@@ -104,6 +106,48 @@ function entityResolutionSignal(
     value: Math.max(0, Math.min(1, avgConfidence - unmatchedPenalty)),
     weight: DEFAULT_WEIGHTS.entity_resolution,
     description: `Entity resolution: ${confidences.length} entities matched, ${resolved.unmatched?.length ?? 0} unmatched`,
+  };
+}
+
+function trustGuardSignal(
+  trustGuard?: TrustGuardResult,
+): IngestionConfidenceSignal {
+  if (!trustGuard) {
+    return {
+      name: "trust_guard",
+      value: 0.5,
+      weight: DEFAULT_WEIGHTS.trust_guard,
+      description: "TrustGuard not yet run",
+    };
+  }
+
+  if (trustGuard.passed) {
+    return {
+      name: "trust_guard",
+      value: 1.0,
+      weight: DEFAULT_WEIGHTS.trust_guard,
+      description: `TrustGuard: all ${trustGuard.totalCount} checks passed — extraction mathematically verified`,
+    };
+  }
+
+  // Some checks failed — reduce confidence proportionally
+  const failedCount = trustGuard.totalCount - trustGuard.passedCount;
+  const errorChecks = trustGuard.checks.filter(
+    (c) => c.severity === "error" && !c.passed,
+  );
+  const warningChecks = trustGuard.checks.filter(
+    (c) => c.severity === "warning" && !c.passed,
+  );
+
+  // Errors are more damaging than warnings
+  const penalty = errorChecks.length * 0.4 + warningChecks.length * 0.15;
+  const value = Math.max(0, 1.0 - penalty);
+
+  return {
+    name: "trust_guard",
+    value,
+    weight: DEFAULT_WEIGHTS.trust_guard,
+    description: `TrustGuard: ${failedCount}/${trustGuard.totalCount} checks failed — ${errorChecks.length} errors, ${warningChecks.length} warnings. ${trustGuard.summary}`,
   };
 }
 
@@ -239,6 +283,7 @@ export function computeIngestionConfidence(
     ocrSignal(state),
     classificationSignal(state),
     extractionSignal(state),
+    trustGuardSignal(state.trustGuard),
     duplicateSignal(existingDuplicateCount),
     entityResolutionSignal(state.resolvedEntities),
     coaMappingSignal(state.coaMapping),

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Receipt, Loader2, AlertCircle } from "lucide-react";
 
 import {
@@ -10,6 +10,7 @@ import {
   modalSelectCls,
 } from "./create-record-modal";
 import { InvoiceLinesEditor, type InvoiceLine } from "./invoice-lines-editor";
+import { CreatableCombobox } from "@/components/shared/customer-combobox";
 
 import { trpc } from "@/lib/trpc/client";
 import { useEntity } from "@/lib/entity-context";
@@ -23,8 +24,6 @@ interface CreateBillDialogProps {
 const today = () => new Date().toISOString().slice(0, 10);
 const inDays = (days: number) =>
   new Date(Date.now() + days * 86400000).toISOString().slice(0, 10);
-const defaultBillNumber = () =>
-  `BILL-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}`;
 
 export function CreateBillDialog({ open, onClose }: CreateBillDialogProps) {
   const utils = trpc.useUtils();
@@ -36,15 +35,35 @@ export function CreateBillDialog({ open, onClose }: CreateBillDialogProps) {
   const { data: accounts } = trpc.coa.list.useQuery(undefined, {
     enabled: open,
   });
+  const { data: nextNumberData } = trpc.bills.getNextBillNumber.useQuery(
+    undefined,
+    { enabled: open },
+  );
 
   const [supplierId, setSupplierId] = useState("");
-  const [invoiceNumber, setInvoiceNumber] = useState(defaultBillNumber());
+  const [invoiceNumber, setInvoiceNumber] = useState("");
   const [invoiceDate, setInvoiceDate] = useState(today());
   const [dueDate, setDueDate] = useState(inDays(30));
   const [currency, setCurrency] = useState(entityCurrency ?? "USD");
   const [notes, setNotes] = useState("");
   const [lines, setLines] = useState<InvoiceLine[]>([]);
   const [error, setError] = useState<string | null>(null);
+
+  const createSupplier = trpc.ap.createSupplier.useMutation();
+
+  const handleCreateSupplier = async (name: string) => {
+    const result = await createSupplier.mutateAsync({ name });
+    if (!result) throw new Error("Failed to create vendor");
+    utils.ap.invalidate();
+    return { id: result.id, name: result.name };
+  };
+
+  // Pre-fill bill number when server responds
+  useEffect(() => {
+    if (nextNumberData?.billNumber && !invoiceNumber) {
+      setInvoiceNumber(nextNumberData.billNumber);
+    }
+  }, [nextNumberData, invoiceNumber]);
 
   const createBill = trpc.ap.createInvoice.useMutation({
     onSuccess: () => {
@@ -53,7 +72,7 @@ export function CreateBillDialog({ open, onClose }: CreateBillDialogProps) {
       utils.expenses.invalidate();
       utils.dashboard.invalidate();
       setSupplierId("");
-      setInvoiceNumber(defaultBillNumber());
+      setInvoiceNumber("");
       setInvoiceDate(today());
       setDueDate(inDays(30));
       setNotes("");
@@ -140,45 +159,33 @@ export function CreateBillDialog({ open, onClose }: CreateBillDialogProps) {
       }
     >
       <div className="space-y-4">
-        {suppliers && suppliers.length === 0 ? (
-          <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-            No vendors yet. Add a vendor from the{" "}
-            <span className="font-medium">Vendors</span> module first, then
-            record bills from them.
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className={modalLabelCls} htmlFor="bill-vendor">
+              Vendor
+            </label>
+            <CreatableCombobox
+              value={supplierId}
+              onChange={setSupplierId}
+              items={(suppliers ?? []).map((s) => ({ id: s.id, name: s.name }))}
+              onCreate={handleCreateSupplier}
+              entityLabel="vendor"
+              emptyMessage="No vendors yet"
+              placeholder="Search or type a new vendor name..."
+            />
           </div>
-        ) : (
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className={modalLabelCls} htmlFor="bill-vendor">
-                Vendor
-              </label>
-              <select
-                id="bill-vendor"
-                value={supplierId}
-                onChange={(e) => setSupplierId(e.target.value)}
-                className={modalSelectCls}
-              >
-                <option value="">Select vendor</option>
-                {suppliers?.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className={modalLabelCls} htmlFor="bill-number">
-                Bill number
-              </label>
-              <input
-                id="bill-number"
-                value={invoiceNumber}
-                onChange={(e) => setInvoiceNumber(e.target.value)}
-                className={modalInputCls}
-              />
-            </div>
+          <div>
+            <label className={modalLabelCls} htmlFor="bill-number">
+              Bill number
+            </label>
+            <input
+              id="bill-number"
+              value={invoiceNumber}
+              onChange={(e) => setInvoiceNumber(e.target.value)}
+              className={modalInputCls}
+            />
           </div>
-        )}
+        </div>
 
         <div className="grid grid-cols-3 gap-4">
           <div>
@@ -228,6 +235,7 @@ export function CreateBillDialog({ open, onClose }: CreateBillDialogProps) {
           lines={lines}
           onChange={setLines}
           accounts={expenseAccounts}
+          currency={currency}
         />
 
         <div>

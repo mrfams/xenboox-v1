@@ -136,32 +136,47 @@ export const syncPlaidTransactions = task({
       bankAccountId = newAccount!.id;
     }
 
-    // 5. Batch dedup — collect all Plaid IDs, query once
+    // 5. Batch dedup — collect all Plaid IDs from added, modified, and removed
     let insertedCount = 0;
     let skippedCount = 0;
 
-    const plaidIds = plaidData.added.map((tx) => tx.transaction_id);
-    const existingPlaidIds = new Set<string>();
-    if (plaidIds.length > 0) {
-      const allTx = await db.query.bankTransactions.findMany({
-        where: and(eq(bankTransactions.entityId, entityId)),
-        columns: { metadata: true },
-      });
-      for (const row of allTx) {
-        const meta = (row.metadata ?? {}) as Record<string, unknown>;
-        if (meta.plaidTransactionId && plaidIds.includes(meta.plaidTransactionId as string)) {
-          existingPlaidIds.add(meta.plaidTransactionId as string);
-        }
+    const allPlaidIds = [
+      ...plaidData.added.map((tx) => tx.transaction_id),
+      ...plaidData.modified.map((tx) => tx.transaction_id),
+      ...plaidData.removed.map((tx) => tx.transaction_id),
+    ];
+
+    // Batch-query all entity transactions with metadata (one query, not N)
+    const allEntityTx =
+      allPlaidIds.length > 0
+        ? await db.query.bankTransactions.findMany({
+            where: and(eq(bankTransactions.entityId, entityId)),
+            columns: { id: true, metadata: true },
+          })
+        : [];
+
+    // Build lookup maps: plaidTransactionId → { id, metadata }
+    const txByPlaidId = new Map<
+      string,
+      { id: string; metadata: Record<string, unknown> }
+    >();
+    for (const row of allEntityTx) {
+      const meta = (row.metadata ?? {}) as Record<string, unknown>;
+      if (meta.plaidTransactionId) {
+        txByPlaidId.set(meta.plaidTransactionId as string, {
+          id: row.id,
+          metadata: meta,
+        });
       }
     }
 
+    // 5a. Insert added transactions
     for (const tx of plaidData.added) {
-      if (existingPlaidIds.has(tx.transaction_id)) {
+      if (txByPlaidId.has(tx.transaction_id)) {
         skippedCount++;
         continue;
       }
 
-      // Determine type from amount sign
       const amount = Math.abs(tx.amount);
       const txType = tx.amount >= 0 ? "deposit" : "withdrawal";
 
@@ -174,10 +189,10 @@ export const syncPlaidTransactions = task({
         reference: tx.payment_channel ?? undefined,
         amount: String(amount),
         type: txType,
-        balance: undefined, // Plaid sync doesn't always provide balance
+        balance: undefined,
         source: "plaid",
         metadata: {
-          plaidTransactionId: plaidTxId,
+          plaidTransactionId: tx.transaction_id,
           plaidAccountId: tx.account_id,
           plaidCategory: tx.category,
           plaidMerchantName: tx.merchant_name,
@@ -194,15 +209,7 @@ export const syncPlaidTransactions = task({
     // 6. Process modified transactions (update existing records by Plaid ID)
     let updatedCount = 0;
     for (const tx of plaidData.modified) {
-      const allTx = await db.query.bankTransactions.findMany({
-        where: and(eq(bankTransactions.entityId, entityId)),
-        columns: { id: true, metadata: true },
-      });
-      const match = allTx.find((row) => {
-        const meta = (row.metadata ?? {}) as Record<string, unknown>;
-        return meta.plaidTransactionId === tx.transaction_id;
-      });
-
+      const match = txByPlaidId.get(tx.transaction_id);
       if (match) {
         await db
           .update(bankTransactions)
@@ -211,7 +218,7 @@ export const syncPlaidTransactions = task({
             amount: String(Math.abs(tx.amount)),
             type: tx.amount >= 0 ? "deposit" : "withdrawal",
             metadata: {
-              ...(match.metadata as Record<string, unknown>),
+              ...match.metadata,
               plaidPending: tx.pending,
               plaidMerchantName: tx.merchant_name,
             },
@@ -223,27 +230,20 @@ export const syncPlaidTransactions = task({
 
     // 7. Process removed transactions (soft-delete by Plaid ID in metadata)
     let removedCount = 0;
-    const removedIds = new Set(plaidData.removed.map((tx) => tx.transaction_id));
-    if (removedIds.size > 0) {
-      const allTx = await db.query.bankTransactions.findMany({
-        where: and(eq(bankTransactions.entityId, entityId)),
-        columns: { id: true, metadata: true },
-      });
-      for (const row of allTx) {
-        const meta = (row.metadata ?? {}) as Record<string, unknown>;
-        if (meta.plaidTransactionId && removedIds.has(meta.plaidTransactionId as string)) {
-          await db
-            .update(bankTransactions)
-            .set({
-              metadata: {
-                ...meta,
-                plaidRemoved: true,
-                plaidRemovedAt: new Date().toISOString(),
-              },
-            })
-            .where(eq(bankTransactions.id, row.id));
-          removedCount++;
-        }
+    for (const tx of plaidData.removed) {
+      const match = txByPlaidId.get(tx.transaction_id);
+      if (match) {
+        await db
+          .update(bankTransactions)
+          .set({
+            metadata: {
+              ...match.metadata,
+              plaidRemoved: true,
+              plaidRemovedAt: new Date().toISOString(),
+            },
+          })
+          .where(eq(bankTransactions.id, match.id));
+        removedCount++;
       }
     }
 
@@ -414,16 +414,38 @@ async function paginatePlaidSync(
     const data = (await response.json()) as PlaidTransactionsSyncResponse;
     pages++;
 
+    // Batch-query entity transactions for dedup (one query per page, not per tx)
+    const allPlaidIds = [
+      ...data.added.map((tx) => tx.transaction_id),
+      ...data.modified.map((tx) => tx.transaction_id),
+      ...data.removed.map((tx) => tx.transaction_id),
+    ];
+
+    const allEntityTx =
+      allPlaidIds.length > 0
+        ? await db.query.bankTransactions.findMany({
+            where: and(eq(bankTransactions.entityId, entityId)),
+            columns: { id: true, metadata: true },
+          })
+        : [];
+
+    const txByPlaidId = new Map<
+      string,
+      { id: string; metadata: Record<string, unknown> }
+    >();
+    for (const row of allEntityTx) {
+      const meta = (row.metadata ?? {}) as Record<string, unknown>;
+      if (meta.plaidTransactionId) {
+        txByPlaidId.set(meta.plaidTransactionId as string, {
+          id: row.id,
+          metadata: meta,
+        });
+      }
+    }
+
     // Process added
     for (const tx of data.added) {
-      const existing = await db.query.bankTransactions.findFirst({
-        where: and(
-          eq(bankTransactions.entityId, entityId),
-          eq(bankTransactions.description, tx.name),
-        ),
-      });
-
-      if (existing) continue;
+      if (txByPlaidId.has(tx.transaction_id)) continue;
 
       const amount = Math.abs(tx.amount);
       const txType = tx.amount >= 0 ? "deposit" : "withdrawal";
@@ -454,43 +476,39 @@ async function paginatePlaidSync(
 
     // Process modified
     for (const tx of data.modified) {
-      const existing = await db.query.bankTransactions.findFirst({
-        where: and(
-          eq(bankTransactions.entityId, entityId),
-          eq(bankTransactions.description, tx.name),
-        ),
-      });
-
-      if (existing) {
+      const match = txByPlaidId.get(tx.transaction_id);
+      if (match) {
         await db
           .update(bankTransactions)
           .set({
             description: tx.name,
             amount: String(Math.abs(tx.amount)),
             type: tx.amount >= 0 ? "deposit" : "withdrawal",
+            metadata: {
+              ...match.metadata,
+              plaidPending: tx.pending,
+              plaidMerchantName: tx.merchant_name,
+            },
           })
-          .where(eq(bankTransactions.id, existing.id));
+          .where(eq(bankTransactions.id, match.id));
         updated++;
       }
     }
 
     // Process removed
     for (const tx of data.removed) {
-      const existing = await db.query.bankTransactions.findFirst({
-        where: eq(bankTransactions.entityId, entityId),
-      });
-
-      if (existing) {
+      const match = txByPlaidId.get(tx.transaction_id);
+      if (match) {
         await db
           .update(bankTransactions)
           .set({
             metadata: {
-              ...(existing.metadata as Record<string, unknown>),
+              ...match.metadata,
               plaidRemoved: true,
               plaidRemovedAt: new Date().toISOString(),
             },
           })
-          .where(eq(bankTransactions.id, existing.id));
+          .where(eq(bankTransactions.id, match.id));
         removed++;
       }
     }

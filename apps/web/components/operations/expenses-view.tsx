@@ -1,82 +1,89 @@
 /**
- * Bills View — AI-native accounts payable management.
+ * Expenses View — AI-native expense management.
  *
  * Features:
- * - DataTable with sortable columns (matching InvoicesView pattern)
- * - AI payment priority recommendations (which bills to pay first)
+ * - DataTable with sortable columns (matching BillsView pattern)
+ * - AI expense insights (duplicate detection, missing receipts)
  * - Summary cards with design tokens
  * - Status badges with icon + design token colors
  * - Filter tabs with counts
- * - Search by vendor or invoice number
- * - Actions: view details, record payment
+ * - Search by vendor or description
+ * - Actions: view details, approve/reject, record payment
  */
 
 "use client";
 
 import { useState } from "react";
 import {
-  CreditCard,
+  ReceiptText,
   AlertCircle,
   CheckCircle2,
   Clock,
-  Send,
-  Eye,
   Plus,
   Bot,
   ChevronRight,
   DollarSign,
+  Eye,
+  Send,
+  XCircle,
   type LucideIcon,
 } from "lucide-react";
 
 import { useEntity } from "@/lib/entity-context";
 import { trpc } from "@/lib/trpc/client";
-import { cn, formatCurrency } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import { DataTable, type Column } from "@/components/shared/data-table";
 import { useModuleAi } from "@/components/module/module-ai-context";
-import { CreateBillDialog } from "@/components/dashboard/create-bill-dialog";
-import { BillDetailPanel } from "@/components/finance/bill-detail-panel";
+import { CreateExpenseDialog } from "@/components/dashboard/create-expense-dialog";
+import { ExpenseDetailPanel } from "@/components/finance/expense-detail-panel";
 import { useFormatCurrency } from "@/lib/hooks/use-currency";
 
 // ─── Types ────────────────────────────────────────────────────────────────
 
-type BillStatus = "all" | "pending" | "overdue" | "paid";
+type ExpenseStatus = "all" | "pending" | "approved" | "reimbursed";
 
-type Bill = {
+type Expense = {
   id: string;
-  invoiceNumber: string;
-  invoiceDate: string;
-  dueDate: string | null;
-  totalAmount: number;
-  balance: number;
+  date: string;
+  description: string;
+  category: string;
+  vendor: string;
+  amount: number;
+  amountFormatted: string;
+  paymentMethod: string;
   status: string;
-  supplierName: string | null;
-  supplierId: string | null;
+  statusColor: string;
+  hasReceipt: boolean;
+  dueDate: string | null;
 };
 
 // ─── Status Badge ──────────────────────────────────────────────────────────
-// Matches InvoicesView pattern: icon + label + design token colors.
 
-function BillStatusBadge({ status }: { status: string }) {
+function ExpenseStatusBadge({ status }: { status: string }) {
   const config: Record<string, { icon: LucideIcon; className: string }> = {
     paid: {
       icon: CheckCircle2,
       className: "bg-balanced-green/10 text-balanced-green",
     },
+    Draft: {
+      icon: Clock,
+      className: "bg-muted text-muted-foreground",
+    },
+    "Pending Approval": {
+      icon: Clock,
+      className: "bg-attention-amber/10 text-attention-amber",
+    },
     overdue: {
       icon: AlertCircle,
       className: "bg-error-clay/10 text-error-clay",
     },
-    pending: {
+    Partial: {
       icon: Clock,
-      className: "bg-attention-amber/10 text-attention-amber",
+      className: "bg-blue-500/10 text-blue-500",
     },
-    partial: {
-      icon: Clock,
-      className: "bg-attention-amber/10 text-attention-amber",
-    },
-    approved: {
-      icon: Send,
-      className: "bg-primary/10 text-primary",
+    voided: {
+      icon: XCircle,
+      className: "bg-muted text-muted-foreground line-through",
     },
   };
 
@@ -93,143 +100,119 @@ function BillStatusBadge({ status }: { status: string }) {
       )}
     >
       <Icon className="h-2.5 w-2.5" />
-      {status.charAt(0).toUpperCase() + status.slice(1)}
+      {status}
     </span>
   );
 }
 
-// ─── AI Payment Priority Strip ────────────────────────────────────────────
-// Shows AI-recommended payment order based on urgency and amount.
+// ─── AI Insights Strip ────────────────────────────────────────────────────
 
-function AiPaymentPriority({ bills }: { bills: Bill[] }) {
+function AiInsightsStrip() {
+  const { entityId } = useEntity();
   const { openWithFocus } = useModuleAi();
 
-  // Compute priority: overdue first, then by days-to-due ascending
-  const unpaid = bills
-    .filter((b) => b.status !== "paid" && b.balance > 0)
-    .map((b) => {
-      const daysUntilDue = b.dueDate
-        ? Math.ceil(
-            (new Date(b.dueDate).getTime() - Date.now()) /
-              (1000 * 60 * 60 * 24),
-          )
-        : 999;
-      return { ...b, daysUntilDue };
-    })
-    .sort((a, b) => {
-      // Overdue first (negative days = more urgent)
-      if (a.daysUntilDue < 0 && b.daysUntilDue >= 0) return -1;
-      if (a.daysUntilDue >= 0 && b.daysUntilDue < 0) return 1;
-      // Then by days-to-due ascending
-      return a.daysUntilDue - b.daysUntilDue;
-    })
-    .slice(0, 3);
+  const { data: insights } = trpc.expenses.getAiInsights.useQuery(undefined, {
+    enabled: !!entityId,
+  });
 
-  if (unpaid.length === 0) return null;
+  if (!insights || insights.length === 0) return null;
 
-  const totalDue = unpaid.reduce((s, b) => s + b.balance, 0);
+  const hasWarnings = insights.some((i) => i.type === "warning");
 
   return (
-    <div className="rounded-xl border border-primary/15 bg-primary/[0.03] p-4">
-      <div className="flex items-center gap-2 mb-3">
-        <div className="flex h-6 w-6 items-center justify-center rounded-md bg-primary/10">
-          <Bot className="h-3.5 w-3.5 text-primary" />
+    <div
+      className={cn(
+        "rounded-xl border p-4",
+        hasWarnings
+          ? "border-attention-amber/20 bg-attention-amber/[0.03]"
+          : "border-balanced-green/20 bg-balanced-green/[0.03]",
+      )}
+    >
+      <div className="flex items-center gap-2 mb-2">
+        <div
+          className={cn(
+            "flex h-6 w-6 items-center justify-center rounded-md",
+            hasWarnings ? "bg-attention-amber/10" : "bg-balanced-green/10",
+          )}
+        >
+          <Bot
+            className={cn(
+              "h-3.5 w-3.5",
+              hasWarnings ? "text-attention-amber" : "text-balanced-green",
+            )}
+          />
         </div>
-        <p className="text-xs font-semibold text-foreground">
-          AI Payment Priority
-        </p>
-        <span className="text-[10px] text-muted-foreground">
-          Recommended payment order
-        </span>
+        <p className="text-xs font-semibold text-foreground">AI Insights</p>
       </div>
 
-      <div className="space-y-2">
-        {unpaid.map((bill, i) => (
+      <div className="space-y-1.5">
+        {insights.slice(0, 3).map((insight) => (
           <div
-            key={bill.id}
+            key={insight.id}
             className="flex items-center justify-between rounded-lg bg-background/60 px-3 py-2"
           >
-            <div className="flex items-center gap-3 min-w-0">
-              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[10px] font-bold text-primary">
-                {i + 1}
-              </span>
-              <div className="min-w-0">
-                <p className="text-xs font-medium text-foreground truncate">
-                  {bill.supplierName ?? bill.invoiceNumber}
-                </p>
-                <p className="text-[10px] text-muted-foreground">
-                  {bill.daysUntilDue < 0
-                    ? `${Math.abs(bill.daysUntilDue)}d overdue`
-                    : bill.daysUntilDue === 0
-                      ? "Due today"
-                      : `Due in ${bill.daysUntilDue}d`}
-                </p>
-              </div>
-            </div>
-            <div className="text-right shrink-0">
-              <p className="text-xs font-semibold tabular-nums text-foreground">
-                {format(bill.balance, entityCurrency ?? "USD")}
+            <div className="min-w-0">
+              <p className="text-xs font-medium text-foreground">
+                {insight.title}
+              </p>
+              <p className="text-[10px] text-muted-foreground">
+                {insight.description}
               </p>
             </div>
+            <button
+              type="button"
+              onClick={() =>
+                openWithFocus(`Help me with: ${insight.actionLabel}`)
+              }
+              className="shrink-0 inline-flex items-center gap-1 text-[10px] font-medium text-primary hover:text-primary/80 transition-colors"
+            >
+              {insight.actionLabel}
+              <ChevronRight className="h-3 w-3" />
+            </button>
           </div>
         ))}
-      </div>
-
-      <div className="mt-3 flex items-center justify-between">
-        <p className="text-[10px] text-muted-foreground">
-          Total recommended: {format(totalDue, entityCurrency ?? "USD")}
-        </p>
-        <button
-          type="button"
-          onClick={() =>
-            openWithFocus("Help me schedule payments for these bills")
-          }
-          className="inline-flex items-center gap-1 text-[10px] font-medium text-primary hover:text-primary/80 transition-colors"
-        >
-          Ask AI to schedule
-          <ChevronRight className="h-3 w-3" />
-        </button>
       </div>
     </div>
   );
 }
 
 // ─── Summary Cards ─────────────────────────────────────────────────────────
-// Design-token based cards with clear hierarchy.
 
 function SummaryCards({
-  totalOutstanding,
-  overdueCount,
+  totalExpenses,
   pendingCount,
+  reimbursedCount,
 }: {
-  totalOutstanding: number;
-  overdueCount: number;
+  totalExpenses: number;
   pendingCount: number;
+  reimbursedCount: number;
 }) {
+  const { format } = useFormatCurrency();
+
   const cards = [
     {
-      label: "Outstanding",
-      value: format(totalOutstanding, entityCurrency ?? "USD"),
-      sub: "Total owed",
+      label: "Total Expenses",
+      value: format(totalExpenses),
+      sub: "This month",
       icon: DollarSign,
+      iconBg: "bg-primary/10",
+      iconColor: "text-primary",
+    },
+    {
+      label: "Pending Approval",
+      value: pendingCount,
+      sub: "Awaiting review",
+      icon: Clock,
       iconBg: "bg-attention-amber/10",
       iconColor: "text-attention-amber",
     },
     {
-      label: "Overdue",
-      value: overdueCount,
-      sub: "Past due date",
-      icon: AlertCircle,
-      iconBg: "bg-error-clay/10",
-      iconColor: "text-error-clay",
-    },
-    {
-      label: "Pending",
-      value: pendingCount,
-      sub: "Awaiting payment",
-      icon: Clock,
-      iconBg: "bg-primary/10",
-      iconColor: "text-primary",
+      label: "Reimbursed",
+      value: reimbursedCount,
+      sub: "Paid out",
+      icon: CheckCircle2,
+      iconBg: "bg-balanced-green/10",
+      iconColor: "text-balanced-green",
     },
   ];
 
@@ -264,19 +247,21 @@ function SummaryCards({
 
 // ─── Component ────────────────────────────────────────────────────────────
 
-export function BillsView() {
-  const { format } = useFormatCurrency();
+export function ExpensesView() {
   const { entityId, entityCurrency } = useEntity();
   const { openWithFocus } = useModuleAi();
-  const [status, setStatus] = useState<BillStatus>("all");
+  const { format } = useFormatCurrency();
+  const [status, setStatus] = useState<ExpenseStatus>("all");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
-  const [selectedBillId, setSelectedBillId] = useState<string | null>(null);
+  const [selectedExpenseId, setSelectedExpenseId] = useState<string | null>(
+    null,
+  );
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const limit = 20;
 
   const { data, isLoading, isError, error, refetch } =
-    trpc.bills.listBills.useQuery(
+    trpc.expenses.listExpenses.useQuery(
       {
         status,
         search: search || undefined,
@@ -286,48 +271,46 @@ export function BillsView() {
       { enabled: !!entityId },
     );
 
-  const { data: overview, isError: overviewError } =
-    trpc.bills.getOverview.useQuery(undefined, {
-      enabled: !!entityId,
-    });
+  const { data: tabCounts } = trpc.expenses.getTabCounts.useQuery(undefined, {
+    enabled: !!entityId,
+  });
 
-  const bills = data?.bills ?? [];
+  const expenses = data?.expenses ?? [];
   const totalCount = data?.totalCount ?? 0;
 
-  const totalOutstanding = overview?.summary.totalOutstanding ?? 0;
-  const overdueCount = overview?.summary.overdueCount ?? 0;
-  const pendingCount = overview?.statusCounts?.approved ?? 0;
+  const pendingCount = tabCounts?.pending ?? 0;
+  const reimbursedCount = tabCounts?.reimbursed ?? 0;
 
-  // ── Columns (DataTable pattern, matching InvoicesView) ──────────────
-  const columns: Column<Bill>[] = [
+  // ── Columns ──────────────────────────────────────────────────────
+  const columns: Column<Expense>[] = [
     {
-      key: "invoiceNumber",
-      label: "Bill",
+      key: "description",
+      label: "Expense",
       sortable: true,
       render: (row) => (
         <div className="flex items-center gap-2.5">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
-            <CreditCard className="h-4 w-4 text-primary" />
+            <ReceiptText className="h-4 w-4 text-primary" />
           </div>
           <div className="min-w-0">
             <p className="text-sm font-medium text-foreground truncate">
-              {row.invoiceNumber || "—"}
+              {row.description || "—"}
             </p>
             <p className="text-[10px] text-muted-foreground truncate">
-              {row.supplierName ?? "Unknown vendor"}
+              {row.vendor}
             </p>
           </div>
         </div>
       ),
     },
     {
-      key: "invoiceDate",
+      key: "date",
       label: "Date",
       sortable: true,
       render: (row) => (
         <span className="text-xs text-muted-foreground">
-          {row.invoiceDate
-            ? new Date(row.invoiceDate).toLocaleDateString("en-US", {
+          {row.date
+            ? new Date(row.date).toLocaleDateString("en-US", {
                 month: "short",
                 day: "numeric",
                 year: "numeric",
@@ -337,100 +320,50 @@ export function BillsView() {
       ),
     },
     {
-      key: "dueDate",
-      label: "Due Date",
+      key: "category",
+      label: "Category",
       sortable: true,
-      render: (row) => {
-        const isOverdue =
-          row.status !== "paid" &&
-          row.dueDate &&
-          new Date(row.dueDate) < new Date();
-        const daysUntilDue = row.dueDate
-          ? Math.ceil(
-              (new Date(row.dueDate).getTime() - Date.now()) /
-                (1000 * 60 * 60 * 24),
-            )
-          : null;
-
-        return (
-          <div className="text-right">
-            <span
-              className={cn(
-                "text-xs",
-                isOverdue
-                  ? "text-error-clay font-medium"
-                  : "text-muted-foreground",
-              )}
-            >
-              {row.dueDate
-                ? new Date(row.dueDate).toLocaleDateString("en-US", {
-                    month: "short",
-                    day: "numeric",
-                  })
-                : "—"}
-            </span>
-            {daysUntilDue !== null && row.status !== "paid" && (
-              <p
-                className={cn(
-                  "text-[10px] mt-0.5",
-                  daysUntilDue < 0
-                    ? "text-error-clay"
-                    : daysUntilDue <= 7
-                      ? "text-attention-amber"
-                      : "text-muted-foreground",
-                )}
-              >
-                {daysUntilDue < 0
-                  ? `${Math.abs(daysUntilDue)}d overdue`
-                  : daysUntilDue === 0
-                    ? "Due today"
-                    : `${daysUntilDue}d left`}
-              </p>
-            )}
-          </div>
-        );
-      },
+      render: (row) => (
+        <span className="inline-flex items-center rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+          {row.category}
+        </span>
+      ),
     },
     {
-      key: "totalAmount",
+      key: "amount",
       label: "Amount",
       sortable: true,
       align: "right",
       render: (row) => (
         <span className="text-sm font-semibold tabular-nums">
-          {format(row.totalAmount, entityCurrency ?? "USD")}
-        </span>
-      ),
-    },
-    {
-      key: "balance",
-      label: "Balance",
-      sortable: true,
-      align: "right",
-      render: (row) => (
-        <span
-          className={cn(
-            "text-sm font-medium tabular-nums",
-            row.balance > 0 ? "text-attention-amber" : "text-balanced-green",
-          )}
-        >
-          {format(row.balance, entityCurrency ?? "USD")}
+          {format(row.amount, entityCurrency ?? "USD")}
         </span>
       ),
     },
     {
       key: "status",
       label: "Status",
-      render: (row) => <BillStatusBadge status={row.status} />,
+      render: (row) => <ExpenseStatusBadge status={row.status} />,
     },
     {
-      key: "actions",
+      key: "hasReceipt",
+      label: "Receipt",
+      align: "center",
+      render: (row) =>
+        row.hasReceipt ? (
+          <CheckCircle2 className="h-3.5 w-3.5 text-balanced-green" />
+        ) : (
+          <span className="text-[10px] text-muted-foreground">—</span>
+        ),
+    },
+    {
+      key: "id",
       label: "",
       width: "40px",
       render: (row) => (
         <button
           type="button"
-          onClick={() => setSelectedBillId(row.id)}
+          onClick={() => setSelectedExpenseId(row.id)}
           className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
         >
           <Eye className="h-4 w-4" />
@@ -443,21 +376,21 @@ export function BillsView() {
     <div className="space-y-4">
       {/* Summary Cards */}
       <SummaryCards
-        totalOutstanding={totalOutstanding}
-        overdueCount={overdueCount}
+        totalExpenses={data?.expenses?.reduce((s, e) => s + e.amount, 0) ?? 0}
         pendingCount={pendingCount}
+        reimbursedCount={reimbursedCount}
       />
 
-      {/* AI Payment Priority */}
-      <AiPaymentPriority bills={bills} />
+      {/* AI Insights */}
+      <AiInsightsStrip />
 
       {/* Filters + Create */}
       <div className="flex items-center gap-3">
         <div className="relative flex-1 max-w-sm">
-          <CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <ReceiptText className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <input
             type="text"
-            placeholder="Search by vendor or invoice..."
+            placeholder="Search by vendor or description..."
             value={search}
             onChange={(e) => {
               setSearch(e.target.value);
@@ -472,8 +405,12 @@ export function BillsView() {
             [
               { key: "all", label: "All" },
               { key: "pending", label: "Pending", count: pendingCount },
-              { key: "overdue", label: "Overdue", count: overdueCount },
-              { key: "paid", label: "Paid" },
+              { key: "approved", label: "Approved" },
+              {
+                key: "reimbursed",
+                label: "Reimbursed",
+                count: reimbursedCount,
+              },
             ] as const
           ).map((tab) => (
             <button
@@ -510,7 +447,9 @@ export function BillsView() {
         <div className="flex items-center gap-1.5">
           <button
             type="button"
-            onClick={() => openWithFocus("Create a new bill for me")}
+            onClick={() =>
+              openWithFocus("Help me categorize and review my expenses")
+            }
             className="inline-flex items-center gap-1.5 rounded-lg border border-primary/20 bg-primary/5 px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/10 transition-colors"
           >
             <Bot className="h-3.5 w-3.5" />
@@ -522,23 +461,23 @@ export function BillsView() {
             className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground shadow-sm hover:bg-primary/90 transition-colors"
           >
             <Plus className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Create</span>
+            <span className="hidden sm:inline">Record Expense</span>
           </button>
         </div>
       </div>
 
       {/* Error State */}
-      {(isError || overviewError) && (
+      {isError && (
         <div className="rounded-xl border border-error-clay/20 bg-error-clay/5 p-4">
           <div className="flex items-start gap-3">
             <AlertCircle className="h-4 w-4 text-error-clay mt-0.5 shrink-0" />
             <div className="min-w-0">
               <p className="text-sm font-medium text-foreground">
-                Failed to load bills
+                Failed to load expenses
               </p>
               <p className="mt-1 text-xs text-muted-foreground">
                 {(error as Error | undefined)?.message ??
-                  "An error occurred while loading bills. Please try again."}
+                  "An error occurred while loading expenses. Please try again."}
               </p>
               <button
                 type="button"
@@ -553,38 +492,38 @@ export function BillsView() {
         </div>
       )}
 
-      {/* Bills DataTable */}
+      {/* Expenses DataTable */}
       <div className="rounded-xl border border-border/50 bg-card">
         <DataTable
           columns={columns}
-          data={bills}
+          data={expenses}
           isLoading={isLoading}
           emptyState={
             <div className="flex flex-col items-center justify-center py-16 px-4">
               <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-muted/50 mb-3">
-                <CreditCard className="h-6 w-6 text-muted-foreground/40" />
+                <ReceiptText className="h-6 w-6 text-muted-foreground/40" />
               </div>
               <p className="text-sm font-medium text-foreground">
-                No bills found
+                No expenses found
               </p>
               <p className="mt-1 max-w-sm text-center text-xs text-muted-foreground">
                 {search || status !== "all"
-                  ? "Try adjusting your filters or search query. Bills are entity-scoped."
-                  : "No bills have been recorded yet. AI will track and prioritize payments once bills are added."}
+                  ? "Try adjusting your filters or search query."
+                  : "No expenses have been recorded yet. Track business expenses here."}
               </p>
               {!search && status === "all" && (
                 <button
                   type="button"
-                  onClick={() => openWithFocus("Create a new bill for me")}
+                  onClick={() => setShowCreateDialog(true)}
                   className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground shadow-sm hover:bg-primary/90 transition-colors"
                 >
                   <Plus className="h-3.5 w-3.5" />
-                  Create first bill
+                  Record first expense
                 </button>
               )}
             </div>
           }
-          onRowClick={(row) => setSelectedBillId(row.id)}
+          onRowClick={(row) => setSelectedExpenseId(row.id)}
         />
       </div>
 
@@ -617,16 +556,16 @@ export function BillsView() {
       )}
 
       {/* Create Dialog */}
-      <CreateBillDialog
+      <CreateExpenseDialog
         open={showCreateDialog}
         onClose={() => setShowCreateDialog(false)}
       />
 
-      {/* Bill Detail Panel */}
-      {selectedBillId && (
-        <BillDetailPanel
-          billId={selectedBillId}
-          onClose={() => setSelectedBillId(null)}
+      {/* Expense Detail Panel */}
+      {selectedExpenseId && (
+        <ExpenseDetailPanel
+          expenseId={selectedExpenseId}
+          onClose={() => setSelectedExpenseId(null)}
         />
       )}
     </div>

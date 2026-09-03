@@ -9,6 +9,7 @@ import {
   modalLabelCls,
   modalSelectCls,
 } from "./create-record-modal";
+import { CreatableCombobox } from "@/components/shared/customer-combobox";
 
 import { trpc } from "@/lib/trpc/client";
 
@@ -61,6 +62,15 @@ export function CreateExpenseDialog({
   const [paymentMethod, setPaymentMethod] = useState("bank_transfer");
   const [error, setError] = useState<string | null>(null);
 
+  const createSupplier = trpc.ap.createSupplier.useMutation();
+
+  const handleCreateSupplier = async (name: string) => {
+    const result = await createSupplier.mutateAsync({ name });
+    if (!result) throw new Error("Failed to create vendor");
+    utils.ap.invalidate();
+    return { id: result.id, name: result.name };
+  };
+
   const createExpense = trpc.expenses.createExpense.useMutation({
     onSuccess: () => {
       utils.expenses.invalidate();
@@ -71,6 +81,8 @@ export function CreateExpenseDialog({
       setAmount("");
       setExpenseDate(today());
       setDueDate(inDays(30));
+      setCategory("Other");
+      setPaymentMethod("bank_transfer");
       onClose();
     },
     onError: (err) => setError(err.message),
@@ -124,32 +136,21 @@ export function CreateExpenseDialog({
       }
     >
       <div className="space-y-4">
-        {suppliers && suppliers.length === 0 ? (
-          <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-            No vendors yet. Add a vendor from the{" "}
-            <span className="font-medium">Vendors</span> module first, then
-            record expenses paid to them.
-          </div>
-        ) : (
-          <div>
-            <label className={modalLabelCls} htmlFor="ex-payee">
-              Paid to (vendor)
-            </label>
-            <select
-              id="ex-payee"
-              value={supplierId}
-              onChange={(e) => setSupplierId(e.target.value)}
-              className={modalSelectCls}
-            >
-              <option value="">Select vendor</option>
-              {suppliers?.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
+        {/* Vendor — inline creation (AI-native pattern) */}
+        <div>
+          <label className={modalLabelCls} htmlFor="ex-payee">
+            Paid to (vendor)
+          </label>
+          <CreatableCombobox
+            value={supplierId}
+            onChange={setSupplierId}
+            items={(suppliers ?? []).map((s) => ({ id: s.id, name: s.name }))}
+            onCreate={handleCreateSupplier}
+            entityLabel="vendor"
+            emptyMessage="No vendors yet — type to create one"
+            placeholder="Search or type a new vendor name..."
+          />
+        </div>
 
         <div>
           <label className={modalLabelCls} htmlFor="ex-description">

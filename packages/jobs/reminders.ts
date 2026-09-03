@@ -8,8 +8,10 @@ import {
   notificationTypeEnum,
   notificationPriorityEnum,
   notificationStatusEnum,
+  salesInvoices,
+  invoicesAp,
 } from "@xenboox/db/schema";
-import { eq, and, desc, sql } from "drizzle-orm";
+import { eq, and, desc, sql, lt } from "drizzle-orm";
 import { users } from "@xenboox/db/schema/auth";
 import { userEntityAccess } from "@xenboox/db/schema/organization";
 
@@ -125,5 +127,149 @@ export const sendMonthlyBankReminders = task({
     });
 
     return { success: true, entitiesScanned: entityIds.length, remindersSent };
+  },
+});
+
+// ─── Overdue Invoice Detection ─────────────────────────────────────────────
+// Runs daily. Marks invoices/bills past their due date as overdue and
+// creates notifications for the entity owners.
+
+export const markOverdueInvoices = task({
+  id: "mark-overdue-invoices",
+  maxDuration: 300,
+  retry: {
+    maxAttempts: 3,
+    factor: 2,
+    minTimeoutInMs: 5_000,
+    maxTimeoutInMs: 60_000,
+  },
+  queue: {
+    concurrencyLimit: 1,
+  },
+
+  onFailure: dlqOnFailure<{ triggeredAt?: string }>({
+    task: "mark-overdue-invoices",
+    type: "data_validation",
+    severity: "medium",
+    title: () => "Overdue invoice detection failed",
+  }),
+
+  run: async (payload: { triggeredAt?: string }) => {
+    const now = new Date();
+    const todayStr = now.toISOString().split("T")[0]!;
+
+    logger.info("Starting overdue invoice scan", { today: todayStr });
+
+    // 1. Mark overdue sales invoices (pending/partial with dueDate < today)
+    const overdueSales = await db
+      .update(salesInvoices)
+      .set({ status: "overdue" })
+      .where(
+        and(
+          sql`${salesInvoices.status} IN ('pending', 'partial')`,
+          lt(salesInvoices.dueDate, todayStr),
+        ),
+      )
+      .returning({
+        id: salesInvoices.id,
+        entityId: salesInvoices.entityId,
+        invoiceNumber: salesInvoices.invoiceNumber,
+      });
+
+    logger.info("Marked overdue sales invoices", {
+      count: overdueSales.length,
+    });
+
+    // 2. Mark overdue purchase invoices (pending/partial with dueDate < today)
+    const overdueBills = await db
+      .update(invoicesAp)
+      .set({ status: "overdue" })
+      .where(
+        and(
+          sql`${invoicesAp.status} IN ('pending', 'partial')`,
+          lt(invoicesAp.dueDate, todayStr),
+        ),
+      )
+      .returning({
+        id: invoicesAp.id,
+        entityId: invoicesAp.entityId,
+        invoiceNumber: invoicesAp.invoiceNumber,
+      });
+
+    logger.info("Marked overdue purchase invoices", {
+      count: overdueBills.length,
+    });
+
+    // 3. Create notifications for entities with newly overdue invoices
+    const affectedEntityIds = new Set([
+      ...overdueSales.map((r) => r.entityId),
+      ...overdueBills.map((r) => r.entityId),
+    ]);
+
+    let notificationsSent = 0;
+
+    for (const entityId of affectedEntityIds) {
+      const owners = await db.query.userEntityAccess.findMany({
+        where: and(
+          eq(userEntityAccess.entityId, entityId),
+          eq(userEntityAccess.role, "owner"),
+        ),
+      });
+
+      const salesCount = overdueSales.filter(
+        (r) => r.entityId === entityId,
+      ).length;
+      const billsCount = overdueBills.filter(
+        (r) => r.entityId === entityId,
+      ).length;
+
+      const parts: string[] = [];
+      if (salesCount > 0)
+        parts.push(
+          `${salesCount} customer invoice${salesCount > 1 ? "s" : ""}`,
+        );
+      if (billsCount > 0)
+        parts.push(`${billsCount} bill${billsCount > 1 ? "s" : ""}`);
+
+      const summary = parts.join(" and ");
+
+      // Dedup: don't send if we already notified today for this entity
+      for (const owner of owners) {
+        const existing = await db.query.notifications.findFirst({
+          where: and(
+            eq(notifications.userId, owner.userId),
+            eq(notifications.entityId, entityId),
+            eq(notifications.type, "overdue_invoice"),
+            sql`${notifications.createdAt} >= ${todayStr}`,
+          ),
+        });
+
+        if (!existing) {
+          await db.insert(notifications).values({
+            userId: owner.userId,
+            entityId,
+            type: "overdue_invoice",
+            priority: "high",
+            title: `${summary} now overdue`,
+            body: `You have ${summary} past their due date. Review and follow up to get paid faster.`,
+            status: "pending",
+          });
+          notificationsSent++;
+        }
+      }
+    }
+
+    logger.info("Overdue invoice scan completed", {
+      salesMarkedOverdue: overdueSales.length,
+      billsMarkedOverdue: overdueBills.length,
+      notificationsSent,
+    });
+
+    return {
+      success: true,
+      salesMarkedOverdue: overdueSales.length,
+      billsMarkedOverdue: overdueBills.length,
+      notificationsSent,
+    };
   },
 });

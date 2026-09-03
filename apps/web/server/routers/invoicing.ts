@@ -7,7 +7,11 @@ import {
   entities,
 } from "@xenboox/db/schema";
 
-import { router, rlsProtectedProcedure, handleMutationError } from "@/lib/trpc/server";
+import {
+  router,
+  rlsProtectedProcedure,
+  handleMutationError,
+} from "@/lib/trpc/server";
 import { db } from "@/lib/db";
 import { generateSalesInvoicePdf } from "@/lib/invoice-pdf";
 import { sendInvoiceEmail } from "@/lib/email";
@@ -475,85 +479,85 @@ export const invoicingRouter = router({
         const entityId = ctx.entityId!;
 
         const invoice = await db.query.salesInvoices.findFirst({
-        where: and(
-          eq(salesInvoices.id, input.invoiceId),
-          eq(salesInvoices.entityId, entityId),
-        ),
-      });
+          where: and(
+            eq(salesInvoices.id, input.invoiceId),
+            eq(salesInvoices.entityId, entityId),
+          ),
+        });
 
-      if (!invoice) {
-        throw new Error("Invoice not found");
-      }
+        if (!invoice) {
+          throw new Error("Invoice not found");
+        }
 
-      const customer = await db.query.customers.findFirst({
-        where: eq(customers.id, invoice.customerId),
-      });
+        const customer = await db.query.customers.findFirst({
+          where: eq(customers.id, invoice.customerId),
+        });
 
-      if (!customer?.contactEmail) {
-        throw new Error("Customer has no email address");
-      }
+        if (!customer?.contactEmail) {
+          throw new Error("Customer has no email address");
+        }
 
-      // Generate PDF
-      const entity = await db.query.entities.findFirst({
-        where: eq(entities.id, entityId),
-      });
+        // Generate PDF
+        const entity = await db.query.entities.findFirst({
+          where: eq(entities.id, entityId),
+        });
 
-      const lines = await db.query.salesInvoiceLines.findMany({
-        where: eq(salesInvoiceLines.salesInvoiceId, invoice.id),
-      });
+        const lines = await db.query.salesInvoiceLines.findMany({
+          where: eq(salesInvoiceLines.salesInvoiceId, invoice.id),
+        });
 
-      const pdf = await generateSalesInvoicePdf(
-        {
-          id: invoice.id,
+        const pdf = await generateSalesInvoicePdf(
+          {
+            id: invoice.id,
+            invoiceNumber: invoice.invoiceNumber,
+            invoiceDate: invoice.invoiceDate,
+            dueDate: invoice.dueDate,
+            status: invoice.status,
+            totalAmount: invoice.totalAmount,
+            paidAmount: invoice.paidAmount,
+            balance: invoice.balance,
+            currency: invoice.currency,
+            notes: invoice.notes,
+            customerId: invoice.customerId,
+          },
+          {
+            name: customer.name,
+            contactEmail: customer.contactEmail,
+            contactPhone: customer.contactPhone,
+            address: customer.address,
+            taxId: customer.taxId,
+          },
+          {
+            name: entity?.name ?? "Business",
+            contactEmail: undefined,
+            address: undefined,
+            phone: undefined,
+          },
+          lines.map((l) => ({
+            description: l.description,
+            quantity: l.quantity,
+            unitPrice: l.unitPrice,
+            amount: l.amount,
+          })),
+        );
+
+        // Send email
+        await sendInvoiceEmail({
+          to: customer.contactEmail,
+          customerName: customer.name,
           invoiceNumber: invoice.invoiceNumber,
-          invoiceDate: invoice.invoiceDate,
-          dueDate: invoice.dueDate,
-          status: invoice.status,
-          totalAmount: invoice.totalAmount,
-          paidAmount: invoice.paidAmount,
-          balance: invoice.balance,
+          totalAmount: parseFloat(invoice.totalAmount),
           currency: invoice.currency,
-          notes: invoice.notes,
-          customerId: invoice.customerId,
-        },
-        {
-          name: customer.name,
-          contactEmail: customer.contactEmail,
-          contactPhone: customer.contactPhone,
-          address: customer.address,
-          taxId: customer.taxId,
-        },
-        {
-          name: entity?.name ?? "Business",
-          contactEmail: undefined,
-          address: undefined,
-          phone: undefined,
-        },
-        lines.map((l) => ({
-          description: l.description,
-          quantity: l.quantity,
-          unitPrice: l.unitPrice,
-          amount: l.amount,
-        })),
-      );
+          dueDate: invoice.dueDate,
+          pdfBuffer: pdf.buffer,
+          pdfFileName: pdf.fileName,
+        });
 
-      // Send email
-      await sendInvoiceEmail({
-        to: customer.contactEmail,
-        customerName: customer.name,
-        invoiceNumber: invoice.invoiceNumber,
-        totalAmount: parseFloat(invoice.totalAmount),
-        currency: invoice.currency,
-        dueDate: invoice.dueDate,
-        pdfBuffer: pdf.buffer,
-        pdfFileName: pdf.fileName,
-      });
-
-      // Mark as sent
-      await db
-        .update(salesInvoices)
-        .set({ sentAt: new Date() })
-        .where(eq(salesInvoices.id, invoice.id));
+        // Mark as sent
+        await db
+          .update(salesInvoices)
+          .set({ sentAt: new Date() })
+          .where(eq(salesInvoices.id, invoice.id));
 
         return { success: true, sentTo: customer.contactEmail };
       } catch (error) {
@@ -585,6 +589,11 @@ export const invoicingRouter = router({
         where: eq(customers.id, invoice.customerId),
       });
 
+      // Get line items
+      const lines = await db.query.salesInvoiceLines.findMany({
+        where: eq(salesInvoiceLines.salesInvoiceId, input.invoiceId),
+      });
+
       // Get payments
       const payments = await db.query.paymentsAr.findMany({
         where: eq(paymentsAr.salesInvoiceId, input.invoiceId),
@@ -610,6 +619,13 @@ export const invoicingRouter = router({
               phone: customer.contactPhone,
             }
           : null,
+        lines: lines.map((l) => ({
+          id: l.id,
+          description: l.description,
+          quantity: l.quantity,
+          unitPrice: parseFloat(l.unitPrice),
+          amount: parseFloat(l.amount),
+        })),
         payments: payments.map((p) => ({
           id: p.id,
           amount: parseFloat(p.amount),
@@ -845,5 +861,39 @@ export const invoicingRouter = router({
     }
 
     return months;
+  }),
+
+  /**
+   * Get the next sequential invoice number for this entity.
+   * Format: INV-YYYY-MM-NNNNN (5-digit zero-padded sequence, resets monthly)
+   */
+  getNextInvoiceNumber: rlsProtectedProcedure.query(async ({ ctx }) => {
+    const entityId = ctx.entityId!;
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const prefix = `INV-${year}-${month}`;
+
+    // Count existing invoices for this entity in the current month
+    const startDate = `${year}-${month}-01`;
+    const endMonth = now.getMonth() + 1;
+    const endDate = new Date(year, endMonth, 0); // last day of month
+    const endDateStr = endDate.toISOString().slice(0, 10);
+
+    const [result] = await db
+      .select({ count: count() })
+      .from(salesInvoices)
+      .where(
+        and(
+          eq(salesInvoices.entityId, entityId),
+          gte(salesInvoices.invoiceDate, startDate),
+          lte(salesInvoices.invoiceDate, endDateStr),
+        ),
+      );
+
+    const sequence = (result?.count ?? 0) + 1;
+    const invoiceNumber = `${prefix}-${String(sequence).padStart(5, "0")}`;
+
+    return { invoiceNumber };
   }),
 });

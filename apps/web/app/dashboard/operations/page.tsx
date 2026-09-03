@@ -9,6 +9,7 @@ import {
   CreditCard,
   FileText,
   Landmark,
+  ReceiptText,
   Sparkles,
   TrendingDown,
   TrendingUp,
@@ -27,6 +28,7 @@ import { BillsView } from "@/components/finance/bills-view";
 import { CustomersView } from "@/components/operations/customers-view";
 import { VendorsView } from "@/components/operations/vendors-view";
 import { BankingView } from "@/components/operations/banking-view";
+import { ExpensesView } from "@/components/operations/expenses-view";
 import { useFormatCurrency } from "@/lib/hooks/use-currency";
 
 // ─── Money Flows — AI-Native Operations (/operations/new) ─────────────────
@@ -35,17 +37,27 @@ import { useFormatCurrency } from "@/lib/hooks/use-currency";
 //   1. Cash Position — runway hero + inflow/outflow streams
 //   2. Invoices — invoice management
 //   3. Bills — bill management
-//   4. People — customers + vendors
-//   5. Banking — bank accounts + reconciliation
+//   4. Expenses — expense tracking + approval
+//   5. Customers — customer management
+//   6. Vendors — vendor management
+//   7. Banking — bank accounts + reconciliation
 //
-// Keyboard: 1-5 switch tabs, j/k navigate, Enter open detail
+// Keyboard: 1-7 switch tabs, j/k navigate, Enter open detail
 
-type Tab = "cash" | "invoices" | "bills" | "customers" | "vendors" | "banking";
+type Tab =
+  | "cash"
+  | "invoices"
+  | "bills"
+  | "expenses"
+  | "customers"
+  | "vendors"
+  | "banking";
 
 const TABS: { key: Tab; label: string; icon: LucideIcon }[] = [
   { key: "cash", label: "Cash Position", icon: TrendingUp },
   { key: "invoices", label: "Invoices", icon: FileText },
   { key: "bills", label: "Bills", icon: CreditCard },
+  { key: "expenses", label: "Expenses", icon: ReceiptText },
   { key: "customers", label: "Customers", icon: Users },
   { key: "vendors", label: "Vendors", icon: Building2 },
   { key: "banking", label: "Banking", icon: Landmark },
@@ -80,13 +92,17 @@ export default function MoneyFlowsPage() {
           break;
         case "4":
           e.preventDefault();
-          setTab("customers");
+          setTab("expenses");
           break;
         case "5":
           e.preventDefault();
-          setTab("vendors");
+          setTab("customers");
           break;
         case "6":
+          e.preventDefault();
+          setTab("vendors");
+          break;
+        case "7":
           e.preventDefault();
           setTab("banking");
           break;
@@ -135,7 +151,7 @@ export default function MoneyFlowsPage() {
             })}
           </div>
           <span className="hidden text-[10px] text-muted-foreground/50 sm:inline">
-            1-5 switch tabs
+            1-7 switch tabs
           </span>
         </div>
       </header>
@@ -145,6 +161,7 @@ export default function MoneyFlowsPage() {
         {tab === "cash" && <CashPositionPanel />}
         {tab === "invoices" && <InvoicesView />}
         {tab === "bills" && <BillsView />}
+        {tab === "expenses" && <ExpensesView />}
         {tab === "customers" && <CustomersView />}
         {tab === "vendors" && <VendorsView />}
         {tab === "banking" && <BankingView />}

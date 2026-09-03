@@ -38,6 +38,7 @@ import { useSurfaceSync } from "@/lib/hooks/use-surface-sync";
 import { emitDataChanged } from "@/lib/hooks/use-surface-sync";
 import { useSrAnnounce } from "@/lib/hooks/use-sr-announce";
 import { ProvenanceBadge } from "@/components/ai-native-v2/provenance";
+import { IngestionReviewPanel } from "@/components/ingestion/ingestion-review-panel";
 
 // ─── Activity Hub — AI-Native Decisions + Activity (/activity-hub/new) ────
 //
@@ -298,6 +299,7 @@ export default function DecisionsPage() {
   const [noteFor, setNoteFor] = useState<string | null>(null);
   const [note, setNote] = useState("");
   const listRef = useRef<HTMLDivElement>(null);
+  const [reviewDocumentId, setReviewDocumentId] = useState<string | null>(null);
 
   const filtered = useMemo(() => {
     if (filter === "decisions")
@@ -743,6 +745,13 @@ export default function DecisionsPage() {
                       toggleSelect(item.id);
                     } else {
                       setCursor(idx);
+                      // Open ingestion review panel for ingestion items with document IDs
+                      if (
+                        item.category === "ingestion" &&
+                        item.id.length > 20
+                      ) {
+                        setReviewDocumentId(item.id);
+                      }
                     }
                   }}
                   className={cn(
@@ -929,6 +938,14 @@ export default function DecisionsPage() {
             </div>
           )}
         </div>
+      )}
+
+      {/* ── Ingestion Review Panel (slide-over) ──────────────────── */}
+      {reviewDocumentId && (
+        <IngestionReviewPanel
+          documentId={reviewDocumentId}
+          onClose={() => setReviewDocumentId(null)}
+        />
       )}
     </div>
   );

@@ -25,6 +25,7 @@ import {
   reconciliations,
 } from "@xenboox/db/schema";
 
+import { TRPCError } from "@trpc/server";
 import {
   handleMutationError,
   router,
@@ -562,6 +563,311 @@ export const bankingRouter = router({
       createdAt: conn.createdAt,
     }));
   }),
+
+  /**
+   * Delete a bank connection and optionally its associated bank account.
+   * Transactions are preserved for audit trail but the connection is removed.
+   */
+  deleteConnection: rlsMutateProcedure
+    .input(z.object({ connectionId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      try {
+        const entityId = ctx.entityId!;
+
+        const conn = await db.query.bankConnections.findFirst({
+          where: and(
+            eq(bankConnections.id, input.connectionId),
+            eq(bankConnections.entityId, entityId),
+          ),
+        });
+
+        if (!conn) {
+          throw new Error("Connection not found");
+        }
+
+        // Delete the connection
+        await db
+          .delete(bankConnections)
+          .where(eq(bankConnections.id, input.connectionId));
+
+        // Optionally deactivate the linked bank account (don't delete transactions)
+        const linkedAccount = await db.query.bankAccounts.findFirst({
+          where: and(
+            eq(bankAccounts.entityId, entityId),
+            eq(bankAccounts.bankName, conn.institutionName),
+          ),
+        });
+
+        if (linkedAccount) {
+          await db
+            .update(bankAccounts)
+            .set({ isActive: false })
+            .where(eq(bankAccounts.id, linkedAccount.id));
+        }
+
+        await db.insert(auditLog).values({
+          entityId,
+          userId: ctx.session!.user!.id!,
+          action: "banking.deleteConnection",
+          entityType: "bank_connection",
+          entityIdRef: input.connectionId,
+          oldValues: {
+            institutionName: conn.institutionName,
+            provider: conn.provider,
+          },
+        });
+
+        return { success: true };
+      } catch (error) {
+        handleMutationError(error, "Failed to delete connection");
+      }
+    }),
+
+  /**
+   * Sync transactions from Plaid (or generate demo data).
+   * Calls Plaid transactionsSync for incremental updates, or generates
+   * sample transactions in demo mode.
+   */
+  syncTransactions: rlsMutateProcedure
+    .input(z.object({ connectionId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      try {
+        const entityId = ctx.entityId!;
+
+        // Load the connection
+        const conn = await db.query.bankConnections.findFirst({
+          where: and(
+            eq(bankConnections.id, input.connectionId),
+            eq(bankConnections.entityId, entityId),
+          ),
+        });
+
+        if (!conn) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Connection not found",
+          });
+        }
+
+        // Find the linked bank account
+        const bankAccount = await db.query.bankAccounts.findFirst({
+          where: and(
+            eq(bankAccounts.entityId, entityId),
+            eq(bankAccounts.bankName, conn.institutionName),
+          ),
+        });
+
+        if (!bankAccount) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Bank account not found for this connection",
+          });
+        }
+
+        const meta = (conn.metadata ?? {}) as Record<string, unknown>;
+        const syncCursor = (meta.syncCursor as string) ?? null;
+
+        // ── Real Plaid sync ──────────────────────────────────────────
+        if (conn.provider === "plaid" && conn.accessToken) {
+          const plaidClientId = process.env.PLAID_CLIENT_ID;
+          const plaidSecret = process.env.PLAID_SECRET;
+
+          if (!plaidClientId || !plaidSecret) {
+            throw new TRPCError({
+              code: "INTERNAL_SERVER_ERROR",
+              message: "Plaid not configured",
+            });
+          }
+
+          const { Configuration, PlaidApi, PlaidEnvironments } = await import(
+            "plaid"
+          );
+          const configuration = new Configuration({
+            basePath:
+              process.env.PLAID_ENV === "production"
+                ? PlaidEnvironments.production
+                : process.env.PLAID_ENV === "development"
+                  ? PlaidEnvironments.development
+                  : PlaidEnvironments.sandbox,
+            baseOptions: {
+              headers: {
+                "PLAID-CLIENT-ID": plaidClientId,
+                "PLAID-SECRET": plaidSecret,
+              },
+            },
+          });
+          const plaidClient = new PlaidApi(configuration);
+
+          // Incremental sync using cursor
+          const syncRequest: Record<string, unknown> = {
+            access_token: conn.accessToken,
+          };
+          if (syncCursor) {
+            syncRequest.cursor = syncCursor;
+          }
+
+          const syncResponse = await plaidClient.transactionsSync(
+            syncRequest as any,
+          );
+          const data = syncResponse.data;
+
+          // Map Plaid transactions to our schema
+          const newTransactions = data.added.map((tx) => {
+            const amount = tx.amount ?? 0;
+            // Plaid amounts: positive = money flowing to user (deposit)
+            // Our schema: positive = deposit, negative = withdrawal
+            const type = amount >= 0 ? "deposit" : "withdrawal";
+
+            return {
+              entityId,
+              bankAccountId: bankAccount.id,
+              transactionDate: tx.date,
+              valueDate: tx.datetime ?? tx.date,
+              type: type as "deposit" | "withdrawal",
+              amount: Math.abs(amount).toFixed(2),
+              description: tx.name ?? tx.merchant_name ?? "Unknown transaction",
+              reference: tx.payment_channel ?? null,
+              source: "plaid_sync",
+              category: "Uncategorized",
+              metadata: {
+                plaidTransactionId: tx.transaction_id,
+                plaidCategoryId: tx.category_id,
+                plaidCategories: tx.category,
+                merchantName: tx.merchant_name,
+                paymentChannel: tx.payment_channel,
+                pending: tx.pending,
+              },
+            };
+          });
+
+          // Batch-query existing transactions by Plaid ID (one query, not N)
+          const allPlaidIds = [
+            ...data.added.map((tx) => tx.transaction_id),
+            ...data.modified.map((tx) => tx.transaction_id),
+            ...data.removed.map((tx) => tx.transaction_id),
+          ];
+
+          const existing =
+            allPlaidIds.length > 0
+              ? await db
+                  .select({
+                    id: bankTransactions.id,
+                    metadata: bankTransactions.metadata,
+                  })
+                  .from(bankTransactions)
+                  .where(
+                    sql`${bankTransactions.metadata}->>'plaidTransactionId' IN ${allPlaidIds}`,
+                  )
+              : [];
+
+          const existingByPlaidId = new Map(
+            existing.map((e) => {
+              const meta = (e.metadata ?? {}) as Record<string, unknown>;
+              return [meta.plaidTransactionId as string, e.id];
+            }),
+          );
+
+          // Insert new transactions (skip duplicates)
+          const toInsert = newTransactions.filter(
+            (t) =>
+              !existingByPlaidId.has(
+                (t.metadata as Record<string, unknown>)
+                  .plaidTransactionId as string,
+              ),
+          );
+
+          if (toInsert.length > 0) {
+            await db.insert(bankTransactions).values(toInsert);
+          }
+
+          // Handle modified transactions
+          for (const tx of data.modified) {
+            const match = existingByPlaidId.get(tx.transaction_id);
+            if (match) {
+              await db
+                .update(bankTransactions)
+                .set({
+                  description: tx.name ?? tx.merchant_name ?? "Unknown",
+                  amount: String(Math.abs(tx.amount ?? 0)),
+                  type: (tx.amount ?? 0) >= 0 ? "deposit" : "withdrawal",
+                })
+                .where(eq(bankTransactions.id, match));
+            }
+          }
+
+          // Handle removed transactions (soft-delete via metadata flag)
+          for (const tx of data.removed) {
+            const match = existingByPlaidId.get(tx.transaction_id);
+            if (match) {
+              await db
+                .update(bankTransactions)
+                .set({
+                  metadata: sql`jsonb_set(COALESCE(metadata, '{}'::jsonb), '{plaidRemoved}', 'true'::jsonb)`,
+                })
+                .where(eq(bankTransactions.id, match));
+            }
+          }
+
+          // Update cursor and sync time
+          await db
+            .update(bankConnections)
+            .set({
+              lastSyncedAt: new Date(),
+              syncError: null,
+              metadata: sql`jsonb_set(COALESCE(metadata, '{}'::jsonb), '{syncCursor}', ${JSON.stringify(data.next_cursor)}::jsonb)`,
+            } as any)
+            .where(eq(bankConnections.id, conn.id));
+
+          return {
+            synced: true,
+            added: newTransactions.length,
+            modified: data.modified.length,
+            removed: data.removed.length,
+            nextCursor: data.next_cursor,
+          };
+        }
+
+        // ── Demo mode: generate sample transactions ────────────────────
+        const sampleTransactions = generateDemoTransactions(
+          entityId,
+          bankAccount.id,
+        );
+
+        // Only insert if no transactions exist for this account yet
+        const existingCount = await db
+          .select({ count: count() })
+          .from(bankTransactions)
+          .where(eq(bankTransactions.bankAccountId, bankAccount.id));
+
+        if ((existingCount[0]?.count ?? 0) === 0) {
+          await db.insert(bankTransactions).values(sampleTransactions);
+        }
+
+        // Update sync time
+        await db
+          .update(bankConnections)
+          .set({ lastSyncedAt: new Date(), syncError: null })
+          .where(eq(bankConnections.id, conn.id));
+
+        return {
+          synced: true,
+          added: sampleTransactions.length,
+          modified: 0,
+          removed: 0,
+          nextCursor: null,
+        };
+      } catch (error) {
+        // Record the sync error
+        const errorMessage =
+          error instanceof Error ? error.message : "Sync failed";
+        await db
+          .update(bankConnections)
+          .set({ syncError: errorMessage })
+          .where(eq(bankConnections.id, input.connectionId));
+
+        handleMutationError(error, "Failed to sync transactions");
+      }
+    }),
 
   // ── Statements tab ──
   /**
@@ -1439,7 +1745,34 @@ export const reconciliationRouter = router({
         .orderBy(desc(journalEntries.date))
         .limit(50);
 
-      // Simple rule-based matching (amount + date proximity)
+      // Batch-query all JE line totals in ONE query (not N+1)
+      const jeIds = journalEntriesList.map((je) => je.id);
+      const allLines =
+        jeIds.length > 0
+          ? await db
+              .select({
+                journalEntryId: journalEntryLines.journalEntryId,
+                debit: journalEntryLines.debit,
+                credit: journalEntryLines.credit,
+              })
+              .from(journalEntryLines)
+              .where(sql`${journalEntryLines.journalEntryId} IN ${jeIds}`)
+          : [];
+
+      // Compute JE totals from batch result
+      const jeTotals = new Map<string, number>();
+      for (const line of allLines) {
+        const current = jeTotals.get(line.journalEntryId) ?? 0;
+        jeTotals.set(
+          line.journalEntryId,
+          current +
+            Math.abs(
+              parseFloat(line.debit ?? "0") - parseFloat(line.credit ?? "0"),
+            ),
+        );
+      }
+
+      // Rule-based matching (amount + date proximity)
       const matches: Array<{
         bankTransactionId: string;
         journalEntryId: string;
@@ -1452,23 +1785,7 @@ export const reconciliationRouter = router({
         const txDate = new Date(tx.transactionDate);
 
         for (const je of journalEntriesList) {
-          // Get JE total from lines
-          const lines = await db
-            .select({
-              debit: journalEntryLines.debit,
-              credit: journalEntryLines.credit,
-            })
-            .from(journalEntryLines)
-            .where(eq(journalEntryLines.journalEntryId, je.id));
-
-          const jeTotal = lines.reduce(
-            (sum, l) =>
-              sum +
-              Math.abs(
-                parseFloat(l.debit ?? "0") - parseFloat(l.credit ?? "0"),
-              ),
-            0,
-          );
+          const jeTotal = jeTotals.get(je.id) ?? 0;
 
           // Exact amount match
           if (Math.abs(txAmount - jeTotal) < 0.01) {
@@ -1480,7 +1797,6 @@ export const reconciliationRouter = router({
               : 999;
 
             if (daysDiff <= 7) {
-              // High confidence: exact amount + date within 7 days
               matches.push({
                 bankTransactionId: tx.id,
                 journalEntryId: je.id,
@@ -1504,6 +1820,7 @@ export const reconciliationRouter = router({
 
   /**
    * Mark a bank transaction as reconciled and link to journal entry.
+   * Bidirectional: also links the JE back to the bank transaction.
    */
   reconcileTransaction: rlsMutateProcedure
     .input(
@@ -1529,6 +1846,23 @@ export const reconciliationRouter = router({
           ),
         );
 
+      // Bidirectional: link JE back to bank transaction
+      if (input.journalEntryId) {
+        await db
+          .update(journalEntries)
+          .set({
+            bankTransactionId: input.journalEntryId
+              ? input.bankTransactionId
+              : null,
+          } as any)
+          .where(
+            and(
+              eq(journalEntries.id, input.journalEntryId),
+              eq(journalEntries.entityId, entityId),
+            ),
+          );
+      }
+
       // Log to audit trail
       await db.insert(auditLog).values({
         entityId,
@@ -1543,4 +1877,237 @@ export const reconciliationRouter = router({
 
       return { success: true };
     }),
+
+  /**
+   * Unreconcile a bank transaction — removes the reconciliation link.
+   */
+  unreconcileTransaction: rlsMutateProcedure
+    .input(z.object({ bankTransactionId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const entityId = ctx.entityId!;
+
+      // Get the current journal entry link before clearing
+      const tx = await db.query.bankTransactions.findFirst({
+        where: and(
+          eq(bankTransactions.id, input.bankTransactionId),
+          eq(bankTransactions.entityId, entityId),
+        ),
+        columns: { journalEntryId: true },
+      });
+
+      // Clear the bank transaction link
+      await db
+        .update(bankTransactions)
+        .set({
+          isReconciled: false,
+          journalEntryId: null,
+        })
+        .where(
+          and(
+            eq(bankTransactions.id, input.bankTransactionId),
+            eq(bankTransactions.entityId, entityId),
+          ),
+        );
+
+      // Bidirectional: also clear the JE link back
+      if (tx?.journalEntryId) {
+        await db
+          .update(journalEntries)
+          .set({
+            bankTransactionId: null,
+          } as any)
+          .where(
+            and(
+              eq(journalEntries.id, tx.journalEntryId),
+              eq(journalEntries.entityId, entityId),
+            ),
+          );
+      }
+
+      // Log to audit trail
+      await db.insert(auditLog).values({
+        entityId,
+        entityType: "bank_transaction",
+        entityIdRef: input.bankTransactionId,
+        action: "unreconciled",
+        userId: ctx.userId ?? null,
+        oldValues: { journalEntryId: tx?.journalEntryId },
+      });
+
+      return { success: true };
+    }),
 });
+
+// ─── Demo Transaction Generator ────────────────────────────────────────────
+
+/**
+ * Generate realistic demo transactions for first-time users.
+ * Creates a mix of deposits, withdrawals, and transfers over the last 30 days.
+ */
+function generateDemoTransactions(
+  entityId: string,
+  bankAccountId: string,
+): Array<{
+  entityId: string;
+  bankAccountId: string;
+  transactionDate: string;
+  type: "deposit" | "withdrawal" | "transfer" | "fee";
+  amount: string;
+  description: string;
+  reference: string | null;
+  source: string;
+  category: string;
+  metadata: Record<string, unknown>;
+}> {
+  const now = new Date();
+  const transactions: Array<{
+    entityId: string;
+    bankAccountId: string;
+    transactionDate: string;
+    type: "deposit" | "withdrawal" | "transfer" | "fee";
+    amount: string;
+    description: string;
+    reference: string | null;
+    source: string;
+    category: string;
+    metadata: Record<string, unknown>;
+  }> = [];
+
+  const templates = [
+    {
+      desc: "SALARY PAYMENT",
+      type: "deposit" as const,
+      min: 3000,
+      max: 8000,
+      category: "Revenue",
+    },
+    {
+      desc: "CLIENT PAYMENT - ACME CORP",
+      type: "deposit" as const,
+      min: 1000,
+      max: 15000,
+      category: "Revenue",
+    },
+    {
+      desc: "OFFICE RENT",
+      type: "withdrawal" as const,
+      min: 800,
+      max: 2000,
+      category: "Rent & Lease",
+    },
+    {
+      desc: "ELECTRIC COMPANY",
+      type: "withdrawal" as const,
+      min: 50,
+      max: 300,
+      category: "Utilities",
+    },
+    {
+      desc: "SAFARICOM MOBILE MONEY",
+      type: "withdrawal" as const,
+      min: 100,
+      max: 500,
+      category: "Mobile Money",
+    },
+    {
+      desc: "STARK INDUSTRIES - SOFTWARE",
+      type: "withdrawal" as const,
+      min: 50,
+      max: 200,
+      category: "Software & Subscriptions",
+    },
+    {
+      desc: "UBER TRIP",
+      type: "withdrawal" as const,
+      min: 5,
+      max: 50,
+      category: "Travel & Transport",
+    },
+    {
+      desc: "RESTAURANT PAYMENT",
+      type: "withdrawal" as const,
+      min: 20,
+      max: 100,
+      category: "Meals & Entertainment",
+    },
+    {
+      desc: "BANK FEE",
+      type: "fee" as const,
+      min: 5,
+      max: 25,
+      category: "Bank Fees",
+    },
+    {
+      desc: "TRANSFER TO SAVINGS",
+      type: "transfer" as const,
+      min: 200,
+      max: 2000,
+      category: "Transfer",
+    },
+    {
+      desc: "CLIENT PAYMENT - BETA LLC",
+      type: "deposit" as const,
+      min: 2000,
+      max: 20000,
+      category: "Revenue",
+    },
+    {
+      desc: "GOOGLE ADS",
+      type: "withdrawal" as const,
+      min: 100,
+      max: 1000,
+      category: "Marketing",
+    },
+    {
+      desc: "SALARY PAYROLL",
+      type: "withdrawal" as const,
+      min: 2000,
+      max: 6000,
+      category: "Payroll",
+    },
+    {
+      desc: "INSURANCE PREMIUM",
+      type: "withdrawal" as const,
+      min: 100,
+      max: 500,
+      category: "Insurance",
+    },
+    {
+      desc: "CLIENT PAYMENT - GAMTEL",
+      type: "deposit" as const,
+      min: 500,
+      max: 5000,
+      category: "Revenue",
+    },
+  ];
+
+  // Generate 15-20 transactions over the last 30 days
+  const count = 15 + Math.floor(Math.random() * 6);
+  for (let i = 0; i < count; i++) {
+    const template = templates[i % templates.length];
+    const daysAgo = Math.floor(Math.random() * 30);
+    const date = new Date(now);
+    date.setDate(date.getDate() - daysAgo);
+    const dateStr = date.toISOString().slice(0, 10);
+
+    const amount = template.min + Math.random() * (template.max - template.min);
+
+    transactions.push({
+      entityId,
+      bankAccountId,
+      transactionDate: dateStr,
+      type: template.type,
+      amount: amount.toFixed(2),
+      description: template.desc,
+      reference: `DEMO-${Date.now()}-${i}`,
+      source: "demo_sync",
+      category: "Uncategorized",
+      metadata: {
+        demo: true,
+        generatedAt: new Date().toISOString(),
+      },
+    });
+  }
+
+  return transactions;
+}

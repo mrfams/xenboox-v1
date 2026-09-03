@@ -121,6 +121,9 @@ export interface IngestionState {
   // ── Stage 10: Validation ──
   validation?: IngestionValidation;
 
+  // ── Stage 10b: TrustGuard (deterministic cross-validation) ──
+  trustGuard?: import("../engine/trust-guard").TrustGuardResult;
+
   // ── Stage 11: Composite Confidence ──
   compositeConfidence?: IngestionConfidence;
 

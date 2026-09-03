@@ -1150,4 +1150,180 @@ export const expensesRouter = router({
 
       return { ok: true };
     }),
+
+  /**
+   * Get a single expense with full details (payments, supplier info, audit trail).
+   */
+  getExpenseDetail: rlsProtectedProcedure
+    .input(z.object({ expenseId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const entityId = ctx.entityId!;
+
+      const expense = await db
+        .select({
+          id: invoicesAp.id,
+          invoiceNumber: invoicesAp.invoiceNumber,
+          invoiceDate: invoicesAp.invoiceDate,
+          dueDate: invoicesAp.dueDate,
+          totalAmount: invoicesAp.totalAmount,
+          paidAmount: invoicesAp.paidAmount,
+          balance: invoicesAp.balance,
+          status: invoicesAp.status,
+          notes: invoicesAp.notes,
+          currency: invoicesAp.currency,
+          supplierId: invoicesAp.supplierId,
+          supplierName: suppliers.name,
+          supplierEmail: suppliers.contactEmail,
+          supplierPhone: suppliers.contactPhone,
+          createdAt: invoicesAp.createdAt,
+        })
+        .from(invoicesAp)
+        .leftJoin(suppliers, eq(invoicesAp.supplierId, suppliers.id))
+        .where(
+          and(
+            eq(invoicesAp.id, input.expenseId),
+            eq(invoicesAp.entityId, entityId),
+          ),
+        )
+        .limit(1);
+
+      if (!expense[0]) return null;
+
+      // Get payments for this expense
+      const payments = await db
+        .select({
+          id: paymentsAp.id,
+          amount: paymentsAp.amount,
+          paymentDate: paymentsAp.paymentDate,
+          method: paymentsAp.method,
+          reference: paymentsAp.reference,
+        })
+        .from(paymentsAp)
+        .where(eq(paymentsAp.invoiceApId, input.expenseId))
+        .orderBy(desc(paymentsAp.paymentDate));
+
+      // Get AP line items if any
+      const lines = await db
+        .select()
+        .from(invoiceApLines)
+        .where(eq(invoiceApLines.invoiceApId, input.expenseId));
+
+      // Get audit trail for this expense
+      const auditEntries = await db
+        .select({
+          action: auditLog.action,
+          createdAt: auditLog.createdAt,
+          userId: auditLog.userId,
+          newValues: auditLog.newValues,
+        })
+        .from(auditLog)
+        .where(
+          and(
+            eq(auditLog.entityId, entityId),
+            eq(auditLog.entityIdRef, input.expenseId),
+          ),
+        )
+        .orderBy(desc(auditLog.createdAt))
+        .limit(20);
+
+      // Determine category from notes
+      const notesLower = (expense[0].notes ?? "").toLowerCase();
+      let category = "General";
+      if (notesLower.includes("office") || notesLower.includes("supplies"))
+        category = "Office Supplies";
+      else if (
+        notesLower.includes("travel") ||
+        notesLower.includes("transport")
+      )
+        category = "Travel";
+      else if (
+        notesLower.includes("software") ||
+        notesLower.includes("subscription")
+      )
+        category = "Software";
+      else if (notesLower.includes("marketing")) category = "Marketing";
+      else if (notesLower.includes("meal") || notesLower.includes("lunch"))
+        category = "Meals & Entertainment";
+      else if (
+        notesLower.includes("utility") ||
+        notesLower.includes("internet")
+      )
+        category = "Utilities";
+      else if (notesLower.includes("maintenance")) category = "Maintenance";
+
+      return {
+        ...expense[0],
+        category,
+        payments: payments.map((p) => ({
+          ...p,
+          amount: parseFloat(p.amount),
+        })),
+        lines: lines.map((l) => ({
+          id: l.id,
+          description: l.description,
+          quantity: parseFloat(l.quantity ?? "1"),
+          unitPrice: parseFloat(l.unitPrice ?? "0"),
+          amount: parseFloat(l.amount ?? "0"),
+        })),
+        auditTrail: auditEntries.map((a) => ({
+          action: a.action,
+          createdAt: a.createdAt,
+          details: a.newValues,
+        })),
+      };
+    }),
+
+  /**
+   * Approve or reject an expense (change status from pending to approved/rejected).
+   */
+  approveExpense: rlsMutateProcedure
+    .input(
+      z.object({
+        expenseId: z.string().uuid(),
+        decision: z.enum(["approved", "rejected"]),
+        note: z.string().max(500).optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const entityId = ctx.entityId!;
+
+      const expense = await db
+        .select({ id: invoicesAp.id, status: invoicesAp.status })
+        .from(invoicesAp)
+        .where(
+          and(
+            eq(invoicesAp.id, input.expenseId),
+            eq(invoicesAp.entityId, entityId),
+          ),
+        )
+        .limit(1);
+
+      if (!expense[0]) throw new Error("Expense not found");
+      if (expense[0].status !== "pending")
+        throw new Error(
+          `Cannot ${input.decision} expense with status: ${expense[0].status}`,
+        );
+
+      const newStatus = input.decision === "approved" ? "paid" : "voided";
+      await db
+        .update(invoicesAp)
+        .set({ status: newStatus })
+        .where(
+          and(
+            eq(invoicesAp.id, input.expenseId),
+            eq(invoicesAp.entityId, entityId),
+          ),
+        );
+
+      await db.insert(auditLog).values({
+        entityId,
+        userId: ctx.session!.user!.id!,
+        action: `expense.${input.decision}`,
+        entityType: "invoice_ap",
+        entityIdRef: input.expenseId,
+        newValues: { decision: input.decision, note: input.note ?? null },
+      });
+
+      return { ok: true };
+    }),
 });
