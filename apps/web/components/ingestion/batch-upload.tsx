@@ -1,11 +1,12 @@
 /**
  * Batch Upload — Upload multiple documents for batch ingestion.
  *
- * Features:
- * - Drag-and-drop file upload
- * - File type validation
- * - Preview before processing
- * - Start batch processing
+ * Real pipeline (no simulation):
+ *   1. `startBatch` presigns one R2 upload URL per file.
+ *   2. Each file's bytes are PUT directly to R2 from the browser.
+ *   3. `confirmBatch` verifies every upload and triggers the real
+ *      process-document pipeline per file.
+ * Progress is then reported by batch-progress from the documents table.
  */
 
 "use client";
@@ -31,9 +32,42 @@ import {
 interface UploadedFile {
   file: File;
   id: string;
-  content?: string;
-  status: "pending" | "reading" | "ready" | "error";
+  status: "pending" | "ready" | "error";
   error?: string;
+}
+
+/** Max file sizes per category — mirrors intake-service constants */
+const MAX_FILE_SIZES: Record<string, number> = {
+  pdf: 50 * 1024 * 1024,
+  image: 25 * 1024 * 1024,
+  spreadsheet: 10 * 1024 * 1024,
+  document: 25 * 1024 * 1024,
+  text: 5 * 1024 * 1024,
+  default: 10 * 1024 * 1024,
+};
+
+const ACCEPTED_MIME = new Set([
+  "text/plain",
+  "text/csv",
+  "application/pdf",
+  "image/jpeg",
+  "image/png",
+  "image/tiff",
+  "image/webp",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/msword",
+]);
+
+function getFileCategory(file: File): string {
+  const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
+  if (ext === "pdf") return "pdf";
+  if (["jpg", "jpeg", "png", "tiff", "webp"].includes(ext)) return "image";
+  if (["csv", "xlsx", "xls"].includes(ext)) return "spreadsheet";
+  if (["doc", "docx"].includes(ext)) return "document";
+  if (["txt", "eml", "msg"].includes(ext)) return "text";
+  return "default";
 }
 
 // ─── Component ────────────────────────────────────────────────────────────
@@ -48,15 +82,27 @@ export function BatchUpload({
   const [isProcessing, setIsProcessing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Start batch mutation
-  const startBatch = trpc.batchIngestion.startBatch.useMutation({
+  // Phase 1: presign upload URLs
+  const startBatch = trpc.batchIngestion.startBatch.useMutation();
+
+  // Phase 3: verify + trigger the real pipeline
+  const confirmBatch = trpc.batchIngestion.confirmBatch.useMutation({
     onSuccess: (result) => {
       setIsProcessing(false);
-      onBatchStart?.(result.batchId);
+      if (result.failedCount > 0) {
+        const first = result.failures[0];
+        setFiles((prev) =>
+          prev.map((f) =>
+            f.id === first?.documentId
+              ? { ...f, status: "error", error: first.error }
+              : f,
+          ),
+        );
+      }
     },
     onError: (error) => {
       setIsProcessing(false);
-      console.error("Failed to start batch:", error);
+      console.error("Failed to confirm batch:", error);
     },
   });
 
@@ -70,49 +116,39 @@ export function BatchUpload({
       for (let i = 0; i < selectedFiles.length; i++) {
         const file = selectedFiles[i];
 
-        // Validate file type
-        const validTypes = [
-          "text/plain",
-          "text/csv",
-          "application/pdf",
-          "image/jpeg",
-          "image/png",
-          "image/tiff",
-        ];
-
-        if (!validTypes.includes(file.type)) {
+        if (!ACCEPTED_MIME.has(file.type)) {
           newFiles.push({
             file,
             id: crypto.randomUUID(),
             status: "error",
-            error: `Unsupported file type: ${file.type}`,
+            error: `Unsupported file type: ${file.type || "unknown"}`,
           });
           continue;
         }
 
-        // Read file content for text files
-        const uploadedFile: UploadedFile = {
-          file,
-          id: crypto.randomUUID(),
-          status: "reading",
-        };
-
-        newFiles.push(uploadedFile);
-
-        if (file.type.startsWith("text/") || file.type === "text/csv") {
-          try {
-            const content = await readFileContent(file);
-            uploadedFile.content = content;
-            uploadedFile.status = "ready";
-          } catch (error) {
-            uploadedFile.status = "error";
-            uploadedFile.error = `Failed to read file: ${error instanceof Error ? error.message : String(error)}`;
-          }
-        } else {
-          // For non-text files, mark as ready (would need server-side processing)
-          uploadedFile.status = "ready";
-          uploadedFile.content = `[Binary file: ${file.name}]`;
+        const category = getFileCategory(file);
+        const maxSize = MAX_FILE_SIZES[category] ?? MAX_FILE_SIZES.default;
+        if (file.size > maxSize) {
+          newFiles.push({
+            file,
+            id: crypto.randomUUID(),
+            status: "error",
+            error: `File exceeds ${Math.round(maxSize / 1024 / 1024)}MB limit for ${category} files.`,
+          });
+          continue;
         }
+
+        if (file.size === 0) {
+          newFiles.push({
+            file,
+            id: crypto.randomUUID(),
+            status: "error",
+            error: "File is empty — please select a valid file.",
+          });
+          continue;
+        }
+
+        newFiles.push({ file, id: crypto.randomUUID(), status: "ready" });
       }
 
       setFiles((prev) => [...prev, ...newFiles]);
@@ -140,23 +176,90 @@ export function BatchUpload({
     setFiles((prev) => prev.filter((f) => f.id !== id));
   }, []);
 
-  // Start batch processing
-  const handleStartBatch = useCallback(() => {
+  // Start batch processing: presign → PUT each file → confirm + trigger
+  const handleStartBatch = useCallback(async () => {
     const readyFiles = files.filter((f) => f.status === "ready");
-
-    if (readyFiles.length === 0) return;
+    if (readyFiles.length === 0 || !entityId) return;
 
     setIsProcessing(true);
-    startBatch.mutate({
-      documents: readyFiles.map((f) => ({
-        fileName: f.file.name,
-        content: f.content || "",
-        mimeType: f.file.type,
-        category: undefined,
-      })),
-      autoProcess: true,
-    });
-  }, [files, startBatch]);
+
+    try {
+      // Phase 1: presign upload URLs for every file
+      const { batchId, uploads } = await startBatch.mutateAsync({
+        documents: readyFiles.map((f) => ({
+          fileName: f.file.name,
+          fileSize: f.file.size,
+          mimeType: f.file.type || "application/octet-stream",
+        })),
+      });
+
+      // Phase 2: PUT each file's bytes directly to R2
+      const confirmed: Array<{
+        documentId: string;
+        storagePath: string;
+        fileSize: number;
+      }> = [];
+
+      for (let i = 0; i < readyFiles.length; i++) {
+        const f = readyFiles[i];
+        const upload = uploads[i];
+        const put = await fetch(upload.uploadUrl, {
+          method: "PUT",
+          body: f.file,
+          headers: {
+            "Content-Type": f.file.type || "application/octet-stream",
+          },
+        });
+        if (!put.ok) {
+          setFiles((prev) =>
+            prev.map((pf) =>
+              pf.id === f.id
+                ? {
+                    ...pf,
+                    status: "error",
+                    error: `Upload to storage failed (${put.status}).`,
+                  }
+                : pf,
+            ),
+          );
+          continue;
+        }
+        confirmed.push({
+          documentId: upload.documentId,
+          storagePath: upload.storagePath,
+          fileSize: f.file.size,
+        });
+      }
+
+      if (confirmed.length === 0) {
+        setIsProcessing(false);
+        return;
+      }
+
+      // Phase 3: verify + trigger the real pipeline
+      const result = await confirmBatch.mutateAsync({
+        batchId,
+        uploads: confirmed,
+      });
+      onBatchStart?.(batchId);
+
+      // Keep successfully-uploaded files listed; drop them once started.
+      if (result.failedCount > 0) {
+        setFiles((prev) =>
+          prev.filter((pf) =>
+            confirmed.some(
+              (c) => c.documentId === pf.id || pf.status === "error",
+            ),
+          ),
+        );
+      } else {
+        setFiles([]);
+      }
+    } catch (error) {
+      setIsProcessing(false);
+      console.error("Failed to start batch:", error);
+    }
+  }, [files, entityId, startBatch, confirmBatch, onBatchStart]);
 
   // Clear all files
   const clearFiles = useCallback(() => {
@@ -187,7 +290,7 @@ export function BatchUpload({
             <p className="text-sm text-muted-foreground mb-4">
               Drag and drop files here, or click to select files.
               <br />
-              Supports: TXT, CSV, PDF, JPG, PNG, TIFF
+              Supports: PDF, JPG, PNG, TIFF, CSV, XLSX, DOCX, TXT
             </p>
             <div className="flex justify-center gap-2">
               <Button
@@ -207,7 +310,7 @@ export function BatchUpload({
               ref={fileInputRef}
               type="file"
               multiple
-              accept=".txt,.csv,.pdf,.jpg,.jpeg,.png,.tiff"
+              accept=".txt,.csv,.pdf,.jpg,.jpeg,.png,.tiff,.webp,.xlsx,.xls,.docx,.doc"
               className="hidden"
               onChange={(e) => handleFileSelect(e.target.files)}
             />
@@ -255,12 +358,14 @@ export function BatchUpload({
                       <p className="text-xs text-muted-foreground">
                         {formatFileSize(file.file.size)} • {file.file.type}
                       </p>
+                      {file.status === "error" && file.error && (
+                        <p className="text-xs text-red-500 mt-0.5">
+                          {file.error}
+                        </p>
+                      )}
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    {file.status === "reading" && (
-                      <Loader2 className="h-4 w-4 text-primary animate-spin" />
-                    )}
                     {file.status === "ready" && (
                       <CheckCircle className="h-4 w-4 text-green-500" />
                     )}
@@ -287,7 +392,7 @@ export function BatchUpload({
       {files.length > 0 && (
         <div className="flex justify-end">
           <Button
-            onClick={handleStartBatch}
+            onClick={() => handleStartBatch()}
             disabled={readyCount === 0 || isProcessing}
           >
             {isProcessing ? (
@@ -304,15 +409,6 @@ export function BatchUpload({
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
-
-function readFileContent(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = () => reject(reader.error);
-    reader.readAsText(file);
-  });
-}
 
 function formatFileSize(bytes: number): string {
   if (bytes === 0) return "0 Bytes";

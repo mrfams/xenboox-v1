@@ -25,7 +25,9 @@ import {
 import {
   runIngestionPipeline,
   registerUnmappedAccounts,
+  type AccountingWorkflow,
 } from "@xenboox/ingestion";
+import type { ProposedJournalEntry } from "@xenboox/ingestion/core/types";
 import { postJournalEntry } from "@xenboox/ingestion/engine/journal-generator";
 import { propagatePosting } from "@xenboox/ingestion/engine/propagation";
 
@@ -249,83 +251,78 @@ export const ingestionRouter = router({
     .query(async ({ ctx, input }): Promise<PendingReviewsResponse> => {
       const { limit = 20, offset = 0, status = "all" } = input ?? {};
 
-      // Find documents where ingestion metadata indicates pending review
+      // Find documents where ingestion metadata indicates pending review —
+      // filter at the SQL level (jsonb) instead of loading every row.
       const allDocs = await db.query.documents.findMany({
         where: and(
           eq(documents.entityId, ctx.entityId!),
           eq(documents.status, "agent_processing"),
+          sql`(
+            (${documents.metadata}->'ingestion'->>'requiresReview')::boolean = true
+            OR (${documents.metadata}->'ingestion'->>'action') IN ('pending_review', 'escalated')
+          )`,
         ),
         orderBy: [desc(documents.updatedAt)],
         limit,
         offset,
       });
 
-      // Filter for documents with ingestion review metadata
-      const pendingReviews = allDocs
-        .filter((doc) => {
-          const meta = (doc.metadata ?? {}) as Record<string, unknown>;
-          const ingestion = (meta.ingestion ?? {}) as Record<string, unknown>;
-          return (
-            ingestion.requiresReview === true ||
-            ingestion.action === "pending_review" ||
-            ingestion.action === "escalated"
-          );
-        })
-        .map((doc) => {
-          const meta = (doc.metadata ?? {}) as Record<string, unknown>;
-          const ingestion = (meta.ingestion ?? {}) as Record<string, unknown>;
-          const classification = (meta.classification ?? {}) as Record<
-            string,
-            unknown
-          >;
-          const extraction = (meta.extraction ?? {}) as Record<string, unknown>;
-
-          return {
-            id: doc.id,
-            documentId: doc.id,
-            name: doc.name,
-            type: doc.type,
-            mimeType: doc.mimeType,
-            sizeBytes: doc.sizeBytes,
-            createdAt:
-              doc.createdAt instanceof Date
-                ? doc.createdAt.toISOString()
-                : doc.createdAt,
-            updatedAt:
-              doc.updatedAt instanceof Date
-                ? doc.updatedAt.toISOString()
-                : (doc.updatedAt ?? null),
-            confidence: (ingestion.confidence as number) ?? 0,
-            workflow: (ingestion.workflow as string) ?? "unknown",
-            action: (ingestion.action as string) ?? "pending_review",
-            dominantSignal: (ingestion.dominantSignal as string) ?? "",
-            reviewItems:
-              (ingestion.reviewItems as Array<Record<string, unknown>>) ?? [],
-            classification: {
-              category: (classification.category as string) ?? doc.type,
-              confidence: (classification.confidence as number) ?? 0,
-            },
-            hasProposedEntry: !!ingestion.proposedEntry,
-          };
-        });
-
-      // Get total count
-      const totalDocs = await db.query.documents.findMany({
-        where: and(
-          eq(documents.entityId, ctx.entityId!),
-          eq(documents.status, "agent_processing"),
-        ),
-      });
-
-      const totalPending = totalDocs.filter((doc) => {
+      const pendingReviews = allDocs.map((doc) => {
         const meta = (doc.metadata ?? {}) as Record<string, unknown>;
         const ingestion = (meta.ingestion ?? {}) as Record<string, unknown>;
-        return ingestion.requiresReview === true;
-      }).length;
+        const classification = (meta.classification ?? {}) as Record<
+          string,
+          unknown
+        >;
+        const extraction = (meta.extraction ?? {}) as Record<string, unknown>;
+
+        return {
+          id: doc.id,
+          documentId: doc.id,
+          name: doc.name,
+          type: doc.type,
+          mimeType: doc.mimeType,
+          sizeBytes: doc.sizeBytes,
+          createdAt:
+            doc.createdAt instanceof Date
+              ? doc.createdAt.toISOString()
+              : doc.createdAt,
+          updatedAt:
+            doc.updatedAt instanceof Date
+              ? doc.updatedAt.toISOString()
+              : (doc.updatedAt ?? null),
+          confidence: (ingestion.confidence as number) ?? 0,
+          workflow: (ingestion.workflow as string) ?? "unknown",
+          action: (ingestion.action as string) ?? "pending_review",
+          dominantSignal: (ingestion.dominantSignal as string) ?? "",
+          reviewItems:
+            (ingestion.reviewItems as Array<Record<string, unknown>>) ?? [],
+          classification: {
+            category: (classification.category as string) ?? doc.type,
+            confidence: (classification.confidence as number) ?? 0,
+          },
+          hasProposedEntry: !!ingestion.proposedEntry,
+        };
+      });
+
+      // Get total count via SQL COUNT — never load rows just to count.
+      const [{ cnt }] = await db
+        .select({ cnt: sql<number>`count(*)::int` })
+        .from(documents)
+        .where(
+          and(
+            eq(documents.entityId, ctx.entityId!),
+            eq(documents.status, "agent_processing"),
+            sql`(
+              (${documents.metadata}->'ingestion'->>'requiresReview')::boolean = true
+              OR (${documents.metadata}->'ingestion'->>'action') IN ('pending_review', 'escalated')
+            )`,
+          ),
+        );
 
       return {
         items: pendingReviews,
-        total: totalPending,
+        total: cnt ?? 0,
         limit,
         offset,
       };
@@ -462,6 +459,16 @@ export const ingestionRouter = router({
             });
           }
 
+          // State guard: only a document awaiting human review may be
+          // approved. Already-posted (done/persisted), failed, or archived
+          // documents must not be re-approved through the UI.
+          if (doc.status !== "agent_processing") {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: `Document is in status "${doc.status}" — only documents awaiting review can be approved.`,
+            });
+          }
+
           const meta = (doc.metadata ?? {}) as Record<string, unknown>;
           const ingestion = (meta.ingestion ?? {}) as Record<string, unknown>;
           const proposedEntry = (ingestion.proposedEntry ?? {}) as Record<
@@ -478,14 +485,15 @@ export const ingestionRouter = router({
             });
           }
 
-          // Apply any user edits to the proposed entry
-          const entry = input.editedEntry
+          // Apply any user edits to the proposed entry — the metadata store
+          // is untyped JSON, so validate the shape against the real type here.
+          const entry = (input.editedEntry
             ? {
                 ...proposedEntry,
                 ...input.editedEntry,
                 lines: input.editedEntry.lines ?? proposedEntry.lines,
               }
-            : proposedEntry;
+            : proposedEntry) as unknown as ProposedJournalEntry;
 
           // Validate the entry is balanced
           const totalDebit = (
@@ -527,19 +535,19 @@ export const ingestionRouter = router({
             });
           }
 
-          // Post the journal entry
+          // Post the journal entry — user approval = high confidence
           const { journalEntryId, entryNumber } = await postJournalEntry(
             ctx.entityId!,
-            entry as any,
-            0.95, // User approval = high confidence
+            entry,
+            0.95,
             `user-${ctx.session!.user!.id}`,
           );
 
           // Propagate to downstream modules
           await propagatePosting(
             ctx.entityId!,
-            entry as any,
-            workflow as any,
+            entry,
+            workflow as AccountingWorkflow,
             journalEntryId,
           );
 

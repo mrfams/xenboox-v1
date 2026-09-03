@@ -19,6 +19,10 @@ import { toast } from "sonner";
 
 import { cn } from "@/lib/utils";
 import { trpc } from "@/lib/trpc/client";
+import {
+  computeLineTotals,
+  isBalanced,
+} from "@/components/ingestion/review-panel-logic";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -82,11 +86,59 @@ export function IngestionReviewPanel({
   } | null>(null);
   const [rejectReason, setRejectReason] = useState("");
   const [showRejectForm, setShowRejectForm] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+
+  // ── Inline line editing ───────────────────────────────────────────
+  type EditableLine = {
+    accountId: string;
+    debit: number;
+    credit: number;
+    description?: string;
+  };
+
+  const baseProposed = detail?.review?.proposedEntry as
+    | { description?: string; lines?: EditableLine[] }
+    | null
+    | undefined;
+
+  const getCurrentLines = (): EditableLine[] => {
+    const from = editedEntry?.lines ?? baseProposed?.lines ?? [];
+    return from.map((l) => ({ ...l }));
+  };
+
+  const updateEditedLine = (
+    index: number,
+    patch: Partial<Pick<EditableLine, "accountId" | "debit" | "credit">>,
+  ) => {
+    const lines = getCurrentLines();
+    if (!lines[index]) return;
+    lines[index] = { ...lines[index], ...patch };
+    setEditedEntry({
+      description: editedEntry?.description ?? baseProposed?.description,
+      lines,
+    });
+  };
+
+  const removeEditedLine = (index: number) => {
+    setEditedEntry({
+      description: editedEntry?.description ?? baseProposed?.description,
+      lines: getCurrentLines().filter((_, i) => i !== index),
+    });
+  };
+
+  const addEditedLine = () => {
+    const lines = getCurrentLines();
+    lines.push({ accountId: "", debit: 0, credit: 0 });
+    setEditedEntry({
+      description: editedEntry?.description ?? baseProposed?.description,
+      lines,
+    });
+  };
 
   const approveMutation = trpc.ingestion.approveReview.useMutation({
     onSuccess: () => {
       toast.success("Document approved and posted to ledger");
-      utils.ingestion.getPendingReviews.invalidate();
+      utils.ingestion.listPendingReviews.invalidate();
       onClose();
     },
     onError: (err) => toast.error(err.message),
@@ -95,7 +147,7 @@ export function IngestionReviewPanel({
   const rejectMutation = trpc.ingestion.rejectReview.useMutation({
     onSuccess: () => {
       toast.success("Document rejected");
-      utils.ingestion.getPendingReviews.invalidate();
+      utils.ingestion.listPendingReviews.invalidate();
       onClose();
     },
     onError: (err) => toast.error(err.message),
@@ -112,7 +164,10 @@ export function IngestionReviewPanel({
 
   if (!documentId) return null;
 
-  const trustGuard = detail?.metadata?.ingestion?.trustGuard as
+  const trustGuard = (
+    (detail?.metadata as Record<string, unknown> | null | undefined)
+      ?.ingestion as Record<string, unknown> | undefined
+  )?.trustGuard as
     | {
         passed: boolean;
         checks: number;
@@ -141,10 +196,10 @@ export function IngestionReviewPanel({
       }
     | undefined;
 
-  const totalDebit =
-    proposedEntry?.lines?.reduce((s, l) => s + l.debit, 0) ?? 0;
-  const totalCredit =
-    proposedEntry?.lines?.reduce((s, l) => s + l.credit, 0) ?? 0;
+  const { totalDebit, totalCredit } = computeLineTotals(
+    proposedEntry?.lines ?? [],
+  );
+  const entryIsBalanced = isBalanced(totalDebit, totalCredit);
 
   return (
     <div
@@ -243,6 +298,51 @@ export function IngestionReviewPanel({
                 </div>
               )}
 
+              {/* ── Review Items — what the AI is unsure about ──────── */}
+              {detail.review.reviewItems.length > 0 && (
+                <Section
+                  title="Needs Your Verification"
+                  icon={<AlertTriangle className="h-3.5 w-3.5" />}
+                  defaultOpen
+                >
+                  <div className="space-y-2">
+                    {detail.review.reviewItems.map((item, i) => {
+                      const itemData = item as Record<string, unknown>;
+                      const label = String(
+                        itemData.label ?? itemData.field ?? "field",
+                      );
+                      const confidence = Number(itemData.confidence ?? 0);
+                      const expected =
+                        itemData.expected ?? itemData.suggestedValue;
+                      const actual = itemData.actual ?? itemData.extractedValue;
+                      return (
+                        <div
+                          key={i}
+                          className="flex items-center justify-between gap-3 rounded-lg border border-attention-amber/30 bg-attention-amber/[0.04] px-3 py-2"
+                        >
+                          <div className="min-w-0">
+                            <p className="text-xs font-medium text-foreground capitalize">
+                              {label.replace(/([A-Z])/g, " $1").trim()}
+                            </p>
+                            <p className="text-[11px] text-muted-foreground mt-0.5">
+                              Extracted:{" "}
+                              <span className="font-medium text-error-clay">
+                                {formatValue(actual)}
+                              </span>
+                              {" → expected: "}
+                              <span className="font-medium text-balanced-green">
+                                {formatValue(expected)}
+                              </span>
+                            </p>
+                          </div>
+                          <ConfidenceBadge confidence={confidence} />
+                        </div>
+                      );
+                    })}
+                  </div>
+                </Section>
+              )}
+
               {/* ── Extraction Data ───────────────────────────────── */}
               <Section
                 title="Extracted Data"
@@ -299,6 +399,16 @@ export function IngestionReviewPanel({
                   title="Proposed Journal Entry"
                   icon={<FileText className="h-3.5 w-3.5" />}
                   defaultOpen
+                  action={
+                    <button
+                      type="button"
+                      onClick={() => setIsEditing(!isEditing)}
+                      className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                    >
+                      <Pencil className="h-3 w-3" />
+                      {isEditing ? "Done editing" : "Edit"}
+                    </button>
+                  }
                 >
                   {proposedEntry.description && (
                     <p className="mb-3 text-xs text-muted-foreground">
@@ -318,6 +428,12 @@ export function IngestionReviewPanel({
                           <th className="px-3 py-2 text-right font-medium text-muted-foreground">
                             Credit
                           </th>
+                          {isEditing && (
+                            <th
+                              className="px-2 py-2 w-8"
+                              aria-label="Remove line"
+                            />
+                          )}
                         </tr>
                       </thead>
                       <tbody>
@@ -327,29 +443,113 @@ export function IngestionReviewPanel({
                             className="border-b border-border/30 last:border-0"
                           >
                             <td className="px-3 py-2">
-                              <span className="font-medium text-foreground">
-                                {line.accountCode ?? ""}
-                              </span>{" "}
-                              <span className="text-muted-foreground">
-                                {line.accountName ?? ""}
-                              </span>
+                              {isEditing ? (
+                                <input
+                                  type="text"
+                                  value={
+                                    editedEntry?.lines?.[i]?.accountId ??
+                                    line.accountId
+                                  }
+                                  onChange={(e) =>
+                                    updateEditedLine(i, {
+                                      accountId: e.target.value,
+                                    })
+                                  }
+                                  className="w-full rounded border border-border bg-background px-1.5 py-1 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                                  aria-label={`Line ${i + 1} account`}
+                                />
+                              ) : (
+                                <>
+                                  <span className="font-medium text-foreground">
+                                    {line.accountCode ?? ""}
+                                  </span>{" "}
+                                  <span className="text-muted-foreground">
+                                    {line.accountName ?? ""}
+                                  </span>
+                                </>
+                              )}
                             </td>
                             <td className="px-3 py-2 text-right tabular-nums text-foreground">
-                              {line.debit > 0
-                                ? line.debit.toLocaleString("en-US", {
-                                    minimumFractionDigits: 2,
-                                  })
-                                : "—"}
+                              {isEditing ? (
+                                <input
+                                  type="number"
+                                  min="0"
+                                  step="0.01"
+                                  value={
+                                    editedEntry?.lines?.[i]?.debit ?? line.debit
+                                  }
+                                  onChange={(e) =>
+                                    updateEditedLine(i, {
+                                      debit: Number(e.target.value) || 0,
+                                    })
+                                  }
+                                  className="w-24 rounded border border-border bg-background px-1.5 py-1 text-right text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                                  aria-label={`Line ${i + 1} debit`}
+                                />
+                              ) : line.debit > 0 ? (
+                                line.debit.toLocaleString("en-US", {
+                                  minimumFractionDigits: 2,
+                                })
+                              ) : (
+                                "—"
+                              )}
                             </td>
                             <td className="px-3 py-2 text-right tabular-nums text-foreground">
-                              {line.credit > 0
-                                ? line.credit.toLocaleString("en-US", {
-                                    minimumFractionDigits: 2,
-                                  })
-                                : "—"}
+                              {isEditing ? (
+                                <input
+                                  type="number"
+                                  min="0"
+                                  step="0.01"
+                                  value={
+                                    editedEntry?.lines?.[i]?.credit ??
+                                    line.credit
+                                  }
+                                  onChange={(e) =>
+                                    updateEditedLine(i, {
+                                      credit: Number(e.target.value) || 0,
+                                    })
+                                  }
+                                  className="w-24 rounded border border-border bg-background px-1.5 py-1 text-right text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                                  aria-label={`Line ${i + 1} credit`}
+                                />
+                              ) : line.credit > 0 ? (
+                                line.credit.toLocaleString("en-US", {
+                                  minimumFractionDigits: 2,
+                                })
+                              ) : (
+                                "—"
+                              )}
                             </td>
+                            {isEditing && (
+                              <td className="px-2 py-2 text-center">
+                                <button
+                                  type="button"
+                                  onClick={() => removeEditedLine(i)}
+                                  className="rounded p-1 text-muted-foreground transition-colors hover:bg-error-clay/10 hover:text-error-clay"
+                                  aria-label={`Remove line ${i + 1}`}
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </button>
+                              </td>
+                            )}
                           </tr>
                         ))}
+                        {isEditing && (
+                          <tr>
+                            <td
+                              colSpan={isEditing ? 4 : 3}
+                              className="px-3 py-2"
+                            >
+                              <button
+                                type="button"
+                                onClick={addEditedLine}
+                                className="inline-flex items-center gap-1 rounded-md border border-dashed border-border px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:border-primary hover:text-primary"
+                              >
+                                + Add line
+                              </button>
+                            </td>
+                          </tr>
+                        )}
                       </tbody>
                       <tfoot>
                         <tr className="border-t border-border bg-muted/20 font-medium">
@@ -364,11 +564,12 @@ export function IngestionReviewPanel({
                               minimumFractionDigits: 2,
                             })}
                           </td>
+                          {isEditing && <td />}
                         </tr>
                       </tfoot>
                     </table>
                   </div>
-                  {totalDebit !== totalCredit && (
+                  {!entryIsBalanced && (
                     <p className="mt-2 text-xs text-error-clay font-medium">
                       ⚠ Debits ({totalDebit}) ≠ Credits ({totalCredit}) — entry
                       is unbalanced
@@ -461,7 +662,10 @@ export function IngestionReviewPanel({
                     })
                   }
                   disabled={
-                    approveMutation.isPending || totalDebit !== totalCredit
+                    approveMutation.isPending ||
+                    !entryIsBalanced ||
+                    !proposedEntry ||
+                    (proposedEntry.lines?.length ?? 0) === 0
                   }
                   className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
                 >
@@ -494,6 +698,7 @@ function Section({
   defaultOpen = true,
   onToggle,
   isOpen: controlledOpen,
+  action,
 }: {
   title: string;
   icon: React.ReactNode;
@@ -501,6 +706,7 @@ function Section({
   defaultOpen?: boolean;
   onToggle?: () => void;
   isOpen?: boolean;
+  action?: React.ReactNode;
 }) {
   const [uncontrolledOpen, setUncontrolledOpen] = useState(defaultOpen);
   const open = controlledOpen ?? uncontrolledOpen;
@@ -518,7 +724,8 @@ function Section({
       >
         {icon}
         {title}
-        <span className="ml-auto">
+        <span className="ml-auto flex items-center gap-2">
+          {action}
           {open ? (
             <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" />
           ) : (
@@ -536,6 +743,18 @@ function Section({
       )}
     </div>
   );
+}
+
+function formatValue(value: unknown): string {
+  if (value === null || value === undefined) return "—";
+  if (typeof value === "number") {
+    return value.toLocaleString("en-US", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+  }
+  if (typeof value === "object") return JSON.stringify(value);
+  return String(value);
 }
 
 function ConfidenceBadge({ confidence }: { confidence: number }) {

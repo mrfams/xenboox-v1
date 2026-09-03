@@ -1,52 +1,45 @@
 /**
  * Batch Ingestion Router — Process multiple documents with real-time progress.
  *
- * Features:
- * - Batch upload multiple documents
- * - Real-time progress tracking per document
- * - Step-by-step status updates with timestamps
- * - Error recovery and retry
- * - Progress summary and statistics
+ * Two-phase flow (mirrors the single-document upload path in document.ts):
+ *   1. `startBatch` — validate files, create pending document rows, presign
+ *      one R2 upload URL per file, and return them to the client.
+ *   2. Client PUTs each file's bytes directly to R2.
+ *   3. `confirmBatch` — verify each object landed (head + size), then trigger
+ *      the real `process-document` pipeline per file. Progress is read from
+ *      the documents table (status-tracker), never from an in-memory fake.
  *
  * All procedures are entity-scoped and authenticated.
  */
 
 import { z } from "zod";
+import { TRPCError } from "@trpc/server";
 import { router, protectedProcedure } from "@/lib/trpc/server";
 import { db } from "@xenboox/db";
 import { eq, and, desc, sql, inArray } from "drizzle-orm";
 import { documents, auditLog } from "@xenboox/db/schema";
 import { logger } from "@/lib/logger";
 import {
-  updateIngestionStatus,
-  updateTerminalStatus,
-  transitionToFailed,
-  getStageLabel,
-  getOrderedStages,
-  type PipelineStage,
-} from "@xenboox/ingestion/engine/status-tracker";
+  getObjectHead,
+  generateStoragePath,
+  getPresignedUploadUrl,
+} from "@/lib/r2";
 import {
-  processDocumentForRAG,
-  chunkText,
-} from "@xenboox/ingestion/engine/embeddings";
+  sanitizeFileName,
+  extensionMatchesMime,
+} from "@/lib/security/file-validation";
+import { tenantJobOptions, triggerClient } from "@/lib/trigger";
+import { getOrderedStages } from "@xenboox/ingestion/engine/status-tracker";
+import { mapDocStatus, stageLabel } from "./batch-ingestion-helpers";
 
 // ─── Types ────────────────────────────────────────────────────────────────
 
 type BatchStatus =
-  "pending" | "processing" | "completed" | "failed" | "cancelled";
-
-interface DocumentProgress {
-  documentId: string;
-  fileName: string;
-  status: BatchStatus;
-  currentStage: string;
-  stageNumber: number;
-  startedAt?: Date;
-  completedAt?: Date;
-  durationMs?: number;
-  error?: string;
-  metadata?: Record<string, unknown>;
-}
+  | "pending"
+  | "processing"
+  | "completed"
+  | "failed"
+  | "cancelled";
 
 interface BatchProgress {
   batchId: string;
@@ -61,22 +54,60 @@ interface BatchProgress {
   documents: DocumentProgress[];
 }
 
-// ─── In-Memory Progress Store ─────────────────────────────────────────────
-// In production, use Redis for multi-instance support
-const progressStore = new Map<string, BatchProgress>();
+interface DocumentProgress {
+  documentId: string;
+  fileName: string;
+  status: BatchStatus;
+  currentStage: string;
+  stageNumber: number;
+  startedAt?: Date;
+  completedAt?: Date;
+  durationMs?: number;
+  error?: string;
+}
 
 // ─── Zod Schemas ──────────────────────────────────────────────────────────
 
 const batchDocumentSchema = z.object({
-  fileName: z.string().min(1),
-  content: z.string().min(1),
-  mimeType: z.string().default("text/plain"),
-  category: z.string().optional(),
+  fileName: z.string().min(1).max(255),
+  fileSize: z
+    .number()
+    .int()
+    .min(1)
+    .max(100 * 1024 * 1024),
+  mimeType: z.string().min(1).max(200),
+  category: z
+    .enum([
+      "invoice",
+      "receipt",
+      "contract",
+      "voucher",
+      "bank_statement",
+      "tax_return",
+      "payroll_report",
+      "journal_entry",
+      "po",
+      "supporting",
+    ])
+    .optional(),
 });
 
 const startBatchInputSchema = z.object({
   documents: z.array(batchDocumentSchema).min(1).max(50),
-  autoProcess: z.boolean().default(true),
+});
+
+const confirmBatchInputSchema = z.object({
+  batchId: z.string().uuid(),
+  uploads: z
+    .array(
+      z.object({
+        documentId: z.string().uuid(),
+        storagePath: z.string().min(1),
+        fileSize: z.number().int().min(1),
+      }),
+    )
+    .min(1)
+    .max(50),
 });
 
 const getBatchProgressInputSchema = z.object({
@@ -87,131 +118,248 @@ const getBatchProgressInputSchema = z.object({
 
 export const batchIngestionRouter = router({
   /**
-   * Start a batch ingestion job.
-   * Creates document records and begins processing.
+   * Phase 1: validate files, create pending document rows, and presign R2
+   * upload URLs. The client PUTs each file, then calls confirmBatch.
    */
   startBatch: protectedProcedure
     .input(startBatchInputSchema)
     .mutation(async ({ ctx, input }) => {
       const { entityId } = ctx;
-      const { documents: docs, autoProcess } = input;
-
       const batchId = crypto.randomUUID();
       const now = new Date();
 
-      // Create progress tracking
-      const batchProgress: BatchProgress = {
-        batchId,
-        entityId,
-        status: "pending",
-        totalDocuments: docs.length,
-        completedDocuments: 0,
-        failedDocuments: 0,
-        startedAt: now,
-        documents: docs.map((doc, index) => ({
-          documentId: crypto.randomUUID(),
-          fileName: doc.fileName,
-          status: "pending" as BatchStatus,
-          currentStage: "Queued",
-          stageNumber: 0,
-        })),
-      };
+      const uploads: Array<{
+        documentId: string;
+        storagePath: string;
+        uploadUrl: string;
+        fileName: string;
+      }> = [];
 
-      progressStore.set(batchId, batchProgress);
+      for (let i = 0; i < input.documents.length; i++) {
+        const doc = input.documents[i];
+        const documentId = crypto.randomUUID();
 
-      // Create document records in database
-      for (let i = 0; i < docs.length; i++) {
-        const doc = docs[i];
-        const docProgress = batchProgress.documents[i];
-
+        // Sanitize the file name and cross-check extension ↔ MIME — same
+        // guards the single-upload path applies (reject traversal/dotfiles
+        // and extension/MIME mismatches before anything touches storage).
+        let safeName: string;
         try {
-          await db.insert(documents).values({
-            id: docProgress.documentId,
-            entityId,
-            fileName: doc.fileName,
-            mimeType: doc.mimeType,
-            status: "detected",
-            metadata: {
-              batchId,
-              batchIndex: i,
-              category: doc.category,
-            },
+          safeName = sanitizeFileName(doc.fileName);
+        } catch {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: `Invalid file name: ${doc.fileName}`,
           });
-
-          // Log detection
-          await db.insert(auditLog).values({
-            entityId,
-            action: "batch.document_detected",
-            entityType: "document",
-            entityIdRef: docProgress.documentId,
-            newValues: {
-              batchId,
-              fileName: doc.fileName,
-              batchIndex: i,
-            },
-          });
-        } catch (error) {
-          docProgress.status = "failed";
-          docProgress.error = `Failed to create document record: ${error instanceof Error ? error.message : String(error)}`;
-          batchProgress.failedDocuments++;
         }
-      }
+        if (!extensionMatchesMime(safeName, doc.mimeType)) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: `File type not allowed — extension and content type must match: ${safeName}`,
+          });
+        }
 
-      // Start processing if autoProcess is true
-      if (autoProcess) {
-        // Process asynchronously (in real implementation, use job queue)
-        processBatchDocuments(batchId, entityId, docs).catch((error) => {
-          logger.error(`Batch ${batchId} failed`, { batchId, error: error instanceof Error ? error.message : String(error) });
+        const storagePath = generateStoragePath(entityId!, safeName);
+
+        // Create the document row up-front (status "detected") so the batch
+        // is visible and cancellable even before bytes land. r2Key/r2Bucket
+        // are required columns — set them now; confirmBatch verifies size.
+        await db.insert(documents).values({
+          id: documentId,
+          entityId,
+          name: safeName,
+          type: doc.category ?? "supporting",
+          status: "detected",
+          mimeType: doc.mimeType,
+          sizeBytes: doc.fileSize,
+          r2Key: storagePath,
+          r2Bucket: "xenboox-documents",
+          metadata: { batchId, batchIndex: i },
+        });
+
+        await db.insert(auditLog).values({
+          entityId,
+          action: "batch.document_detected",
+          entityType: "document",
+          entityIdRef: documentId,
+          newValues: { batchId, fileName: safeName, batchIndex: i },
+        });
+
+        // Presign the upload URL bound to this storage path + size + mime.
+        const uploadUrl = await getPresignedUploadUrl(
+          storagePath,
+          doc.mimeType,
+          doc.fileSize,
+        );
+
+        uploads.push({
+          documentId,
+          storagePath,
+          uploadUrl,
+          fileName: safeName,
         });
       }
 
-      return {
-        batchId,
-        totalDocuments: docs.length,
-        status: autoProcess ? "processing" : "pending",
-      };
+      logger.info(
+        `Batch ${batchId} prepared — ${uploads.length} uploads (entity ${entityId})`,
+      );
+
+      return { batchId, startedAt: now.toISOString(), uploads };
     }),
 
   /**
-   * Get progress for a batch ingestion job.
+   * Phase 2: verify every object landed in R2 with the declared size, then
+   * trigger the real process-document pipeline per file. Progress is derived
+   * from the documents table afterwards — no simulation.
    */
-  getBatchProgress: protectedProcedure
-    .input(getBatchProgressInputSchema)
-    .query(async ({ ctx, input }) => {
+  confirmBatch: protectedProcedure
+    .input(confirmBatchInputSchema)
+    .mutation(async ({ ctx, input }) => {
       const { entityId } = ctx;
-      const { batchId } = input;
 
-      const progress = progressStore.get(batchId);
+      // Verify the batch rows belong to this entity before touching anything.
+      const batchDocs = await db.query.documents.findMany({
+        where: and(
+          eq(documents.entityId, entityId!),
+          sql`${documents.metadata}->>'batchId' = ${input.batchId}`,
+        ),
+      });
+      if (batchDocs.length === 0) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Batch not found",
+        });
+      }
 
-      if (!progress || progress.entityId !== entityId) {
-        return null;
+      const byId = new Map(batchDocs.map((d) => [d.id, d]));
+      const triggered: string[] = [];
+      const failures: Array<{ documentId: string; error: string }> = [];
+
+      for (const upload of input.uploads) {
+        const docRow = byId.get(upload.documentId);
+        if (!docRow) {
+          failures.push({
+            documentId: upload.documentId,
+            error: "Document not found in this batch",
+          });
+          continue;
+        }
+
+        // Verify the object actually landed with the declared size — catches
+        // aborted/partial uploads (same check as confirmUpload).
+        const head = await getObjectHead(upload.storagePath);
+        if (!head) {
+          failures.push({
+            documentId: upload.documentId,
+            error: "Upload not found in storage — re-upload the file.",
+          });
+          continue;
+        }
+        if (head.size !== upload.fileSize) {
+          failures.push({
+            documentId: upload.documentId,
+            error: "Upload size mismatch — the file did not upload completely.",
+          });
+          continue;
+        }
+
+        // Row already exists with r2Key set; mark it ready for the pipeline
+        // and fire the real document-processing task.
+        await db
+          .update(documents)
+          .set({ sizeBytes: upload.fileSize })
+          .where(eq(documents.id, upload.documentId));
+
+        await triggerClient.tasks.trigger(
+          "process-document",
+          {
+            documentId: upload.documentId,
+            entityId: entityId!,
+            storagePath: upload.storagePath,
+            mimeType: docRow.mimeType ?? "application/octet-stream",
+          },
+          tenantJobOptions(entityId!, `process-document:${upload.documentId}`),
+        );
+
+        triggered.push(upload.documentId);
       }
 
       return {
-        batchId: progress.batchId,
-        status: progress.status,
-        totalDocuments: progress.totalDocuments,
-        completedDocuments: progress.completedDocuments,
-        failedDocuments: progress.failedDocuments,
-        startedAt: progress.startedAt,
-        completedAt: progress.completedAt,
-        totalDurationMs: progress.totalDurationMs,
-        documents: progress.documents.map((doc) => ({
-          documentId: doc.documentId,
-          fileName: doc.fileName,
-          status: doc.status,
-          currentStage: doc.currentStage,
-          stageNumber: doc.stageNumber,
-          startedAt: doc.startedAt,
-          completedAt: doc.completedAt,
-          durationMs: doc.durationMs,
-          error: doc.error,
-        })),
+        batchId: input.batchId,
+        triggeredCount: triggered.length,
+        failedCount: failures.length,
+        failures,
       };
     }),
 
   /**
-   * Get all batch jobs for an entity.
+   * Get progress for a batch — read from the documents table (real statuses
+   * written by the status-tracker), never from an in-memory store.
+   */
+  getBatchProgress: protectedProcedure
+    .input(getBatchProgressInputSchema)
+    .query(async ({ ctx, input }): Promise<BatchProgress | null> => {
+      const { entityId } = ctx;
+      const docs = await db.query.documents.findMany({
+        where: and(
+          eq(documents.entityId, entityId!),
+          sql`${documents.metadata}->>'batchId' = ${input.batchId}`,
+        ),
+        orderBy: [documents.createdAt],
+      });
+
+      if (docs.length === 0) return null;
+
+      const startedAt = docs.reduce(
+        (min, d) => (d.createdAt < min ? d.createdAt : min),
+        docs[0]!.createdAt,
+      );
+
+      const progressDocs: DocumentProgress[] = docs.map((d) => ({
+        documentId: d.id,
+        fileName: d.name,
+        status: mapDocStatus(d.status),
+        currentStage: stageLabel(d.status),
+        stageNumber: 0,
+        startedAt: d.createdAt,
+        completedAt: d.updatedAt,
+        error: (
+          (d.metadata as Record<string, unknown>)?.ingestion as Record<
+            string,
+            unknown
+          >
+        )?.error as string | undefined,
+      }));
+
+      const completed = progressDocs.filter(
+        (d) => d.status === "completed",
+      ).length;
+      const failed = progressDocs.filter((d) => d.status === "failed").length;
+      const cancelled = progressDocs.filter(
+        (d) => d.status === "cancelled",
+      ).length;
+
+      const status: BatchStatus =
+        failed + cancelled === docs.length
+          ? "failed"
+          : completed === docs.length
+            ? "completed"
+            : "processing";
+
+      return {
+        batchId: input.batchId,
+        entityId: entityId!,
+        status,
+        totalDocuments: docs.length,
+        completedDocuments: completed,
+        failedDocuments: failed,
+        startedAt,
+        completedAt: status === "completed" ? new Date() : undefined,
+        documents: progressDocs,
+      };
+    }),
+
+  /**
+   * Get all batch jobs for an entity — distinct batchIds from document rows.
    */
   listBatches: protectedProcedure
     .input(
@@ -221,123 +369,49 @@ export const batchIngestionRouter = router({
     )
     .query(async ({ ctx, input }) => {
       const { entityId } = ctx;
-      const { limit } = input;
+      const docs = await db.query.documents.findMany({
+        where: and(
+          eq(documents.entityId, entityId!),
+          sql`${documents.metadata}->>'batchId' IS NOT NULL`,
+        ),
+        orderBy: [desc(documents.createdAt)],
+        limit: input.limit * 20, // overscan, dedup below
+      });
 
-      // Get batches from audit log
-      const batches = await db
-        .select({
-          batchId: auditLog.newValues,
-          createdAt: auditLog.createdAt,
-        })
-        .from(auditLog)
-        .where(
-          and(
-            eq(auditLog.entityId, entityId),
-            eq(auditLog.action, "batch.document_detected"),
-          ),
-        )
-        .orderBy(desc(auditLog.createdAt))
-        .limit(limit);
-
-      // Deduplicate by batchId
-      const uniqueBatches = new Map<
-        string,
-        { batchId: string; createdAt: Date }
-      >();
-      for (const batch of batches) {
-        const values = batch.batchId as Record<string, unknown>;
-        if (values?.batchId && !uniqueBatches.has(values.batchId as string)) {
-          uniqueBatches.set(values.batchId as string, {
-            batchId: values.batchId as string,
-            createdAt: batch.createdAt,
-          });
+      const seen = new Set<string>();
+      const batches: Array<{ batchId: string; createdAt: Date }> = [];
+      for (const d of docs) {
+        const batchId = (d.metadata as Record<string, unknown>)?.batchId as
+          | string
+          | undefined;
+        if (batchId && !seen.has(batchId)) {
+          seen.add(batchId);
+          batches.push({ batchId, createdAt: d.createdAt });
         }
+        if (batches.length >= input.limit) break;
       }
 
-      return Array.from(uniqueBatches.values()).map((batch) => ({
-        batchId: batch.batchId,
-        createdAt: batch.createdAt,
-        // Get progress from store if available
-        progress: progressStore.get(batch.batchId),
-      }));
+      return batches;
     }),
 
   /**
-   * Cancel a batch ingestion job.
+   * Cancel a batch — marks pending (non-terminal) documents cancelled.
    */
   cancelBatch: protectedProcedure
     .input(getBatchProgressInputSchema)
     .mutation(async ({ ctx, input }) => {
       const { entityId } = ctx;
-      const { batchId } = input;
-
-      const progress = progressStore.get(batchId);
-
-      if (!progress || progress.entityId !== entityId) {
-        throw new Error("Batch not found");
-      }
-
-      if (progress.status === "completed" || progress.status === "failed") {
-        throw new Error("Batch already finished");
-      }
-
-      // Mark all pending documents as cancelled
-      for (const doc of progress.documents) {
-        if (doc.status === "pending" || doc.status === "processing") {
-          doc.status = "cancelled";
-          doc.currentStage = "Cancelled";
-        }
-      }
-
-      progress.status = "cancelled";
-      progress.completedAt = new Date();
-      progress.totalDurationMs =
-        progress.completedAt.getTime() - progress.startedAt.getTime();
-
+      await db
+        .update(documents)
+        .set({ status: "archived" })
+        .where(
+          and(
+            eq(documents.entityId, entityId!),
+            sql`${documents.metadata}->>'batchId' = ${input.batchId}`,
+            inArray(documents.status, ["detected", "processing"]),
+          ),
+        );
       return { success: true };
-    }),
-
-  /**
-   * Retry failed documents in a batch.
-   */
-  retryFailed: protectedProcedure
-    .input(getBatchProgressInputSchema)
-    .mutation(async ({ ctx, input }) => {
-      const { entityId } = ctx;
-      const { batchId } = input;
-
-      const progress = progressStore.get(batchId);
-
-      if (!progress || progress.entityId !== entityId) {
-        throw new Error("Batch not found");
-      }
-
-      const failedDocs = progress.documents.filter(
-        (doc) => doc.status === "failed",
-      );
-
-      if (failedDocs.length === 0) {
-        return { retriedCount: 0 };
-      }
-
-      // Reset failed documents
-      for (const doc of failedDocs) {
-        doc.status = "pending";
-        doc.currentStage = "Queued";
-        doc.stageNumber = 0;
-        doc.error = undefined;
-        doc.startedAt = undefined;
-        doc.completedAt = undefined;
-        doc.durationMs = undefined;
-      }
-
-      // Reset batch status
-      progress.status = "processing";
-      progress.failedDocuments = 0;
-      progress.completedAt = undefined;
-      progress.totalDurationMs = undefined;
-
-      return { retriedCount: failedDocs.length };
     }),
 
   /**
@@ -347,133 +421,3 @@ export const batchIngestionRouter = router({
     return getOrderedStages();
   }),
 });
-
-// ─── Batch Processing Logic ───────────────────────────────────────────────
-
-/**
- * Process all documents in a batch.
- * Updates progress in real-time.
- */
-async function processBatchDocuments(
-  batchId: string,
-  entityId: string,
-  docs: Array<{
-    fileName: string;
-    content: string;
-    mimeType: string;
-    category?: string;
-  }>,
-): Promise<void> {
-  const progress = progressStore.get(batchId);
-  if (!progress) return;
-
-  progress.status = "processing";
-
-  const stages = getOrderedStages();
-
-  for (let i = 0; i < docs.length; i++) {
-    const doc = docs[i];
-    const docProgress = progress.documents[i];
-
-    if (docProgress.status === "failed" || docProgress.status === "cancelled") {
-      continue;
-    }
-
-    docProgress.status = "processing";
-    docProgress.startedAt = new Date();
-
-    try {
-      // Simulate processing through each stage
-      for (const stage of stages) {
-        if (docProgress.status !== "processing") break;
-
-        // Update stage progress
-        docProgress.currentStage = stage.label;
-        docProgress.stageNumber = stage.number;
-
-        // Update database status
-        await updateIngestionStatus(
-          docProgress.documentId,
-          entityId,
-          stage.key as PipelineStage,
-          { batchId, fileName: doc.fileName },
-        );
-
-        // Simulate work (in real implementation, this would be actual processing)
-        await simulateStageProcessing(docProgress.documentId, stage.key);
-      }
-
-      // Process for RAG
-      await processDocumentForRAG(
-        docProgress.documentId,
-        entityId,
-        doc.content,
-        {
-          sourceType: "uploaded_document",
-          title: doc.fileName,
-          category: doc.category,
-        },
-      );
-
-      // Mark as complete
-      docProgress.status = "completed";
-      docProgress.currentStage = "Complete";
-      docProgress.completedAt = new Date();
-      docProgress.durationMs =
-        docProgress.completedAt.getTime() -
-        (docProgress.startedAt?.getTime() ?? Date.now());
-
-      await updateTerminalStatus(docProgress.documentId, entityId, "done", {
-        batchId,
-        fileName: doc.fileName,
-        durationMs: docProgress.durationMs,
-      });
-
-      progress.completedDocuments++;
-    } catch (error) {
-      docProgress.status = "failed";
-      docProgress.error =
-        error instanceof Error ? error.message : String(error);
-      docProgress.completedAt = new Date();
-      docProgress.durationMs =
-        docProgress.completedAt.getTime() -
-        (docProgress.startedAt?.getTime() ?? Date.now());
-
-      await transitionToFailed(
-        docProgress.documentId,
-        entityId,
-        docProgress.error,
-        docProgress.currentStage,
-      );
-
-      progress.failedDocuments++;
-    }
-  }
-
-  // Mark batch as complete
-  progress.status =
-    progress.failedDocuments === progress.totalDocuments
-      ? "failed"
-      : "completed";
-  progress.completedAt = new Date();
-  progress.totalDurationMs =
-    progress.completedAt.getTime() - progress.startedAt.getTime();
-}
-
-/**
- * Simulate processing for a pipeline stage.
- * In real implementation, this would be actual processing logic.
- */
-async function simulateStageProcessing(
-  documentId: string,
-  stage: string,
-): Promise<void> {
-  // Simulate processing time (200-500ms per stage)
-  const delay = 200 + Math.random() * 300;
-  await new Promise((resolve) => setTimeout(resolve, delay));
-
-  // Simulate occasional failures (5% chance)
-  if (Math.random() < 0.05) {
-    throw new Error(`Processing failed at stage: ${stage}`);
-  }
-}
