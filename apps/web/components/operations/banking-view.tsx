@@ -123,7 +123,8 @@ function TransactionsTab({
   selectedIds,
   setSelectedIds,
 }: {
-  entityId: string;
+  // Nullable until an entity resolves — queries below gate on !!entityId.
+  entityId: string | null;
   searchQuery: string;
   setSearchQuery: (q: string) => void;
   statusFilter: "all" | "reconciled" | "unreconciled";
@@ -256,10 +257,10 @@ function TransactionsTab({
           <button
             onClick={() => {
               const rows = transactions.map((t) => ({
-                date: t.date ?? t.transactionDate,
+                date: t.date,
                 description: t.description,
                 amount: t.amount,
-                status: t.status,
+                status: t.isReconciled ? "reconciled" : "unreconciled",
               }));
               const headers = Object.keys(
                 rows[0] ?? {
@@ -548,7 +549,7 @@ function ConnectionsTab({
   entityId,
   onConnect,
 }: {
-  entityId: string;
+  entityId: string | null;
   onConnect: () => void;
 }) {
   const { data: connections, isLoading } =
@@ -636,6 +637,6 @@ function ConnectionsTab({
 
 // ─── Rules Tab ─────────────────────────────────────────────────────────────
 
-function RulesTab({ entityId }: { entityId: string }) {
+function RulesTab({ entityId }: { entityId: string | null }) {
   return <BankRulesManager entityId={entityId} />;
 }

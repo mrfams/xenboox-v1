@@ -1188,11 +1188,13 @@ export const bankingRouter = router({
               })
             : null;
 
+          const newTimesSeen = prior ? prior.timesSeen + 1 : 1;
+
           if (prior) {
             await db
               .update(aiCorrections)
               .set({
-                timesSeen: prior.timesSeen + 1,
+                timesSeen: newTimesSeen,
                 correctedDecision: {
                   category: input.category,
                   glAccountId: input.glAccountId ?? null,
@@ -1221,9 +1223,60 @@ export const bankingRouter = router({
               referenceEntityId: input.transactionId,
               correctedBy: userId ?? undefined,
               patternKey,
-              timesSeen: 1,
+              timesSeen: newTimesSeen,
               learned: false,
             });
+          }
+
+          // Promote the learned pattern into a real rule once the same
+          // description has been corrected 3+ times. This is the behavior the
+          // Rules tab advertises ("After 3 overrides, the AI creates a rule")
+          // — make it true instead of a UI claim. Deduped so repeated
+          // corrections don't spawn duplicate rules.
+          const rawDesc = (existing.description ?? "").trim();
+          if (patternKey && newTimesSeen >= 3 && rawDesc.length >= 8) {
+            const matchValue = rawDesc.slice(0, 100);
+            const duplicateRule = await db.query.bankRules.findFirst({
+              where: and(
+                eq(bankRules.entityId, entityId),
+                eq(bankRules.matchType, "description_contains"),
+                eq(bankRules.matchValue, matchValue),
+              ),
+              columns: { id: true },
+            });
+
+            if (!duplicateRule) {
+              const [autoRule] = await db
+                .insert(bankRules)
+                .values({
+                  entityId,
+                  name: `Auto: ${input.category} (${matchValue.slice(0, 40)})`,
+                  matchType: "description_contains",
+                  matchValue,
+                  category: input.category,
+                  glAccountId: input.glAccountId,
+                  isActive: true,
+                  priority: 0,
+                })
+                .returning();
+
+              if (autoRule) {
+                await db.insert(auditLog).values({
+                  entityId,
+                  userId,
+                  action: "banking.autoCreateRule",
+                  entityType: "bank_rule",
+                  entityIdRef: autoRule.id,
+                  newValues: {
+                    source: "learning_loop",
+                    patternKey,
+                    timesSeen: newTimesSeen,
+                    matchValue,
+                    category: input.category,
+                  },
+                });
+              }
+            }
           }
         }
 

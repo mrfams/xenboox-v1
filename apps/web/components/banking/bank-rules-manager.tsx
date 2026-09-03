@@ -15,11 +15,32 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { trpc } from "@/lib/trpc/client";
+import {
+  AlertDialog,
+  AlertDialogTrigger,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogFooter,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from "@/components/ui";
+
+// Match types mirror the API enum exactly (banking.createRule/updateRule) —
+// the UI must never invent values the zod schema rejects.
+type MatchType =
+  | "description_contains"
+  | "description_equals"
+  | "reference_contains"
+  | "amount_equals"
+  | "amount_above"
+  | "amount_below";
 
 type Rule = {
   id: string;
   name: string;
-  matchType: string;
+  matchType: MatchType;
   matchValue: string;
   category: string;
   glAccountId: string | null;
@@ -27,11 +48,37 @@ type Rule = {
   priority: number;
 };
 
-const MATCH_TYPES = [
-  { value: "contains", label: "Contains" },
-  { value: "starts_with", label: "Starts with" },
-  { value: "exact", label: "Exact match" },
-  { value: "regex", label: "Regex" },
+const MATCH_TYPES: { value: MatchType; label: string; hint: string }[] = [
+  {
+    value: "description_contains",
+    label: "Description contains",
+    hint: "matches when the description includes the value",
+  },
+  {
+    value: "description_equals",
+    label: "Description equals",
+    hint: "matches only an exact description",
+  },
+  {
+    value: "reference_contains",
+    label: "Reference contains",
+    hint: "matches when the transaction reference includes the value",
+  },
+  {
+    value: "amount_equals",
+    label: "Amount equals",
+    hint: "matches an exact amount (e.g. 1500)",
+  },
+  {
+    value: "amount_above",
+    label: "Amount above",
+    hint: "matches any amount greater than the value",
+  },
+  {
+    value: "amount_below",
+    label: "Amount below",
+    hint: "matches any amount less than the value",
+  },
 ];
 
 const CATEGORIES = [
@@ -51,9 +98,10 @@ const CATEGORIES = [
   "Cost of Goods Sold",
 ];
 
-export function BankRulesManager({ entityId }: { entityId: string }) {
+export function BankRulesManager({ entityId }: { entityId: string | null }) {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingRule, setEditingRule] = useState<Rule | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Rule | null>(null);
 
   const {
     data: rules,
@@ -81,7 +129,7 @@ export function BankRulesManager({ entityId }: { entityId: string }) {
 
   const handleCreate = (data: {
     name: string;
-    matchType: string;
+    matchType: MatchType;
     matchValue: string;
     category: string;
   }) => {
@@ -91,7 +139,7 @@ export function BankRulesManager({ entityId }: { entityId: string }) {
   const handleUpdate = (data: {
     id: string;
     name: string;
-    matchType: string;
+    matchType: MatchType;
     matchValue: string;
     category: string;
     isActive: boolean;
@@ -100,9 +148,8 @@ export function BankRulesManager({ entityId }: { entityId: string }) {
   };
 
   const handleDelete = (id: string) => {
-    if (confirm("Delete this rule?")) {
-      deleteMutation.mutate({ id });
-    }
+    deleteMutation.mutate({ id });
+    setDeleteTarget(null);
   };
 
   return (
@@ -171,7 +218,7 @@ export function BankRulesManager({ entityId }: { entityId: string }) {
                 onEdit={() => setEditingRule(rule)}
                 onCancelEdit={() => setEditingRule(null)}
                 onUpdate={handleUpdate}
-                onDelete={handleDelete}
+                onDeleteRequest={setDeleteTarget}
               />
             ))}
           </div>
@@ -189,6 +236,40 @@ export function BankRulesManager({ entityId }: { entityId: string }) {
           </p>
         </div>
       </div>
+
+      {/* Delete Confirmation */}
+      <AlertDialog
+        open={deleteTarget !== null}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTarget(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this rule?</AlertDialogTitle>
+            <AlertDialogDescription>
+              &quot;{deleteTarget?.name}&quot; ({deleteTarget?.matchValue}) will
+              stop categorizing new transactions. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogTrigger asChild>
+              <button
+                className="inline-flex items-center justify-center rounded-lg bg-red-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-600 transition-colors"
+                onClick={() => deleteTarget && handleDelete(deleteTarget.id)}
+              >
+                {deleteMutation.isPending ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  <Trash2 className="h-3 w-3" />
+                )}
+                Delete Rule
+              </button>
+            </AlertDialogTrigger>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
@@ -201,7 +282,7 @@ function RuleRow({
   onEdit,
   onCancelEdit,
   onUpdate,
-  onDelete,
+  onDeleteRequest,
 }: {
   rule: Rule;
   isEditing: boolean;
@@ -210,12 +291,12 @@ function RuleRow({
   onUpdate: (data: {
     id: string;
     name: string;
-    matchType: string;
+    matchType: MatchType;
     matchValue: string;
     category: string;
     isActive: boolean;
   }) => void;
-  onDelete: (id: string) => void;
+  onDeleteRequest: (rule: Rule) => void;
 }) {
   if (isEditing) {
     return (
@@ -277,7 +358,7 @@ function RuleRow({
           <Edit2 className="h-3.5 w-3.5" />
         </button>
         <button
-          onClick={() => onDelete(rule.id)}
+          onClick={() => onDeleteRequest(rule)}
           className="rounded-lg p-1.5 text-muted-foreground hover:text-red-500 hover:bg-red-500/5 transition-colors"
         >
           <Trash2 className="h-3.5 w-3.5" />
@@ -298,7 +379,7 @@ function RuleForm({
   initial?: Rule;
   onSubmit: (data: {
     name: string;
-    matchType: string;
+    matchType: MatchType;
     matchValue: string;
     category: string;
   }) => void;
@@ -306,7 +387,9 @@ function RuleForm({
   isLoading: boolean;
 }) {
   const [name, setName] = useState(initial?.name ?? "");
-  const [matchType, setMatchType] = useState(initial?.matchType ?? "contains");
+  const [matchType, setMatchType] = useState<MatchType>(
+    initial?.matchType ?? "description_contains",
+  );
   const [matchValue, setMatchValue] = useState(initial?.matchValue ?? "");
   const [category, setCategory] = useState(initial?.category ?? CATEGORIES[0]);
 
@@ -348,7 +431,7 @@ function RuleForm({
           </label>
           <select
             value={matchType}
-            onChange={(e) => setMatchType(e.target.value)}
+            onChange={(e) => setMatchType(e.target.value as MatchType)}
             className="w-full rounded-lg border border-border/50 bg-card px-2.5 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary/30"
           >
             {MATCH_TYPES.map((mt) => (
@@ -394,16 +477,13 @@ function RuleForm({
         </div>
       </div>
 
-      {/* Preview */}
+      {/* Preview — describe the actual match semantics of the selected type */}
       <div className="rounded-lg bg-muted/30 p-2">
         <p className="text-[10px] text-muted-foreground">
-          <strong>Preview:</strong> When a transaction description{" "}
+          <strong>Preview:</strong> When a transaction{" "}
           <span className="font-medium">
-            {matchType === "contains"
-              ? "contains"
-              : matchType === "starts_with"
-                ? "starts with"
-                : "matches"}
+            {MATCH_TYPES.find((mt) => mt.value === matchType)?.hint ??
+              matchType}
           </span>{" "}
           <span className="font-mono text-foreground/70">
             &quot;{matchValue || "..."}&quot;

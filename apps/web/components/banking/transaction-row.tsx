@@ -22,7 +22,7 @@ type Transaction = {
   date: string;
   description: string;
   reference: string | null;
-  type: string;
+  type: "deposit" | "withdrawal" | "transfer" | "fee" | "interest";
   amount: number;
   balance: number | null;
   isReconciled: boolean;
@@ -31,6 +31,8 @@ type Transaction = {
   currency: string;
   category?: string | null;
   glAccountId?: string | null;
+  // listTransactions parseFloat()s this — but other flows (batchCategorize
+  // undo state) may surface it as a string, so convert defensively.
   categorizationConfidence?: number | null;
   categorizedBy?: string | null;
 };
@@ -83,6 +85,7 @@ export function TransactionRow({
 }) {
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
   const utils = trpc.useUtils();
+  const { format } = useFormatCurrency();
 
   const updateCategoryMutation =
     trpc.banking.updateTransactionCategory.useMutation({
@@ -93,9 +96,14 @@ export function TransactionRow({
     });
 
   const tx = transaction;
-  const isPositive = tx.amount > 0;
-  const isUncategorized = !tx.category || tx.category === "Uncategorized";
-  const confidence = tx.categorizationConfidence;
+  // Amounts are stored as magnitudes (P2-B convention) — direction comes
+  // from `type`, never from the sign of the number.
+  const isDeposit = tx.type === "deposit";
+  const confidence = tx.categorizationConfidence
+    ? Number(tx.categorizationConfidence)
+    : null;
+  const confidencePct =
+    confidence != null ? Math.round(confidence * 100) : null;
 
   const categoryColor =
     CATEGORY_COLORS[tx.category ?? "Uncategorized"] ??
@@ -111,14 +119,15 @@ export function TransactionRow({
         className="h-4 w-4 shrink-0 rounded border-border text-primary focus:ring-primary/30"
       />
 
-      {/* Direction Icon */}
+      {/* Direction Icon — derived from the transaction type (magnitude
+          convention: amount is always positive, direction lives in `type`) */}
       <div
         className={cn(
           "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg",
-          isPositive ? "bg-emerald-500/10" : "bg-red-500/10",
+          isDeposit ? "bg-emerald-500/10" : "bg-red-500/10",
         )}
       >
-        {isPositive ? (
+        {isDeposit ? (
           <ArrowDownRight className="h-4 w-4 text-emerald-500" />
         ) : (
           <ArrowUpRight className="h-4 w-4 text-red-500" />
@@ -175,19 +184,19 @@ export function TransactionRow({
             <Zap className="h-2.5 w-2.5" aria-label="Rule matched" />
           )}
           {tx.category || "Uncategorized"}
-          {confidence != null && confidence > 0 && (
+          {confidencePct != null && confidencePct > 0 && (
             <span
               className={cn(
                 "ml-1 inline-flex items-center rounded px-1 py-0 text-[8px] font-bold",
-                confidence >= 0.9
+                confidencePct >= 90
                   ? "bg-emerald-500/10 text-emerald-600"
-                  : confidence >= 0.7
+                  : confidencePct >= 70
                     ? "bg-amber-500/10 text-amber-600"
                     : "bg-red-500/10 text-red-600",
               )}
-              title={`Confidence: ${Math.round(confidence * 100)}%`}
+              title={`Confidence: ${confidencePct}%`}
             >
-              {Math.round(confidence * 100)}%
+              {confidencePct}%
             </span>
           )}
           <ChevronDown className="h-2.5 w-2.5" />
@@ -196,7 +205,7 @@ export function TransactionRow({
         {/* Category Picker Dropdown */}
         {showCategoryPicker && (
           <CategoryPicker
-            currentCategory={tx.category}
+            currentCategory={tx.category ?? null}
             onSelect={(category) => {
               updateCategoryMutation.mutate({
                 transactionId: tx.id,
@@ -210,43 +219,44 @@ export function TransactionRow({
       </div>
 
       {/* Confidence Indicator */}
-      {confidence !== null && confidence !== undefined && (
+      {confidencePct !== null && (
         <div
           className={cn(
             "h-1.5 w-8 rounded-full overflow-hidden hidden sm:block",
             "bg-muted/30",
           )}
-          title={`AI confidence: ${Math.round(confidence * 100)}%`}
+          title={`AI confidence: ${confidencePct}%`}
         >
           <div
             className={cn(
               "h-full rounded-full transition-all",
-              confidence >= 0.8
+              confidencePct >= 80
                 ? "bg-emerald-500"
-                : confidence >= 0.6
+                : confidencePct >= 60
                   ? "bg-amber-500"
                   : "bg-red-500",
             )}
-            style={{ width: `${confidence * 100}%` }}
+            style={{ width: `${Math.min(confidencePct, 100)}%` }}
           />
         </div>
       )}
 
-      {/* Amount */}
+      {/* Amount — magnitude + direction sign, formatted with the
+          transaction's own currency symbol */}
       <span
         className={cn(
           "text-xs font-semibold tabular-nums shrink-0",
-          isPositive ? "text-emerald-500" : "text-foreground",
+          isDeposit ? "text-emerald-500" : "text-foreground",
         )}
       >
-        {isPositive ? "+" : ""}
-        {format(tx.amount)}
+        {isDeposit ? "+" : "−"}
+        {format(tx.amount, tx.currency)}
       </span>
 
       {/* Balance */}
       {tx.balance !== null && (
         <span className="text-[10px] text-muted-foreground tabular-nums shrink-0 hidden md:block">
-          {format(tx.balance)}
+          {format(tx.balance, tx.currency)}
         </span>
       )}
     </div>

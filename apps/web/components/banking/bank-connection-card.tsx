@@ -13,23 +13,37 @@ import {
 import { cn } from "@/lib/utils";
 import { trpc } from "@/lib/trpc/client";
 import { useState } from "react";
+import {
+  AlertDialog,
+  AlertDialogTrigger,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogFooter,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from "@/components/ui";
 
+// Mirrors banking.listConnections — timestamps arrive as ISO strings
+// (neon-http driver), provider/status are enums.
 type Connection = {
   id: string;
-  provider: string;
+  provider: "manual" | "mono" | "plaid" | "stitch";
   institutionName: string;
   accountName: string | null;
   accountNumber: string | null;
   accountType: string | null;
   currency: string;
-  status: string;
-  lastSyncedAt: Date | null;
+  status: "pending" | "active" | "error" | "disconnected";
+  lastSyncedAt: string | null;
   syncError: string | null;
-  createdAt: Date;
+  createdAt: string;
 };
 
 export function BankConnectionCard({ connection }: { connection: Connection }) {
   const [isSyncing, setIsSyncing] = useState(false);
+  const [showDisconnectConfirm, setShowDisconnectConfirm] = useState(false);
   const utils = trpc.useUtils();
 
   const syncMutation = trpc.integrations.syncBankTransactions.useMutation({
@@ -45,6 +59,7 @@ export function BankConnectionCard({ connection }: { connection: Connection }) {
 
   const disconnectMutation = trpc.integrations.disconnectBank.useMutation({
     onSuccess: () => {
+      setShowDisconnectConfirm(false);
       utils.banking.listConnections.invalidate();
     },
   });
@@ -55,9 +70,7 @@ export function BankConnectionCard({ connection }: { connection: Connection }) {
   };
 
   const handleDisconnect = () => {
-    if (confirm(`Disconnect ${connection.institutionName}?`)) {
-      disconnectMutation.mutate({ connectionId: connection.id });
-    }
+    disconnectMutation.mutate({ connectionId: connection.id });
   };
 
   const isActive = connection.status === "active";
@@ -163,13 +176,37 @@ export function BankConnectionCard({ connection }: { connection: Connection }) {
           )}
           Sync
         </button>
-        <button
-          onClick={handleDisconnect}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-border/50 bg-background px-3 py-1.5 text-xs font-medium text-red-500 hover:bg-red-500/5 transition-colors"
+        <AlertDialog
+          open={showDisconnectConfirm}
+          onOpenChange={setShowDisconnectConfirm}
         >
-          <Unlink className="h-3 w-3" />
-          Disconnect
-        </button>
+          <AlertDialogTrigger asChild>
+            <button className="inline-flex items-center gap-1.5 rounded-lg border border-border/50 bg-background px-3 py-1.5 text-xs font-medium text-red-500 hover:bg-red-500/5 transition-colors">
+              <Unlink className="h-3 w-3" />
+              Disconnect
+            </button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>
+                Disconnect {connection.institutionName}?
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                Sync will stop for this connection. Past transactions stay in
+                your books for the audit trail.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleDisconnect}
+                className="bg-red-500 text-white hover:bg-red-600"
+              >
+                Disconnect
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </div>
   );
