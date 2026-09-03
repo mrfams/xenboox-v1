@@ -56,7 +56,12 @@ export type BudgetStepId =
   | "audit_trail";
 
 export type BudgetStepStatus =
-  "pending" | "in_progress" | "completed" | "skipped" | "failed" | "flagged";
+  | "pending"
+  | "in_progress"
+  | "completed"
+  | "skipped"
+  | "failed"
+  | "flagged";
 
 export interface BudgetStep {
   id: BudgetStepId;
@@ -507,22 +512,24 @@ export async function runBudgetPipeline(
 
     step5.status = "completed";
     step5.completedAt = new Date().toISOString();
-    // Persist variance records to DB
-    for (const v of calculatedVariances) {
+    // Persist variance records — batch insert (1 query instead of N)
+    if (calculatedVariances.length > 0) {
       await db
         .insert(varianceRecords)
-        .values({
-          entityId,
-          budgetLineId: v.lineId,
-          period,
-          budgetedAmount: v.budgetedAmount.toFixed(2),
-          actualAmount: v.actualAmount.toFixed(2),
-          variance: v.variance.toFixed(2),
-          variancePct: v.variancePct.toFixed(2),
-          cumulativeVariance: v.cumulativeVariance.toFixed(2),
-          isSignificant: v.isSignificant,
-          generatedBy: "agent",
-        })
+        .values(
+          calculatedVariances.map((v) => ({
+            entityId,
+            budgetLineId: v.lineId,
+            period,
+            budgetedAmount: v.budgetedAmount.toFixed(2),
+            actualAmount: v.actualAmount.toFixed(2),
+            variance: v.variance.toFixed(2),
+            variancePct: v.variancePct.toFixed(2),
+            cumulativeVariance: v.cumulativeVariance.toFixed(2),
+            isSignificant: v.isSignificant,
+            generatedBy: "agent",
+          })),
+        )
         .onConflictDoNothing();
     }
 
@@ -584,18 +591,20 @@ export async function runBudgetPipeline(
 
     step6.status = "completed";
     step6.completedAt = new Date().toISOString();
-    // Persist narratives to variance_records
-    for (const v of significantVariances) {
-      await db
-        .update(varianceRecords)
-        .set({ narrativeExplanation: v.narrative })
-        .where(
-          and(
-            eq(varianceRecords.budgetLineId, v.lineId),
-            eq(varianceRecords.period, period),
+    // Persist narratives — batch via Promise.all (still per-line but concurrent)
+    await Promise.all(
+      significantVariances.map((v) =>
+        db
+          .update(varianceRecords)
+          .set({ narrativeExplanation: v.narrative })
+          .where(
+            and(
+              eq(varianceRecords.budgetLineId, v.lineId),
+              eq(varianceRecords.period, period),
+            ),
           ),
-        );
-    }
+      ),
+    );
 
     step6.result = {
       narrativesGenerated: significantVariances.length,
@@ -623,11 +632,18 @@ export async function runBudgetPipeline(
 
     const triggeredAlerts: BudgetAlert[] = [];
 
-    for (const v of varianceLines) {
-      const thresholds = await db.query.budgetAlertThresholds.findFirst({
-        where: eq(budgetAlertThresholds.budgetLineId, v.lineId),
-      });
+    // Batch-fetch thresholds — 1 query instead of N (N+1 fix)
+    const lineIds = varianceLines.map((v) => v.lineId);
+    const allThresholds =
+      lineIds.length > 0
+        ? await db.query.budgetAlertThresholds.findMany({
+            where: inArray(budgetAlertThresholds.budgetLineId, lineIds),
+          })
+        : [];
+    const thresholdMap = new Map(allThresholds.map((t) => [t.budgetLineId, t]));
 
+    for (const v of varianceLines) {
+      const thresholds = thresholdMap.get(v.lineId);
       if (!thresholds) continue;
 
       const spendPct =
