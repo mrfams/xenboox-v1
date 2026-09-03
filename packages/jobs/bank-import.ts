@@ -66,6 +66,26 @@ export const importBankStatement = task({
       mimeType,
     });
 
+    // Fail-fast: a previous attempt already failed this document on a
+    // DETERMINISTIC validation error (balance mismatch, garbage extraction,
+    // etc.) — that is not transient, so re-throw the stored reason instead
+    // of re-running the expensive download + parse (and LLM OCR for PDFs).
+    const priorDoc = await db.query.documents.findFirst({
+      where: eq(documents.id, documentId),
+      columns: { status: true, metadata: true },
+    });
+    const priorMeta =
+      (priorDoc?.metadata as Record<string, unknown> | null) ?? {};
+    const priorImport = priorMeta.bankImport as
+      | { failed?: boolean }
+      | undefined;
+    if (priorDoc?.status === "failed" && priorImport?.failed === true) {
+      throw new Error(
+        (priorMeta.error as string | undefined) ??
+          "Statement failed validation",
+      );
+    }
+
     // 1. Download file from R2 (shared helper — validates config and
     // rejects empty paths instead of silently hitting a bad endpoint)
     const fileBuffer = await downloadFromR2(storagePath);
@@ -90,11 +110,49 @@ export const importBankStatement = task({
       throw new Error(`Unsupported bank statement format: ${mimeType}`);
     }
 
+    const parseErrors = parseResult.parseErrors ?? [];
+    const fatalErrors = parseResult.fatalErrors ?? [];
+
     logger.info("Parse completed", {
       documentId,
       transactionsFound: parseResult.rowCount,
-      errors: parseResult.parseErrors.length,
+      errors: parseErrors.length,
+      fatal: fatalErrors.length,
     });
+
+    // 2.5 Deterministic validation gate (TrustGuard). If the statement
+    // failed the deterministic checks (balance equation mismatch, zero
+    // rows despite content, garbage extraction), we do NOT write any rows
+    // into the books — mark the document failed with the real reasons and
+    // fail the job so the user sees them (UI polls getStatus → failed).
+    if (fatalErrors.length > 0) {
+      await db
+        .update(documents)
+        .set({
+          status: "failed",
+          metadata: {
+            processedAt: new Date().toISOString(),
+            error: `Statement failed validation: ${fatalErrors[0]}`,
+            bankImport: {
+              failed: true,
+              fatalErrors,
+              parseErrors,
+              transactionsFound: parseResult.rowCount,
+            },
+          },
+        })
+        .where(eq(documents.id, documentId));
+
+      await db.insert(auditLog).values({
+        entityId,
+        action: "bank_statement.import_failed",
+        entityType: "document",
+        entityIdRef: documentId,
+        newValues: { fatalErrors, parseErrors },
+      });
+
+      throw new Error(`Statement failed validation: ${fatalErrors.join("; ")}`);
+    }
 
     // 3. Find or create bank account
     let resolvedBankAccountId = bankAccountId;
@@ -138,7 +196,8 @@ export const importBankStatement = task({
     let insertedCount = 0;
     let skippedCount = 0;
 
-    // Cap transaction count to prevent memory/DB exhaustion
+    // Cap transaction count to prevent memory/DB exhaustion. Never report
+    // a silent truncation as success — surface it as a warning the UI shows.
     const transactions = parseResult.transactions.slice(0, MAX_TRANSACTIONS);
     if (parseResult.transactions.length > MAX_TRANSACTIONS) {
       logger.warn("[bank-import] Transaction count capped", {
@@ -146,13 +205,19 @@ export const importBankStatement = task({
         total: parseResult.transactions.length,
         capped: MAX_TRANSACTIONS,
       });
+      parseErrors.push(
+        `Statement contains ${parseResult.transactions.length} transactions — only the first ${MAX_TRANSACTIONS} were imported. Upload the remaining period separately.`,
+      );
     }
 
-    // Batch dedup: collect all references, query once
+    // Batch dedup by (reference + amount): a shared reference with a
+    // DIFFERENT amount is a distinct transaction (salary batches, standing
+    // orders) and must not be dropped. Rows without a reference can't be
+    // deduped. `seenKeys` also catches duplicate rows inside this file.
     const references = transactions
       .filter((tx) => tx.reference)
       .map((tx) => tx.reference!);
-    const existingRefs = new Set<string>();
+    const existingKeys = new Set<string>();
     if (references.length > 0) {
       // Batch query in chunks of 500 to avoid IN clause limits
       const CHUNK_SIZE = 500;
@@ -163,10 +228,12 @@ export const importBankStatement = task({
             eq(bankTransactions.entityId, entityId),
             inArray(bankTransactions.reference, chunk),
           ),
-          columns: { reference: true },
+          columns: { reference: true, amount: true },
         });
         for (const row of existing) {
-          if (row.reference) existingRefs.add(row.reference);
+          if (row.reference) {
+            existingKeys.add(`${row.reference}|${Number(row.amount)}`);
+          }
         }
       }
     }
@@ -183,6 +250,7 @@ export const importBankStatement = task({
 
     // Insert non-duplicate transactions in batches
     const BATCH_SIZE = 100;
+    const seenKeys = new Set<string>();
     for (let i = 0; i < transactions.length; i += BATCH_SIZE) {
       const batch = transactions.slice(i, i + BATCH_SIZE);
       const values: Array<{
@@ -203,10 +271,17 @@ export const importBankStatement = task({
         metadata: Record<string, unknown>;
       }> = [];
       for (const tx of batch) {
-        if (tx.reference && existingRefs.has(tx.reference)) {
+        const dedupKey = tx.reference
+          ? `${tx.reference}|${Number(tx.amount)}`
+          : undefined;
+        if (
+          dedupKey &&
+          (existingKeys.has(dedupKey) || seenKeys.has(dedupKey))
+        ) {
           skippedCount++;
           continue;
         }
+        if (dedupKey) seenKeys.add(dedupKey);
 
         // Categorize: user rules first, then the parser's shared-categorizer
         // match (canonical taxonomy, direction-aware, confidence >= 0.7).
@@ -290,7 +365,8 @@ export const importBankStatement = task({
       });
     }
 
-    // 6. Update document status
+    // 6. Update document status — persist the parse warnings so the UI can
+    // surface anything that needs attention instead of a pure success card.
     await db
       .update(documents)
       .set({
@@ -306,6 +382,8 @@ export const importBankStatement = task({
             totalDebits: parseResult.totalDebits,
             bankName: parseResult.bankName,
             accountNumber: parseResult.accountNumber,
+            parseErrors,
+            fatalErrors: [],
           },
         },
       })

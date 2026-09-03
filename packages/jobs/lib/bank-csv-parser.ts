@@ -6,7 +6,11 @@
  * Supports: GTBank, Access Bank, Zenith Bank, KCB, Equity Bank, Standard Chartered, etc.
  */
 
-import { categorizeByDescription } from "@xenboox/db/lib";
+import {
+  categorizeByDescription,
+  balanceEquationError,
+  runningBalanceIssues,
+} from "@xenboox/db/lib";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -34,6 +38,8 @@ export interface ParseResult {
   totalDebits: number;
   rowCount: number;
   parseErrors: string[];
+  /** Deterministic validation failures — must block the import. */
+  fatalErrors: string[];
 }
 
 // ─── Main Parser ───────────────────────────────────────────────────────────
@@ -42,7 +48,7 @@ export function parseBankCSV(content: string): ParseResult {
   const lines = content.split("\n").filter((l) => l.trim().length > 0);
 
   if (lines.length < 2) {
-    return emptyResult("CSV has fewer than 2 lines");
+    return emptyResult("CSV has fewer than 2 lines", true);
   }
 
   // Detect delimiter
@@ -51,7 +57,7 @@ export function parseBankCSV(content: string): ParseResult {
   // Find header row (skip metadata rows from some banks)
   const headerIndex = findHeaderRow(lines, delimiter);
   if (headerIndex === -1) {
-    return emptyResult("Could not find header row in CSV");
+    return emptyResult("Could not find header row in CSV", true);
   }
 
   // Parse header columns
@@ -65,9 +71,12 @@ export function parseBankCSV(content: string): ParseResult {
   // Parse metadata (bank name, account number, etc.) from rows before header
   const metadata = parseMetadata(lines.slice(0, headerIndex));
 
-  // Parse transaction rows
+  // Parse transaction rows. `prevBalance` is threaded through the loop so a
+  // single-amount column can infer direction deterministically from the
+  // running-balance delta instead of guessing from the sign.
   const transactions: ParsedTransaction[] = [];
   const parseErrors: string[] = [];
+  let prevBalance: number | undefined = metadata.openingBalance;
 
   for (let i = headerIndex + 1; i < lines.length; i++) {
     const line = lines[i]?.trim() ?? "";
@@ -78,8 +87,11 @@ export function parseBankCSV(content: string): ParseResult {
 
     try {
       const cells = parseCSVLine(line, delimiter);
-      const tx = parseTransactionRow(cells, columnMap);
-      if (tx) transactions.push(tx);
+      const tx = parseTransactionRow(cells, columnMap, prevBalance);
+      if (tx) {
+        transactions.push(tx);
+        if (tx.balance !== undefined) prevBalance = tx.balance;
+      }
     } catch (e) {
       parseErrors.push(
         `Row ${i + 1}: ${e instanceof Error ? e.message : "parse error"}`,
@@ -113,6 +125,67 @@ export function parseBankCSV(content: string): ParseResult {
     }
   });
 
+  // ── Deterministic validation (TrustGuard) ──
+  // Failures here mean the extracted rows cannot be trusted — the caller
+  // must block the import rather than write garbage into the books.
+  const fatalErrors: string[] = [];
+
+  // Header diagnostics: if the required columns couldn't be mapped, name
+  // what we looked for instead of silently producing zero rows.
+  if (columnMap.date === -1 || columnMap.description === -1) {
+    fatalErrors.push(
+      `Could not map required columns from header: "${headers.join('", "')}". ` +
+        'Expected columns such as "Date", "Description"/"Narration", and "Amount".',
+    );
+  }
+
+  // Balance equation: the gold-standard check when opening/closing balances
+  // are declared in the statement metadata.
+  const eqError = balanceEquationError({
+    openingBalance: metadata.openingBalance,
+    closingBalance: metadata.closingBalance,
+    totalCredits,
+    totalDebits,
+  });
+  if (eqError) fatalErrors.push(eqError);
+
+  const hasEquation =
+    metadata.openingBalance !== undefined &&
+    metadata.closingBalance !== undefined;
+
+  // Running-balance consistency: the deterministic fallback when
+  // opening/closing balances are absent.
+  const rb = runningBalanceIssues(transactions);
+  if (hasEquation) {
+    parseErrors.push(...rb.warnings);
+  } else {
+    fatalErrors.push(...rb.fatal);
+    parseErrors.push(...rb.warnings);
+  }
+
+  // Zero rows despite content — extraction produced nothing usable.
+  if (transactions.length === 0 && headerIndex + 1 < lines.length) {
+    fatalErrors.push(
+      "No transactions could be parsed from the statement despite having content — " +
+        "the file may be corrupted or in an unsupported format",
+    );
+  }
+
+  // All amounts zero — extraction may have failed silently.
+  if (totalCredits === 0 && totalDebits === 0 && transactions.length > 0) {
+    fatalErrors.push(
+      "All transaction amounts are zero — extraction may have failed",
+    );
+  }
+
+  // No balance information at all — nothing was cross-validated. Surface
+  // the gap instead of pretending the import is verified.
+  if (!hasEquation && columnMap.balance === undefined) {
+    parseErrors.push(
+      "Statement provides no balance information — amounts could not be cross-validated",
+    );
+  }
+
   return {
     transactions,
     accountNumber: metadata.accountNumber,
@@ -125,6 +198,7 @@ export function parseBankCSV(content: string): ParseResult {
     totalDebits,
     rowCount: transactions.length,
     parseErrors,
+    fatalErrors,
   };
 }
 
@@ -239,23 +313,39 @@ function mapColumns(headers: string[]): ColumnMap {
 
   for (let i = 0; i < headers.length; i++) {
     const h = headers[i] ?? "";
-    if (result.date === -1 && datePatterns.some((p) => h.includes(p)))
+    if (result.date === -1 && datePatterns.some((p) => matchesHeader(h, p)))
       result.date = i;
-    if (result.description === -1 && descPatterns.some((p) => h.includes(p)))
+    if (
+      result.description === -1 &&
+      descPatterns.some((p) => matchesHeader(h, p))
+    )
       result.description = i;
-    if (!result.reference && refPatterns.some((p) => h.includes(p)))
+    if (!result.reference && refPatterns.some((p) => matchesHeader(h, p)))
       result.reference = i;
-    if (!result.debit && debitPatterns.some((p) => h.includes(p)))
+    if (!result.debit && debitPatterns.some((p) => matchesHeader(h, p)))
       result.debit = i;
-    if (!result.credit && creditPatterns.some((p) => h.includes(p)))
+    if (!result.credit && creditPatterns.some((p) => matchesHeader(h, p)))
       result.credit = i;
-    if (!result.amount && amountPatterns.some((p) => h.includes(p)))
+    if (!result.amount && amountPatterns.some((p) => matchesHeader(h, p)))
       result.amount = i;
-    if (!result.balance && balancePatterns.some((p) => h.includes(p)))
+    if (!result.balance && balancePatterns.some((p) => matchesHeader(h, p)))
       result.balance = i;
   }
 
   return result;
+}
+
+/**
+ * Header/pattern matcher. Long patterns match as substrings ("value date"
+ * inside "Transaction Value Date"), but the 2-letter abbreviations "cr" /
+ * "dr" must match as WHOLE WORDS — substring matching makes "description"
+ * contain "cr" and silently hijack the credit column map.
+ */
+function matchesHeader(header: string, pattern: string): boolean {
+  if (pattern.length <= 2) {
+    return new RegExp(`(^|\\W)${pattern}(\\W|$)`, "i").test(header);
+  }
+  return header.includes(pattern);
 }
 
 // ─── Transaction Row Parsing ───────────────────────────────────────────────
@@ -263,6 +353,7 @@ function mapColumns(headers: string[]): ColumnMap {
 function parseTransactionRow(
   cells: string[],
   columnMap: ColumnMap,
+  prevBalance?: number,
 ): ParsedTransaction | null {
   if (columnMap.date === -1 || columnMap.description === -1) return null;
 
@@ -273,6 +364,16 @@ function parseTransactionRow(
 
   const date = parseDate(dateStr);
   if (!date) return null;
+
+  // Balance is parsed early — a single-amount column can infer direction
+  // deterministically from the running-balance delta (balance went down →
+  // money left → debit) instead of guessing from the number's sign.
+  const balance =
+    columnMap.balance !== undefined
+      ? parseFloat(
+          cells[columnMap.balance]?.trim().replace(/[, ]/g, "") ?? "",
+        ) || undefined
+      : undefined;
 
   let amount = 0;
   let type: "credit" | "debit" = "debit";
@@ -296,20 +397,26 @@ function parseTransactionRow(
     const amountStr =
       cells[columnMap.amount]?.trim().replace(/[, ]/g, "") ?? "";
     amount = Math.abs(parseFloat(amountStr) || 0);
-    type =
-      amountStr.startsWith("-") || amountStr.startsWith("(")
-        ? "debit"
-        : "credit";
+
+    if (
+      balance !== undefined &&
+      prevBalance !== undefined &&
+      balance !== prevBalance
+    ) {
+      // Deterministic: the running balance tells us which way money moved.
+      // Many banks (African + US exports alike) print debits as positive
+      // numbers in a single "Amount" column, so the sign is not reliable.
+      type = balance < prevBalance ? "debit" : "credit";
+    } else {
+      // No balance delta to lean on — fall back to the sign convention.
+      type =
+        amountStr.startsWith("-") || amountStr.startsWith("(")
+          ? "debit"
+          : "credit";
+    }
   }
 
   if (amount === 0) return null;
-
-  const balance =
-    columnMap.balance !== undefined
-      ? parseFloat(
-          cells[columnMap.balance]?.trim().replace(/[, ]/g, "") ?? "",
-        ) || undefined
-      : undefined;
 
   const reference =
     columnMap.reference !== undefined
@@ -345,7 +452,11 @@ function parseDate(dateStr: string): string | null {
       if (fmt === formats[0]) return match[0];
       // DD/MM/YYYY or DD-MM-YYYY
       if (fmt === formats[1] || fmt === formats[2] || fmt === formats[3]) {
-        return `${match[3]}-${(match[2] ?? "").padStart(2, "0")}-${(match[1] ?? "").padStart(2, "0")}`;
+        return disambiguateDayFirstDate(
+          match[1] ?? "",
+          match[2] ?? "",
+          match[3] ?? "",
+        );
       }
       // DD Mon YYYY
       if (fmt === formats[4]) {
@@ -378,6 +489,36 @@ function parseDate(dateStr: string): string | null {
   }
 
   return null;
+}
+
+/**
+ * Disambiguates DD/MM/YYYY vs MM/DD/YYYY numerically instead of guessing:
+ *  - first field > 12 → it cannot be a month → day-first (DD/MM)
+ *  - second field > 12 → it cannot be a month → month-first (MM/DD)
+ *  - both ≤ 12 → ambiguous → day-first (dominant across target banks)
+ *
+ * Returns null when the layout is impossible (both fields > 12).
+ */
+function disambiguateDayFirstDate(
+  first: string,
+  second: string,
+  year: string,
+): string | null {
+  const firstNum = Number(first);
+  const secondNum = Number(second);
+
+  let day = firstNum;
+  let month = secondNum;
+
+  // Second field can't be a month → it's the day (e.g. 02/13/2024 = Feb 13).
+  if (secondNum > 12 && firstNum <= 12) {
+    day = secondNum;
+    month = firstNum;
+  }
+
+  if (month > 12 || month < 1 || day < 1 || day > 31) return null;
+
+  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }
 
 // ─── Metadata Parsing ──────────────────────────────────────────────────────
@@ -484,12 +625,13 @@ function isSummaryRow(line: string): boolean {
   );
 }
 
-function emptyResult(error: string): ParseResult {
+function emptyResult(error: string, fatal = false): ParseResult {
   return {
     transactions: [],
     totalCredits: 0,
     totalDebits: 0,
     rowCount: 0,
-    parseErrors: [error],
+    parseErrors: fatal ? [] : [error],
+    fatalErrors: fatal ? [error] : [],
   };
 }

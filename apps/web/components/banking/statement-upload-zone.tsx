@@ -35,6 +35,7 @@ type UploadState = {
     transactionsFound: number;
     transactionsInserted: number;
     bankName?: string;
+    warnings?: string[];
   } | null;
 };
 
@@ -176,6 +177,7 @@ export function StatementUploadZone({
                     transactionsInserted?: number;
                     transactionsSkipped?: number;
                     bankName?: string;
+                    parseErrors?: string[];
                   }
                 | undefined;
 
@@ -189,10 +191,12 @@ export function StatementUploadZone({
                       transactionsInserted:
                         bankImport.transactionsInserted ?? 0,
                       bankName: bankImport.bankName,
+                      warnings: bankImport.parseErrors ?? [],
                     }
                   : {
                       transactionsFound: 0,
                       transactionsInserted: 0,
+                      warnings: [],
                     },
               }));
 
@@ -201,11 +205,18 @@ export function StatementUploadZone({
             }
 
             if (status.status === "failed") {
-              const errorMsg = (status.metadata as Record<string, unknown>)
-                ?.error as string | undefined;
+              const meta = (status.metadata ?? {}) as Record<string, unknown>;
+              const bankImport = meta.bankImport as
+                | { fatalErrors?: string[] }
+                | undefined;
+              const fatalErrors = bankImport?.fatalErrors ?? [];
+              const errorMsg =
+                (meta.error as string | undefined) ??
+                "Processing failed. The file may not be a valid bank statement.";
               throw new Error(
-                errorMsg ??
-                  "Processing failed. The file may not be a valid bank statement.",
+                fatalErrors.length > 1
+                  ? `${errorMsg} ${fatalErrors.slice(1).join(" ")}`
+                  : errorMsg,
               );
             }
 
@@ -309,6 +320,28 @@ export function StatementUploadZone({
             Upload Another
           </button>
         </div>
+        {state.result?.warnings && state.result.warnings.length > 0 && (
+          <div className="mt-2 rounded-lg border border-amber-500/20 bg-amber-500/5 p-2.5">
+            <p className="text-[10px] font-medium text-amber-600">
+              Needs your attention
+            </p>
+            <ul className="mt-1 space-y-0.5">
+              {state.result.warnings.slice(0, 3).map((w, i) => (
+                <li
+                  key={i}
+                  className="text-[10px] leading-relaxed text-muted-foreground"
+                >
+                  {w}
+                </li>
+              ))}
+              {state.result.warnings.length > 3 && (
+                <li className="text-[10px] text-muted-foreground">
+                  …and {state.result.warnings.length - 3} more
+                </li>
+              )}
+            </ul>
+          </div>
+        )}
       </div>
     );
   }

@@ -5,7 +5,11 @@
  * Uses PDF.js text extraction + pattern matching for structured tables.
  */
 
-import { categorizeByDescription } from "@xenboox/db/lib";
+import {
+  categorizeByDescription,
+  balanceEquationError,
+  runningBalanceIssues,
+} from "@xenboox/db/lib";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -33,6 +37,8 @@ export interface ParseResult {
   totalDebits: number;
   rowCount: number;
   parseErrors: string[];
+  /** Deterministic validation failures — must block the import. */
+  fatalErrors: string[];
 }
 
 // ─── Main Parser ───────────────────────────────────────────────────────────
@@ -44,7 +50,7 @@ export function parseBankStatementPDF(text: string): ParseResult {
     .filter((l) => l.length > 0);
 
   if (lines.length < 5) {
-    return emptyResult("PDF text too short to be a bank statement");
+    return emptyResult("PDF text too short to be a bank statement", true);
   }
 
   // Detect bank from header
@@ -53,15 +59,24 @@ export function parseBankStatementPDF(text: string): ParseResult {
   // Extract metadata
   const metadata = extractMetadata(lines, bankName);
 
-  // Find transaction table boundaries
+  // Find transaction table boundaries (-1 → no table header found)
   const tableStart = findTableStart(lines);
-  const tableEnd = findTableEnd(lines, tableStart);
+  const tableEnd = findTableEnd(lines, Math.max(0, tableStart));
 
   // Parse transactions
   const transactions: ParsedTransaction[] = [];
   const parseErrors: string[] = [];
+  const fatalErrors: string[] = [];
 
-  for (let i = tableStart; i < tableEnd; i++) {
+  // When the transaction table header can't be located, name the problem
+  // instead of silently attempting garbage extraction.
+  if (tableStart === -1) {
+    fatalErrors.push(
+      "Could not locate the transaction table header (Date / Description / Amount) in the statement",
+    );
+  }
+
+  for (let i = Math.max(0, tableStart); i < tableEnd; i++) {
     try {
       const tx = parseTransactionLine(lines[i] ?? "", lines[i + 1]);
       if (tx) {
@@ -99,38 +114,53 @@ export function parseBankStatementPDF(text: string): ParseResult {
     }
   });
 
-  // ── Balance equation validation ──
-  // Verify: openingBalance + totalCredits - totalDebits ≈ closingBalance
-  // This is the deterministic check that catches garbage extraction.
-  if (
-    metadata.openingBalance !== undefined &&
-    metadata.closingBalance !== undefined
-  ) {
-    const expectedClosing =
-      metadata.openingBalance + totalCredits - totalDebits;
-    const diff = Math.abs(expectedClosing - metadata.closingBalance);
-    const tolerance = Math.max(
-      0.01, // At least 1 cent tolerance
-      Math.abs(metadata.closingBalance) * 0.001, // 0.1% of balance
-    );
+  // ── Deterministic validation (TrustGuard) ──
+  // Failures here mean the extracted rows cannot be trusted — the caller
+  // must block the import rather than write garbage into the books.
 
-    if (diff > tolerance) {
-      parseErrors.push(
-        `Balance equation mismatch: opening (${metadata.openingBalance}) + credits (${totalCredits}) - debits (${totalDebits}) = ${expectedClosing.toFixed(2)}, but closing balance is ${metadata.closingBalance}. Difference: ${diff.toFixed(2)}`,
-      );
-    }
+  // Balance equation: opening + credits - debits ≈ closing balance. The
+  // gold-standard check that catches garbled OCR extraction.
+  const eqError = balanceEquationError({
+    openingBalance: metadata.openingBalance,
+    closingBalance: metadata.closingBalance,
+    totalCredits,
+    totalDebits,
+  });
+  if (eqError) fatalErrors.push(eqError);
+
+  const hasEquation =
+    metadata.openingBalance !== undefined &&
+    metadata.closingBalance !== undefined;
+
+  // Running-balance consistency: the deterministic fallback when
+  // opening/closing balances are absent.
+  const rb = runningBalanceIssues(transactions);
+  if (hasEquation) {
+    parseErrors.push(...rb.warnings);
+  } else {
+    fatalErrors.push(...rb.fatal);
+    parseErrors.push(...rb.warnings);
   }
 
-  // ── Reasonableness checks ──
+  // Zero rows despite content — extraction produced nothing usable.
   if (transactions.length === 0 && lines.length > 10) {
-    parseErrors.push(
+    fatalErrors.push(
       "No transactions found in statement despite having content — file may be corrupted or in an unsupported format",
     );
   }
 
+  // All amounts zero — extraction may have failed silently.
   if (totalCredits === 0 && totalDebits === 0 && transactions.length > 0) {
-    parseErrors.push(
+    fatalErrors.push(
       "All transaction amounts are zero — extraction may have failed",
+    );
+  }
+
+  // No balance information at all — nothing was cross-validated. Surface
+  // the gap instead of pretending the import is verified.
+  if (!hasEquation && transactions.every((t) => t.balance === undefined)) {
+    parseErrors.push(
+      "Statement provides no balance information — amounts could not be cross-validated",
     );
   }
 
@@ -146,6 +176,7 @@ export function parseBankStatementPDF(text: string): ParseResult {
     totalDebits,
     rowCount: transactions.length,
     parseErrors,
+    fatalErrors,
   };
 }
 
@@ -282,7 +313,9 @@ function findTableStart(lines: string[]): number {
     if (matchCount >= 2) return i + 1;
   }
 
-  return 0;
+  // -1 signals "no table header found" so the caller can fail loudly
+  // instead of attempting garbage extraction from arbitrary lines.
+  return -1;
 }
 
 function findTableEnd(lines: string[], start: number): number {
@@ -466,7 +499,11 @@ function parseDate(dateStr: string): string | null {
     if (match) {
       if (fmt === formats[0]) return match[0];
       if (fmt === formats[1] || fmt === formats[2] || fmt === formats[3]) {
-        return `${match[3]!}-${match[2]!.padStart(2, "0")}-${match[1]!.padStart(2, "0")}`;
+        return disambiguateDayFirstDate(
+          match[1] ?? "",
+          match[2] ?? "",
+          match[3] ?? "",
+        );
       }
       if (fmt === formats[4]) {
         const months: Record<string, string> = {
@@ -500,16 +537,45 @@ function normalizeDate(dateStr: string): string {
   return parseDate(dateStr) ?? dateStr;
 }
 
-// ─── Categorization ───────────────────────────────────────────────────────
+/**
+ * Disambiguates DD/MM/YYYY vs MM/DD/YYYY numerically instead of guessing:
+ *  - first field > 12 → it cannot be a month → day-first (DD/MM)
+ *  - second field > 12 → it cannot be a month → month-first (MM/DD)
+ *  - both ≤ 12 → ambiguous → day-first (dominant across target banks)
+ *
+ * Returns null when the layout is impossible (both fields > 12).
+ */
+function disambiguateDayFirstDate(
+  first: string,
+  second: string,
+  year: string,
+): string | null {
+  const firstNum = Number(first);
+  const secondNum = Number(second);
+
+  let day = firstNum;
+  let month = secondNum;
+
+  // Second field can't be a month → it's the day (e.g. 02/13/2024 = Feb 13).
+  if (secondNum > 12 && firstNum <= 12) {
+    day = secondNum;
+    month = firstNum;
+  }
+
+  if (month > 12 || month < 1 || day < 1 || day > 31) return null;
+
+  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
 
-function emptyResult(error: string): ParseResult {
+function emptyResult(error: string, fatal = false): ParseResult {
   return {
     transactions: [],
     totalCredits: 0,
     totalDebits: 0,
     rowCount: 0,
-    parseErrors: [error],
+    parseErrors: fatal ? [] : [error],
+    fatalErrors: fatal ? [error] : [],
   };
 }

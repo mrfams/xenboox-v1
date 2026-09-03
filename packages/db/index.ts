@@ -35,3 +35,8 @@ export {
   type BankLedgerTx,
   type CoaRow,
 } from "./lib/bank-ledger";
+export {
+  balanceEquationError,
+  runningBalanceIssues,
+  type BalanceRow,
+} from "./lib/bank-statement-validation";
