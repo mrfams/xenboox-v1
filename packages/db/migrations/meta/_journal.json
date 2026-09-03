@@ -267,6 +267,13 @@
       "when": 1788446252289,
       "tag": "0037_je_uniqueness_constraints",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1788476822878,
+      "tag": "0038_needy_cerebro",
+      "breakpoints": true
     }
   ]
 }

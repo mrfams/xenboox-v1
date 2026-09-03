@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { eq, and, desc, sql, count, sum, gte, lte } from "drizzle-orm";
+import { eq, and, desc, sql, count, sum, gte, lte, inArray } from "drizzle-orm";
 import { customers, salesInvoices, paymentsAr } from "@xenboox/db/schema";
 
 import { router, rlsProtectedProcedure } from "@/lib/trpc/server";
@@ -192,7 +192,7 @@ export const customersRouter = router({
     const customerIds = Object.keys(customerBalances);
     if (customerIds.length > 0) {
       const customerList = await db.query.customers.findMany({
-        where: sql`${customers.id} IN ${customerIds}`,
+        where: inArray(customers.id, customerIds),
         columns: {
           id: true,
           name: true,
@@ -317,12 +317,12 @@ export const customersRouter = router({
         where: eq(customers.entityId, entityId),
       });
 
-      // Get invoices for each customer
+      // Get invoices for each customer — batched via inArray (was raw sql IN bug)
       const customerIds = allCustomers.map((c) => c.id);
       const allInvoices =
         customerIds.length > 0
           ? await db.query.salesInvoices.findMany({
-              where: sql`${salesInvoices.customerId} IN ${customerIds}`,
+              where: inArray(salesInvoices.customerId, customerIds),
             })
           : [];
 
