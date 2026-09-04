@@ -288,6 +288,17 @@ export const markOverdueInvoices = task({
 
         const summary = parts.join(" and ");
 
+        // P4-D: the message must match the direction of the debt — telling a
+        // user whose VENDOR BILLS are overdue to "get paid faster" is wrong.
+        // Bills overdue = you owe the vendor; invoices overdue = you are owed.
+        const title = `${summary} now overdue`;
+        const body =
+          salesCount > 0 && billsCount > 0
+            ? `You have ${summary} past their due date. Follow up on customer invoices and pay vendor bills to keep everything current.`
+            : salesCount > 0
+              ? `You have ${summary} past their due date. Review and follow up to get paid faster.`
+              : `You have ${summary} past their due date. Pay them soon to protect vendor relationships and avoid late fees.`;
+
         // Dedup: don't send if we already notified today for this entity
         for (const user of financeUsers) {
           const existing = await db.query.notifications.findFirst({
@@ -305,8 +316,8 @@ export const markOverdueInvoices = task({
               entityId,
               type: "overdue_invoice",
               priority: "high",
-              title: `${summary} now overdue`,
-              body: `You have ${summary} past their due date. Review and follow up to get paid faster.`,
+              title,
+              body,
               status: "pending",
             });
             notificationsSent++;

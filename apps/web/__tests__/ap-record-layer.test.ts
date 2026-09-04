@@ -165,6 +165,30 @@ describe("P4-C: AP UI surface (posted state)", () => {
   });
 });
 
+describe("P4-D: AP overdue engine + notifications", () => {
+  const REMINDERS = path.resolve(
+    __dirname,
+    "../../../packages/jobs/reminders.ts",
+  );
+  it("AP bills are marked overdue with the same ISO-date guard as AR", () => {
+    const c = fs.readFileSync(REMINDERS, "utf-8");
+    expect(c).toContain("update(invoicesAp)");
+    expect(c).toContain("sql`${invoicesAp.status} IN ('pending', 'partial')`");
+    expect(c).toContain("~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$'");
+  });
+  it("AP overdue writes an audit trail with a system actor", () => {
+    const c = fs.readFileSync(REMINDERS, "utf-8");
+    expect(c).toContain('entityType: "invoice_ap"');
+    expect(c).toContain("system.markOverdue");
+  });
+  it("notification copy is direction-aware (bills = you owe the vendor)", () => {
+    const c = fs.readFileSync(REMINDERS, "utf-8");
+    expect(c).toContain("pay vendor bills to keep everything current");
+    expect(c).toContain("protect vendor relationships and avoid late fees");
+    expect(c).toContain("Follow up on customer invoices");
+  });
+});
+
 describe("P4-B: ap-posting module structure", () => {
   const m = fs.readFileSync(
     path.resolve(__dirname, "../server/ap-posting.ts"),
