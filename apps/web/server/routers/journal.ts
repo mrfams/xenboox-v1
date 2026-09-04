@@ -1189,44 +1189,56 @@ export const journalRouter = router({
           })
           .returning();
 
-        await Promise.all(
-          originalLines.map((line) =>
-            db.insert(journalEntryLines).values({
+        if (!reversal) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to create reversal entry" });
+
+        // Batch insert — 1 query, not N. With neon-http fallback (no real tx),
+        // we compensate on failure to avoid half-persisted reversal.
+        try {
+          await db.insert(journalEntryLines).values(
+            originalLines.map((line) => ({
               journalEntryId: reversal.id,
               accountId: line.accountId,
               debit: line.credit,
               credit: line.debit,
               description: `Reversal: ${line.description}`,
-            }),
-          ),
-        );
-
-        await db
-          .update(journalEntries)
-          .set({
-            status: "reversed",
-            reversedBy: reversal.id,
-            reversedAt: new Date(),
-          })
-          .where(
-            and(
-              eq(journalEntries.id, input.id),
-              eq(journalEntries.entityId, ctx.entityId!),
-            ),
+            })),
           );
+        } catch (lineErr) {
+          await db.delete(journalEntries).where(eq(journalEntries.id, reversal.id)).catch(() => {});
+          throw lineErr;
+        }
 
-        await db.insert(auditLog).values({
-          entityId: ctx.entityId!,
-          userId: ctx.session!.user!.id!,
-          action: "journal_entry.reverse",
-          entityType: "journal_entry",
-          entityIdRef: input.id,
-          newValues: {
-            status: "reversed",
-            reversalId: reversal.id,
-            reason: input.reason,
-          },
-        });
+        try {
+          await db
+            .update(journalEntries)
+            .set({
+              status: "reversed",
+              reversedBy: reversal.id,
+              reversedAt: new Date(),
+            })
+            .where(
+              and(
+                eq(journalEntries.id, input.id),
+                eq(journalEntries.entityId, ctx.entityId!),
+              ),
+            );
+
+          await db.insert(auditLog).values({
+            entityId: ctx.entityId!,
+            userId: ctx.session!.user!.id!,
+            action: "journal_entry.reverse",
+            entityType: "journal_entry",
+            entityIdRef: input.id,
+            newValues: {
+              status: "reversed",
+              reversalId: reversal.id,
+              reason: input.reason,
+            },
+          });
+        } catch (postErr) {
+          await db.delete(journalEntries).where(eq(journalEntries.id, reversal.id)).catch(() => {});
+          throw postErr;
+        }
 
         return { original: entry, reversal };
       } catch (error) {

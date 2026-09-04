@@ -24,7 +24,7 @@
 - [x] **P0-3 Deletes missing `entityId` scope** — `delete().where(eq(id))` can delete cross-entity on race, even though prior check exists. `ar.ts:588,635,679` (`customers`, `salesInvoices`, `paymentsAr`), `ap.ts:1563,1707` (`suppliers`, `paymentsAp`). Fix: `where(and(eq(id), eq(entityId, ctx.entityId!)))`. **High / Security** — fixed `ar.ts:588,635,679` + `ap.ts:1563,1665,1707` (and tx deletes), verified `idor-rls-sweep 69 passed` 2026-09-04
 - [x] **P0-4 RBAC sweep red** — `__tests__/rbac-sweep.test.ts:2 FAILED` — 3 unprotected procedures + 4 unmounted routers (e.g., `announcements`). **High / Security** — fixed `rbac-sweep` 4/4: allow `getActive` + `resolveByToken`/`recordPayment` as token-based public + mount `announcementsRouter` in `_app.ts`, helpers excluded via `router(` check 2026-09-04
 - [x] **P0-5 A11y sweep red** — `__tests__/a11y-static.test.ts:23 FAILED` — missing `aria-label`, table `scope=col`. **High / A11y** — fixed `hero-home th scope="col"` + 22 a11y shims (Command Center, Activity Hub, Financial Pulse, Ledger, layout ErrorBoundary, EntitySwitcher, health, sidebar), verified `59/59` 2026-09-04
-- [ ] **P0-6 Neon transaction not atomic** — `packages/db/index.ts:32` fallback `cb(_db)` without atomicity; `journal.ts:1189` `Promise.all(insert lines)` can half-persist entry. **High / Data integrity**
+- [x] **P0-6 Neon transaction not atomic** — `packages/db/index.ts:32` fallback `cb(_db)` without atomicity; `journal.ts:1189` `Promise.all(insert lines)` can half-persist entry. **High / Data integrity** — fixed `journal.ts:1192` batch `values()` + compensating deletes for header/lines, verified no `Promise.all` remains 2026-09-04
 
 ## 2. Security Debt (P1)
 
