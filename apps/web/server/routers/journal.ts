@@ -18,6 +18,7 @@ import {
 import { moneyString, moneyToCents, MAX_CENTS } from "../ar-validation";
 
 import { db } from "@/lib/db";
+import { findOpenPeriod } from "../journal-posting-core";
 import {
   handleMutationError,
   router,
@@ -1116,12 +1117,27 @@ export const journalRouter = router({
         }
 
         const period = await db.query.fiscalPeriods.findFirst({
-          where: eq(fiscalPeriods.id, entry.periodId),
+          where: and(
+            eq(fiscalPeriods.id, entry.periodId),
+            eq(fiscalPeriods.entityId, ctx.entityId!),
+          ),
         });
         if (!period || period.status !== "open") {
           throw new TRPCError({
             code: "BAD_REQUEST",
             message: "Period is not open",
+          });
+        }
+        // P7-B: the entry's date must fall inside the period's bounds — a
+        // mis-scoped draft could otherwise post into the wrong month.
+        if (
+          period.startDate &&
+          period.endDate &&
+          (entry.date < period.startDate || entry.date > period.endDate)
+        ) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Entry date does not fall within the selected period",
           });
         }
 
@@ -1166,9 +1182,18 @@ export const journalRouter = router({
             and(
               eq(journalEntries.id, input.id),
               eq(journalEntries.entityId, ctx.entityId!),
+              // P7-B: conditional flip — a concurrent post must not double-post.
+              inArray(journalEntries.status, ["draft", "pending_review"]),
             ),
           )
           .returning();
+
+        if (!updated) {
+          throw new TRPCError({
+            code: "CONFLICT",
+            message: "Journal entry was already posted",
+          });
+        }
 
         await db.insert(auditLog).values({
           entityId: ctx.entityId!,
@@ -1237,28 +1262,55 @@ export const journalRouter = router({
           where: eq(journalEntryLines.journalEntryId, input.id),
         });
 
-        const lastEntry = await db.query.journalEntries.findFirst({
-          where: eq(journalEntries.entityId, ctx.entityId!),
-          orderBy: [desc(journalEntries.entryNumber)],
-        });
-        const entryNumber = (lastEntry?.entryNumber ?? 0) + 1;
+        // P7-B: a reversal corrects the books NOW. It must post into the
+        // current OPEN period dated today — never into the (possibly closed)
+        // period of the original, which would silently rewrite a locked month.
+        const today = new Date().toISOString().split("T")[0];
+        const openPeriod = await findOpenPeriod(ctx.entityId!, today);
+        if (!openPeriod) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message:
+              "Cannot reverse — today's accounting period is closed. Reopen it first.",
+          });
+        }
 
-        const [reversal] = await db
-          .insert(journalEntries)
-          .values({
-            entityId: ctx.entityId!,
-            entryNumber,
-            description: `Reversal of #${entry.entryNumber}: ${input.reason}`,
-            reference: entry.reference,
-            date: new Date().toISOString().split("T")[0],
-            periodId: entry.periodId,
-            status: "posted",
-            reversedBy: entry.id,
-            postedBy: ctx.session!.user!.id!,
-            postedAt: new Date(),
-            source: "reversal",
-          })
-          .returning();
+        let reversal: typeof journalEntries.$inferSelect | null = null;
+        for (let attempt = 0; attempt < 3 && !reversal; attempt++) {
+          const lastEntry = await db.query.journalEntries.findFirst({
+            where: eq(journalEntries.entityId, ctx.entityId!),
+            orderBy: [desc(journalEntries.entryNumber)],
+          });
+          const entryNumber = (lastEntry?.entryNumber ?? 0) + 1;
+          try {
+            const [created] = await db
+              .insert(journalEntries)
+              .values({
+                entityId: ctx.entityId!,
+                entryNumber,
+                description: `Reversal of #${entry.entryNumber}: ${input.reason}`,
+                // Never copy the original's reference — that collides with its
+                // own (entityId, reference) unique index and would 500. The
+                // reversal gets its own unique idempotency key per original.
+                reference: `REV-${entry.id}`,
+                date: today,
+                periodId: openPeriod.id,
+                status: "posted",
+                reversedBy: entry.id,
+                postedBy: ctx.session!.user!.id!,
+                postedAt: new Date(),
+                source: "reversal",
+              })
+              .returning();
+            reversal = created;
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            const isCollision =
+              /je_entity_entry_number|duplicate key value/.test(msg);
+            if (!isCollision || attempt === 2) throw err;
+            // Concurrent create took the number — re-read the max and retry.
+          }
+        }
 
         if (!reversal)
           throw new TRPCError({
@@ -1287,7 +1339,7 @@ export const journalRouter = router({
         }
 
         try {
-          await db
+          const [flipped] = await db
             .update(journalEntries)
             .set({
               status: "reversed",
@@ -1298,8 +1350,21 @@ export const journalRouter = router({
               and(
                 eq(journalEntries.id, input.id),
                 eq(journalEntries.entityId, ctx.entityId!),
+                eq(journalEntries.status, "posted"),
               ),
-            );
+            )
+            .returning();
+          if (!flipped) {
+            // Someone else reversed/posted it mid-flight — drop the reversal.
+            await db
+              .delete(journalEntries)
+              .where(eq(journalEntries.id, reversal.id))
+              .catch(() => {});
+            throw new TRPCError({
+              code: "CONFLICT",
+              message: "Journal entry was already reversed",
+            });
+          }
 
           await db.insert(auditLog).values({
             entityId: ctx.entityId!,
@@ -1412,6 +1477,7 @@ export const journalRouter = router({
     }),
 
   delete: rlsMutateProcedure
+    .use(requirePermission("general_ledger", "delete"))
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       try {

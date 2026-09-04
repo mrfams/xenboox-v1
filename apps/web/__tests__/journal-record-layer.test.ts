@@ -47,3 +47,42 @@ describe("P7-A: journal create record layer", () => {
     expect(c).toContain("where(eq(journalEntries.id, entry.id))");
   });
 });
+
+describe("P7-B: post/reverse state machine + period integrity", () => {
+  const c = fs.readFileSync(JOURNAL, "utf-8");
+
+  it("post only flips draft/pending_review entries and cannot double-post", () => {
+    expect(c).toContain(
+      'inArray(journalEntries.status, ["draft", "pending_review"]),',
+    );
+    expect(c).toContain('message: "Journal entry was already posted"');
+  });
+
+  it("post period lookup is entity-scoped and date must fall in bounds", () => {
+    expect(c).toContain("eq(fiscalPeriods.entityId, ctx.entityId!),");
+    expect(c).toContain("Entry date does not fall within the selected period");
+  });
+
+  it("reversal posts into the current OPEN period, never the original's", () => {
+    expect(c).toContain("findOpenPeriod(ctx.entityId!, today)");
+    expect(c).toContain(
+      "today's accounting period is closed. Reopen it first.",
+    );
+    expect(c).toContain("periodId: openPeriod.id,");
+  });
+
+  it("reversal uses its own unique reference (never collides with the original)", () => {
+    expect(c).toContain("reference: `REV-${entry.id}`,");
+    expect(c).not.toContain("reference: entry.reference,");
+  });
+
+  it("reversal races entry numbers safely and cannot double-reverse", () => {
+    expect(c).toContain("attempt < 3 && !reversal");
+    expect(c).toContain('eq(journalEntries.status, "posted"),');
+    expect(c).toContain('message: "Journal entry was already reversed"');
+  });
+
+  it("delete requires the general_ledger delete permission", () => {
+    expect(c).toContain('requirePermission("general_ledger", "delete")');
+  });
+});

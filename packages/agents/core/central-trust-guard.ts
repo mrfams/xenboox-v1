@@ -273,13 +273,18 @@ export async function validateForPosting(
   checks.push({
     name: "posting_status",
     description: "Entry must be in draft or pending status to post",
-    passed: entryStatus === "draft" || entryStatus === "pending",
+    passed:
+      entryStatus === "draft" ||
+      entryStatus === "pending" ||
+      entryStatus === "pending_review",
     severity: "error",
     message:
-      entryStatus === "draft" || entryStatus === "pending"
+      entryStatus === "draft" ||
+      entryStatus === "pending" ||
+      entryStatus === "pending_review"
         ? "OK"
         : `Entry status is "${entryStatus}" — can only post draft/pending entries`,
-    expected: "draft or pending",
+    expected: "draft, pending, or pending_review",
     actual: entryStatus,
   });
 
