@@ -10,8 +10,9 @@
  */
 
 import { db } from "@xenboox/db";
-import { notifications, userEntityAccess } from "@xenboox/db/schema";
-import { and, eq, sql } from "drizzle-orm";
+// Deep import (not the barrel): the shared helper takes `db` as an argument,
+// so tests can keep mocking the barrel's db while exercising the real logic.
+import { notifyEntityUsers } from "@xenboox/db/lib/notify-entity";
 import type { IngestionState, PostingDecision } from "../core/types";
 
 // ─── Notification Types ─────────────────────────────────────────────────────
@@ -244,88 +245,24 @@ interface NotificationInput {
 
 /**
  * Create notifications for all users who have access to the entity.
- * This ensures the right people see review requests and alerts.
+ *
+ * Delegates to the shared `notifyEntityUsers` core in @xenboox/db (single
+ * source of truth — used identically by the banking jobs). Semantics are
+ * unchanged: resolve entity users, dedupe on documentId + type + unread so
+ * retries never spam, batch-insert, never throw.
  */
 async function createNotificationForEntity(
   entityId: string,
   input: NotificationInput,
 ): Promise<void> {
-  try {
-    // Dedup: if this document already has an unread notification of the same
-    // type (e.g. a retry re-processed the same document), skip the insert so
-    // users are not spammed with identical alerts and badge counts stay honest.
-    const documentId = input.data.documentId as string | undefined;
-    if (documentId) {
-      const existing = await db.query.notifications.findFirst({
-        where: and(
-          eq(notifications.entityId, entityId),
-          eq(notifications.type, input.type),
-          eq(notifications.read, false),
-          // data is a `text` column holding JSON; cast to jsonb so the ->>
-          // operator works against real Postgres (without the cast this query
-          // throws, silently killing the entire notification insert).
-          eq(sql`${notifications.data}::jsonb->>'documentId'`, documentId),
-        ),
-      });
-      if (existing) return;
-    }
-
-    // Find all users with access to this entity
-    const accessRecords = await db.query.userEntityAccess.findMany({
-      where: eq(userEntityAccess.entityId, entityId),
-      columns: { userId: true },
-    });
-
-    if (accessRecords.length === 0) {
-      // eslint-disable-next-line no-console
-      console.warn(
-        JSON.stringify({
-          level: "warn",
-          module: "notifications",
-          message: "No users found for entity",
-          entityId,
-        }),
-      );
-      return;
-    }
-
-    // Create a notification for each user
-    const notificationValues = accessRecords.map((record) => ({
-      userId: record.userId,
-      entityId,
-      type: input.type,
-      priority: input.priority,
-      title: input.title,
-      body: input.body,
-      data: JSON.stringify(input.data),
-      // "pending" = created in the inbox, not yet acted on. The web surface
-      // reads `read` for the badge; status tracks delivery semantics.
-      status: "pending" as const,
-      sentAt: new Date(),
-    }));
-
-    await db.insert(notifications).values(notificationValues);
-
-    // eslint-disable-next-line no-console
-    console.info(
-      JSON.stringify({
-        level: "info",
-        module: "notifications",
-        type: input.type,
-        recipientCount: accessRecords.length,
-        entityId,
-      }),
-    );
-  } catch (error) {
-    // Notification failure should never break the ingestion pipeline
-    // eslint-disable-next-line no-console
-    console.error(
-      JSON.stringify({
-        level: "error",
-        module: "notifications",
-        message: "Failed to send notification",
-        error: error instanceof Error ? error.message : String(error),
-      }),
-    );
-  }
+  await notifyEntityUsers(db, {
+    entityId,
+    type: input.type,
+    priority: input.priority,
+    title: input.title,
+    body: input.body,
+    data: input.data,
+    // Retries re-processing the same document must not double-alert.
+    dedupeDataField: input.data.documentId ? "documentId" : undefined,
+  });
 }

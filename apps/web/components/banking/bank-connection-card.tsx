@@ -152,21 +152,47 @@ export function BankConnectionCard({ connection }: { connection: Connection }) {
       </div>
 
       {/* Last Sync */}
-      {lastSync && (
+      {lastSync && !hasError && (
         <p className="mt-2 text-[10px] text-muted-foreground">
           Last synced: {lastSync}
         </p>
       )}
 
       {connection.syncError && (
-        <p className="mt-1 text-[10px] text-red-500">{connection.syncError}</p>
+        <div className="mt-2 rounded-lg border border-red-500/25 bg-red-500/5 px-2.5 py-2">
+          <p className="text-xs font-medium text-red-600">
+            {connection.syncError.includes("Reconnect required")
+              ? "Reconnect required"
+              : "Sync failed"}
+          </p>
+          <p className="mt-0.5 text-[11px] leading-relaxed text-red-500/90">
+            {connection.syncError}
+          </p>
+          {connection.syncError.includes("Reconnect required") ? (
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              Your bank requires you to re-authenticate. Disconnect this
+              connection and connect it again to resume syncing — past
+              transactions stay in your books.
+            </p>
+          ) : (
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              This is usually temporary. Try syncing again — if it keeps
+              failing, disconnect and reconnect the connection.
+            </p>
+          )}
+        </div>
       )}
 
       {/* Actions */}
       <div className="mt-3 flex items-center gap-2">
         <button
           onClick={handleSync}
-          disabled={isSyncing || !isActive}
+          // M1: retry must be possible in place — allow Sync on error so a
+          // transient provider failure can recover without disconnect.
+          disabled={
+            isSyncing ||
+            (connection.status !== "active" && connection.status !== "error")
+          }
           className="inline-flex items-center gap-1.5 rounded-lg border border-border/50 bg-background px-3 py-1.5 text-xs font-medium text-foreground hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
           {isSyncing ? (
@@ -174,7 +200,7 @@ export function BankConnectionCard({ connection }: { connection: Connection }) {
           ) : (
             <RefreshCw className="h-3 w-3" />
           )}
-          Sync
+          {hasError ? "Retry sync" : "Sync"}
         </button>
         <AlertDialog
           open={showDisconnectConfirm}

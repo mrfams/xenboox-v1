@@ -12,6 +12,8 @@ import {
   db,
   decryptConnectionToken,
   categorizeByDescription,
+  notifyEntityUsers,
+  clearEntityFailureNotifications,
 } from "@xenboox/db";
 import {
   bankConnections,
@@ -66,6 +68,10 @@ export const syncMonoTransactions = task({
       throw new Error(`Connection not found: ${connectionId}`);
     }
 
+    // Remember the pre-sync status so a recovery can be announced (and stale
+    // failure alerts cleared) when this run heals an errored connection.
+    const wasErrored = connection.status === "error";
+
     const accessToken = decryptConnectionToken(connection.accessToken);
     if (!accessToken) {
       throw new Error(`No access token for connection: ${connectionId}`);
@@ -112,6 +118,22 @@ export const syncMonoTransactions = task({
             syncError: `Mono API error: ${res.status}`,
           })
           .where(eq(bankConnections.id, connectionId));
+        // G1: the entity owner must know their bank link stopped syncing —
+        // not just the ops DLQ. Deduped on connectionId so retries don't spam.
+        await notifyEntityUsers(db, {
+          entityId,
+          type: "bank_sync_failed",
+          priority: "high",
+          title: `Bank sync failed — ${connection.institutionName}`,
+          body: `${connection.institutionName} couldn't be synced (Mono API error ${res.status}). New transactions are not being imported. We retry automatically — if this persists, check the connection.`,
+          data: {
+            connectionId,
+            provider: "mono",
+            error: `Mono API error: ${res.status}`,
+            action: "review_connection",
+          },
+          dedupeDataField: "connectionId",
+        });
         throw new Error(`Mono API returned ${res.status}: ${errorBody}`);
       }
       return (await res.json()) as MonoPage;
@@ -290,6 +312,30 @@ export const syncMonoTransactions = task({
         syncError: null,
       })
       .where(eq(bankConnections.id, connectionId));
+
+    // G4: announce recovery — clear any stale unread failure alert for this
+    // connection, then tell the entity users the feed is healthy again.
+    if (wasErrored) {
+      await clearEntityFailureNotifications(db, {
+        entityId,
+        type: "bank_sync_failed",
+        dedupeDataField: "connectionId",
+        keyValue: connectionId,
+      });
+      await notifyEntityUsers(db, {
+        entityId,
+        type: "bank_sync_recovered",
+        priority: "low",
+        title: `Bank sync restored — ${connection.institutionName}`,
+        body: `${connection.institutionName} is syncing again. New transactions have been imported.`,
+        data: {
+          connectionId,
+          provider: "mono",
+          action: "none",
+        },
+        dedupeDataField: "connectionId",
+      });
+    }
 
     // 6. Update bank account balance from latest transaction
     if (transactions.length > 0) {

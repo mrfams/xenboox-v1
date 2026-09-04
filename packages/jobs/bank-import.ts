@@ -8,7 +8,7 @@
 
 import { task, logger } from "@trigger.dev/sdk";
 import { dlqOnFailure } from "./lib/dlq";
-import { db, matchBankRules } from "@xenboox/db";
+import { db, matchBankRules, notifyEntityUsers } from "@xenboox/db";
 import {
   bankTransactions,
   bankAccounts,
@@ -149,6 +149,24 @@ export const importBankStatement = task({
         entityType: "document",
         entityIdRef: documentId,
         newValues: { fatalErrors, parseErrors },
+      });
+
+      // G1: the document is marked failed — the entity users must be told
+      // why, not left to rediscover it. Deduped on documentId so job retries
+      // never double-alert.
+      await notifyEntityUsers(db, {
+        entityId,
+        type: "bank_import_failed",
+        priority: "high",
+        title: "Bank statement import failed",
+        body: `Your statement could not be imported: ${fatalErrors[0]}. No transactions were added to the books. Upload a corrected statement or check the file and try again.`,
+        data: {
+          documentId,
+          error: fatalErrors[0],
+          fatalErrors,
+          action: "retry_upload",
+        },
+        dedupeDataField: "documentId",
       });
 
       throw new Error(`Statement failed validation: ${fatalErrors.join("; ")}`);

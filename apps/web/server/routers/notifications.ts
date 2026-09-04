@@ -7,6 +7,7 @@ import {
   notificationStatusEnum,
 } from "@xenboox/db/schema/notifications";
 import { users } from "@xenboox/db/schema/auth";
+import { userEntityAccess } from "@xenboox/db/schema";
 
 import { db } from "@/lib/db";
 import {
@@ -169,11 +170,21 @@ export const notificationsRouter = router({
     )
     .mutation(async ({ input }) => {
       try {
+        if (!input.userId && !input.entityId) {
+          return { success: false, message: "userId or entityId is required" };
+        }
+
+        // Fall back to any user with access to the entity when no explicit
+        // recipient is given. (G2: previously referenced notifications.entityId
+        // inside the userEntityAccess query — a table not in the FROM clause,
+        // which threw on every broadcast create.)
         const userId =
           input.userId ||
           (
             await db.query.userEntityAccess.findFirst({
-              where: eq(notifications.entityId, input.entityId || ""),
+              where: input.entityId
+                ? eq(userEntityAccess.entityId, input.entityId)
+                : undefined,
             })
           )?.userId;
 

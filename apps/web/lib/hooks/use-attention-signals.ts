@@ -62,6 +62,11 @@ export const NOTIFICATION_DESTINATIONS: Record<
   budget_alert: { key: "financial-pulse", tone: "new" },
   budget_exceeded: { key: "financial-pulse", tone: "action" },
   system_alert: { key: "command-center", tone: "action" },
+  // Banking (Operations surface): failures are "blocked on you" actions;
+  // a restored feed is informational.
+  bank_sync_failed: { key: "operations", tone: "action" },
+  bank_import_failed: { key: "operations", tone: "action" },
+  bank_sync_recovered: { key: "operations", tone: "new" },
 };
 
 // Notification types added in the future land on Inbox (which also hosts the

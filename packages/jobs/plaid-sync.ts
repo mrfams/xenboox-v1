@@ -18,7 +18,12 @@ import {
   bankAccounts,
   auditLog,
 } from "@xenboox/db/schema";
-import { decryptConnectionToken, categorizeByDescription } from "@xenboox/db";
+import {
+  decryptConnectionToken,
+  categorizeByDescription,
+  notifyEntityUsers,
+  clearEntityFailureNotifications,
+} from "@xenboox/db";
 import { eq, and, sql } from "drizzle-orm";
 
 const PLAID_API_URL =
@@ -69,6 +74,10 @@ export const syncPlaidTransactions = task({
       throw new Error(`No access token for connection: ${connectionId}`);
     }
 
+    // Remember the pre-sync status so a recovery can be announced (and stale
+    // failure alerts cleared) when this run heals an errored connection.
+    const wasErrored = connection.status === "error";
+
     // 2. Get stored cursor from metadata (for incremental sync)
     const metadata = (connection.metadata ?? {}) as Record<string, unknown>;
     const cursor = (metadata.plaidCursor as string) ?? undefined;
@@ -84,13 +93,50 @@ export const syncPlaidTransactions = task({
         body: errorBody,
       });
 
+      // G3: Plaid links expire — ITEM_LOGIN_REQUIRED means the user must
+      // re-authenticate with their bank before sync can ever succeed again.
+      // Detect it so the UI can say "reconnect" instead of a generic error.
+      let plaidErrorCode: string | null = null;
+      try {
+        const parsed = JSON.parse(errorBody) as { error_code?: string };
+        plaidErrorCode = parsed.error_code ?? null;
+      } catch {
+        plaidErrorCode = null;
+      }
+      const requiresReauth = plaidErrorCode === "ITEM_LOGIN_REQUIRED";
+      const syncError = requiresReauth
+        ? "Reconnect required — your bank link has expired. Reconnect to resume syncing."
+        : `Plaid API error: ${plaidResponse.status}${plaidErrorCode ? ` (${plaidErrorCode})` : ""}`;
+
       await db
         .update(bankConnections)
         .set({
           status: "error",
-          syncError: `Plaid API error: ${plaidResponse.status}`,
+          syncError,
         })
         .where(eq(bankConnections.id, connectionId));
+
+      // G1: the entity owner must know their bank link stopped syncing — not
+      // just the ops DLQ. Deduped on connectionId so retries don't spam.
+      await notifyEntityUsers(db, {
+        entityId,
+        type: "bank_sync_failed",
+        priority: "high",
+        title: requiresReauth
+          ? `Action needed — reconnect ${connection.institutionName}`
+          : `Bank sync failed — ${connection.institutionName}`,
+        body: requiresReauth
+          ? `${connection.institutionName} needs your attention: your bank link has expired. Reconnect the connection to resume automatic syncing.`
+          : `${connection.institutionName} couldn't be synced${plaidErrorCode ? ` (${plaidErrorCode})` : ` (Plaid API error ${plaidResponse.status})`}. New transactions are not being imported. We retry automatically — if this persists, check the connection.`,
+        data: {
+          connectionId,
+          provider: "plaid",
+          requiresReauth,
+          error: syncError,
+          action: requiresReauth ? "reconnect" : "review_connection",
+        },
+        dedupeDataField: "connectionId",
+      });
 
       throw new Error(
         `Plaid API returned ${plaidResponse.status}: ${errorBody}`,
@@ -306,6 +352,30 @@ export const syncPlaidTransactions = task({
         },
       })
       .where(eq(bankConnections.id, connectionId));
+
+    // G4: announce recovery — clear any stale unread failure alert for this
+    // connection, then tell the entity users the feed is healthy again.
+    if (wasErrored) {
+      await clearEntityFailureNotifications(db, {
+        entityId,
+        type: "bank_sync_failed",
+        dedupeDataField: "connectionId",
+        keyValue: connectionId,
+      });
+      await notifyEntityUsers(db, {
+        entityId,
+        type: "bank_sync_recovered",
+        priority: "low",
+        title: `Bank sync restored — ${connection.institutionName}`,
+        body: `${connection.institutionName} is syncing again. New transactions have been imported.`,
+        data: {
+          connectionId,
+          provider: "plaid",
+          action: "none",
+        },
+        dedupeDataField: "connectionId",
+      });
+    }
 
     // 10. Audit log
     await db.insert(auditLog).values({

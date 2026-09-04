@@ -30,6 +30,9 @@ export const notificationTypeEnum = {
   ingestionPosted: "ingestion_posted",
   ingestionFailed: "ingestion_failed",
   ingestionEscalated: "ingestion_escalated",
+  bankSyncFailed: "bank_sync_failed",
+  bankSyncRecovered: "bank_sync_recovered",
+  bankImportFailed: "bank_import_failed",
 } as const;
 
 export const notificationPriorityEnum = {
