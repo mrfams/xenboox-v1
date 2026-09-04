@@ -159,6 +159,62 @@ function dayOffset(date: Date, days: number): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
+/**
+ * P5-C: honest book balance for a bank account as of a date.
+ *
+ * When the account is linked to a COA row (glAccountId), the book balance is
+ * the GL-side net of that account: sum(debit) − sum(credit) across posted
+ * journal lines up to (and including) the statement date. That is what the
+ * company's books say the bank account holds — comparable to the bank's
+ * statement balance.
+ *
+ * Fallback (no GL link): the net of all reconciled bank transactions on the
+ * account — the recorded activity the books have acknowledged.
+ */
+async function computeBookBalance(
+  entityId: string,
+  glAccountId: string | null | undefined,
+  bankAccountId: string,
+  asOfDate: string,
+): Promise<string> {
+  if (glAccountId) {
+    const [row] = await db
+      .select({
+        debit: sql<string>`COALESCE(SUM(${journalEntryLines.debit}), 0)`,
+        credit: sql<string>`COALESCE(SUM(${journalEntryLines.credit}), 0)`,
+      })
+      .from(journalEntryLines)
+      .innerJoin(
+        journalEntries,
+        eq(journalEntryLines.journalEntryId, journalEntries.id),
+      )
+      .where(
+        and(
+          eq(journalEntries.entityId, entityId),
+          eq(journalEntryLines.accountId, glAccountId),
+          eq(journalEntries.status, "posted"),
+          lte(journalEntries.date, asOfDate),
+        ),
+      );
+    const book = parseFloat(row?.debit ?? "0") - parseFloat(row?.credit ?? "0");
+    return book.toFixed(2);
+  }
+
+  const [row] = await db
+    .select({
+      total: sql<string>`COALESCE(SUM(${bankTransactions.amount}), 0)`,
+    })
+    .from(bankTransactions)
+    .where(
+      and(
+        eq(bankTransactions.entityId, entityId),
+        eq(bankTransactions.bankAccountId, bankAccountId),
+        eq(bankTransactions.isReconciled, true),
+      ),
+    );
+  return parseFloat(row?.total ?? "0").toFixed(2);
+}
+
 // ─── Reconciliation Router ─────────────────────────────────────────────────
 
 export const reconciliationRouter = router({
@@ -207,14 +263,31 @@ export const reconciliationRouter = router({
         orderBy: [desc(bankTransactions.transactionDate)],
       });
 
-      // Calculate summary
+      // Calculate summary — P5-C: book balance = last closed statement balance
+      // (opening) + reconciled activity this period. Previously this summed
+      // ALL period transactions against the bank's CURRENT balance — an
+      // apples-to-oranges comparison that made the gauge meaningless.
       const statementBalance = parseFloat(
         selectedAccount?.currentBalance ?? "0",
       );
-      const bookBalance = transactions.reduce(
-        (sum, t) => sum + parseFloat(t.amount),
-        0,
-      );
+      const lastClosed = selectedAccountId
+        ? await db.query.reconciliations.findFirst({
+            where: and(
+              eq(reconciliations.entityId, entityId),
+              eq(reconciliations.bankAccountId, selectedAccountId),
+              eq(reconciliations.status, "closed"),
+            ),
+            orderBy: [desc(reconciliations.statementDate)],
+            columns: { statementBalance: true },
+          })
+        : null;
+      const openingBalance = lastClosed
+        ? parseFloat(String(lastClosed.statementBalance ?? "0"))
+        : 0;
+      const reconciledNet = transactions
+        .filter((t) => t.isReconciled)
+        .reduce((sum, t) => sum + parseFloat(t.amount), 0);
+      const bookBalance = openingBalance + reconciledNet;
       const difference = statementBalance - bookBalance;
 
       // Count matched/unmatched
@@ -526,7 +599,7 @@ export const reconciliationRouter = router({
           eq(bankAccounts.id, input.bankAccountId),
           eq(bankAccounts.entityId, entityId),
         ),
-        columns: { id: true, currentBalance: true },
+        columns: { id: true, currentBalance: true, glAccountId: true },
       });
       if (!account) {
         throw new TRPCError({
@@ -554,12 +627,19 @@ export const reconciliationRouter = router({
         });
       }
 
-      // Real difference: book (GL-side) vs bank statement. The statement is
-      // authoritative for cash; record the honest difference instead of 0.
-      const bookBalance = account.currentBalance ?? "0";
+      // P5-C: real book balance — the GL-side balance of the account's linked
+      // COA row (debit − credit over posted entries up to the statement date),
+      // NOT the bank's stored currentBalance (that was bank-vs-bank). Falls
+      // back to the net of reconciled transactions when no GL account is
+      // linked. difference = book − statement, recorded honestly.
+      const bookBalance = await computeBookBalance(
+        entityId,
+        account.glAccountId,
+        input.bankAccountId,
+        input.statementDate,
+      );
       const difference = (
-        parseFloat(bookBalance || "0") -
-        parseFloat(input.statementBalance || "0")
+        parseFloat(bookBalance) - parseFloat(input.statementBalance || "0")
       ).toFixed(2);
 
       // Create reconciliation record

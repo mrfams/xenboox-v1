@@ -60,6 +60,28 @@ describe("P5-A: reconciliation view is reachable (mounted tab)", () => {
   });
 });
 
+describe("P5-C: GL-integrity book balance", () => {
+  const c = fs.readFileSync(REC, "utf-8");
+  it("finalize computes book from the linked GL account (not bank currentBalance)", () => {
+    expect(c).toContain("computeBookBalance(");
+    expect(c).toContain("glAccountId: true");
+    expect(c).toContain("sum(debit) − sum(credit)");
+  });
+  it("book balance helper sums posted lines up to the statement date, entity-scoped", () => {
+    expect(c).toContain('eq(journalEntries.status, "posted")');
+    expect(c).toContain("lte(journalEntries.date, asOfDate)");
+    expect(c).toContain("eq(journalEntryLines.accountId, glAccountId)");
+  });
+  it("center summary uses opening (last closed) + reconciled net, not all period txs", () => {
+    expect(c).toContain("openingBalance");
+    expect(c).toContain("last closed statement balance");
+    expect(c).toContain("reconciledNet");
+  });
+  it("reconciliations table is still entity-scoped in the summary query", () => {
+    expect(c).toContain("eq(reconciliations.bankAccountId, selectedAccountId)");
+  });
+});
+
 describe("P5-B: matching engine integrity", () => {
   const c = fs.readFileSync(REC, "utf-8");
   it("already-linked journal entries are never candidates (one-to-one)", () => {

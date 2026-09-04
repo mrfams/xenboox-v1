@@ -67,7 +67,7 @@ Status legend: ✅ done · 🔄 in progress · ⬜ not started · ⚠️ needs f
 | # | Pipeline | Status | Notes |
 | --- | ---------------------------- | ------ | ------------------------------------------------------------------ || 3 | Invoice Flow | ✅ | A–D + verification loop committed |
 | 4 | Bill Flow | ✅ | A–D + verification loop committed |
-| 5 | Bank Reconciliation | 🔄 | A ✅ · B: matching engine ✅ · C/D/E + verify ⬜ |
+| 5 | Bank Reconciliation | 🔄 | A ✅ · B ✅ · C: GL integrity ✅ · D/E + verify ⬜ |
 | 6 | Expense Recording → Approval | ✅ | Creatable combobox, detail panel, approve/reject workflow |
 | 7 | Journal Entries | ✅ | Post/reverse UI, dynamic year prefix |
 | 8 | Month-End Close | ✅ | Full checklist, idempotent task updates, AI recommendations |
