@@ -49,7 +49,8 @@ export const reportsRouter = router({
     )
     .query(async ({ ctx, input }) => {
       const entityId = ctx.entityId!;
-      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
+      const currency =
+        (ctx as { entityCurrency?: string | null }).entityCurrency ?? "USD";
 
       // Default to current month
       const now = new Date();
@@ -268,7 +269,8 @@ export const reportsRouter = router({
    */
   getPnlOverview: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
-      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
+    const currency =
+      (ctx as { entityCurrency?: string | null }).entityCurrency ?? "USD";
 
     const now = new Date();
     const currentMonth = now.getMonth();
@@ -397,7 +399,8 @@ export const reportsRouter = router({
     )
     .query(async ({ ctx, input }) => {
       const entityId = ctx.entityId!;
-      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
+      const currency =
+        (ctx as { entityCurrency?: string | null }).entityCurrency ?? "USD";
 
       const now = new Date();
       const startDate =
@@ -471,7 +474,8 @@ export const reportsRouter = router({
    */
   getRecentReports: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
-      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
+    const currency =
+      (ctx as { entityCurrency?: string | null }).entityCurrency ?? "USD";
 
     // Real source: report snapshots written by the reporting pipeline
     // (see packages/agents/core/reporting-pipeline.ts). When none exist yet,
@@ -535,7 +539,8 @@ export const reportsRouter = router({
     )
     .query(async ({ ctx, input }) => {
       const entityId = ctx.entityId!;
-      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
+      const currency =
+        (ctx as { entityCurrency?: string | null }).entityCurrency ?? "USD";
       const now = new Date();
       const startDate =
         input.startDate ||
@@ -653,7 +658,8 @@ export const reportsRouter = router({
 
   getAiInsights: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
-      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
+    const currency =
+      (ctx as { entityCurrency?: string | null }).entityCurrency ?? "USD";
 
     // Get current and previous period data
     const now = new Date();

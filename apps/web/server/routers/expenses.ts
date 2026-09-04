@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { eq, and, desc, sql, count, sum, gte, lte } from "drizzle-orm";
+import { eq, and, desc, sql, count, sum, gte, lte, like } from "drizzle-orm";
 import {
   invoicesAp,
   invoiceApLines,
@@ -50,25 +50,26 @@ export const expensesRouter = router({
    */
   createExpense: rlsMutateProcedure
     .input(
-      z.object({
-        supplierId: z.string().uuid(),
-        description: z.string().min(1).max(500),
-        amount: positiveMoneyString,
-        expenseDate: isoDateString,
-        dueDate: isoDateString,
-        category: z.string().trim().max(100).optional(),
-        paymentMethod: z.string().trim().max(50).optional(),
-      }),
+      z
+        .object({
+          supplierId: z.string().uuid(),
+          description: z.string().min(1).max(500),
+          amount: positiveMoneyString,
+          expenseDate: isoDateString,
+          dueDate: isoDateString,
+          category: z.string().trim().max(100).optional(),
+          paymentMethod: z.string().trim().max(50).optional(),
+        })
+        .superRefine((data, ctx) => {
+          if (data.dueDate < data.expenseDate) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              path: ["dueDate"],
+              message: "Due date cannot be before the expense date",
+            });
+          }
+        }),
     )
-    .superRefine((data, ctx) => {
-      if (data.dueDate < data.expenseDate) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ["dueDate"],
-          message: "Due date cannot be before the expense date",
-        });
-      }
-    })
     .mutation(async ({ ctx, input }) => {
       try {
         const entityId = ctx.entityId!;
@@ -194,7 +195,7 @@ export const expensesRouter = router({
     .query(async ({ ctx, input }) => {
       const entityId = ctx.entityId!;
       const currency =
-        (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
+        (ctx as { entityCurrency?: string | null }).entityCurrency ?? "USD";
 
       // Default to current month if no dates provided
       const now = new Date();
@@ -217,6 +218,7 @@ export const expensesRouter = router({
         .where(
           and(
             eq(invoicesAp.entityId, entityId),
+            like(invoicesAp.invoiceNumber, "EXP-%"),
             gte(invoicesAp.invoiceDate, startDate),
             lte(invoicesAp.invoiceDate, endDate),
           ),
@@ -230,6 +232,7 @@ export const expensesRouter = router({
         .where(
           and(
             eq(invoicesAp.entityId, entityId),
+            like(invoicesAp.invoiceNumber, "EXP-%"),
             gte(invoicesAp.invoiceDate, prevStartDate),
             lte(invoicesAp.invoiceDate, prevEndDate),
           ),
@@ -244,6 +247,7 @@ export const expensesRouter = router({
         .where(
           and(
             eq(invoicesAp.entityId, entityId),
+            like(invoicesAp.invoiceNumber, "EXP-%"),
             gte(paymentsAp.paymentDate, startDate),
             lte(paymentsAp.paymentDate, endDate),
           ),
@@ -258,6 +262,7 @@ export const expensesRouter = router({
         .where(
           and(
             eq(invoicesAp.entityId, entityId),
+            like(invoicesAp.invoiceNumber, "EXP-%"),
             gte(paymentsAp.paymentDate, prevStartDate),
             lte(paymentsAp.paymentDate, prevEndDate),
           ),
@@ -271,6 +276,7 @@ export const expensesRouter = router({
         .where(
           and(
             eq(invoicesAp.entityId, entityId),
+            like(invoicesAp.invoiceNumber, "EXP-%"),
             eq(invoicesAp.status, "pending"),
             gte(invoicesAp.invoiceDate, startDate),
             lte(invoicesAp.invoiceDate, endDate),
@@ -286,6 +292,7 @@ export const expensesRouter = router({
         .where(
           and(
             eq(invoicesAp.entityId, entityId),
+            like(invoicesAp.invoiceNumber, "EXP-%"),
             gte(invoicesAp.invoiceDate, startDate),
             lte(invoicesAp.invoiceDate, endDate),
           ),
@@ -343,7 +350,7 @@ export const expensesRouter = router({
     .query(async ({ ctx, input }) => {
       const entityId = ctx.entityId!;
       const currency =
-        (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
+        (ctx as { entityCurrency?: string | null }).entityCurrency ?? "USD";
 
       const now = new Date();
       const startDate =
@@ -360,6 +367,7 @@ export const expensesRouter = router({
         .where(
           and(
             eq(invoicesAp.entityId, entityId),
+            like(invoicesAp.invoiceNumber, "EXP-%"),
             gte(invoicesAp.invoiceDate, startDate),
             lte(invoicesAp.invoiceDate, endDate),
           ),
@@ -372,6 +380,7 @@ export const expensesRouter = router({
         .where(
           and(
             eq(invoicesAp.entityId, entityId),
+            like(invoicesAp.invoiceNumber, "EXP-%"),
             eq(invoicesAp.status, "pending"),
             sql`(${invoicesAp.notes} IS NULL OR ${invoicesAp.notes} = '')`,
             gte(invoicesAp.invoiceDate, startDate),
@@ -386,6 +395,7 @@ export const expensesRouter = router({
         .where(
           and(
             eq(invoicesAp.entityId, entityId),
+            like(invoicesAp.invoiceNumber, "EXP-%"),
             eq(invoicesAp.status, "pending"),
             sql`${invoicesAp.notes} IS NOT NULL AND ${invoicesAp.notes} != ''`,
             gte(invoicesAp.invoiceDate, startDate),
@@ -400,6 +410,7 @@ export const expensesRouter = router({
         .where(
           and(
             eq(invoicesAp.entityId, entityId),
+            like(invoicesAp.invoiceNumber, "EXP-%"),
             eq(invoicesAp.status, "paid"),
             gte(invoicesAp.invoiceDate, startDate),
             lte(invoicesAp.invoiceDate, endDate),
@@ -414,6 +425,7 @@ export const expensesRouter = router({
         .where(
           and(
             eq(invoicesAp.entityId, entityId),
+            like(invoicesAp.invoiceNumber, "EXP-%"),
             gte(invoicesAp.invoiceDate, startDate),
             lte(invoicesAp.invoiceDate, endDate),
           ),
@@ -449,7 +461,7 @@ export const expensesRouter = router({
     .query(async ({ ctx, input }) => {
       const entityId = ctx.entityId!;
       const currency =
-        (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
+        (ctx as { entityCurrency?: string | null }).entityCurrency ?? "USD";
 
       const now = new Date();
       const startDate =
@@ -462,6 +474,7 @@ export const expensesRouter = router({
       // Build conditions
       const conditions = [
         eq(invoicesAp.entityId, entityId),
+        like(invoicesAp.invoiceNumber, "EXP-%"),
         gte(invoicesAp.invoiceDate, startDate),
         lte(invoicesAp.invoiceDate, endDate),
       ];
@@ -648,7 +661,7 @@ export const expensesRouter = router({
     .query(async ({ ctx, input }) => {
       const entityId = ctx.entityId!;
       const currency =
-        (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
+        (ctx as { entityCurrency?: string | null }).entityCurrency ?? "USD";
 
       const now = new Date();
       const startDate =
@@ -669,6 +682,7 @@ export const expensesRouter = router({
         .where(
           and(
             eq(invoicesAp.entityId, entityId),
+            like(invoicesAp.invoiceNumber, "EXP-%"),
             gte(invoicesAp.invoiceDate, startDate),
             lte(invoicesAp.invoiceDate, endDate),
           ),
@@ -745,7 +759,7 @@ export const expensesRouter = router({
   getMonthlyTrend: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
     const currency =
-      (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
+      (ctx as { entityCurrency?: string | null }).entityCurrency ?? "USD";
 
     // Get last 6 months of data
     const months = [];
@@ -762,6 +776,7 @@ export const expensesRouter = router({
         .where(
           and(
             eq(invoicesAp.entityId, entityId),
+            like(invoicesAp.invoiceNumber, "EXP-%"),
             gte(invoicesAp.invoiceDate, startDate),
             lte(invoicesAp.invoiceDate, endDate),
           ),
@@ -790,7 +805,7 @@ export const expensesRouter = router({
     .query(async ({ ctx, input }) => {
       const entityId = ctx.entityId!;
       const currency =
-        (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
+        (ctx as { entityCurrency?: string | null }).entityCurrency ?? "USD";
 
       const now = new Date();
       const startDate =
@@ -811,6 +826,7 @@ export const expensesRouter = router({
         .where(
           and(
             eq(invoicesAp.entityId, entityId),
+            like(invoicesAp.invoiceNumber, "EXP-%"),
             gte(invoicesAp.invoiceDate, startDate),
             lte(invoicesAp.invoiceDate, endDate),
           ),
@@ -833,7 +849,7 @@ export const expensesRouter = router({
   getBudgetOverview: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
     const currency =
-      (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
+      (ctx as { entityCurrency?: string | null }).entityCurrency ?? "USD";
 
     // Get active budget with lines
     const budget = await db.query.budgets.findFirst({
@@ -872,6 +888,7 @@ export const expensesRouter = router({
       .where(
         and(
           eq(invoicesAp.entityId, entityId),
+          like(invoicesAp.invoiceNumber, "EXP-%"),
           gte(invoicesAp.invoiceDate, startDate),
           lte(invoicesAp.invoiceDate, endDate),
         ),
@@ -916,7 +933,7 @@ export const expensesRouter = router({
   getAiInsights: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
     const currency =
-      (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
+      (ctx as { entityCurrency?: string | null }).entityCurrency ?? "USD";
 
     const now = new Date();
     const startDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
@@ -934,6 +951,7 @@ export const expensesRouter = router({
     const recentExpenses = await db.query.invoicesAp.findMany({
       where: and(
         eq(invoicesAp.entityId, entityId),
+        like(invoicesAp.invoiceNumber, "EXP-%"),
         gte(invoicesAp.invoiceDate, startDate),
         lte(invoicesAp.invoiceDate, endDate),
       ),
@@ -1028,7 +1046,7 @@ export const expensesRouter = router({
     .query(async ({ ctx, input }) => {
       const entityId = ctx.entityId!;
       const currency =
-        (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
+        (ctx as { entityCurrency?: string | null }).entityCurrency ?? "USD";
       const conditions = [eq(expenseClaims.entityId, entityId)];
       if (input.status !== "all") {
         conditions.push(eq(expenseClaims.status, input.status));
@@ -1377,7 +1395,7 @@ export const expensesRouter = router({
     .query(async ({ ctx, input }) => {
       const entityId = ctx.entityId!;
       const currency =
-        (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
+        (ctx as { entityCurrency?: string | null }).entityCurrency ?? "USD";
 
       const expense = await db
         .select({
@@ -1403,6 +1421,7 @@ export const expensesRouter = router({
           and(
             eq(invoicesAp.id, input.expenseId),
             eq(invoicesAp.entityId, entityId),
+            like(invoicesAp.invoiceNumber, "EXP-%"),
           ),
         )
         .limit(1);
@@ -1528,6 +1547,7 @@ export const expensesRouter = router({
           and(
             eq(invoicesAp.id, input.expenseId),
             eq(invoicesAp.entityId, entityId),
+            like(invoicesAp.invoiceNumber, "EXP-%"),
           ),
         )
         .limit(1);
@@ -1548,6 +1568,7 @@ export const expensesRouter = router({
             and(
               eq(invoicesAp.id, input.expenseId),
               eq(invoicesAp.entityId, entityId),
+              like(invoicesAp.invoiceNumber, "EXP-%"),
             ),
           );
         await db.insert(auditLog).values({
@@ -1608,6 +1629,7 @@ export const expensesRouter = router({
           and(
             eq(invoicesAp.id, input.expenseId),
             eq(invoicesAp.entityId, entityId),
+            like(invoicesAp.invoiceNumber, "EXP-%"),
             eq(invoicesAp.status, "pending"),
           ),
         )

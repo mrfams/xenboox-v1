@@ -241,3 +241,50 @@ describe("P4-B: ap-posting module structure", () => {
     expect(m).toContain("missing_line_account");
   });
 });
+
+describe("P6-E (E1): Bills/Expenses surface partition", () => {
+  const ap = fs.readFileSync(AP, "utf-8");
+  const bills = fs.readFileSync(BILLS, "utf-8");
+  const expenses = fs.readFileSync(
+    path.resolve(__dirname, "../server/routers/expenses.ts"),
+    "utf-8",
+  );
+  const automation = fs.readFileSync(
+    path.resolve(__dirname, "../server/routers/automation.ts"),
+    "utf-8",
+  );
+  const reminders = fs.readFileSync(
+    path.resolve(__dirname, "../../../packages/jobs/reminders.ts"),
+    "utf-8",
+  );
+
+  it("bill creation rejects the reserved EXP- prefix", () => {
+    expect(ap).toContain('"EXP-" prefix is reserved for expenses');
+    expect(ap).toContain("/^EXP-/i.test(data.invoiceNumber)");
+  });
+
+  it("bills surfaces exclude expense rows from every list/aggregate", () => {
+    // ap.ts: vendor overview, aging, trend, invoice list + every by-id guard
+    expect(
+      ap.split('notLike(invoicesAp.invoiceNumber, "EXP-%")').length - 1,
+    ).toBeGreaterThanOrEqual(12);
+    expect(
+      bills.split('notLike(invoicesAp.invoiceNumber, "EXP-%")').length - 1,
+    ).toBeGreaterThanOrEqual(6);
+  });
+
+  it("expense surface only reads EXP- rows", () => {
+    const hits =
+      expenses.split('like(invoicesAp.invoiceNumber, "EXP-%")').length - 1;
+    // 17 from(invoicesAp) sites + join/update guards — every read/write scoped
+    expect(hits).toBeGreaterThanOrEqual(17);
+  });
+
+  it("automation bill-recurrence suggestions exclude expenses", () => {
+    expect(automation).toContain('notLike(invoicesAp.invoiceNumber, "EXP-%")');
+  });
+
+  it("overdue scanner never flips an unapproved expense to overdue", () => {
+    expect(reminders).toContain('notLike(invoicesAp.invoiceNumber, "EXP-%")');
+  });
+});

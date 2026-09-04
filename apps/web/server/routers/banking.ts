@@ -364,7 +364,7 @@ export const bankingRouter = router({
   getAiInsights: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
     const currency =
-      (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
+      (ctx as { entityCurrency?: string | null }).entityCurrency ?? "USD";
     const insights: Array<{
       id: string;
       type: "warning" | "info" | "success";

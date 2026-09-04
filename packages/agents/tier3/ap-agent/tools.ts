@@ -65,6 +65,17 @@ export async function processInvoice(
     errors.push("Invoice number is required");
   }
 
+  // E1 partition: the EXP- namespace belongs to the expenses surface. A bill
+  // written under EXP- would surface as an expense (and vice versa) on the two
+  // Operations tabs — reject it so the ingest never silently mis-buckets. If
+  // the vendor's real invoice number collides (e.g. "EXP-123"), prefix it with
+  // the supplier code, e.g. "ACME-EXP-123".
+  if (/^EXP-/i.test(invoice.invoiceNumber ?? "")) {
+    errors.push(
+      `Invoice number "${invoice.invoiceNumber}" uses the reserved EXP- expense prefix — store it with a supplier prefix instead (e.g. ACME-${invoice.invoiceNumber})`,
+    );
+  }
+
   if (!invoice.invoiceDate) {
     errors.push("Invoice date is required");
   }

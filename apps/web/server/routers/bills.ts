@@ -1,5 +1,16 @@
 import { z } from "zod";
-import { eq, and, desc, sql, sum, gte, lte, inArray, like } from "drizzle-orm";
+import {
+  eq,
+  and,
+  desc,
+  sql,
+  sum,
+  gte,
+  lte,
+  inArray,
+  like,
+  notLike,
+} from "drizzle-orm";
 import {
   invoicesAp,
   suppliers,
@@ -61,11 +72,14 @@ export const billsRouter = router({
   getOverview: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
     const currency =
-      (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
+      (ctx as { entityCurrency?: string | null }).entityCurrency ?? "USD";
 
     // Get all bills (AP invoices)
     const allBills = await db.query.invoicesAp.findMany({
-      where: eq(invoicesAp.entityId, entityId),
+      where: and(
+        eq(invoicesAp.entityId, entityId),
+        notLike(invoicesAp.invoiceNumber, "EXP-%"),
+      ),
     });
 
     // Status counts
@@ -332,10 +346,13 @@ export const billsRouter = router({
     .query(async ({ ctx, input }) => {
       const entityId = ctx.entityId!;
       const currency =
-        (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
+        (ctx as { entityCurrency?: string | null }).entityCurrency ?? "USD";
 
       // Build conditions
-      const conditions = [eq(invoicesAp.entityId, entityId)];
+      const conditions = [
+        eq(invoicesAp.entityId, entityId),
+        notLike(invoicesAp.invoiceNumber, "EXP-%"),
+      ];
 
       if (input.status !== "all") {
         if (input.status === "paid") {
@@ -472,12 +489,13 @@ export const billsRouter = router({
     .query(async ({ ctx, input }) => {
       const entityId = ctx.entityId!;
       const currency =
-        (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
+        (ctx as { entityCurrency?: string | null }).entityCurrency ?? "USD";
 
       const bill = await db.query.invoicesAp.findFirst({
         where: and(
           eq(invoicesAp.id, input.billId),
           eq(invoicesAp.entityId, entityId),
+          notLike(invoicesAp.invoiceNumber, "EXP-%"),
         ),
       });
 
@@ -540,7 +558,7 @@ export const billsRouter = router({
     .query(async ({ ctx, input }) => {
       const entityId = ctx.entityId!;
       const currency =
-        (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
+        (ctx as { entityCurrency?: string | null }).entityCurrency ?? "USD";
       const [bill] = await db
         .select({
           id: invoicesAp.id,
@@ -554,6 +572,7 @@ export const billsRouter = router({
           and(
             eq(invoicesAp.id, input.billId),
             eq(invoicesAp.entityId, entityId),
+            notLike(invoicesAp.invoiceNumber, "EXP-%"),
           ),
         )
         .limit(1);
@@ -635,7 +654,7 @@ export const billsRouter = router({
       try {
         const entityId = ctx.entityId!;
         const currency =
-          (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
+          (ctx as { entityCurrency?: string | null }).entityCurrency ?? "USD";
         const [bill] = await db
           .update(invoicesAp)
           .set({ purchaseOrderId: input.poId })
@@ -643,6 +662,7 @@ export const billsRouter = router({
             and(
               eq(invoicesAp.id, input.billId),
               eq(invoicesAp.entityId, entityId),
+              notLike(invoicesAp.invoiceNumber, "EXP-%"),
             ),
           )
           .returning({
@@ -661,11 +681,14 @@ export const billsRouter = router({
   getBillsTrend: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
     const currency =
-      (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
+      (ctx as { entityCurrency?: string | null }).entityCurrency ?? "USD";
 
     // Get all bills
     const bills = await db.query.invoicesAp.findMany({
-      where: eq(invoicesAp.entityId, entityId),
+      where: and(
+        eq(invoicesAp.entityId, entityId),
+        notLike(invoicesAp.invoiceNumber, "EXP-%"),
+      ),
     });
 
     // Group by month for last 6 months
@@ -700,7 +723,7 @@ export const billsRouter = router({
   getAiInsights: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
     const currency =
-      (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
+      (ctx as { entityCurrency?: string | null }).entityCurrency ?? "USD";
     const insights: Array<{
       id: string;
       type: "warning" | "info" | "success";
@@ -711,7 +734,10 @@ export const billsRouter = router({
 
     // Get all bills
     const allBills = await db.query.invoicesAp.findMany({
-      where: eq(invoicesAp.entityId, entityId),
+      where: and(
+        eq(invoicesAp.entityId, entityId),
+        notLike(invoicesAp.invoiceNumber, "EXP-%"),
+      ),
     });
 
     // Check for duplicate bills
@@ -800,7 +826,7 @@ export const billsRouter = router({
   getPaymentSchedule: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
     const currency =
-      (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
+      (ctx as { entityCurrency?: string | null }).entityCurrency ?? "USD";
     const cashPosition = await getCashPosition(entityId);
 
     const openBills = await db
@@ -819,6 +845,7 @@ export const billsRouter = router({
       .where(
         and(
           eq(invoicesAp.entityId, entityId),
+          notLike(invoicesAp.invoiceNumber, "EXP-%"),
           sql`${invoicesAp.status} NOT IN ('paid', 'voided')`,
         ),
       );
@@ -903,7 +930,7 @@ export const billsRouter = router({
   getApprovalRouting: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
     const currency =
-      (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
+      (ctx as { entityCurrency?: string | null }).entityCurrency ?? "USD";
     const today = todayStr();
     const monthAgo = new Date();
     monthAgo.setDate(monthAgo.getDate() - 30);
@@ -925,13 +952,17 @@ export const billsRouter = router({
       .where(
         and(
           eq(invoicesAp.entityId, entityId),
+          notLike(invoicesAp.invoiceNumber, "EXP-%"),
           sql`${invoicesAp.status} = 'pending'`,
         ),
       );
 
     // Same-entity bill pool for duplicate detection.
     const allBills = await db.query.invoicesAp.findMany({
-      where: eq(invoicesAp.entityId, entityId),
+      where: and(
+        eq(invoicesAp.entityId, entityId),
+        notLike(invoicesAp.invoiceNumber, "EXP-%"),
+      ),
     });
 
     const decisions = pendingBills.map((b) => {
@@ -1017,7 +1048,7 @@ export const billsRouter = router({
   getNextBillNumber: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
     const currency =
-      (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
+      (ctx as { entityCurrency?: string | null }).entityCurrency ?? "USD";
     const now = new Date();
     const year = now.getFullYear();
     const month = String(now.getMonth() + 1).padStart(2, "0");
@@ -1036,6 +1067,7 @@ export const billsRouter = router({
       .where(
         and(
           eq(invoicesAp.entityId, entityId),
+          notLike(invoicesAp.invoiceNumber, "EXP-%"),
           gte(invoicesAp.invoiceDate, startDate),
           lte(invoicesAp.invoiceDate, endDateStr),
           like(invoicesAp.invoiceNumber, `${prefix}-%`),

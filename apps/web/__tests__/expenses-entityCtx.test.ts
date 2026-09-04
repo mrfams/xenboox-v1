@@ -75,10 +75,7 @@ describe("Expenses Router — Entity Context Fix", () => {
   it("expenses router source code queries entities table for currency", async () => {
     // Read the actual source file to verify the fix
     const fs = await import("fs");
-    const source = fs.readFileSync(
-      "server/routers/expenses.ts",
-      "utf-8",
-    );
+    const source = fs.readFileSync("server/routers/expenses.ts", "utf-8");
 
     // The fix: the router now queries entities.findFirst to get currency
     expect(source).toContain("db.query.entities.findFirst");
@@ -92,22 +89,16 @@ describe("Expenses Router — Entity Context Fix", () => {
 
   it("expenses router imports entities from schema", async () => {
     const fs = await import("fs");
-    const source = fs.readFileSync(
-      "server/routers/expenses.ts",
-      "utf-8",
-    );
+    const source = fs.readFileSync("server/routers/expenses.ts", "utf-8");
 
     // The fix: entities table is imported for the currency query
     expect(source).toContain("entities");
-    expect(source).toContain("from \"@xenboox/db/schema\"");
+    expect(source).toContain('from "@xenboox/db/schema"');
   });
 
   it("createExpense mutation has try/catch error handling", async () => {
     const fs = await import("fs");
-    const source = fs.readFileSync(
-      "server/routers/expenses.ts",
-      "utf-8",
-    );
+    const source = fs.readFileSync("server/routers/expenses.ts", "utf-8");
 
     // The fix: createExpense has proper error handling
     expect(source).toContain("try {");
@@ -116,10 +107,7 @@ describe("Expenses Router — Entity Context Fix", () => {
 
   it("createExpense uses entity-scoped entityId from context", async () => {
     const fs = await import("fs");
-    const source = fs.readFileSync(
-      "server/routers/expenses.ts",
-      "utf-8",
-    );
+    const source = fs.readFileSync("server/routers/expenses.ts", "utf-8");
 
     // The fix: uses ctx.entityId! (from tRPC context, not undefined entityCtx)
     expect(source).toContain("ctx.entityId!");
@@ -127,28 +115,26 @@ describe("Expenses Router — Entity Context Fix", () => {
 
   it("entity currency fallback is USD (not GMD)", async () => {
     const fs = await import("fs");
-    const source = fs.readFileSync(
-      "server/routers/expenses.ts",
-      "utf-8",
-    );
+    const source = fs.readFileSync("server/routers/expenses.ts", "utf-8");
 
-    // All currency fallbacks in this file should be USD
-    const fallbackMatches = source.match(/currency.*\?\? "(\w+)"/g);
-    if (fallbackMatches) {
-      for (const match of fallbackMatches) {
-        expect(match).toContain('"USD"');
-        expect(match).not.toContain('"GMD"');
-      }
+    // The canonical default currency is USD (schema default + entity fallback).
+    // GMD is a legacy artifact that must never reappear as a fallback — the
+    // schema and every entity-currency context already default to USD. Assert
+    // the whole file has no `?? "GMD"` fallback (entity, claim, or inline).
+    expect(source).not.toMatch(/\?\?\s*"GMD"/);
+    // Sanity: the entity/claim fallbacks that DO exist resolve to USD.
+    const fallbackMatches =
+      source.match(/\.currency\s*\?\?\s*"(\w+)"/g) ??
+      source.match(/entityCurrency\s*\?\?\s*"(\w+)"/g);
+    for (const match of fallbackMatches ?? []) {
+      expect(match).toContain('"USD"');
     }
   });
 
   describe("Entity access verification in API routes", () => {
     it("chat stream route imports resolveEntityAccess", async () => {
       const fs = await import("fs");
-      const source = fs.readFileSync(
-        "app/api/chat/stream/route.ts",
-        "utf-8",
-      );
+      const source = fs.readFileSync("app/api/chat/stream/route.ts", "utf-8");
       expect(source).toContain("resolveEntityAccess");
     });
 
@@ -163,10 +149,7 @@ describe("Expenses Router — Entity Context Fix", () => {
 
     it("help assist route imports resolveEntityAccess", async () => {
       const fs = await import("fs");
-      const source = fs.readFileSync(
-        "app/api/help/assist/route.ts",
-        "utf-8",
-      );
+      const source = fs.readFileSync("app/api/help/assist/route.ts", "utf-8");
       expect(source).toContain("resolveEntityAccess");
     });
 

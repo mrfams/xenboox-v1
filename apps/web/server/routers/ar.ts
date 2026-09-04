@@ -166,44 +166,45 @@ export const arRouter = router({
   createInvoice: rlsMutateProcedure
     .use(requirePermission("accounts_receivable", "create"))
     .input(
-      z.object({
-        customerId: z.string().uuid(),
-        invoiceNumber: z
-          .string()
-          .trim()
-          .min(1, "Invoice number is required")
-          .max(40, "Invoice number must be under 40 characters"),
-        invoiceDate: isoDateString,
-        dueDate: isoDateString,
-        currency: z.string().length(3).default("USD"),
-        notes: z.string().max(4000).optional(),
-        lines: z
-          .array(
-            z.object({
-              description: z
-                .string()
-                .trim()
-                .min(1, "Line description is required")
-                .max(500, "Line description is too long"),
-              accountId: z.string().uuid(),
-              quantity: z.number().positive().max(999_999_999),
-              unitPrice: moneyString,
-            }),
-          )
-          .min(1, "An invoice needs at least one line")
-          .max(200, "An invoice can have at most 200 lines"),
-      }),
+      z
+        .object({
+          customerId: z.string().uuid(),
+          invoiceNumber: z
+            .string()
+            .trim()
+            .min(1, "Invoice number is required")
+            .max(40, "Invoice number must be under 40 characters"),
+          invoiceDate: isoDateString,
+          dueDate: isoDateString,
+          currency: z.string().length(3).default("USD"),
+          notes: z.string().max(4000).optional(),
+          lines: z
+            .array(
+              z.object({
+                description: z
+                  .string()
+                  .trim()
+                  .min(1, "Line description is required")
+                  .max(500, "Line description is too long"),
+                accountId: z.string().uuid(),
+                quantity: z.number().positive().max(999_999_999),
+                unitPrice: moneyString,
+              }),
+            )
+            .min(1, "An invoice needs at least one line")
+            .max(200, "An invoice can have at most 200 lines"),
+        })
+        .superRefine((data, ctx) => {
+          // A3: due date must not precede the invoice date.
+          if (data.dueDate < data.invoiceDate) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              path: ["dueDate"],
+              message: "Due date cannot be before the invoice date",
+            });
+          }
+        }),
     )
-    .superRefine((data, ctx) => {
-      // A3: due date must not precede the invoice date.
-      if (data.dueDate < data.invoiceDate) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ["dueDate"],
-          message: "Due date cannot be before the invoice date",
-        });
-      }
-    })
     .mutation(async ({ ctx, input }) => {
       try {
         const { lines, ...invoiceData } = input;
@@ -430,30 +431,31 @@ export const arRouter = router({
   updateInvoice: rlsMutateProcedure
     .use(requirePermission("accounts_receivable", "edit"))
     .input(
-      z.object({
-        id: z.string().uuid(),
-        invoiceDate: isoDateString.optional(),
-        dueDate: isoDateString.optional(),
-        notes: z.string().max(4000).optional(),
-        // A5 state machine: callers may only VOID. "paid"/"partial"/"overdue"
-        // are driven by payments + the overdue job — a hand-set status (paid
-        // with no payment, paid → pending, etc.) would forge the books.
-        status: z.literal("voided").optional(),
-      }),
+      z
+        .object({
+          id: z.string().uuid(),
+          invoiceDate: isoDateString.optional(),
+          dueDate: isoDateString.optional(),
+          notes: z.string().max(4000).optional(),
+          // A5 state machine: callers may only VOID. "paid"/"partial"/"overdue"
+          // are driven by payments + the overdue job — a hand-set status (paid
+          // with no payment, paid → pending, etc.) would forge the books.
+          status: z.literal("voided").optional(),
+        })
+        .superRefine((data, ctx) => {
+          if (
+            data.invoiceDate !== undefined &&
+            data.dueDate !== undefined &&
+            data.dueDate < data.invoiceDate
+          ) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              path: ["dueDate"],
+              message: "Due date cannot be before the invoice date",
+            });
+          }
+        }),
     )
-    .superRefine((data, ctx) => {
-      if (
-        data.invoiceDate !== undefined &&
-        data.dueDate !== undefined &&
-        data.dueDate < data.invoiceDate
-      ) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ["dueDate"],
-          message: "Due date cannot be before the invoice date",
-        });
-      }
-    })
     .mutation(async ({ ctx, input }) => {
       try {
         const { id, ...data } = input;

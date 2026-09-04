@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { eq, and, desc, count } from "drizzle-orm";
+import { eq, and, desc, count, notLike } from "drizzle-orm";
 import {
   entityAutomationRules,
   invoicesAp,
@@ -254,7 +254,15 @@ export const automationRouter = router({
       })
       .from(invoicesAp)
       .innerJoin(suppliers, eq(invoicesAp.supplierId, suppliers.id))
-      .where(eq(invoicesAp.entityId, entityId))
+      // E1 partition: bill-recurrence suggestions come from the pay-later
+      // Bills surface — expense rows (EXP-) are pay-now approvals with their
+      // own flow, so they must not inflate "recurring payment" counts.
+      .where(
+        and(
+          eq(invoicesAp.entityId, entityId),
+          notLike(invoicesAp.invoiceNumber, "EXP-%"),
+        ),
+      )
       .groupBy(invoicesAp.supplierId, invoicesAp.totalAmount)
       .limit(50);
 

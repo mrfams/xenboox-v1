@@ -36,7 +36,7 @@ export const invoicingRouter = router({
   getOverview: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
     const currency =
-      (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
+      (ctx as { entityCurrency?: string | null }).entityCurrency ?? "USD";
 
     // Get all invoices
     const invoices = await db.query.salesInvoices.findMany({
@@ -280,7 +280,7 @@ export const invoicingRouter = router({
     .query(async ({ ctx, input }) => {
       const entityId = ctx.entityId!;
       const currency =
-        (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
+        (ctx as { entityCurrency?: string | null }).entityCurrency ?? "USD";
 
       // Build conditions
       const conditions = [eq(salesInvoices.entityId, entityId)];
@@ -420,7 +420,7 @@ export const invoicingRouter = router({
     .query(async ({ ctx, input }) => {
       const entityId = ctx.entityId!;
       const currency =
-        (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
+        (ctx as { entityCurrency?: string | null }).entityCurrency ?? "USD";
 
       const invoice = await db.query.salesInvoices.findFirst({
         where: and(
@@ -503,7 +503,7 @@ export const invoicingRouter = router({
       try {
         const entityId = ctx.entityId!;
         const currency =
-          (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
+          (ctx as { entityCurrency?: string | null }).entityCurrency ?? "USD";
 
         const invoice = await db.query.salesInvoices.findFirst({
           where: and(
@@ -603,7 +603,7 @@ export const invoicingRouter = router({
     .query(async ({ ctx, input }) => {
       const entityId = ctx.entityId!;
       const currency =
-        (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
+        (ctx as { entityCurrency?: string | null }).entityCurrency ?? "USD";
 
       const invoice = await db.query.salesInvoices.findFirst({
         where: and(
@@ -681,7 +681,7 @@ export const invoicingRouter = router({
   getChartsData: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
     const currency =
-      (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
+      (ctx as { entityCurrency?: string | null }).entityCurrency ?? "USD";
 
     // Get all invoices
     const invoices = await db.query.salesInvoices.findMany({
@@ -737,7 +737,7 @@ export const invoicingRouter = router({
   getCustomers: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
     const currency =
-      (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
+      (ctx as { entityCurrency?: string | null }).entityCurrency ?? "USD";
 
     return db.query.customers.findMany({
       where: eq(customers.entityId, entityId),
@@ -755,7 +755,7 @@ export const invoicingRouter = router({
   getAiInsights: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
     const currency =
-      (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
+      (ctx as { entityCurrency?: string | null }).entityCurrency ?? "USD";
     const insights: Array<{
       id: string;
       type: "warning" | "info" | "success";
@@ -864,7 +864,7 @@ export const invoicingRouter = router({
   getRecentActivity: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
     const currency =
-      (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
+      (ctx as { entityCurrency?: string | null }).entityCurrency ?? "USD";
 
     // Get recent payments
     const recentPayments = await db.query.paymentsAr.findMany({
@@ -907,7 +907,7 @@ export const invoicingRouter = router({
   getInvoicesTrend: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
     const currency =
-      (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
+      (ctx as { entityCurrency?: string | null }).entityCurrency ?? "USD";
 
     // Get all invoices
     const invoices = await db.query.salesInvoices.findMany({
@@ -950,7 +950,7 @@ export const invoicingRouter = router({
   getNextInvoiceNumber: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
     const currency =
-      (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
+      (ctx as { entityCurrency?: string | null }).entityCurrency ?? "USD";
     const now = new Date();
     const year = now.getFullYear();
     const month = String(now.getMonth() + 1).padStart(2, "0");

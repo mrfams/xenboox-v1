@@ -390,7 +390,8 @@ export const journalRouter = router({
     )
     .query(async ({ ctx, input }) => {
       const entityId = ctx.entityId!;
-      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
+      const currency =
+        (ctx as { entityCurrency?: string | null }).entityCurrency ?? "USD";
 
       const now = new Date();
       const startDate =
@@ -564,7 +565,8 @@ export const journalRouter = router({
   // ── AI Insights ──
   getAiInsights: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
-    const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
+    const currency =
+      (ctx as { entityCurrency?: string | null }).entityCurrency ?? "USD";
 
     const insights: Array<{
       id: string;
@@ -657,7 +659,8 @@ export const journalRouter = router({
     )
     .query(async ({ ctx, input }) => {
       const entityId = ctx.entityId!;
-      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
+      const currency =
+        (ctx as { entityCurrency?: string | null }).entityCurrency ?? "USD";
       const limit = input?.limit ?? 10;
 
       // Scan the last 90 days of posted entries — recent enough to be
@@ -1189,7 +1192,11 @@ export const journalRouter = router({
           })
           .returning();
 
-        if (!reversal) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to create reversal entry" });
+        if (!reversal)
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: "Failed to create reversal entry",
+          });
 
         // Batch insert — 1 query, not N. With neon-http fallback (no real tx),
         // we compensate on failure to avoid half-persisted reversal.
@@ -1204,7 +1211,10 @@ export const journalRouter = router({
             })),
           );
         } catch (lineErr) {
-          await db.delete(journalEntries).where(eq(journalEntries.id, reversal.id)).catch(() => {});
+          await db
+            .delete(journalEntries)
+            .where(eq(journalEntries.id, reversal.id))
+            .catch(() => {});
           throw lineErr;
         }
 
@@ -1236,7 +1246,10 @@ export const journalRouter = router({
             },
           });
         } catch (postErr) {
-          await db.delete(journalEntries).where(eq(journalEntries.id, reversal.id)).catch(() => {});
+          await db
+            .delete(journalEntries)
+            .where(eq(journalEntries.id, reversal.id))
+            .catch(() => {});
           throw postErr;
         }
 

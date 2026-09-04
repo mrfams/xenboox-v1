@@ -12,7 +12,7 @@ import {
   invoicesAp,
   auditLog,
 } from "@xenboox/db/schema";
-import { eq, and, desc, sql, lt, inArray } from "drizzle-orm";
+import { eq, and, desc, sql, lt, inArray, notLike } from "drizzle-orm";
 import { users } from "@xenboox/db/schema/auth";
 import { userEntityAccess } from "@xenboox/db/schema/organization";
 
@@ -212,12 +212,17 @@ export const markOverdueInvoices = task({
 
     // 2. Mark overdue purchase invoices (pending/partial with dueDate < today)
     // — same ISO-date guard as AR.
+    // E1 partition: expense rows (EXP-) are pay-now approvals tracked on the
+    // Expenses surface. They stay "pending" until a human approves; flipping
+    // them to "overdue" here would block approveExpense (pending-only) and
+    // send a misleading "pay your bill" nudge for an unapproved expense.
     const overdueBills = await db
       .update(invoicesAp)
       .set({ status: "overdue" })
       .where(
         and(
           sql`${invoicesAp.status} IN ('pending', 'partial')`,
+          notLike(invoicesAp.invoiceNumber, "EXP-%"),
           lt(invoicesAp.dueDate, todayStr),
           sql`${invoicesAp.dueDate} ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$'`,
         ),

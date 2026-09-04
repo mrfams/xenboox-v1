@@ -87,8 +87,9 @@ const getAccountBalanceTool: ToolDefinition = {
     accountCode: z.string().describe("Chart of accounts code (e.g., '1010')"),
   }),
   execute: async (input, ctx) => {
-    const { chartOfAccounts, journalEntries, journalEntryLines } =
-      await import("@xenboox/db/schema/accounting");
+    const { chartOfAccounts, journalEntries, journalEntryLines } = await import(
+      "@xenboox/db/schema/accounting"
+    );
 
     const account = await db.query.chartOfAccounts.findFirst({
       where: and(
@@ -154,8 +155,9 @@ const getJournalEntryLinesTool: ToolDefinition = {
     entryId: z.string().uuid().describe("Journal entry ID"),
   }),
   execute: async (input, ctx) => {
-    const { journalEntries, journalEntryLines } =
-      await import("@xenboox/db/schema/accounting");
+    const { journalEntries, journalEntryLines } = await import(
+      "@xenboox/db/schema/accounting"
+    );
 
     const entry = await db.query.journalEntries.findFirst({
       where: and(
@@ -336,8 +338,9 @@ const startBatchIngestionTool: ToolDefinition = {
       // Dynamic import to avoid circular dependencies
       const { db } = await import("@xenboox/db");
       const { documents, auditLog } = await import("@xenboox/db/schema");
-      const { processDocumentForRAG } =
-        await import("@xenboox/ingestion/engine/embeddings");
+      const { processDocumentForRAG } = await import(
+        "@xenboox/ingestion/engine/embeddings"
+      );
 
       const batchId = crypto.randomUUID();
       const results: Array<{
@@ -468,8 +471,9 @@ const searchKnowledgeBaseTool: ToolDefinition = {
   execute: async (input, ctx) => {
     try {
       // Dynamic import to avoid circular dependencies
-      const { retrieve, formatStructuredCitations } =
-        await import("@xenboox/ingestion/engine/retrieval");
+      const { retrieve, formatStructuredCitations } = await import(
+        "@xenboox/ingestion/engine/retrieval"
+      );
 
       const result = await retrieve(input.query, {
         entityId: ctx.entityId,
@@ -671,20 +675,49 @@ const createTaxRuleTool: ToolDefinition = {
       .describe("ISO 3166-1 alpha-2 country code (e.g. 'NG', 'US', 'GB')"),
     ruleType: z
       .enum([
-        "vat", "sales_tax", "paye", "withholding", "corporate",
-        "social_security", "excise", "property", "capital_gains",
-        "customs", "digital_services", "payroll_tax", "wealth",
-        "environmental", "health", "unemployment", "tourist",
-        "stamp_duty", "gift", "inheritance", "license_fee", "other",
+        "vat",
+        "sales_tax",
+        "paye",
+        "withholding",
+        "corporate",
+        "social_security",
+        "excise",
+        "property",
+        "capital_gains",
+        "customs",
+        "digital_services",
+        "payroll_tax",
+        "wealth",
+        "environmental",
+        "health",
+        "unemployment",
+        "tourist",
+        "stamp_duty",
+        "gift",
+        "inheritance",
+        "license_fee",
+        "other",
       ])
       .describe("Type of tax rule"),
-    name: z.string().min(2).max(120).describe("Name of the tax (e.g. 'NG VAT 7.5%')"),
-    rate: z.number().min(0).max(1).describe("Tax rate as decimal (e.g. 0.075 for 7.5%)"),
+    name: z
+      .string()
+      .min(2)
+      .max(120)
+      .describe("Name of the tax (e.g. 'NG VAT 7.5%')"),
+    rate: z
+      .number()
+      .min(0)
+      .max(1)
+      .describe("Tax rate as decimal (e.g. 0.075 for 7.5%)"),
     appliesTo: z
       .enum(["sales", "purchases", "payroll", "income", "other"])
       .default("sales")
       .describe("What this tax applies to"),
-    description: z.string().max(500).optional().describe("Description of the tax rule"),
+    description: z
+      .string()
+      .max(500)
+      .optional()
+      .describe("Description of the tax rule"),
     effectiveFrom: z
       .string()
       .regex(/^\d{4}-\d{2}-\d{2}$/)
@@ -693,8 +726,14 @@ const createTaxRuleTool: ToolDefinition = {
   }),
   execute: async (input, ctx) => {
     try {
-      const { jurisdictionTaxRules } = await import("@xenboox/db/schema/tax-compliance");
-      const { and: drizzleAnd, eq: drizzleEq, desc: drizzleDesc } = await import("drizzle-orm");
+      const { jurisdictionTaxRules } = await import(
+        "@xenboox/db/schema/tax-compliance"
+      );
+      const {
+        and: drizzleAnd,
+        eq: drizzleEq,
+        desc: drizzleDesc,
+      } = await import("drizzle-orm");
 
       // Check for existing active rule with same identity
       const existing = await db.query.jurisdictionTaxRules.findFirst({
@@ -799,7 +838,7 @@ const installTaxPresetsTool: ToolDefinition = {
   execute: async (input, ctx) => {
     try {
       const { getTaxPresetsForCountry } = await import("./tax-presets");
-      const { installPresetsForEntity } = await import("@/server/lib/tax-install");
+      const { installPresetsForEntity } = await import("./tax-install");
 
       const catalog = getTaxPresetsForCountry(input.country);
       if (catalog.length === 0) {
@@ -810,12 +849,13 @@ const installTaxPresetsTool: ToolDefinition = {
         };
       }
 
-      const { installed, skipped, installedNames } = await installPresetsForEntity({
-        entityId: ctx.entityId,
-        country: input.country,
-        presets: catalog,
-        actorId: ctx.actorId ?? "ai-agent",
-      });
+      const { installed, skipped, installedNames } =
+        await installPresetsForEntity({
+          entityId: ctx.entityId,
+          country: input.country,
+          presets: catalog,
+          actorId: ctx.actorId ?? "ai-agent",
+        });
 
       return {
         success: true,

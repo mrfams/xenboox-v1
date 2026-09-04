@@ -230,7 +230,7 @@ export const reconciliationRouter = router({
     .query(async ({ ctx, input }) => {
       const entityId = ctx.entityId!;
       const currency =
-        (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
+        (ctx as { entityCurrency?: string | null }).entityCurrency ?? "USD";
 
       // Default to current month
       const now = new Date();
@@ -552,7 +552,7 @@ export const reconciliationRouter = router({
     .mutation(async ({ ctx, input }) => {
       const entityId = ctx.entityId!;
       const currency =
-        (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
+        (ctx as { entityCurrency?: string | null }).entityCurrency ?? "USD";
 
       // Get unmatched transactions
       const unmatched = await db.query.bankTransactions.findMany({
@@ -644,7 +644,7 @@ export const reconciliationRouter = router({
     .mutation(async ({ ctx, input }) => {
       const entityId = ctx.entityId!;
       const currency =
-        (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
+        (ctx as { entityCurrency?: string | null }).entityCurrency ?? "USD";
 
       // Verify the account's transactions are actually reconciled before
       // claiming the books match the bank. Previously this wrote
@@ -742,7 +742,7 @@ export const reconciliationRouter = router({
   getOverview: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
     const currency =
-      (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
+      (ctx as { entityCurrency?: string | null }).entityCurrency ?? "USD";
 
     // Get all bank accounts
     const accounts = await db.query.bankAccounts.findMany({
@@ -1011,7 +1011,7 @@ export const reconciliationRouter = router({
   getAiInsights: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
     const currency =
-      (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
+      (ctx as { entityCurrency?: string | null }).entityCurrency ?? "USD";
     const insights: Array<{
       id: string;
       type: "warning" | "info" | "success";

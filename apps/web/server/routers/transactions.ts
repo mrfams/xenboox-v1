@@ -31,7 +31,8 @@ export const transactionsRouter = router({
     )
     .query(async ({ ctx, input }) => {
       const entityId = ctx.entityId!;
-      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
+      const currency =
+        (ctx as { entityCurrency?: string | null }).entityCurrency ?? "USD";
 
       // Default to current month if no dates provided
       const now = new Date();
@@ -301,7 +302,8 @@ export const transactionsRouter = router({
     )
     .query(async ({ ctx, input }) => {
       const entityId = ctx.entityId!;
-      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
+      const currency =
+        (ctx as { entityCurrency?: string | null }).entityCurrency ?? "USD";
 
       const now = new Date();
       const startDate =
@@ -488,7 +490,8 @@ export const transactionsRouter = router({
     .input(z.object({ transactionId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       const entityId = ctx.entityId!;
-      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
+      const currency =
+        (ctx as { entityCurrency?: string | null }).entityCurrency ?? "USD";
 
       const transaction = await db.query.bankTransactions.findFirst({
         where: and(
@@ -671,7 +674,8 @@ export const transactionsRouter = router({
     )
     .query(async ({ ctx, input }) => {
       const entityId = ctx.entityId!;
-      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
+      const currency =
+        (ctx as { entityCurrency?: string | null }).entityCurrency ?? "USD";
 
       const now = new Date();
       const startDate =
@@ -770,7 +774,8 @@ export const transactionsRouter = router({
    */
   getAccounts: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
-      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
+    const currency =
+      (ctx as { entityCurrency?: string | null }).entityCurrency ?? "USD";
 
     const accounts = await db.query.bankAccounts.findMany({
       where: eq(bankAccounts.entityId, entityId),
@@ -836,7 +841,8 @@ export const transactionsRouter = router({
     .mutation(async ({ ctx, input }) => {
       try {
         const entityId = ctx.entityId!;
-      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
+        const currency =
+          (ctx as { entityCurrency?: string | null }).entityCurrency ?? "USD";
 
         const transaction = await db.query.bankTransactions.findFirst({
           where: and(
@@ -873,7 +879,8 @@ export const transactionsRouter = router({
     .mutation(async ({ ctx, input }) => {
       try {
         const entityId = ctx.entityId!;
-      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
+        const currency =
+          (ctx as { entityCurrency?: string | null }).entityCurrency ?? "USD";
 
         const transaction = await db.query.bankTransactions.findFirst({
           where: and(

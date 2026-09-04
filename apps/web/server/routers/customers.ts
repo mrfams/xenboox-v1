@@ -18,7 +18,8 @@ export const customersRouter = router({
    */
   getOverview: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
-      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
+    const currency =
+      (ctx as { entityCurrency?: string | null }).entityCurrency ?? "USD";
 
     // Get all customers
     const allCustomers = await db.query.customers.findMany({
@@ -312,7 +313,8 @@ export const customersRouter = router({
     )
     .query(async ({ ctx, input }) => {
       const entityId = ctx.entityId!;
-      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
+      const currency =
+        (ctx as { entityCurrency?: string | null }).entityCurrency ?? "USD";
 
       // Get all customers
       const allCustomers = await db.query.customers.findMany({
@@ -464,7 +466,8 @@ export const customersRouter = router({
    */
   getReceivablesTrend: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
-      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
+    const currency =
+      (ctx as { entityCurrency?: string | null }).entityCurrency ?? "USD";
 
     // Get all invoices
     const invoices = await db.query.salesInvoices.findMany({
@@ -506,7 +509,8 @@ export const customersRouter = router({
    */
   getAiInsights: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
-      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
+    const currency =
+      (ctx as { entityCurrency?: string | null }).entityCurrency ?? "USD";
     const insights: Array<{
       id: string;
       type: "warning" | "info" | "success";
@@ -598,7 +602,8 @@ export const customersRouter = router({
 
   getCreditReview: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
-      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
+    const currency =
+      (ctx as { entityCurrency?: string | null }).entityCurrency ?? "USD";
     const today = todayStr();
 
     const [allCustomers, allInvoices] = await Promise.all([

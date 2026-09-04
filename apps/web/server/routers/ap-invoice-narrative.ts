@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, notLike } from "drizzle-orm";
 import { invoicesAp, suppliers } from "@xenboox/db/schema";
 import { db } from "@/lib/db";
 import { logger } from "@/lib/logger";
@@ -54,6 +54,10 @@ export async function generateBillNarrative({
       where: and(
         eq(invoicesAp.entityId, entityId),
         eq(invoicesAp.supplierId, supplierId),
+        // E1 partition: this is a BILLS narrative — expense rows (EXP-) are
+        // pay-now approvals with their own flow and must not inflate the
+        // supplier's bill history/overdue counts.
+        notLike(invoicesAp.invoiceNumber, "EXP-%"),
       ),
       orderBy: (t, { desc }) => [desc(t.createdAt)],
       limit: 10,

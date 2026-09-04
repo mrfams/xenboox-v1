@@ -92,6 +92,7 @@ export {
   roundTo,
   TAX_PRESET_CATALOG,
   getTaxPresetsForCountry,
+  installPresetsForEntity,
   PRESET_COUNTRIES,
   mapTaxRuleToStatutory,
   mergeConfiguredRules,

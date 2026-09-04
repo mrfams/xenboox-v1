@@ -10,6 +10,7 @@ import {
   lte,
   ne,
   inArray,
+  notLike,
 } from "drizzle-orm";
 import {
   suppliers,
@@ -91,6 +92,7 @@ export const apRouter = router({
         .where(
           and(
             eq(invoicesAp.entityId, entityId),
+            notLike(invoicesAp.invoiceNumber, "EXP-%"),
             ne(invoicesAp.status, "voided"),
             gte(invoicesAp.invoiceDate, startDate),
             lte(invoicesAp.invoiceDate, endDate),
@@ -105,6 +107,7 @@ export const apRouter = router({
         .where(
           and(
             eq(invoicesAp.entityId, entityId),
+            notLike(invoicesAp.invoiceNumber, "EXP-%"),
             ne(invoicesAp.status, "voided"),
             gte(invoicesAp.invoiceDate, prevStartDate),
             lte(invoicesAp.invoiceDate, prevEndDate),
@@ -119,6 +122,7 @@ export const apRouter = router({
         .where(
           and(
             eq(invoicesAp.entityId, entityId),
+            notLike(invoicesAp.invoiceNumber, "EXP-%"),
             eq(invoicesAp.status, "overdue"),
           ),
         );
@@ -131,6 +135,7 @@ export const apRouter = router({
         .where(
           and(
             eq(invoicesAp.entityId, entityId),
+            notLike(invoicesAp.invoiceNumber, "EXP-%"),
             eq(invoicesAp.status, "overdue"),
             gte(invoicesAp.invoiceDate, prevStartDate),
             lte(invoicesAp.invoiceDate, prevEndDate),
@@ -146,6 +151,7 @@ export const apRouter = router({
         .where(
           and(
             eq(invoicesAp.entityId, entityId),
+            notLike(invoicesAp.invoiceNumber, "EXP-%"),
             lte(invoicesAp.dueDate, dueDate7.toISOString().split("T")[0]),
             gte(invoicesAp.dueDate, now.toISOString().split("T")[0]),
           ),
@@ -169,7 +175,11 @@ export const apRouter = router({
         })
         .from(invoicesAp)
         .where(
-          and(eq(invoicesAp.entityId, entityId), eq(invoicesAp.status, "paid")),
+          and(
+            eq(invoicesAp.entityId, entityId),
+            notLike(invoicesAp.invoiceNumber, "EXP-%"),
+            eq(invoicesAp.status, "paid"),
+          ),
         );
       const avgDaysToPay = Math.round(avgDaysResult[0]?.avgDays ?? 23);
 
@@ -182,6 +192,7 @@ export const apRouter = router({
         .where(
           and(
             eq(invoicesAp.entityId, entityId),
+            notLike(invoicesAp.invoiceNumber, "EXP-%"),
             eq(invoicesAp.status, "paid"),
             gte(invoicesAp.invoiceDate, prevStartDate),
             lte(invoicesAp.invoiceDate, prevEndDate),
@@ -230,7 +241,7 @@ export const apRouter = router({
     .query(async ({ ctx, input }) => {
       const entityId = ctx.entityId!;
       const currency =
-        (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
+        (ctx as { entityCurrency?: string | null }).entityCurrency ?? "USD";
 
       // Build conditions
       const conditions = [eq(suppliers.entityId, entityId)];
@@ -309,6 +320,7 @@ export const apRouter = router({
           .where(
             and(
               eq(invoicesAp.entityId, entityId),
+              notLike(invoicesAp.invoiceNumber, "EXP-%"),
               inArray(invoicesAp.supplierId, supplierIds),
               ne(invoicesAp.status, "voided"),
             ),
@@ -489,7 +501,7 @@ export const apRouter = router({
     .query(async ({ ctx, input }) => {
       const entityId = ctx.entityId!;
       const currency =
-        (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
+        (ctx as { entityCurrency?: string | null }).entityCurrency ?? "USD";
 
       const vendors = await db
         .select({
@@ -501,6 +513,7 @@ export const apRouter = router({
         .where(
           and(
             eq(invoicesAp.entityId, entityId),
+            notLike(invoicesAp.invoiceNumber, "EXP-%"),
             ne(invoicesAp.status, "voided"),
           ),
         )
@@ -552,7 +565,7 @@ export const apRouter = router({
   getVendorAging: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
     const currency =
-      (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
+      (ctx as { entityCurrency?: string | null }).entityCurrency ?? "USD";
 
     const now = new Date();
     const current30 = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
@@ -563,6 +576,7 @@ export const apRouter = router({
     const unpaidInvoices = await db.query.invoicesAp.findMany({
       where: and(
         eq(invoicesAp.entityId, entityId),
+        notLike(invoicesAp.invoiceNumber, "EXP-%"),
         sql`${invoicesAp.balance} > 0`,
         ne(invoicesAp.status, "voided"),
       ),
@@ -626,7 +640,7 @@ export const apRouter = router({
   getVendorAiInsights: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
     const currency =
-      (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
+      (ctx as { entityCurrency?: string | null }).entityCurrency ?? "USD";
 
     const insights: Array<{
       id: string;
@@ -643,6 +657,7 @@ export const apRouter = router({
       .where(
         and(
           eq(invoicesAp.entityId, entityId),
+          notLike(invoicesAp.invoiceNumber, "EXP-%"),
           eq(invoicesAp.status, "overdue"),
         ),
       );
@@ -665,6 +680,7 @@ export const apRouter = router({
       .where(
         and(
           eq(invoicesAp.entityId, entityId),
+          notLike(invoicesAp.invoiceNumber, "EXP-%"),
           lte(invoicesAp.dueDate, dueDate7.toISOString().split("T")[0]),
           gte(invoicesAp.dueDate, new Date().toISOString().split("T")[0]),
         ),
@@ -1051,46 +1067,47 @@ export const apRouter = router({
   createPO: rlsMutateProcedure
     .use(requirePermission("accounts_payable", "create"))
     .input(
-      z.object({
-        supplierId: z.string().uuid(),
-        poNumber: z
-          .string()
-          .trim()
-          .min(1, "PO number is required")
-          .max(40, "PO number must be under 40 characters"),
-        orderDate: isoDateString,
-        expectedDate: isoDateString.optional(),
-        currency: z.string().length(3).default("USD"),
-        notes: z.string().max(4000).optional(),
-        lines: z
-          .array(
-            z.object({
-              description: z
-                .string()
-                .trim()
-                .min(1, "Line description is required")
-                .max(500),
-              accountId: z.string().uuid(),
-              quantity: z.number().positive().max(999_999_999),
-              unitPrice: moneyString,
-            }),
-          )
-          .min(1, "A purchase order needs at least one line")
-          .max(200),
-      }),
+      z
+        .object({
+          supplierId: z.string().uuid(),
+          poNumber: z
+            .string()
+            .trim()
+            .min(1, "PO number is required")
+            .max(40, "PO number must be under 40 characters"),
+          orderDate: isoDateString,
+          expectedDate: isoDateString.optional(),
+          currency: z.string().length(3).default("USD"),
+          notes: z.string().max(4000).optional(),
+          lines: z
+            .array(
+              z.object({
+                description: z
+                  .string()
+                  .trim()
+                  .min(1, "Line description is required")
+                  .max(500),
+                accountId: z.string().uuid(),
+                quantity: z.number().positive().max(999_999_999),
+                unitPrice: moneyString,
+              }),
+            )
+            .min(1, "A purchase order needs at least one line")
+            .max(200),
+        })
+        .superRefine((data, ctx) => {
+          if (
+            data.expectedDate !== undefined &&
+            data.expectedDate < data.orderDate
+          ) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              path: ["expectedDate"],
+              message: "Expected date cannot be before the order date",
+            });
+          }
+        }),
     )
-    .superRefine((data, ctx) => {
-      if (
-        data.expectedDate !== undefined &&
-        data.expectedDate < data.orderDate
-      ) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ["expectedDate"],
-          message: "Expected date cannot be before the order date",
-        });
-      }
-    })
     .mutation(async ({ ctx, input }) => {
       try {
         const { lines, ...poData } = input;
@@ -1357,7 +1374,10 @@ export const apRouter = router({
   // ── AP Invoices ──
   listInvoices: rlsProtectedProcedure.query(({ ctx }) => {
     return db.query.invoicesAp.findMany({
-      where: eq(invoicesAp.entityId, ctx.entityId!),
+      where: and(
+        eq(invoicesAp.entityId, ctx.entityId!),
+        notLike(invoicesAp.invoiceNumber, "EXP-%"),
+      ),
       orderBy: [desc(invoicesAp.createdAt)],
     });
   }),
@@ -1365,44 +1385,56 @@ export const apRouter = router({
   createInvoice: rlsMutateProcedure
     .use(requireRole("owner", "admin", "finance_director", "accountant"))
     .input(
-      z.object({
-        supplierId: z.string().uuid(),
-        invoiceNumber: z
-          .string()
-          .trim()
-          .min(1, "Invoice number is required")
-          .max(40, "Invoice number must be under 40 characters"),
-        invoiceDate: isoDateString,
-        dueDate: isoDateString,
-        currency: z.string().length(3).default("USD"),
-        notes: z.string().max(4000).optional(),
-        purchaseOrderId: z.string().uuid().optional(),
-        lines: z
-          .array(
-            z.object({
-              description: z
-                .string()
-                .trim()
-                .min(1, "Line description is required")
-                .max(500),
-              accountId: z.string().uuid(),
-              quantity: z.number().positive().max(999_999_999),
-              unitPrice: moneyString,
-            }),
-          )
-          .min(1, "A bill needs at least one line")
-          .max(200),
-      }),
+      z
+        .object({
+          supplierId: z.string().uuid(),
+          invoiceNumber: z
+            .string()
+            .trim()
+            .min(1, "Invoice number is required")
+            .max(40, "Invoice number must be under 40 characters"),
+          invoiceDate: isoDateString,
+          dueDate: isoDateString,
+          currency: z.string().length(3).default("USD"),
+          notes: z.string().max(4000).optional(),
+          purchaseOrderId: z.string().uuid().optional(),
+          lines: z
+            .array(
+              z.object({
+                description: z
+                  .string()
+                  .trim()
+                  .min(1, "Line description is required")
+                  .max(500),
+                accountId: z.string().uuid(),
+                quantity: z.number().positive().max(999_999_999),
+                unitPrice: moneyString,
+              }),
+            )
+            .min(1, "A bill needs at least one line")
+            .max(200),
+        })
+        .superRefine((data, ctx) => {
+          if (data.dueDate < data.invoiceDate) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              path: ["dueDate"],
+              message: "Due date cannot be before the invoice date",
+            });
+          }
+          // E1 partition: the EXP- number namespace is reserved for expenses.
+          // A bill created under EXP- would masquerade as an expense (and an
+          // expense as a bill) on the two Operations surfaces.
+          if (/^EXP-/i.test(data.invoiceNumber)) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              path: ["invoiceNumber"],
+              message:
+                'The "EXP-" prefix is reserved for expenses — bills use a different number',
+            });
+          }
+        }),
     )
-    .superRefine((data, ctx) => {
-      if (data.dueDate < data.invoiceDate) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ["dueDate"],
-          message: "Due date cannot be before the invoice date",
-        });
-      }
-    })
     .mutation(async ({ ctx, input }) => {
       try {
         const { lines, purchaseOrderId, ...invoiceData } = input;
@@ -1520,6 +1552,7 @@ export const apRouter = router({
         const existingBill = await db.query.invoicesAp.findFirst({
           where: and(
             eq(invoicesAp.entityId, ctx.entityId!),
+            notLike(invoicesAp.invoiceNumber, "EXP-%"),
             eq(invoicesAp.invoiceNumber, input.invoiceNumber),
           ),
           columns: { id: true },
@@ -1641,29 +1674,30 @@ export const apRouter = router({
   updateInvoice: rlsMutateProcedure
     .use(requireRole("owner", "admin", "finance_director", "accountant"))
     .input(
-      z.object({
-        id: z.string().uuid(),
-        invoiceDate: isoDateString.optional(),
-        dueDate: isoDateString.optional(),
-        notes: z.string().max(4000).optional(),
-        // B5 state machine: callers may only VOID. "paid"/"partial"/"overdue"
-        // are driven by payments + the overdue job — never set by hand.
-        status: z.literal("voided").optional(),
-      }),
+      z
+        .object({
+          id: z.string().uuid(),
+          invoiceDate: isoDateString.optional(),
+          dueDate: isoDateString.optional(),
+          notes: z.string().max(4000).optional(),
+          // B5 state machine: callers may only VOID. "paid"/"partial"/"overdue"
+          // are driven by payments + the overdue job — never set by hand.
+          status: z.literal("voided").optional(),
+        })
+        .superRefine((data, ctx) => {
+          if (
+            data.invoiceDate !== undefined &&
+            data.dueDate !== undefined &&
+            data.dueDate < data.invoiceDate
+          ) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              path: ["dueDate"],
+              message: "Due date cannot be before the invoice date",
+            });
+          }
+        }),
     )
-    .superRefine((data, ctx) => {
-      if (
-        data.invoiceDate !== undefined &&
-        data.dueDate !== undefined &&
-        data.dueDate < data.invoiceDate
-      ) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ["dueDate"],
-          message: "Due date cannot be before the invoice date",
-        });
-      }
-    })
     .mutation(async ({ ctx, input }) => {
       try {
         const { id, ...data } = input;
@@ -1672,6 +1706,7 @@ export const apRouter = router({
           where: and(
             eq(invoicesAp.id, id),
             eq(invoicesAp.entityId, ctx.entityId!),
+            notLike(invoicesAp.invoiceNumber, "EXP-%"),
           ),
           columns: {
             id: true,
@@ -1731,6 +1766,7 @@ export const apRouter = router({
               and(
                 eq(invoicesAp.id, id),
                 eq(invoicesAp.entityId, ctx.entityId!),
+                notLike(invoicesAp.invoiceNumber, "EXP-%"),
               ),
             )
             .limit(1);
@@ -1741,7 +1777,10 @@ export const apRouter = router({
           .update(invoicesAp)
           .set(updates)
           .where(
-            and(eq(invoicesAp.id, id), eq(invoicesAp.entityId, ctx.entityId!)),
+            and(
+              eq(invoicesAp.id, id),
+              notLike(invoicesAp.invoiceNumber, "EXP-%"),
+            ),
           )
           .returning();
 
@@ -1788,6 +1827,7 @@ export const apRouter = router({
         where: and(
           eq(invoicesAp.id, input.id),
           eq(invoicesAp.entityId, ctx.entityId!),
+          notLike(invoicesAp.invoiceNumber, "EXP-%"),
         ),
       });
       if (!invoice) return null;
@@ -1833,6 +1873,7 @@ export const apRouter = router({
           where: and(
             eq(invoicesAp.id, invoiceApId),
             eq(invoicesAp.entityId, ctx.entityId!),
+            notLike(invoicesAp.invoiceNumber, "EXP-%"),
           ),
         });
         if (!invoice) {
@@ -1892,6 +1933,7 @@ export const apRouter = router({
             and(
               eq(invoicesAp.id, invoiceApId),
               eq(invoicesAp.entityId, ctx.entityId!),
+              notLike(invoicesAp.invoiceNumber, "EXP-%"),
               gte(
                 sql`${invoicesAp.balance}::numeric`,
                 sql`${amountStr}::numeric`,
@@ -2020,6 +2062,7 @@ export const apRouter = router({
               and(
                 eq(invoicesAp.id, invoiceApId),
                 eq(invoicesAp.entityId, ctx.entityId!),
+                notLike(invoicesAp.invoiceNumber, "EXP-%"),
               ),
             )
             .catch(() => {});
@@ -2177,6 +2220,7 @@ export const apRouter = router({
             and(
               eq(invoicesAp.id, input.id),
               eq(invoicesAp.entityId, ctx.entityId!),
+              notLike(invoicesAp.invoiceNumber, "EXP-%"),
             ),
           )
           .limit(1);
@@ -2226,6 +2270,7 @@ export const apRouter = router({
             and(
               eq(invoicesAp.id, input.id),
               eq(invoicesAp.entityId, ctx.entityId!),
+              notLike(invoicesAp.invoiceNumber, "EXP-%"),
             ),
           );
 
@@ -2292,6 +2337,7 @@ export const apRouter = router({
           where: and(
             eq(invoicesAp.id, existing.invoiceApId),
             eq(invoicesAp.entityId, ctx.entityId!),
+            notLike(invoicesAp.invoiceNumber, "EXP-%"),
           ),
           columns: { id: true, totalAmount: true },
         });
@@ -2323,6 +2369,7 @@ export const apRouter = router({
               and(
                 eq(invoicesAp.id, bill.id),
                 eq(invoicesAp.entityId, ctx.entityId!),
+                notLike(invoicesAp.invoiceNumber, "EXP-%"),
               ),
             );
         }
@@ -2364,6 +2411,7 @@ export const apRouter = router({
         .where(
           and(
             eq(invoicesAp.entityId, entityId),
+            notLike(invoicesAp.invoiceNumber, "EXP-%"),
             ne(invoicesAp.status, "voided"),
             gte(invoicesAp.invoiceDate, startDate),
             lte(invoicesAp.invoiceDate, endDate),
@@ -2393,6 +2441,7 @@ export const apRouter = router({
         where: and(
           eq(invoicesAp.id, input.id),
           eq(invoicesAp.entityId, ctx.entityId!),
+          notLike(invoicesAp.invoiceNumber, "EXP-%"),
         ),
         columns: { id: true, status: true },
       });

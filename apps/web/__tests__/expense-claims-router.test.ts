@@ -68,14 +68,12 @@ vi.mock("@/lib/logger", () => ({
     error: vi.fn(),
     warn: vi.fn(),
     debug: vi.fn(),
-    child: vi
-      .fn()
-      .mockReturnValue({
-        info: vi.fn(),
-        error: vi.fn(),
-        warn: vi.fn(),
-        debug: vi.fn(),
-      }),
+    child: vi.fn().mockReturnValue({
+      info: vi.fn(),
+      error: vi.fn(),
+      warn: vi.fn(),
+      debug: vi.fn(),
+    }),
   },
 }));
 
@@ -159,7 +157,14 @@ describe("Expenses router — expense claims workflow", () => {
     ).rejects.toThrow(/status/);
   });
 
-  it("reimburseClaim records a paid reimbursement", async () => {
+  it("reimburseClaim refuses to record a payment when the journal cannot post (books-first)", async () => {
+    // P6-C hardening: reimbursement posts a ledger entry FIRST (Dr expense /
+    // Cr bank); the claim is only marked reimbursed once the JE exists. In
+    // this mocked environment there is no open fiscal period, so
+    // createPostedJournal returns null and the router MUST refuse to record
+    // the payment — otherwise the P&L never sees the cost while cash already
+    // moved. This asserts the money-safety ordering, not the happy path (that
+    // needs a real DB and lives in the DB-gated integration suites).
     vi.mocked(db.query.expenseClaims.findFirst).mockResolvedValue({
       id: CLAIM_ID,
       entityId: "entity-1",
@@ -167,16 +172,44 @@ describe("Expenses router — expense claims workflow", () => {
       claimNumber: "EXP-2026-001",
       totalAmount: "9800",
       currency: "GMD",
+      claimantName: "Ada",
     } as never);
+    vi.mocked(db.query.claimLineItems.findMany).mockResolvedValue([
+      {
+        category: "travel",
+        description: "Client site visit",
+        amount: "9800",
+      },
+    ] as never);
+    vi.mocked(db.query.chartOfAccounts.findMany).mockResolvedValue([
+      {
+        id: "acc-exp-1",
+        name: "Travel",
+        code: "5500",
+        subtype: "travel_expense",
+        type: "expense",
+      },
+      {
+        id: "acc-bank-1",
+        name: "Bank Account",
+        code: "1020",
+        subtype: "bank_account",
+        type: "asset",
+      },
+    ] as never);
 
     const caller = appRouter.createCaller(makeCtx() as never);
-    const result = await caller.expenses.reimburseClaim({
-      claimId: CLAIM_ID,
-      paymentMethod: "bank_transfer",
-    });
+    await expect(
+      caller.expenses.reimburseClaim({
+        claimId: CLAIM_ID,
+        paymentMethod: "bank_transfer",
+      }),
+    ).rejects.toThrow(/could not be posted|period is closed/i);
 
-    expect(result).toEqual({ ok: true });
-    expect(db.insert).toHaveBeenCalled();
-    expect(db.update).toHaveBeenCalled();
+    // Books-first: because the JE never posted, the claim must NOT be marked
+    // reimbursed and no reimbursement record may exist — neither a status
+    // update nor any insert may have happened before the refusal.
+    expect(db.update).not.toHaveBeenCalled();
+    expect(db.insert).not.toHaveBeenCalled();
   });
 });
