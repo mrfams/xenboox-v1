@@ -68,7 +68,7 @@ Status legend: ✅ done · 🔄 in progress · ⬜ not started · ⚠️ needs f
 | --- | ---------------------------- | ------ | ------------------------------------------------------------------ || 3 | Invoice Flow | ✅ | A–D + verification loop committed |
 | 4 | Bill Flow | ✅ | A–D + verification loop committed |
 | 5 | Bank Reconciliation | ✅ | A–E + verification loop committed |
-| 6 | Expense Recording → Approval | 🔄 | A ✅ · B: approval ✅ · C/D/E + verify ⬜ |
+| 6 | Expense Recording → Approval | 🔄 | A ✅ · B ✅ · C: GL posting ✅ · D/E + verify ⬜ |
 | 7 | Journal Entries | ✅ | Post/reverse UI, dynamic year prefix |
 | 8 | Month-End Close | ✅ | Full checklist, idempotent task updates, AI recommendations |
 | 9 | Financial Reporting | ✅ | P&L, Balance Sheet, Cash Flow, Budget vs Actual |

@@ -18,12 +18,18 @@ import {
   entities,
 } from "@xenboox/db/schema";
 import { TRPCError } from "@trpc/server";
-import { isoDateString, positiveMoneyString } from "../ar-validation";
+import {
+  isoDateString,
+  positiveMoneyString,
+  moneyToCents,
+} from "../ar-validation";
 import {
   postApBillToLedger,
   postApPaymentToLedger,
   reverseApBillJournal,
 } from "../ap-posting";
+import { createPostedJournal, ensureAccount } from "../journal-posting-core";
+import { resolvePaymentReceiptAccount } from "@xenboox/db";
 
 import {
   router,
@@ -1204,6 +1210,121 @@ export const expensesRouter = router({
         );
       }
 
+      // P6-C: reimbursement moves money OUT of the company — it must hit the
+      // ledger (Dr expense accounts per line category / Cr cash-or-bank by
+      // method) or the P&L never sees the cost. Post FIRST; on failure the
+      // claim stays approved (nothing half-records, nothing silently lost).
+      const lines = await db.query.claimLineItems.findMany({
+        where: and(
+          eq(claimLineItems.claimId, claim.id),
+          eq(claimLineItems.entityId, ctx.entityId!),
+        ),
+        columns: {
+          category: true,
+          description: true,
+          amount: true,
+        },
+      });
+      const claimCents = moneyToCents(String(claim.totalAmount));
+      if (Number.isNaN(claimCents) || claimCents <= 0) {
+        throw new Error("Claim total is invalid — cannot reimburse");
+      }
+      if (lines.length === 0) {
+        throw new Error("Claim has no line items — cannot reimburse");
+      }
+
+      // Resolve each line to an expense account (never guesses — a missing
+      // account blocks the reimbursement so the books stay honest). The full
+      // chart is fetched once: lines use the expense accounts, the receipt
+      // resolver needs the asset side too.
+      const coa = await db.query.chartOfAccounts.findMany({
+        where: eq(chartOfAccounts.entityId, ctx.entityId!),
+        columns: {
+          id: true,
+          name: true,
+          code: true,
+          subtype: true,
+          type: true,
+        },
+      });
+      const expenseAccounts = coa.filter((a) => a.type === "expense");
+      if (expenseAccounts.length === 0) {
+        throw new Error(
+          "Add an expense account to your chart of accounts before reimbursing claims",
+        );
+      }
+      const built: Array<{
+        accountId: string;
+        debit: string;
+        credit: string;
+        description?: string;
+      }> = [];
+      let lineCentsTotal = 0;
+      for (const line of lines) {
+        const cents = moneyToCents(String(line.amount));
+        if (Number.isNaN(cents) || cents <= 0) {
+          throw new Error(
+            `Claim line "${line.description}" has an invalid amount`,
+          );
+        }
+        lineCentsTotal += cents;
+        const account = resolveExpenseAccountFromList(
+          expenseAccounts,
+          line.category ?? claim.category,
+          line.description,
+        );
+        built.push({
+          accountId: account.id,
+          debit: (cents / 100).toFixed(2),
+          credit: "0",
+          description: line.description,
+        });
+      }
+      // The lines must foot to the claim total — never reimburse a figure
+      // the books don't agree with.
+      if (lineCentsTotal !== claimCents) {
+        throw new Error(
+          "Claim line amounts do not match the claim total — fix the claim before reimbursing",
+        );
+      }
+
+      const receipt = resolvePaymentReceiptAccount(coa, input.paymentMethod);
+      const receiptAccountId = receipt.account
+        ? receipt.account.id
+        : await ensureAccount(ctx.entityId!, {
+            code: receipt.toCreate!.code,
+            name: receipt.toCreate!.name,
+            type: "asset",
+            subtype: receipt.toCreate!.subtype,
+          });
+      if (!receiptAccountId) {
+        throw new Error(
+          "Could not resolve a payment account for this reimbursement",
+        );
+      }
+      built.push({
+        accountId: receiptAccountId,
+        debit: "0",
+        credit: (claimCents / 100).toFixed(2),
+        description: `Reimbursement ${claim.claimNumber} — ${claim.claimantName ?? claim.claimantId}`,
+      });
+
+      const jeId = await createPostedJournal({
+        entityId: ctx.entityId!,
+        userId: ctx.session!.user!.id!,
+        date: new Date().toISOString().slice(0, 10),
+        description: `Expense claim ${claim.claimNumber} reimbursement`,
+        reference: `exp-claim-${claim.id}`,
+        source: "expense_claim_reimbursement",
+        lines: built,
+        logPrefix: "[expense-reimburse]",
+      });
+      if (!jeId) {
+        throw new Error(
+          "Reimbursement could not be posted — today's accounting period is closed. Reopen it and try again.",
+        );
+      }
+
       await db.insert(reimbursementRecords).values({
         entityId: ctx.entityId!,
         claimId: input.claimId,
@@ -1568,7 +1689,24 @@ async function resolveExpenseAccountId(
     columns: { id: true, name: true, code: true, subtype: true },
   });
   if (accounts.length === 0) return null;
+  return resolveExpenseAccountFromList(accounts, category, description).id;
+}
 
+/**
+ * Match a category/description against an already-fetched expense account
+ * list. Deterministic: subtype word match → name/code keyword overlap → first
+ * account. The caller guarantees the list is non-empty and entity-scoped.
+ */
+function resolveExpenseAccountFromList(
+  accounts: Array<{
+    id: string;
+    name: string;
+    code: string;
+    subtype: string | null;
+  }>,
+  category: string,
+  description: string,
+): { id: string } {
   const haystack = `${category} ${description}`.toLowerCase();
   const bySubtype = new Map<string, string[]>();
   const byKeyword: Array<{ keywords: string[]; id: string }> = [];
@@ -1586,7 +1724,7 @@ async function resolveExpenseAccountId(
   // (e.g. "rent" → rent_expense, "travel" → travel_expense).
   for (const [subtype, ids] of bySubtype) {
     const tokens = subtype.split("_").filter((t) => t.length >= 3);
-    if (tokens.some((t) => haystack.includes(t))) return ids[0]!;
+    if (tokens.some((t) => haystack.includes(t))) return { id: ids[0]! };
   }
 
   // Then keyword overlap on account names.
@@ -1600,10 +1738,10 @@ async function resolveExpenseAccountId(
       best = { id: cand.id, score };
     }
   }
-  if (best) return best.id;
+  if (best) return { id: best.id };
 
   // Deterministic fallback: the first expense account in the chart.
-  return accounts[0]!.id;
+  return { id: accounts[0]!.id };
 }
 
 function friendlyExpensePostReason(reason: string): string {

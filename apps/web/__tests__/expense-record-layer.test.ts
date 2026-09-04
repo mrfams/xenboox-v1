@@ -4,6 +4,26 @@ import * as path from "path";
 
 const EXPENSES = path.resolve(__dirname, "../server/routers/expenses.ts");
 
+describe("P6-C: claim reimbursement posts to the ledger", () => {
+  const c = fs.readFileSync(EXPENSES, "utf-8");
+  it("reimburse posts Dr expense lines / Cr receipt before marking reimbursed", () => {
+    expect(c).toContain("reference: `exp-claim-${claim.id}`");
+    expect(c).toContain("createPostedJournal({");
+    expect(c).toContain('source: "expense_claim_reimbursement"');
+  });
+  it("line amounts must foot to the claim total (no wrong reimbursements)", () => {
+    expect(c).toContain("lineCentsTotal !== claimCents");
+  });
+  it("missing expense accounts block reimbursement with a clear error", () => {
+    expect(c).toContain(
+      "Add an expense account to your chart of accounts before reimbursing claims",
+    );
+  });
+  it("closed-period post failure leaves the claim approved (nothing half-recorded)", () => {
+    expect(c).toContain("today's accounting period is closed");
+  });
+});
+
 describe("P6-B: approval posts money (recognize + settle, full rollback)", () => {
   const c = fs.readFileSync(EXPENSES, "utf-8");
   it("approval recognizes the expense (bill JE) and records a real payment", () => {
