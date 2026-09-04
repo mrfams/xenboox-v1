@@ -942,6 +942,19 @@ export const arRouter = router({
           });
         }
 
+        // P3 verify: an invoice linked to a journal entry (posted, or voided
+        // with a reversal on file) must never be hard-deleted — its JE would
+        // keep revenue in the books with no source document. Void keeps the
+        // row + reversal for audit; deletion stays available for never-posted
+        // records only.
+        if (existing.journalEntryId) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message:
+              "Invoice is in the ledger — void it instead (void reverses the journal entry and keeps the audit trail)",
+          });
+        }
+
         // A6: an invoice with recorded payments is protected by the FK anyway
         // — surface a clear conflict instead of a raw FK failure.
         const paymentCount = await db

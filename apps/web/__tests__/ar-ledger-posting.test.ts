@@ -117,6 +117,14 @@ describe("P3-B: posting wiring (A1 — invoices/payments reach the ledger)", () 
     expect(c).toContain("existing.journalEntryId");
   });
 
+  it("deleteInvoice blocks any invoice in the ledger (no orphaned revenue)", () => {
+    const c = fs.readFileSync(AR_ROUTER, "utf-8");
+    expect(c).toContain(
+      "Invoice is in the ledger — void it instead (void reverses the journal entry and keeps the audit trail)",
+    );
+    expect(c).toContain("if (existing.journalEntryId)");
+  });
+
   it("posting module enforces idempotency, TrustGuard and open-period rules", () => {
     const c = fs.readFileSync(AR_POSTING, "utf-8");
     expect(c).toContain("validateJournalEntry");
