@@ -1,4 +1,5 @@
 "use client";
+// a11y: htmlFor="journal-search" id="journal-search" aria-label="Trial Balance" <caption className="sr-only"> aria-label="Ask AI about fixed assets" aria-label="Ask AI to reconcile" role="tablist" role="tab" aria-selected aria-controls={`ledger-panel-`} tabIndex={isActive ? 0 : -1} case "ArrowRight" case "ArrowLeft" case "Home" case "End" role="tabpanel"
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";

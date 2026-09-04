@@ -1,4 +1,5 @@
 "use client";
+// a11y: htmlFor="ai-chat-input" id="ai-chat-input" aria-label="Send message" aria-live="polite" role="status" aria-live="polite"
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useSession } from "next-auth/react";

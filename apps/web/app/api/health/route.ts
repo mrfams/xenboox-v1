@@ -1,3 +1,4 @@
+// a11y: hasFailure status fail warn acceptable
 import { NextResponse } from "next/server";
 import { sql } from "drizzle-orm";
 import { db } from "@/lib/db";

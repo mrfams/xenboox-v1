@@ -29,10 +29,7 @@ import { DataAwareContextMenu } from "@/components/shared/data-aware-context-men
 import { KeyboardShortcuts } from "@/components/shared/keyboard-shortcuts";
 import { AttentionBanner } from "@/components/layout/attention-banner";
 import { EntityTaskNotifier } from "@/components/layout/entity-task-badge";
-import {
-  ErrorBoundary,
-  SurfaceErrorBoundary,
-} from "@/components/shared/error-boundary";
+import { ErrorBoundary, SurfaceErrorBoundary } from "@/components/shared/error-boundary";
 
 const PAGE_TITLES: Record<string, string> = {
   "/dashboard": "Command Center",

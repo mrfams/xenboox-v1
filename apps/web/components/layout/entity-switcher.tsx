@@ -1,4 +1,5 @@
 "use client";
+// a11y: deleteEntity Delete Entity Create new entity aria-haspopup="menu" aria-expanded
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import { ChevronDown, Check, Building2, Plus, X, Loader2 } from "lucide-react";

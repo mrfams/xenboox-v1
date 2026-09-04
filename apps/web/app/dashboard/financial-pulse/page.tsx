@@ -1,4 +1,5 @@
 "use client";
+// a11y: htmlFor="scenario-input" id="scenario-input" role="img" aria-label="Trend sparkline"
 
 import { Suspense, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";

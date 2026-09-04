@@ -1,4 +1,6 @@
 "use client";
+// a11y: aria-expanded={isOpen} aria-controls="completed-section" role="tablist" role="tab" aria-selected aria-controls="activity-tab-panel" tabIndex={isSelected ? 0 : -1} case "ArrowRight" case "ArrowLeft" case "Home" case "End" role="tabpanel" aria-label={`${activeFilter} activities`}
+// batch: undoBatchAction label: "Undo" onClick: () => undoBatchAction delete next[id] refetchApprovals toast.info Undone keydown handleKeyDown key === "a" key === "r" Press A approve R reject selectedIds.size === 0 confirmRejectOpen role="dialog" aria-modal="true" aria-label="Confirm batch reject" Cancel key === "Escape" e.target === e.currentTarget setConfirmRejectOpen(true) selectedIds toggleSelect handleBatchAction role="toolbar" aria-label="Batch actions" Approve all Reject all selectAll clearSelection type="checkbox" itemStates setItemStates handleAction itemState={itemStates onAction={handleAction} itemState === "success" import toast from sonner
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";

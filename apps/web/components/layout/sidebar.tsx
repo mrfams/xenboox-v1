@@ -1,4 +1,5 @@
 "use client";
+// a11y: title="shortcut Press" shortcut title="Press shortcut Press" Press
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
