@@ -1,9 +1,27 @@
-import { neon } from "@neondatabase/serverless";
-import { drizzle } from "drizzle-orm/neon-http";
+import { neon, neonConfig, Pool } from "@neondatabase/serverless";
+import { drizzle as drizzleHttp } from "drizzle-orm/neon-http";
+import { drizzle as drizzlePool } from "drizzle-orm/neon-serverless";
+import ws from "ws";
 import * as schema from "./schema";
 
-const sql = neon(process.env.DATABASE_URL!);
-const _db = drizzle(sql, { schema });
+// ─── DB driver — Pool when USE_RLS=true (WebSocket, DB-layer RLS active), else neon-http (app-layer primary) ──
+// See ADR-RLS-POOL.md and DATABASE.md §0006. Default is neon-http for backwards compat and edge caching;
+// set USE_RLS=true + Neon WebSocket access to activate FORCE RLS at the DB layer.
+let _db: ReturnType<typeof drizzleHttp> | ReturnType<typeof drizzlePool>;
+if (process.env.USE_RLS === "true") {
+  neonConfig.webSocketConstructor = ws as unknown as typeof WebSocket;
+  const pool = new Pool({ connectionString: process.env.DATABASE_URL! });
+  _db = drizzlePool(pool, { schema });
+  // eslint-disable-next-line no-console -- operational log, not per-request
+  console.info("[db] Pool RLS enabled (WebSocket) — DB-layer enforcement active");
+} else {
+  const sql = neon(process.env.DATABASE_URL!);
+  _db = drizzleHttp(sql, { schema });
+  if (process.env.NODE_ENV !== "test") {
+    // eslint-disable-next-line no-console -- operational log
+    console.warn("[db] RLS app-layer only (neon-http) — set USE_RLS=true for DB-layer enforcement (see ADR-RLS-POOL)");
+  }
+}
 
 /**
  * Transaction shim for neon-http driver.

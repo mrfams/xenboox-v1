@@ -125,15 +125,21 @@ export const t = initTRPC.context<Context>().create({
 // RLS session context setup
 // Uses SET LOCAL so variables persist for the current transaction only.
 // Requires Neon WebSocket mode (Pool-based driver) — HTTP driver cannot use session variables.
+// See ADR-RLS-POOL.md + DATABASE.md §14. Default USE_RLS=false = app-layer primary (FORCE RLS is defense-in-depth only).
 //
 // Context values are bound as real parameters via Drizzle's `sql` template.
 // Hand-rolled quote-doubling (the old sqlLiteral helper) breaks on
 // non-standard string literals (backslashes) and is the classic SQLi
 // footgun — never inline user or session values into statement text.
+let warnedRlsHttp = false;
 export async function setRlsContext(
   userId: string,
   entityId: string,
 ): Promise<void> {
+  if (process.env.USE_RLS !== "true" && !warnedRlsHttp) {
+    warnedRlsHttp = true;
+    logger.warn("[RLS] app-layer only (neon-http) — DB-layer disabled (USE_RLS!=true) — see ADR-RLS-POOL");
+  }
   await db.execute(
     sql`SELECT set_config('app.current_user_id', ${userId}, true)`,
   );

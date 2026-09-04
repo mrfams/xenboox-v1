@@ -1654,7 +1654,9 @@ CREATE POLICY entity_isolation ON invoices_ap
 -- SET app.current_entity_id = '<entity-uuid>';
 ```
 
-> **Neon HTTP driver limitation:** The Neon serverless HTTP driver (`@neondatabase/serverless`) does **not** support PostgreSQL session variables (`SET`, `SET LOCAL`, `current_setting`). RLS policies that rely on `current_setting('app.current_user_id')` or `current_setting('app.current_entity_id')` will **fail** when queries execute over the HTTP driver. Always scope queries at the application layer (`WHERE entity_id = $1`) when using the HTTP driver. RLS policies provide defense-in-depth only when using a traditional TCP connection (e.g., via PgBouncer or direct Postgres client).
+> **Neon driver & RLS — two modes (see ADR-RLS-POOL.md):**
+> - **Default `USE_RLS=false` (neon-http, `drizzle-orm/neon-http`)** — HTTP driver does **not** support `SET LOCAL`/`current_setting`; `setRlsContext()` is a no-op. Primary enforcement is **app-layer** `entityScopingMiddleware` (`WHERE entity_id = $1`) — every financial table is `entityId`-scoped and `idor-rls-sweep` verifies it. RLS policies remain `FORCE` but are defense-in-depth only.
+> - **Opt-in `USE_RLS=true` (Pool, `drizzle-orm/neon-serverless` + `ws`)** — `packages/db/index.ts` switches to `Pool` (`neonConfig.webSocketConstructor = ws`) and `setRlsContext()` actually enforces `app.current_entity_id`/`app.current_user_id` at the DB layer. Requires Neon WebSocket access and `FORCE RLS` active. Use for regulated tenants or when you need DB-layer guarantee.
 
 ---
 

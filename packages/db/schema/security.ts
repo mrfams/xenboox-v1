@@ -45,10 +45,12 @@ export const sessionContext = {
   entityId: 'app.current_entity_id',
 };
 
-// Set session context for RLS queries
+// Set session context for RLS queries — DEPRECATED: use apps/web/lib/trpc/server.ts:setRlsContext (param-bound).
+// Fixed from string-interp (SQLi footgun) to param-bound. Kept for backwards compat.
 // Usage: await setSessionContext(db, userId, entityId)
-// Note: Requires WebSocket connection or PgBouncer in transaction mode
+// Note: Requires WebSocket/Pool (USE_RLS=true) — no-ops on neon-http.
 export async function setSessionContext(db: any, userId: string, entityId: string): Promise<void> {
-  await db.execute(`SELECT set_config('app.current_user_id', ${JSON.stringify(userId)}, true)`);
-  await db.execute(`SELECT set_config('app.current_entity_id', ${JSON.stringify(entityId)}, true)`);
+  const { sql } = await import("drizzle-orm");
+  await db.execute(sql`SELECT set_config('app.current_user_id', ${userId}, true)`);
+  await db.execute(sql`SELECT set_config('app.current_entity_id', ${entityId}, true)`);
 }
