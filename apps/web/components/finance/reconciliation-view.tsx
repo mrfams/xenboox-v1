@@ -18,6 +18,7 @@ import {
   Filter,
 } from "lucide-react";
 
+import { toast } from "sonner";
 import { trpc } from "@/lib/trpc/client";
 import { useEntity } from "@/lib/entity-context";
 import { cn, formatCurrency } from "@/lib/utils";
@@ -61,6 +62,27 @@ export function ReconciliationView() {
         setSelectedBankTx([]);
         setSelectedJE([]);
       },
+      // P5-D: never fail silently — guards (unreconcile first, posted-only)
+      // surface their reason to the user.
+      onError: (err) => toast.error(err.message),
+    });
+
+  const [finalizeDate, setFinalizeDate] = useState(
+    new Date().toISOString().slice(0, 10),
+  );
+  const [finalizeBalance, setFinalizeBalance] = useState("");
+  const finalizeMutation =
+    trpc.reconciliation.finalizeReconciliation.useMutation({
+      onSuccess: (data) => {
+        toast.success(
+          data.unreconciledCount === 0
+            ? "Reconciliation closed"
+            : `Reconciliation closed (${data.unreconciledCount} items noted)`,
+        );
+        setFinalizeBalance("");
+        refetch();
+      },
+      onError: (err) => toast.error(err.message),
     });
 
   const handleReconcile = useCallback(
@@ -198,6 +220,86 @@ export function ReconciliationView() {
             )}
           </button>
         ))}
+      </div>
+
+      {/* P5-D: Finalize — close the reconciliation with the statement's ending
+          balance. The server blocks this while any item is unreconciled and
+          returns the count + honest difference once closed. */}
+      <div className="rounded-xl border border-border/50 bg-card p-4">
+        <div className="flex items-center gap-2 mb-3">
+          <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+          <h4 className="text-xs font-semibold text-foreground">
+            Finalize Reconciliation
+          </h4>
+        </div>
+        <div className="flex flex-wrap items-end gap-3">
+          <div>
+            <label
+              htmlFor="finalize-statement-date"
+              className="block text-[10px] text-muted-foreground/60 uppercase tracking-wider mb-1"
+            >
+              Statement Date
+            </label>
+            <input
+              id="finalize-statement-date"
+              type="date"
+              value={finalizeDate}
+              onChange={(e) => setFinalizeDate(e.target.value)}
+              className="rounded-lg border border-border/50 bg-background px-3 py-2 text-sm"
+            />
+          </div>
+          <div>
+            <label
+              htmlFor="finalize-statement-balance"
+              className="block text-[10px] text-muted-foreground/60 uppercase tracking-wider mb-1"
+            >
+              Statement Balance
+            </label>
+            <input
+              id="finalize-statement-balance"
+              type="number"
+              step="0.01"
+              min="0"
+              value={finalizeBalance}
+              onChange={(e) => setFinalizeBalance(e.target.value)}
+              placeholder="0.00"
+              className="rounded-lg border border-border/50 bg-background px-3 py-2 text-sm tabular-nums"
+            />
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              const balance = parseFloat(finalizeBalance);
+              if (Number.isNaN(balance)) {
+                toast.error("Enter the statement balance first");
+                return;
+              }
+              if (!selectedBankAccountId) {
+                toast.error("Select a bank account first");
+                return;
+              }
+              finalizeMutation.mutate({
+                bankAccountId: selectedBankAccountId,
+                statementDate: finalizeDate,
+                statementBalance: balance.toFixed(2),
+              });
+            }}
+            disabled={finalizeMutation.isPending}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-medium text-white hover:bg-emerald-700 transition-colors disabled:opacity-50"
+          >
+            {finalizeMutation.isPending ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <CheckCircle2 className="h-3.5 w-3.5" />
+            )}
+            Finalize
+          </button>
+          {finalizeMutation.isError && (
+            <p className="w-full text-[11px] text-red-600">
+              {finalizeMutation.error.message}
+            </p>
+          )}
+        </div>
       </div>
 
       {/* Tab content */}
@@ -602,14 +704,14 @@ function HistoryView({
             <div
               className={cn(
                 "flex h-10 w-10 items-center justify-center rounded-xl",
-                recon.status === "matched"
+                recon.status === "closed"
                   ? "bg-emerald-500/10"
-                  : recon.status === "partial"
+                  : recon.status === "unmatched" || recon.status === "partial"
                     ? "bg-amber-500/10"
                     : "bg-red-500/10",
               )}
             >
-              {recon.status === "matched" ? (
+              {recon.status === "closed" ? (
                 <CheckCircle2 className="h-5 w-5 text-emerald-500" />
               ) : (
                 <AlertTriangle className="h-5 w-5 text-amber-500" />

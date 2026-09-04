@@ -60,6 +60,27 @@ describe("P5-A: reconciliation view is reachable (mounted tab)", () => {
   });
 });
 
+describe("P5-D: reconciliation UI surface", () => {
+  const v = fs.readFileSync(
+    path.resolve(__dirname, "../components/finance/reconciliation-view.tsx"),
+    "utf-8",
+  );
+  it("finalize flow is present (statement date + balance + button)", () => {
+    expect(v).toContain("finalizeReconciliation.useMutation");
+    expect(v).toContain("Finalize Reconciliation");
+    expect(v).toContain("statementBalance: balance.toFixed(2)");
+  });
+  it("mutations surface errors instead of failing silently", () => {
+    expect(v).toContain("onError: (err) => toast.error(err.message)");
+  });
+  it("history icons treat closed as success", () => {
+    expect(v).toContain('recon.status === "closed"');
+  });
+  it("toast is imported", () => {
+    expect(v).toContain('import { toast } from "sonner";');
+  });
+});
+
 describe("P5-C: GL-integrity book balance", () => {
   const c = fs.readFileSync(REC, "utf-8");
   it("finalize computes book from the linked GL account (not bank currentBalance)", () => {
