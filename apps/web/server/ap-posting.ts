@@ -1,19 +1,12 @@
-// ─── AR → General Ledger posting orchestration ─────────────────────────────
+// ─── AP → General Ledger posting orchestration ─────────────────────────────
 //
-// P3-B. Implements accrual posting for the AR module (mirrors banking's
-// postToLedger conventions):
-//   invoice created → Dr AR / Cr line accounts   (reference `ar-inv-{id}`)
-//   payment received → Dr receipt acct / Cr AR   (reference `ar-pay-{id}`)
-//   invoice voided   → reversal of the invoice JE (`ar-inv-rev-{id}`)
+// P4-B. Mirrors ar-posting.ts for payables (shared journal-posting-core):
+//   bill created → Dr line expense/asset accounts / Cr AP  (`ap-inv-{id}`)
+//   payment made → Dr AP / Cr receipt account               (`ap-pay-{id}`)
+//   bill voided  → reversal of the bill JE                  (`ap-inv-rev-{id}`)
 //
-// Rules enforced (shared with AP via journal-posting-core):
-//   - TrustGuard validates every entry before insert (validateJournalEntry)
-//   - the JE reference is the idempotency key — the unique (entityId,
-//     reference) index makes double-posting impossible
-//   - the entry only posts into an OPEN fiscal period for its date
-//   - AR / receipt accounts resolve deterministically (ar-ledger), creating
-//     the canonical row (1100 AR / 1010 cash / 1020 bank) when absent
-//   - money stays integer-cents end to end; entries always balance
+// Rules (same as AR): TrustGuard gate, reference idempotency, open-period
+// only, deterministic account creation (2100 AP), integer cents.
 
 import { eq, and, desc } from "drizzle-orm";
 import {
@@ -21,14 +14,14 @@ import {
   journalEntryLines,
   chartOfAccounts,
   auditLog,
-  salesInvoices,
-  paymentsAr,
+  invoicesAp,
+  paymentsAp,
 } from "@xenboox/db/schema";
 import {
-  resolveArReceivableAccount,
+  resolveApPayableAccount,
+  buildApInvoiceLines,
+  buildApPaymentLines,
   resolvePaymentReceiptAccount,
-  buildArInvoiceLines,
-  buildArPaymentLines,
 } from "@xenboox/db";
 import { db } from "@/lib/db";
 import { logger } from "@/lib/logger";
@@ -39,7 +32,7 @@ import {
   ensureAccount,
 } from "./journal-posting-core";
 
-export type ArPostResult =
+export type ApPostResult =
   | { posted: true; journalEntryId: string }
   | { posted: false; reason: string };
 
@@ -51,25 +44,21 @@ type CoaPick = {
   subtype: string;
 };
 
-// ─── Invoice posting ────────────────────────────────────────────────────────
+// ─── Bill posting ───────────────────────────────────────────────────────────
 
 /**
- * Post the revenue/AR entry for a sales invoice. No-op (posted) when the
- * invoice already has a journalEntryId. Never throws — returns a result the
- * caller can log; invoice creation must not fail because a posting is
- * temporarily impossible (closed period, missing account resolution).
+ * Post the AP entry for a purchase bill: Dr line accounts / Cr AP. No-op when
+ * already posted. Never throws — returns a result the caller logs; bill
+ * creation must not fail because posting is temporarily impossible.
  */
-export async function postArInvoiceToLedger(
-  invoiceId: string,
+export async function postApBillToLedger(
+  billId: string,
   entityId: string,
   userId: string,
-): Promise<ArPostResult> {
+): Promise<ApPostResult> {
   try {
-    const invoice = await db.query.salesInvoices.findFirst({
-      where: and(
-        eq(salesInvoices.id, invoiceId),
-        eq(salesInvoices.entityId, entityId),
-      ),
+    const bill = await db.query.invoicesAp.findFirst({
+      where: and(eq(invoicesAp.id, billId), eq(invoicesAp.entityId, entityId)),
       columns: {
         id: true,
         invoiceNumber: true,
@@ -78,14 +67,14 @@ export async function postArInvoiceToLedger(
         status: true,
       },
     });
-    if (!invoice) return { posted: false, reason: "invoice_not_found" };
-    if (invoice.status === "voided") return { posted: false, reason: "voided" };
-    if (invoice.journalEntryId) {
-      return { posted: true, journalEntryId: invoice.journalEntryId };
+    if (!bill) return { posted: false, reason: "bill_not_found" };
+    if (bill.status === "voided") return { posted: false, reason: "voided" };
+    if (bill.journalEntryId) {
+      return { posted: true, journalEntryId: bill.journalEntryId };
     }
 
-    const lines = await db.query.salesInvoiceLines.findMany({
-      where: eq(salesInvoiceLines.salesInvoiceId, invoice.id),
+    const lines = await db.query.invoiceApLines.findMany({
+      where: eq(invoiceApLines.invoiceApId, bill.id),
       columns: { accountId: true, amount: true, description: true },
     });
     if (lines.length === 0) return { posted: false, reason: "no_lines" };
@@ -97,21 +86,18 @@ export async function postArInvoiceToLedger(
     if (coa.length === 0)
       return { posted: false, reason: "no_chart_of_accounts" };
 
-    const ar = resolveArReceivableAccount(coa as CoaPick[]);
-    const arAccountId = ar.account
-      ? ar.account.id
+    const ap = resolveApPayableAccount(coa as CoaPick[]);
+    const apAccountId = ap.account
+      ? ap.account.id
       : await ensureAccount(entityId, {
-          code: ar.toCreate!.code,
-          name: ar.toCreate!.name,
-          type: "asset",
-          subtype: ar.toCreate!.subtype,
+          code: ap.toCreate!.code,
+          name: ap.toCreate!.name,
+          type: "liability",
+          subtype: ap.toCreate!.subtype,
         });
-    if (!arAccountId) return { posted: false, reason: "no_ar_account" };
+    if (!apAccountId) return { posted: false, reason: "no_ap_account" };
 
-    // Every line account must exist in the COA (validated in-entity at
-    // creation; double-checked here because the ledger is the source of
-    // truth). All-or-nothing: a missing account must never silently redirect
-    // revenue to the AR account.
+    // All-or-nothing: never redirect a missing line account to the AP account.
     const coaById = new Map(coa.map((a) => [a.id, a]));
     if (lines.some((l) => !coaById.has(l.accountId))) {
       return { posted: false, reason: "missing_line_account" };
@@ -121,44 +107,41 @@ export async function postArInvoiceToLedger(
       return {
         accountId: l.accountId,
         cents: Number.isNaN(cents) ? 0 : cents,
-        description: l.description || `Invoice ${invoice.invoiceNumber}`,
+        description: l.description || `Bill ${bill.invoiceNumber}`,
       };
     });
     if (built.some((l) => l.cents <= 0)) {
       return { posted: false, reason: "invalid_line_amount" };
     }
 
-    const jeLines = buildArInvoiceLines(arAccountId, built);
-    const reference = `ar-inv-${invoice.id}`;
+    const jeLines = buildApInvoiceLines(apAccountId, built);
+    const reference = `ap-inv-${bill.id}`;
     const jeId = await createPostedJournal({
       entityId,
       userId,
-      date: invoice.invoiceDate,
-      description: `Sales invoice ${invoice.invoiceNumber}`,
+      date: bill.invoiceDate,
+      description: `Purchase bill ${bill.invoiceNumber}`,
       reference,
-      source: "ar_invoice",
+      source: "ap_bill",
       lines: jeLines,
-      logPrefix: "[ar-posting]",
+      logPrefix: "[ap-posting]",
     });
     if (!jeId) return { posted: false, reason: "journal_skipped" };
 
     try {
       await db
-        .update(salesInvoices)
+        .update(invoicesAp)
         .set({ journalEntryId: jeId })
         .where(
-          and(
-            eq(salesInvoices.id, invoice.id),
-            eq(salesInvoices.entityId, entityId),
-          ),
+          and(eq(invoicesAp.id, bill.id), eq(invoicesAp.entityId, entityId)),
         );
 
       await db.insert(auditLog).values({
         entityId,
         userId,
-        action: "ar.postInvoice",
-        entityType: "sales_invoice",
-        entityIdRef: invoice.id,
+        action: "ap.postBill",
+        entityType: "invoice_ap",
+        entityIdRef: bill.id,
         newValues: { journalEntryId: jeId, reference },
       });
     } catch (linkErr) {
@@ -168,7 +151,7 @@ export async function postArInvoiceToLedger(
 
     return { posted: true, journalEntryId: jeId };
   } catch (error) {
-    logger.error({ error, invoiceId }, "[ar-posting] Invoice posting failed");
+    logger.error({ error, billId }, "[ap-posting] Bill posting failed");
     return { posted: false, reason: "error" };
   }
 }
@@ -176,20 +159,20 @@ export async function postArInvoiceToLedger(
 // ─── Payment posting ────────────────────────────────────────────────────────
 
 /**
- * Post the receipt entry for an AR payment: Dr receipt account / Cr AR.
- * THROWS when posting is impossible (closed period etc.) — callers roll the
- * payment back so money can never be recorded without hitting the ledger.
+ * Post the payment entry for an AP payment: Dr AP / Cr receipt account.
+ * THROWS when posting is impossible — callers roll the payment back so money
+ * can never leave without hitting the ledger.
  */
-export async function postArPaymentToLedger(
+export async function postApPaymentToLedger(
   paymentId: string,
   entityId: string,
   userId: string,
 ): Promise<string> {
-  const payment = await db.query.paymentsAr.findFirst({
-    where: and(eq(paymentsAr.id, paymentId), eq(paymentsAr.entityId, entityId)),
+  const payment = await db.query.paymentsAp.findFirst({
+    where: and(eq(paymentsAp.id, paymentId), eq(paymentsAp.entityId, entityId)),
     columns: {
       id: true,
-      salesInvoiceId: true,
+      invoiceApId: true,
       amount: true,
       paymentDate: true,
       method: true,
@@ -199,17 +182,17 @@ export async function postArPaymentToLedger(
   if (!payment) throw new Error("Payment not found");
   if (payment.journalEntryId) return payment.journalEntryId;
 
-  const invoice = await db.query.salesInvoices.findFirst({
+  const bill = await db.query.invoicesAp.findFirst({
     where: and(
-      eq(salesInvoices.id, payment.salesInvoiceId),
-      eq(salesInvoices.entityId, entityId),
+      eq(invoicesAp.id, payment.invoiceApId),
+      eq(invoicesAp.entityId, entityId),
     ),
     columns: { id: true, invoiceNumber: true, journalEntryId: true },
   });
-  if (!invoice) throw new Error("Invoice not found");
-  if (!invoice.journalEntryId) {
+  if (!bill) throw new Error("Bill not found");
+  if (!bill.journalEntryId) {
     throw new Error(
-      "Invoice is not posted to the ledger — post the invoice before recording payments",
+      "Bill is not posted to the ledger — post the bill before recording payments",
     );
   }
 
@@ -217,10 +200,10 @@ export async function postArPaymentToLedger(
     where: eq(chartOfAccounts.entityId, entityId),
     columns: { id: true, code: true, name: true, type: true, subtype: true },
   });
-  const ar = resolveArReceivableAccount(coa as CoaPick[]);
-  if (!ar.account) {
+  const ap = resolveApPayableAccount(coa as CoaPick[]);
+  if (!ap.account) {
     throw new Error(
-      "Accounts Receivable account is missing from the chart of accounts",
+      "Accounts Payable account is missing from the chart of accounts",
     );
   }
   const receipt = resolvePaymentReceiptAccount(
@@ -244,22 +227,22 @@ export async function postArPaymentToLedger(
     throw new Error("Payment amount is invalid");
   }
 
-  const reference = `ar-pay-${payment.id}`;
-  const jeLines = buildArPaymentLines(
+  const reference = `ap-pay-${payment.id}`;
+  const jeLines = buildApPaymentLines(
+    ap.account.id,
     receiptAccountId,
-    ar.account.id,
     cents,
-    `Payment ${payment.method} — invoice ${invoice.invoiceNumber}`,
+    `Payment ${payment.method} — bill ${bill.invoiceNumber}`,
   );
   const jeId = await createPostedJournal({
     entityId,
     userId,
     date: payment.paymentDate,
-    description: `Payment on invoice ${invoice.invoiceNumber}`,
+    description: `Payment on bill ${bill.invoiceNumber}`,
     reference,
-    source: "ar_payment",
+    source: "ap_payment",
     lines: jeLines,
-    logPrefix: "[ar-posting]",
+    logPrefix: "[ap-posting]",
   });
   if (!jeId) {
     throw new Error(
@@ -269,17 +252,17 @@ export async function postArPaymentToLedger(
 
   try {
     await db
-      .update(paymentsAr)
+      .update(paymentsAp)
       .set({ journalEntryId: jeId })
       .where(
-        and(eq(paymentsAr.id, payment.id), eq(paymentsAr.entityId, entityId)),
+        and(eq(paymentsAp.id, payment.id), eq(paymentsAp.entityId, entityId)),
       );
 
     await db.insert(auditLog).values({
       entityId,
       userId,
-      action: "ar.postPayment",
-      entityType: "payment_ar",
+      action: "ap.postPayment",
+      entityType: "payment_ap",
       entityIdRef: payment.id,
       newValues: { journalEntryId: jeId, reference },
     });
@@ -294,32 +277,28 @@ export async function postArPaymentToLedger(
 // ─── Void reversal ──────────────────────────────────────────────────────────
 
 /**
- * Reverse the invoice's posted JE when the invoice is voided. Mirrors the
- * journal reversal convention (swapped debit/credit lines, status reversed).
- * Safe to call when nothing was posted (no-op) or already reversed.
+ * Reverse the bill's posted JE when the bill is voided. Safe to call when
+ * nothing was posted (no-op) or already reversed.
  */
-export async function reverseArInvoiceJournal(
-  invoiceId: string,
+export async function reverseApBillJournal(
+  billId: string,
   entityId: string,
   userId: string,
   reason: string,
-): Promise<ArPostResult> {
-  const invoice = await db.query.salesInvoices.findFirst({
-    where: and(
-      eq(salesInvoices.id, invoiceId),
-      eq(salesInvoices.entityId, entityId),
-    ),
+): Promise<ApPostResult> {
+  const bill = await db.query.invoicesAp.findFirst({
+    where: and(eq(invoicesAp.id, billId), eq(invoicesAp.entityId, entityId)),
     columns: { id: true, invoiceNumber: true, journalEntryId: true },
   });
-  if (!invoice) return { posted: false, reason: "invoice_not_found" };
-  if (!invoice.journalEntryId) {
+  if (!bill) return { posted: false, reason: "bill_not_found" };
+  if (!bill.journalEntryId) {
     // Never posted — nothing to reverse.
     return { posted: true, journalEntryId: "" };
   }
 
   const original = await db.query.journalEntries.findFirst({
     where: and(
-      eq(journalEntries.id, invoice.journalEntryId),
+      eq(journalEntries.id, bill.journalEntryId),
       eq(journalEntries.entityId, entityId),
     ),
     columns: { id: true, status: true, entryNumber: true, periodId: true },
@@ -339,13 +318,13 @@ export async function reverseArInvoiceJournal(
     .orderBy(desc(journalEntries.entryNumber))
     .limit(1);
 
-  const reference = `ar-inv-rev-${invoice.id}`;
+  const reference = `ap-inv-rev-${bill.id}`;
   const [reversal] = await db
     .insert(journalEntries)
     .values({
       entityId,
       entryNumber: (last?.n ?? 0) + 1,
-      description: `Reversal of invoice ${invoice.invoiceNumber}${reason ? `: ${reason}` : ""}`,
+      description: `Reversal of bill ${bill.invoiceNumber}${reason ? `: ${reason}` : ""}`,
       reference,
       date: new Date().toISOString().slice(0, 10),
       periodId: original.periodId,
@@ -353,7 +332,7 @@ export async function reverseArInvoiceJournal(
       reversedBy: original.id,
       postedBy: userId,
       postedAt: new Date(),
-      source: "ar_invoice_void",
+      source: "ap_bill_void",
     })
     .returning({ id: journalEntries.id });
   if (!reversal) return { posted: false, reason: "reversal_insert_failed" };

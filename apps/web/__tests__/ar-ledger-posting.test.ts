@@ -11,6 +11,10 @@ import {
 
 const AR_ROUTER = path.resolve(__dirname, "../server/routers/ar.ts");
 const AR_POSTING = path.resolve(__dirname, "../server/ar-posting.ts");
+const CORE_POSTING = path.resolve(
+  __dirname,
+  "../server/journal-posting-core.ts",
+);
 
 const coa = (rows: Partial<ArCoaRow>[]): ArCoaRow[] =>
   rows.map((r, i) => ({
@@ -127,14 +131,18 @@ describe("P3-B: posting wiring (A1 — invoices/payments reach the ledger)", () 
 
   it("posting module enforces idempotency, TrustGuard and open-period rules", () => {
     const c = fs.readFileSync(AR_POSTING, "utf-8");
+    // The idempotency/TrustGuard/open-period gate lives in the shared core
+    // (extracted in P4-B so AR and AP post through one code path).
+    const core = fs.readFileSync(CORE_POSTING, "utf-8");
     expect(c).toContain("validateJournalEntry");
-    expect(c).toContain("eq(journalEntries.reference, reference)");
+    expect(c).toContain("createPostedJournal");
+    expect(core).toContain("eq(journalEntries.reference, reference)");
     expect(c).toContain("`ar-inv-${invoice.id}`");
     expect(c).toContain("`ar-pay-${payment.id}`");
     expect(c).toContain("`ar-inv-rev-${invoice.id}`");
     expect(c).toContain('source: "ar_invoice"');
     expect(c).toContain('source: "ar_payment"');
-    expect(c).toContain('period?.status !== "open"');
+    expect(core).toContain('period?.status !== "open"');
     expect(c).toContain("cleanupJournal");
   });
 });

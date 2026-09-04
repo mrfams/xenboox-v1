@@ -39,6 +39,12 @@ export {
   type ArLedgerLine,
 } from "./lib/ar-ledger";
 export {
+  resolveApPayableAccount,
+  buildApInvoiceLines,
+  buildApPaymentLines,
+  type ApLedgerLine,
+} from "./lib/ap-ledger";
+export {
   balanceEquationError,
   runningBalanceIssues,
   type BalanceRow,

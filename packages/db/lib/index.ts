@@ -6,4 +6,5 @@ export * from "./bank-token-encryption";
 export * from "./bank-ledger";
 export * from "./bank-statement-validation";
 export * from "./ar-ledger";
+export * from "./ap-ledger";
 export * from "./notify-entity";

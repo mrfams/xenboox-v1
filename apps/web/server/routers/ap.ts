@@ -36,6 +36,11 @@ import { logger } from "@/lib/logger";
 import { db } from "@/lib/db";
 import { sendPaymentSentEmail } from "@/lib/email";
 import { generateBillNarrative } from "./ap-invoice-narrative";
+import {
+  postApBillToLedger,
+  postApPaymentToLedger,
+  reverseApBillJournal,
+} from "../ap-posting";
 import { getEnrichedEntityContext } from "@/lib/entity-context-enrichment";
 import { dispatchWebhookEvent } from "@/lib/webhooks/delivery";
 
@@ -1574,6 +1579,22 @@ export const apRouter = router({
           logger.error({ err }, "[ap] Bill narrative generation failed");
         });
 
+        // P4-B (B1): recognize the payable at issue — Dr line accounts / Cr AP.
+        // Best-effort by design: a closed period or missing account must not
+        // block bill creation; the skip is logged and the bill stays unposted
+        // (journalEntryId null) for a later retry.
+        const postResult = await postApBillToLedger(
+          invoice.id,
+          ctx.entityId!,
+          ctx.session!.user!.id!,
+        );
+        if (!postResult.posted) {
+          logger.warn(
+            { invoiceId: invoice.id, reason: postResult.reason },
+            "[ap] Bill created but not posted to the ledger",
+          );
+        }
+
         return invoice;
       } catch (error) {
         // Map unique violations to a readable 409 (race-safe duplicate).
@@ -1716,6 +1737,21 @@ export const apRouter = router({
             },
             newValues: { status: "voided" },
           });
+
+          // P4-B: voiding removes the payable — reverse the posted bill
+          // entry (mirrored lines) so the ledger nets back to zero.
+          const revResult = await reverseApBillJournal(
+            updated.id,
+            ctx.entityId!,
+            ctx.session!.user!.id!,
+            "Invoice voided",
+          );
+          if (!revResult.posted) {
+            logger.warn(
+              { invoiceId: updated.id, reason: revResult.reason },
+              "[ap] Voided bill journal not reversed",
+            );
+          }
         }
 
         return updated;
@@ -1860,6 +1896,17 @@ export const apRouter = router({
         }
 
         try {
+          // P4-B (B1): post the payment entry — Dr AP / Cr receipt account.
+          // This throws when the entry cannot be posted (closed period etc.),
+          // and the outer catch rolls the whole payment back — money can
+          // never leave without also hitting the ledger. It runs BEFORE the
+          // audit insert so a rolled-back payment leaves no audit trail.
+          await postApPaymentToLedger(
+            payment.id,
+            ctx.entityId!,
+            ctx.session!.user!.id!,
+          );
+
           await db.insert(auditLog).values({
             entityId: ctx.entityId!,
             userId: ctx.session!.user!.id!,

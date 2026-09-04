@@ -99,3 +99,49 @@ describe("P4-A: bill numbering (B9)", () => {
     expect(c).not.toContain("const sequence = (result?.count ?? 0) + 1;");
   });
 });
+
+describe("P4-B: AP posting to the general ledger", () => {
+  const c = fs.readFileSync(AP, "utf-8");
+  it("bill creation posts best-effort (never blocks on closed period)", () => {
+    expect(c).toContain("const postResult = await postApBillToLedger(");
+    expect(c).toContain("Bill created but not posted to the ledger");
+  });
+  it("void reverses the bill journal entry", () => {
+    expect(c).toContain("const revResult = await reverseApBillJournal(");
+    expect(c).toContain("Voided bill journal not reversed");
+  });
+  it("payment posting runs before the audit insert and rolls back on failure", () => {
+    const payStart = c.indexOf("await postApPaymentToLedger(");
+    const audit = c.indexOf('action: "ap.createPayment"');
+    expect(payStart).toBeGreaterThan(-1);
+    expect(audit).toBeGreaterThan(payStart);
+    expect(c).toContain("never leave without also hitting the ledger");
+  });
+});
+
+describe("P4-B: ap-posting module structure", () => {
+  const m = fs.readFileSync(
+    path.resolve(__dirname, "../server/ap-posting.ts"),
+    "utf-8",
+  );
+  it("bill JE reference is the idempotency key", () => {
+    expect(m).toContain("reference = \`ap-inv-${bill.id}\`");
+  });
+  it("payment JE reference is the idempotency key", () => {
+    expect(m).toContain("reference = \`ap-pay-${payment.id}\`");
+  });
+  it("void reversal swaps debits and credits and marks reversed", () => {
+    expect(m).toContain("debit: line.credit");
+    expect(m).toContain("credit: line.debit");
+    expect(m).toContain('status: "reversed"');
+    expect(m).toContain("ap_bill_void");
+  });
+  it("payment posting requires the bill to be posted first", () => {
+    expect(m).toContain(
+      "Bill is not posted to the ledger — post the bill before recording payments",
+    );
+  });
+  it("never redirects a missing line account to AP", () => {
+    expect(m).toContain("missing_line_account");
+  });
+});
