@@ -67,7 +67,7 @@ Status legend: ✅ done · 🔄 in progress · ⬜ not started · ⚠️ needs f
 | # | Pipeline | Status | Notes |
 | --- | ---------------------------- | ------ | ------------------------------------------------------------------ || 3 | Invoice Flow | ✅ | A–D + verification loop committed |
 | 4 | Bill Flow | ✅ | A–D + verification loop committed |
-| 5 | Bank Reconciliation | ✅ | Bidirectional linking, unreconcile, AI matching with batch queries |
+| 5 | Bank Reconciliation | 🔄 | A: record layer ✅ (router merge + view mounted) · B/C/D/E + verify ⬜ |
 | 6 | Expense Recording → Approval | ✅ | Creatable combobox, detail panel, approve/reject workflow |
 | 7 | Journal Entries | ✅ | Post/reverse UI, dynamic year prefix |
 | 8 | Month-End Close | ✅ | Full checklist, idempotent task updates, AI recommendations |
@@ -130,3 +130,7 @@ Pipelines 1–2 before true production sign-off.
     (`journalEntryId` set) are now locked against re-categorization/undo until
     the journal entry is reversed; UI renders a lock + surfaces blocked undo rows.
 - **Next:** deep-audit Pipelines 3–12 one sub-part at a time with the same method.
+
+## Needs review (implemented, check when convenient)
+
+- **P5-A**: Reconciliation view mounted as a "Reconcile" tab inside Operations → Banking (not the Ledger page). Move to Ledger or AI-chat-only if preferred.

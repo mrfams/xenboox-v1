@@ -25,6 +25,7 @@ import { BankConnectionCard } from "@/components/banking/bank-connection-card";
 import { BankConnectionDialog } from "@/components/banking/bank-connection-dialog";
 import { BankRulesManager } from "@/components/banking/bank-rules-manager";
 import { StatementUploadZone } from "@/components/banking/statement-upload-zone";
+import { ReconciliationView } from "@/components/finance/reconciliation-view";
 import { useUndo } from "@/lib/hooks/use-undo";
 
 // ─── Banking View ──────────────────────────────────────────────────────────
@@ -33,7 +34,7 @@ import { useUndo } from "@/lib/hooks/use-undo";
 // The /dashboard/operations/banking route wraps this in ModulePageShell.
 // AI categorizes transactions. You review and approve.
 
-type Tab = "transactions" | "connections" | "rules";
+type Tab = "transactions" | "connections" | "rules" | "reconciliation";
 
 export function BankingView() {
   const { entityId } = useEntity();
@@ -52,6 +53,7 @@ export function BankingView() {
     { id: "transactions", label: "Transactions", icon: ArrowUpRight },
     { id: "connections", label: "Connections", icon: Link2 },
     { id: "rules", label: "Rules", icon: Zap },
+    { id: "reconciliation", label: "Reconcile", icon: RefreshCw },
   ];
 
   return (
@@ -98,6 +100,7 @@ export function BankingView() {
           />
         )}
         {activeTab === "rules" && <RulesTab entityId={entityId} />}
+        {activeTab === "reconciliation" && <ReconciliationView />}
       </div>
 
       {/* Bank Connection Dialog */}
