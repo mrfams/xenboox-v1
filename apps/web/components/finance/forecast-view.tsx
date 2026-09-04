@@ -371,6 +371,7 @@ function TrendCard({
   currency: string;
   invertColors?: boolean;
 }) {
+  const { format } = useFormatCurrency();
   const isPositive = invertColors ? value < 0 : value > 0;
   const isNegative = invertColors ? value > 0 : value < 0;
 
