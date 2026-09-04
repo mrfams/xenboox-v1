@@ -90,6 +90,18 @@ export const autoSyncBankFeeds = task({
       error: string;
     }> = [];
 
+    // M1 (H4): collect dispatchable connections first, then fire them in
+    // bounded-parallel chunks. Sequential awaits over hundreds of connections
+    // can exceed the task's maxDuration and starve the connections at the end
+    // of the list — every 6-hour cycle would silently miss them.
+    type DispatchTarget = {
+      connection: (typeof connections)[number];
+      task: "mono-sync-transactions" | "plaid-sync-transactions";
+      payload: Record<string, string>;
+      options: { concurrencyKey: string; idempotencyKey: string };
+    };
+    const targets: DispatchTarget[] = [];
+
     for (const connection of connections) {
       const provider = connection.provider;
 
@@ -103,62 +115,83 @@ export const autoSyncBankFeeds = task({
         continue;
       }
 
-      // Skip connections without required fields
-      if (!connection.providerConnectionId) {
-        logger.warn("Skipping connection (missing provider connection ID)", {
-          connectionId: connection.id,
-          provider,
-        });
-        skipped++;
-        continue;
-      }
-
-      try {
-        if (provider === "mono") {
-          await triggerClient.tasks.trigger(
-            "mono-sync-transactions",
-            {
-              connectionId: connection.id,
-              entityId: connection.entityId,
-              providerConnectionId: connection.providerConnectionId,
-            },
-            tenantJobOptions(connection.entityId, `mono-sync:${connection.id}`),
-          );
-          triggered++;
-        } else if (provider === "plaid") {
-          await triggerClient.tasks.trigger(
-            "plaid-sync-transactions",
-            {
-              connectionId: connection.id,
-              entityId: connection.entityId,
-            },
-            tenantJobOptions(
-              connection.entityId,
-              `plaid-sync:${connection.id}`,
-            ),
-          );
-          triggered++;
-        } else {
-          logger.warn("Unknown provider, skipping", {
+      if (provider === "mono") {
+        // Mono requires the provider account id to paginate transactions.
+        if (!connection.providerConnectionId) {
+          logger.warn("Skipping connection (missing provider connection ID)", {
             connectionId: connection.id,
             provider,
           });
           skipped++;
+          continue;
         }
-      } catch (error) {
-        errors++;
-        const errorMsg = error instanceof Error ? error.message : String(error);
-        errorsList.push({
+        targets.push({
+          connection,
+          task: "mono-sync-transactions",
+          payload: {
+            connectionId: connection.id,
+            entityId: connection.entityId,
+            providerConnectionId: connection.providerConnectionId,
+          },
+          options: tenantJobOptions(
+            connection.entityId,
+            `mono-sync:${connection.id}`,
+          ),
+        });
+      } else if (provider === "plaid") {
+        // Plaid sync reads the access token + cursor from the connection row
+        // itself, so it only needs ids — never skip a valid Plaid link here.
+        targets.push({
+          connection,
+          task: "plaid-sync-transactions",
+          payload: {
+            connectionId: connection.id,
+            entityId: connection.entityId,
+          },
+          options: tenantJobOptions(
+            connection.entityId,
+            `plaid-sync:${connection.id}`,
+          ),
+        });
+      } else {
+        logger.warn("Unknown provider, skipping", {
           connectionId: connection.id,
           provider,
-          error: errorMsg,
         });
-        logger.error("Failed to trigger sync for connection", {
-          connectionId: connection.id,
-          provider,
-          error: errorMsg,
-        });
+        skipped++;
       }
+    }
+
+    const DISPATCH_CHUNK = 20;
+    for (let i = 0; i < targets.length; i += DISPATCH_CHUNK) {
+      const chunk = targets.slice(i, i + DISPATCH_CHUNK);
+      const results = await Promise.allSettled(
+        chunk.map((t) =>
+          triggerClient.tasks.trigger(t.task, t.payload, t.options),
+        ),
+      );
+      chunk.forEach((t, idx) => {
+        const outcome = results[idx];
+        if (!outcome) return; // unreachable — results mirrors chunk length
+        if (outcome.status === "fulfilled") {
+          triggered++;
+        } else {
+          errors++;
+          const reason = outcome.reason;
+          const errorMsg =
+            reason instanceof Error ? reason.message : String(reason);
+          errorsList.push({
+            connectionId: t.connection.id,
+            provider: t.connection.provider,
+            error: errorMsg,
+          });
+          logger.error("Failed to trigger sync for connection", {
+            connectionId: t.connection.id,
+            provider: t.connection.provider,
+            error: errorMsg,
+          });
+        }
+      });
     }
 
     // 4. Audit log per entity
@@ -184,6 +217,13 @@ export const autoSyncBankFeeds = task({
             manual: entityConnections.filter((c) => c.provider === "manual")
               .length,
           },
+          // H3: record exactly which connections failed to dispatch so the
+          // audit trail is not just a green count.
+          dispatchErrors: errorsList.filter(
+            (e) =>
+              e.connectionId !== undefined &&
+              entityConnections.some((c) => c.id === e.connectionId),
+          ),
         },
       });
     }
@@ -195,6 +235,19 @@ export const autoSyncBankFeeds = task({
       errors,
       entitiesScanned: entityIds.length,
     });
+
+    // H3 (fail-loud): when any dispatch failed, throw so the task's own retry
+    // policy re-runs the cycle (per-connection idempotency keys dedupe the
+    // syncs that already triggered) and, once retries are exhausted, the DLQ
+    // captures the failure. Returning success here would hide a partial sync.
+    if (errorsList.length > 0) {
+      throw new Error(
+        `${errorsList.length} connection(s) failed to dispatch: ${errorsList
+          .slice(0, 3)
+          .map((e) => `${e.connectionId} (${e.error})`)
+          .join("; ")}`,
+      );
+    }
 
     return {
       success: true,

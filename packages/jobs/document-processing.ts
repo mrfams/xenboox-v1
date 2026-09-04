@@ -443,25 +443,40 @@ async function stageAgentProcessing(
     );
   }
 
-  // Always trigger the autonomous accounting ingestion pipeline
+  // Trigger the autonomous accounting ingestion pipeline.
   // This runs after the document is fully processed and classified.
   // It will determine the accounting treatment, map to COA, generate
   // journal entries, score confidence, and auto-post or request review.
-  logger.info("Triggering autonomous accounting ingestion", {
-    documentId,
-    category: classification.category,
-  });
-  await triggerClient.tasks.trigger(
-    "run-document-ingestion",
-    {
+  //
+  // H1: bank statements are EXCLUDED — they are owned by the bank-import
+  // pipeline (import-bank-statement above → bank_transactions → postToLedger).
+  // Running AI ingestion on a statement too would post the same money twice:
+  // classifyWorkflow maps bank_statement to deposit/withdrawal/transfer
+  // workflows and auto-posts JEs from content the import path already books.
+  // Every other category (incl. ambiguous/multi_type, which must reach human
+  // review) keeps its existing ingestion behavior.
+  if (classification.category === "bank_statement") {
+    logger.info(
+      "Skipping autonomous accounting ingestion — bank statement is owned by the bank-import pipeline",
+      { documentId },
+    );
+  } else {
+    logger.info("Triggering autonomous accounting ingestion", {
       documentId,
-      entityId,
-    },
-    {
-      concurrencyKey: entityId,
-      idempotencyKey: `run-document-ingestion:${documentId}`,
-    },
-  );
+      category: classification.category,
+    });
+    await triggerClient.tasks.trigger(
+      "run-document-ingestion",
+      {
+        documentId,
+        entityId,
+      },
+      {
+        concurrencyKey: entityId,
+        idempotencyKey: `run-document-ingestion:${documentId}`,
+      },
+    );
+  }
 }
 
 // ---------------------------------------------------------------------------

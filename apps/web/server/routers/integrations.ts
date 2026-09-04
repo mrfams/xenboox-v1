@@ -450,22 +450,57 @@ export const integrationsRouter = router({
         });
       }
 
-      if (connection.status !== "active") {
+      // H2: allow sync on "active" AND "error" — an errored connection is
+      // exactly when an in-place retry must be possible (the provider task
+      // flips status back to active on success / error on repeated failure).
+      // "manual" and "stitch" connections have no provider feed to sync.
+      if (connection.status !== "active" && connection.status !== "error") {
         throw new TRPCError({
           code: "BAD_REQUEST",
           message: "Connection is not active",
         });
       }
 
-      await triggerClient.tasks.trigger(
-        "mono-sync-transactions",
-        {
-          connectionId: connection.id,
-          entityId: ctx.entityId!,
-          providerConnectionId: connection.providerConnectionId,
-        },
-        tenantJobOptions(ctx.entityId!, `mono-sync:${connection.id}`),
-      );
+      if (
+        connection.provider === "manual" ||
+        connection.provider === "stitch"
+      ) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "This connection type does not support on-demand syncing",
+        });
+      }
+
+      // H2: dispatch to the provider's own sync task — a Plaid connection
+      // must never be sent to the Mono task (its token would hit the wrong
+      // API and every sync would fail).
+      if (connection.provider === "mono") {
+        if (!connection.providerConnectionId) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Connection is missing provider details — reconnect it",
+          });
+        }
+        await triggerClient.tasks.trigger(
+          "mono-sync-transactions",
+          {
+            connectionId: connection.id,
+            entityId: ctx.entityId!,
+            providerConnectionId: connection.providerConnectionId,
+          },
+          tenantJobOptions(ctx.entityId!, `mono-sync:${connection.id}`),
+        );
+      } else {
+        // provider === "plaid"
+        await triggerClient.tasks.trigger(
+          "plaid-sync-transactions",
+          {
+            connectionId: connection.id,
+            entityId: ctx.entityId!,
+          },
+          tenantJobOptions(ctx.entityId!, `plaid-sync:${connection.id}`),
+        );
+      }
 
       return { triggered: true };
     }),

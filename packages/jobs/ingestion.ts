@@ -75,6 +75,33 @@ export const runDocumentIngestion = task({
       return { success: false, reason: "not_ready", status: doc.status };
     }
 
+    // H1 (defense-in-depth): bank statements are owned by the bank-import
+    // pipeline (import-bank-statement → bank_transactions → postToLedger).
+    // The ingestion engine must never AI-post a statement's contents as a
+    // journal entry on top of that — the same money would hit the ledger
+    // twice. Gate on BOTH the upload-time doc type and the classifier's
+    // category so no trigger site (document-processing, email-processing,
+    // retries, manual runs) can double-book a statement.
+    const metadata = (doc.metadata ?? {}) as Record<string, unknown>;
+    const classificationMeta = (metadata.classification ?? {}) as Record<
+      string,
+      unknown
+    >;
+    if (
+      doc.type === "bank_statement" ||
+      classificationMeta.category === "bank_statement"
+    ) {
+      logger.info(
+        "[Ingestion] Skipping bank statement — owned by the bank-import pipeline",
+        { documentId, type: doc.type },
+      );
+      return {
+        success: true,
+        reason: "bank_statement_owned_by_import_pipeline",
+        documentId,
+      };
+    }
+
     try {
       // Run the full autonomous ingestion pipeline
       const result = await processIngestion(documentId, entityId);
