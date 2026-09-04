@@ -443,15 +443,60 @@ export const reconciliationRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       const entityId = ctx.entityId!;
-      const currency =
-        (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
+
+      // P5-E: same production guards as reconcileTransaction — every public
+      // mutation on the mounted router must be safe regardless of caller.
+      const existing = await db.query.bankTransactions.findFirst({
+        where: and(
+          eq(bankTransactions.id, input.transactionId),
+          eq(bankTransactions.entityId, entityId),
+        ),
+        columns: { id: true, journalEntryId: true },
+      });
+      if (!existing) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Transaction not found",
+        });
+      }
+      if (
+        existing.journalEntryId &&
+        existing.journalEntryId !== input.journalEntryId
+      ) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message:
+            "Transaction is already linked to another journal entry — unreconcile it first",
+        });
+      }
+      if (input.journalEntryId) {
+        const je = await db.query.journalEntries.findFirst({
+          where: and(
+            eq(journalEntries.id, input.journalEntryId),
+            eq(journalEntries.entityId, entityId),
+          ),
+          columns: { id: true, status: true },
+        });
+        if (!je) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Journal entry not found",
+          });
+        }
+        if (je.status !== "posted") {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Only posted journal entries can be reconciled",
+          });
+        }
+      }
 
       // Update transaction as reconciled
       const [updated] = await db
         .update(bankTransactions)
         .set({
           isReconciled: true,
-          journalEntryId: input.journalEntryId,
+          journalEntryId: input.journalEntryId ?? null,
         })
         .where(
           and(
@@ -460,6 +505,15 @@ export const reconciliationRouter = router({
           ),
         )
         .returning();
+
+      await db.insert(auditLog).values({
+        entityId,
+        userId: ctx.session?.user?.id ?? null,
+        action: "reconciliation.matchTransaction",
+        entityType: "bank_transaction",
+        entityIdRef: input.transactionId,
+        newValues: { journalEntryId: input.journalEntryId ?? null },
+      });
 
       // Fire-and-forget webhook dispatch
       if (updated) {
@@ -491,8 +545,8 @@ export const reconciliationRouter = router({
     .input(
       z.object({
         bankAccountId: z.string().uuid(),
-        startDate: z.string(),
-        endDate: z.string(),
+        startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date"),
+        endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date"),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -581,8 +635,10 @@ export const reconciliationRouter = router({
     .input(
       z.object({
         bankAccountId: z.string().uuid(),
-        statementDate: z.string(),
-        statementBalance: z.string(),
+        statementDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date"),
+        statementBalance: z
+          .string()
+          .regex(/^-?\d+(\.\d{1,2})?$/, "Invalid amount"),
       }),
     )
     .mutation(async ({ ctx, input }) => {

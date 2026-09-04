@@ -60,6 +60,29 @@ describe("P5-A: reconciliation view is reachable (mounted tab)", () => {
   });
 });
 
+describe("P5-E: hardened every public mutation + input validation", () => {
+  const c = fs.readFileSync(REC, "utf-8");
+  it("matchTransaction has the same JE/posted/re-point guards as reconcileTransaction", () => {
+    expect(c).toContain('action: "reconciliation.matchTransaction"');
+    // Guards appear twice (both procedures)
+    expect(
+      c.match(/unreconcile it first/g)?.length ?? 0,
+    ).toBeGreaterThanOrEqual(2);
+    expect(
+      c.match(/Only posted journal entries can be reconciled/g)?.length ?? 0,
+    ).toBeGreaterThanOrEqual(2);
+  });
+  it("finalize + autoReconcile validate ISO dates and money format", () => {
+    expect(c).toContain(
+      "statementDate: z.string().regex(/^\\d{4}-\\d{2}-\\d{2}$/",
+    );
+    expect(c).toContain(
+      "statementBalance: z.string().regex(/^-?\\d+(\\.\\d{1,2})?$/",
+    );
+    expect(c).toContain("startDate: z.string().regex(/^\\d{4}-\\d{2}-\\d{2}$/");
+  });
+});
+
 describe("P5-D: reconciliation UI surface", () => {
   const v = fs.readFileSync(
     path.resolve(__dirname, "../components/finance/reconciliation-view.tsx"),
