@@ -18,6 +18,7 @@ export const customersRouter = router({
    */
   getOverview: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
+      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
 
     // Get all customers
     const allCustomers = await db.query.customers.findMany({
@@ -311,6 +312,7 @@ export const customersRouter = router({
     )
     .query(async ({ ctx, input }) => {
       const entityId = ctx.entityId!;
+      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
 
       // Get all customers
       const allCustomers = await db.query.customers.findMany({
@@ -462,6 +464,7 @@ export const customersRouter = router({
    */
   getReceivablesTrend: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
+      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
 
     // Get all invoices
     const invoices = await db.query.salesInvoices.findMany({
@@ -503,6 +506,7 @@ export const customersRouter = router({
    */
   getAiInsights: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
+      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
     const insights: Array<{
       id: string;
       type: "warning" | "info" | "success";
@@ -534,7 +538,7 @@ export const customersRouter = router({
         id: "overdue-customers",
         type: "warning",
         title: `${overdueCustomerIds.size} customers are overdue`,
-        description: `Total overdue amount: GMD ${totalOverdue.toLocaleString()}`,
+        description: `Total overdue amount: ${currency} ${totalOverdue.toLocaleString()}`,
         actionLabel: "View overdue customers →",
       });
     }
@@ -577,7 +581,7 @@ export const customersRouter = router({
         id: "collection-opportunity",
         type: "success",
         title: "Payment collection opportunity",
-        description: `You could collect GMD ${(unpaidAmount * 0.1).toLocaleString()} this week`,
+        description: `You could collect ${currency} ${(unpaidAmount * 0.1).toLocaleString()} this week`,
         actionLabel: "View collection plan →",
       });
     }
@@ -594,6 +598,7 @@ export const customersRouter = router({
 
   getCreditReview: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
+      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
     const today = todayStr();
 
     const [allCustomers, allInvoices] = await Promise.all([

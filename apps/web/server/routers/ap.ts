@@ -202,6 +202,7 @@ export const apRouter = router({
     )
     .query(async ({ ctx, input }) => {
       const entityId = ctx.entityId!;
+      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
 
       // Build conditions
       const conditions = [eq(suppliers.entityId, entityId)];
@@ -337,11 +338,11 @@ export const apRouter = router({
           contactEmail: s.contactEmail,
           contactPhone: s.contactPhone,
           payables: payables.total,
-          payablesFormatted: `GMD ${payables.total.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+          payablesFormatted: `${currency} ${payables.total.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
           overdue: payables.overdue,
           overdueFormatted:
             payables.overdue > 0
-              ? `GMD ${payables.overdue.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+              ? `${currency} ${payables.overdue.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
               : "0.00",
           paymentTerms: s.paymentTerms ?? "Net 30",
           is1099: s.is1099,
@@ -458,6 +459,7 @@ export const apRouter = router({
     )
     .query(async ({ ctx, input }) => {
       const entityId = ctx.entityId!;
+      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
 
       const vendors = await db
         .select({
@@ -474,7 +476,7 @@ export const apRouter = router({
       return vendors.map((v) => ({
         name: v.name ?? "Unknown",
         total: parseFloat(v.total ?? "0"),
-        totalFormatted: `GMD ${parseFloat(v.total ?? "0").toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        totalFormatted: `${currency} ${parseFloat(v.total ?? "0").toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
       }));
     }),
 
@@ -514,6 +516,7 @@ export const apRouter = router({
   // ── Vendor Aging ──
   getVendorAging: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
+    const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
 
     const now = new Date();
     const current30 = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
@@ -555,36 +558,37 @@ export const apRouter = router({
         {
           label: "Current (0-30 days)",
           amount: current,
-          amountFormatted: `GMD ${current.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+          amountFormatted: `${currency} ${current.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
           percent: total > 0 ? Math.round((current / total) * 1000) / 10 : 0,
         },
         {
           label: "31-60 days",
           amount: days31_60,
-          amountFormatted: `GMD ${days31_60.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+          amountFormatted: `${currency} ${days31_60.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
           percent: total > 0 ? Math.round((days31_60 / total) * 1000) / 10 : 0,
         },
         {
           label: "61-90 days",
           amount: days61_90,
-          amountFormatted: `GMD ${days61_90.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+          amountFormatted: `${currency} ${days61_90.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
           percent: total > 0 ? Math.round((days61_90 / total) * 1000) / 10 : 0,
         },
         {
           label: "90+ days",
           amount: days90Plus,
-          amountFormatted: `GMD ${days90Plus.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+          amountFormatted: `${currency} ${days90Plus.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
           percent: total > 0 ? Math.round((days90Plus / total) * 1000) / 10 : 0,
         },
       ],
       total,
-      totalFormatted: `GMD ${total.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+      totalFormatted: `${currency} ${total.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
     };
   }),
 
   // ── AI Insights ──
   getVendorAiInsights: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
+    const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
 
     const insights: Array<{
       id: string;
@@ -610,7 +614,7 @@ export const apRouter = router({
         id: "overdue-vendors",
         type: "warning",
         title: `${overdueResult[0].count} vendors have overdue invoices`,
-        description: `Total overdue amount: GMD ${parseFloat(overdueResult[0].total ?? "0").toLocaleString()}`,
+        description: `Total overdue amount: ${currency} ${parseFloat(overdueResult[0].total ?? "0").toLocaleString()}`,
         actionLabel: "View overdue vendors",
       });
     }
@@ -633,7 +637,7 @@ export const apRouter = router({
         id: "due-soon",
         type: "info",
         title: `${dueSoonResult[0].count} invoices due within 7 days`,
-        description: `Total amount: GMD ${parseFloat(dueSoonResult[0].total ?? "0").toLocaleString()}`,
+        description: `Total amount: ${currency} ${parseFloat(dueSoonResult[0].total ?? "0").toLocaleString()}`,
         actionLabel: "View upcoming payments",
       });
     }
@@ -643,7 +647,7 @@ export const apRouter = router({
       id: "payment-optimization",
       type: "success",
       title: "Payment optimization",
-      description: "You could save GMD 1,480 with early payments",
+      description: `You could save ${currency} 1,480 with early payments`,
       actionLabel: "View recommendations",
     });
 

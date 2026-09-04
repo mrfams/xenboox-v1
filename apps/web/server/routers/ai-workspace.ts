@@ -361,7 +361,7 @@ export const aiWorkspaceRouter = router({
       insights.push({
         id: "revenue-change",
         title: `Revenue ${revenueChange >= 0 ? "increased" : "decreased"} ${Math.abs(revenueChange).toFixed(1)}% this month`,
-        description: `Your revenue of GMD ${currentRev.toLocaleString()} is ${revenueChange >= 0 ? "higher" : "lower"} than last month.`,
+        description: `Your revenue of ${currency} ${currentRev.toLocaleString()} is ${revenueChange >= 0 ? "higher" : "lower"} than last month.`,
         type: revenueChange >= 0 ? "positive" : "negative",
       });
     }
@@ -388,7 +388,7 @@ export const aiWorkspaceRouter = router({
       insights.push({
         id: "cash-flow-positive",
         title: "Cash flow improving",
-        description: `Operating cash flow is positive GMD ${netCashFlow.toLocaleString()} this month.`,
+        description: `Operating cash flow is positive ${currency} ${netCashFlow.toLocaleString()} this month.`,
         type: "positive",
       });
     }
@@ -587,7 +587,7 @@ export const aiWorkspaceRouter = router({
         type: "invoice",
         title: invoice.invoiceNumber || "Invoice",
         description: "Pending invoice",
-        amount: `GMD ${parseFloat(invoice.totalAmount).toLocaleString()}`,
+        amount: `${currency} ${parseFloat(invoice.totalAmount).toLocaleString()}`,
       });
     }
 
@@ -687,7 +687,7 @@ async function generateAIResponse(
       .where(eq(bankAccounts.entityId, entityId));
 
     const totalCash = parseFloat(cashBalance[0]?.total ?? "0");
-    return `Your cash position as of today is GMD ${totalCash.toLocaleString()}. ${
+    return `Your cash position as of today is ${currency} ${totalCash.toLocaleString()}. ${
       totalCash > 100000
         ? "This is a healthy cash balance."
         : "Consider reviewing your cash flow to ensure adequate reserves."

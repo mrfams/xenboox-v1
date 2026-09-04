@@ -364,6 +364,7 @@ export const bankingRouter = router({
    */
   getAiInsights: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
+    const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
     const insights: Array<{
       id: string;
       type: "warning" | "info" | "success";
@@ -387,7 +388,7 @@ export const bankingRouter = router({
         id: "large-transaction",
         type: "warning",
         title: "Unusual Activity Detected",
-        description: `Large cash withdrawal of GMD ${Math.abs(
+        description: `Large cash withdrawal of ${currency} ${Math.abs(
           parseFloat(largeTransactions[0].amount),
         ).toLocaleString()} from ${largeTransactions[0].description}`,
         actionLabel: "Review transaction →",
@@ -435,7 +436,7 @@ export const bankingRouter = router({
         id: "cash-forecast",
         type: "success",
         title: "Cash Forecast",
-        description: `Based on your trends, you may have a cash surplus of GMD ${(
+        description: `Based on your trends, you may have a cash surplus of ${currency} ${(
           totalBalance * 0.07
         ).toLocaleString()} by end of month.`,
         actionLabel: "View forecast →",

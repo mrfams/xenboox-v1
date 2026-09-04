@@ -395,11 +395,11 @@ export const payrollRouter = router({
           department: emp.department ?? "Unassigned",
           payType: contract?.payFrequency ?? "monthly",
           grossPay,
-          grossPayFormatted: `GMD ${grossPay.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+          grossPayFormatted: `${currency} ${grossPay.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
           deductions,
-          deductionsFormatted: `GMD ${deductions.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+          deductionsFormatted: `${currency} ${deductions.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
           netPay,
-          netPayFormatted: `GMD ${netPay.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+          netPayFormatted: `${currency} ${netPay.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
           status: lineItem?.status ?? "pending",
         };
       });
@@ -473,7 +473,7 @@ export const payrollRouter = router({
         .map(([name, amount]) => ({
           name,
           amount,
-          amountFormatted: `GMD ${amount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+          amountFormatted: `${currency} ${amount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
           percent:
             totalPayroll > 0
               ? Math.round((amount / totalPayroll) * 1000) / 10
@@ -585,7 +585,7 @@ export const payrollRouter = router({
             name: "NASSIT (Employer & Employee)",
             dueDate: dueDate25,
             amount: nassitTotal,
-            amountFormatted: `GMD ${nassitTotal.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+            amountFormatted: `${currency} ${nassitTotal.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
             daysLeft: Math.max(0, daysLeft25),
             status:
               daysLeft25 <= 0 ? "overdue" : daysLeft25 <= 5 ? "urgent" : "ok",
@@ -594,7 +594,7 @@ export const payrollRouter = router({
             name: "PAYE (Withholding Tax)",
             dueDate: dueDate25,
             amount: payeAmount,
-            amountFormatted: `GMD ${payeAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+            amountFormatted: `${currency} ${payeAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
             daysLeft: Math.max(0, daysLeft25),
             status:
               daysLeft25 <= 0 ? "overdue" : daysLeft25 <= 5 ? "urgent" : "ok",
@@ -603,7 +603,7 @@ export const payrollRouter = router({
             name: "GRA (Skills Development Levy)",
             dueDate: dueDate30,
             amount: sdlAmount,
-            amountFormatted: `GMD ${sdlAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+            amountFormatted: `${currency} ${sdlAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
             daysLeft: Math.max(0, daysLeft30),
             status:
               daysLeft30 <= 0 ? "overdue" : daysLeft30 <= 5 ? "urgent" : "ok",
@@ -679,7 +679,7 @@ export const payrollRouter = router({
           id: "statutory-due",
           type: "info",
           title: "Statutory Payment Due Soon",
-          description: `NASSIT payment of GMD ${(parseFloat(currentRun?.totalEmployerContributions ?? "0") * 0.5).toLocaleString()} is due by ${nextMonth.toLocaleDateString()}`,
+          description: `NASSIT payment of ${currency} ${(parseFloat(currentRun?.totalEmployerContributions ?? "0") * 0.5).toLocaleString()} is due by ${nextMonth.toLocaleDateString()}`,
           actionLabel: "View compliance",
         });
       }

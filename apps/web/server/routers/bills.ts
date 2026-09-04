@@ -60,6 +60,7 @@ export const billsRouter = router({
    */
   getOverview: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
+      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
 
     // Get all bills (AP invoices)
     const allBills = await db.query.invoicesAp.findMany({
@@ -329,6 +330,7 @@ export const billsRouter = router({
     )
     .query(async ({ ctx, input }) => {
       const entityId = ctx.entityId!;
+      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
 
       // Build conditions
       const conditions = [eq(invoicesAp.entityId, entityId)];
@@ -460,6 +462,7 @@ export const billsRouter = router({
     .input(z.object({ billId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       const entityId = ctx.entityId!;
+      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
 
       const bill = await db.query.invoicesAp.findFirst({
         where: and(
@@ -525,6 +528,7 @@ export const billsRouter = router({
     .input(z.object({ billId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       const entityId = ctx.entityId!;
+      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
       const [bill] = await db
         .select({
           id: invoicesAp.id,
@@ -618,6 +622,7 @@ export const billsRouter = router({
     .mutation(async ({ ctx, input }) => {
       try {
         const entityId = ctx.entityId!;
+      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
         const [bill] = await db
           .update(invoicesAp)
           .set({ purchaseOrderId: input.poId })
@@ -642,6 +647,7 @@ export const billsRouter = router({
    */
   getBillsTrend: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
+      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
 
     // Get all bills
     const bills = await db.query.invoicesAp.findMany({
@@ -679,6 +685,7 @@ export const billsRouter = router({
    */
   getAiInsights: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
+      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
     const insights: Array<{
       id: string;
       type: "warning" | "info" | "success";
@@ -704,7 +711,7 @@ export const billsRouter = router({
         id: "duplicate-bills",
         type: "warning",
         title: `${Math.floor(duplicates.length / 2)} duplicate bills detected`,
-        description: `Total potential savings: GMD ${totalSavings.toLocaleString()}`,
+        description: `Total potential savings: ${currency} ${totalSavings.toLocaleString()}`,
         actionLabel: "Review duplicates →",
       });
     }
@@ -722,7 +729,7 @@ export const billsRouter = router({
         id: "missing-approvals",
         type: "info",
         title: `${pendingBills.length} bills missing approvals`,
-        description: `Total amount: GMD ${totalPending.toLocaleString()}`,
+        description: `Total amount: ${currency} ${totalPending.toLocaleString()}`,
         actionLabel: "Review now →",
       });
     }
@@ -760,7 +767,7 @@ export const billsRouter = router({
         id: "unusual-amount",
         type: "warning",
         title: `${unusualBills.length} bill${unusualBills.length > 1 ? "s" : ""} with unusual amount`,
-        description: `${supplier?.name ?? "Vendor"} invoice is ${pct}% higher than average (GMD ${parseFloat(topUnusual.totalAmount).toLocaleString()})`,
+        description: `${supplier?.name ?? "Vendor"} invoice is ${pct}% higher than average (${currency} ${parseFloat(topUnusual.totalAmount).toLocaleString()})`,
         actionLabel: "View analysis →",
       });
     }
@@ -777,6 +784,7 @@ export const billsRouter = router({
 
   getPaymentSchedule: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
+      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
     const cashPosition = await getCashPosition(entityId);
 
     const openBills = await db
@@ -878,6 +886,7 @@ export const billsRouter = router({
 
   getApprovalRouting: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
+      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
     const today = todayStr();
     const monthAgo = new Date();
     monthAgo.setDate(monthAgo.getDate() - 30);
@@ -990,6 +999,7 @@ export const billsRouter = router({
    */
   getNextBillNumber: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
+      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
     const now = new Date();
     const year = now.getFullYear();
     const month = String(now.getMonth() + 1).padStart(2, "0");

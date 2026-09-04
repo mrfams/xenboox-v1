@@ -781,7 +781,7 @@ export const arRouter = router({
                   "Please arrange payment of the outstanding balance, or reach out so we can resolve any issue together.",
               };
 
-      const body = `Hi ${customerName},\n\n${tone.opener}\n\nInvoice: ${invoice.invoiceNumber}\nDue date: ${dueLabel}\nOutstanding balance: GMD ${balance.toLocaleString(undefined, { minimumFractionDigits: 2 })}\n\n${tone.closing}\n\nBest regards,\nThe Xenboox team`;
+      const body = `Hi ${customerName},\n\n${tone.opener}\n\nInvoice: ${invoice.invoiceNumber}\nDue date: ${dueLabel}\nOutstanding balance: ${(ctx as { entityCurrency?: string | null }).entityCurrency ?? invoice.currency ?? "GMD"} ${balance.toLocaleString(undefined, { minimumFractionDigits: 2 })}\n\n${tone.closing}\n\nBest regards,\nThe Xenboox team`;
 
       return {
         draft: {

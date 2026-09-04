@@ -305,7 +305,7 @@ export const taxComplianceRouter = router({
           severity: "high",
           category: "Overdue filing",
           title: `${d.name} is overdue`,
-          description: `Due ${d.dueDate} — file immediately to avoid penalties${d.estimatedAmount ? ` (estimated GMD ${Number(d.estimatedAmount).toLocaleString("en-US", { maximumFractionDigits: 2 })})` : ""}.`,
+          description: `Due ${d.dueDate} — file immediately to avoid penalties${d.estimatedAmount ? ` (estimated ${currency} ${Number(d.estimatedAmount).toLocaleString("en-US", { maximumFractionDigits: 2 })})` : ""}.`,
           period: d.period ?? undefined,
           dueDate: d.dueDate,
           amount: d.estimatedAmount ? Number(d.estimatedAmount) : undefined,
@@ -347,7 +347,7 @@ export const taxComplianceRouter = router({
           severity: "high",
           category: "Unfiled calculation",
           title: `VAT for ${c.period} is calculated but not filed`,
-          description: `Net position GMD ${Math.abs(net).toLocaleString("en-US", { maximumFractionDigits: 2 })} (${net >= 0 ? "payable" : "refundable"}) — submit the return to close the period.`,
+          description: `Net position ${currency} ${Math.abs(net).toLocaleString("en-US", { maximumFractionDigits: 2 })} (${net >= 0 ? "payable" : "refundable"}) — submit the return to close the period.`,
           period: c.period,
           amount: net,
         });
@@ -367,7 +367,7 @@ export const taxComplianceRouter = router({
           severity: "medium",
           category: "Position swing",
           title: `VAT net position swung ${pct >= 0 ? "+" : ""}${pct.toFixed(0)}% in ${sorted[i].period}`,
-          description: `Net position moved from GMD ${Math.abs(prev).toLocaleString("en-US", { maximumFractionDigits: 2 })} to GMD ${Math.abs(cur).toLocaleString("en-US", { maximumFractionDigits: 2 })} — confirm the drivers (large purchases, refunds, or misclassified input tax).`,
+          description: `Net position moved from ${currency} ${Math.abs(prev).toLocaleString("en-US", { maximumFractionDigits: 2 })} to ${currency} ${Math.abs(cur).toLocaleString("en-US", { maximumFractionDigits: 2 })} — confirm the drivers (large purchases, refunds, or misclassified input tax).`,
           period: sorted[i].period,
           amount: cur,
         });
@@ -382,7 +382,7 @@ export const taxComplianceRouter = router({
           id: `refund-${c.id}`,
           severity: "low",
           category: "Refundable position",
-          title: `Refundable VAT of GMD ${Math.abs(net).toLocaleString("en-US", { maximumFractionDigits: 2 })} for ${c.period}`,
+          title: `Refundable VAT of ${currency} ${Math.abs(net).toLocaleString("en-US", { maximumFractionDigits: 2 })} for ${c.period}`,
           description:
             "Input VAT exceeds output VAT. File the return to claim the refund or carry it forward.",
           period: c.period,
@@ -469,7 +469,7 @@ export const taxComplianceRouter = router({
         opportunities.push({
           id: `wht-${w.id}`,
           type: "wht_recovery",
-          title: `WHT credit of GMD ${Number(w.taxWithheld).toLocaleString("en-US", { maximumFractionDigits: 2 })} not yet recovered`,
+          title: `WHT credit of ${currency} ${Number(w.taxWithheld).toLocaleString("en-US", { maximumFractionDigits: 2 })} not yet recovered`,
           description: `Withholding tax on ${w.payeeName} (${w.period}) has not been filed — filing it claims the credit against your liability.`,
           estimatedSavings: Number(w.taxWithheld),
           period: w.period,
@@ -488,7 +488,7 @@ export const taxComplianceRouter = router({
         opportunities.push({
           id: `vat-refund-${c.id}`,
           type: "vat_refund",
-          title: `Refundable VAT of GMD ${Math.abs(net).toLocaleString("en-US", { maximumFractionDigits: 2 })} for ${c.period}`,
+          title: `Refundable VAT of ${currency} ${Math.abs(net).toLocaleString("en-US", { maximumFractionDigits: 2 })} for ${c.period}`,
           description:
             "Input VAT exceeds output VAT. Filing the return claims the refund or carry-forward — otherwise the credit expires.",
           estimatedSavings: Math.abs(net),
@@ -526,7 +526,7 @@ export const taxComplianceRouter = router({
           id: `liability-${d.id}`,
           type: "liability_review",
           title: `${d.name} — review estimated liability before filing`,
-          description: `Estimated at GMD ${est.toLocaleString("en-US", { maximumFractionDigits: 2 })}. Reconciling actuals before filing avoids overpayment — a deduction-safe review.`,
+          description: `Estimated at ${currency} ${est.toLocaleString("en-US", { maximumFractionDigits: 2 })}. Reconciling actuals before filing avoids overpayment — a deduction-safe review.`,
           estimatedSavings: Math.round(est * 0.05),
           period: d.period ?? undefined,
           confidence: 0.7,

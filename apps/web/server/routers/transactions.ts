@@ -31,6 +31,7 @@ export const transactionsRouter = router({
     )
     .query(async ({ ctx, input }) => {
       const entityId = ctx.entityId!;
+      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
 
       // Default to current month if no dates provided
       const now = new Date();
@@ -300,6 +301,7 @@ export const transactionsRouter = router({
     )
     .query(async ({ ctx, input }) => {
       const entityId = ctx.entityId!;
+      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
 
       const now = new Date();
       const startDate =
@@ -451,7 +453,7 @@ export const transactionsRouter = router({
           category: t.journalEntryId ? "AI Categorized" : "Uncategorized",
           categoryColor: t.journalEntryId ? "blue" : "gray",
           amount: amount,
-          amountFormatted: `${isPositive ? "+" : "-"}GMD ${Math.abs(amount).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+          amountFormatted: `${isPositive ? "+" : "-"}${currency} ${Math.abs(amount).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
           isPositive,
           status: t.isReconciled
             ? "matched"
@@ -486,6 +488,7 @@ export const transactionsRouter = router({
     .input(z.object({ transactionId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       const entityId = ctx.entityId!;
+      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
 
       const transaction = await db.query.bankTransactions.findFirst({
         where: and(
@@ -570,7 +573,7 @@ export const transactionsRouter = router({
           date: rt.transactionDate,
           description: rt.description,
           amount: rtAmount,
-          amountFormatted: `${rtAmount >= 0 ? "+" : "-"}GMD ${Math.abs(rtAmount).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+          amountFormatted: `${rtAmount >= 0 ? "+" : "-"}${currency} ${Math.abs(rtAmount).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
           isPositive: rtAmount >= 0,
         };
       });
@@ -618,7 +621,7 @@ export const transactionsRouter = router({
         description: transaction.description,
         reference: transaction.reference,
         amount: detailAmount,
-        amountFormatted: `${detailAmount >= 0 ? "+" : "-"}GMD ${Math.abs(detailAmount).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        amountFormatted: `${detailAmount >= 0 ? "+" : "-"}${currency} ${Math.abs(detailAmount).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
         isPositive: detailAmount >= 0,
         status: transaction.isReconciled
           ? "matched"
@@ -668,6 +671,7 @@ export const transactionsRouter = router({
     )
     .query(async ({ ctx, input }) => {
       const entityId = ctx.entityId!;
+      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
 
       const now = new Date();
       const startDate =
@@ -711,7 +715,7 @@ export const transactionsRouter = router({
             id: `duplicate-${txs[0].id}`,
             type: "warning",
             title: "Potential duplicate detected",
-            description: `Multiple transactions of GMD ${amount.toLocaleString()} found. Review to confirm they are not duplicates.`,
+            description: `Multiple transactions of ${currency} ${amount.toLocaleString()} found. Review to confirm they are not duplicates.`,
             actionLabel: "Review duplicates",
           });
           break; // Only show first duplicate insight
@@ -766,6 +770,7 @@ export const transactionsRouter = router({
    */
   getAccounts: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
+      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
 
     const accounts = await db.query.bankAccounts.findMany({
       where: eq(bankAccounts.entityId, entityId),
@@ -831,6 +836,7 @@ export const transactionsRouter = router({
     .mutation(async ({ ctx, input }) => {
       try {
         const entityId = ctx.entityId!;
+      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
 
         const transaction = await db.query.bankTransactions.findFirst({
           where: and(
@@ -867,6 +873,7 @@ export const transactionsRouter = router({
     .mutation(async ({ ctx, input }) => {
       try {
         const entityId = ctx.entityId!;
+      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
 
         const transaction = await db.query.bankTransactions.findFirst({
           where: and(

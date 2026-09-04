@@ -49,6 +49,7 @@ export const expensesRouter = router({
     .mutation(async ({ ctx, input }) => {
       try {
         const entityId = ctx.entityId!;
+      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
         const entity = await db.query.entities.findFirst({
           where: eq(entities.id, entityId),
           columns: { currency: true },
@@ -116,6 +117,7 @@ export const expensesRouter = router({
     )
     .query(async ({ ctx, input }) => {
       const entityId = ctx.entityId!;
+      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
 
       // Default to current month if no dates provided
       const now = new Date();
@@ -263,6 +265,7 @@ export const expensesRouter = router({
     )
     .query(async ({ ctx, input }) => {
       const entityId = ctx.entityId!;
+      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
 
       const now = new Date();
       const startDate =
@@ -367,6 +370,7 @@ export const expensesRouter = router({
     )
     .query(async ({ ctx, input }) => {
       const entityId = ctx.entityId!;
+      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
 
       const now = new Date();
       const startDate =
@@ -534,7 +538,7 @@ export const expensesRouter = router({
           category,
           vendor: e.supplierName ?? "Unknown Vendor",
           amount: amount,
-          amountFormatted: `GMD ${amount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+          amountFormatted: `${currency} ${amount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
           paymentMethod,
           status: statusLabel,
           statusColor,
@@ -564,6 +568,7 @@ export const expensesRouter = router({
     )
     .query(async ({ ctx, input }) => {
       const entityId = ctx.entityId!;
+      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
 
       const now = new Date();
       const startDate =
@@ -641,7 +646,7 @@ export const expensesRouter = router({
         .map(([name, amount]) => ({
           name,
           amount,
-          amountFormatted: `GMD ${amount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+          amountFormatted: `${currency} ${amount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
           percent:
             totalAmount > 0 ? Math.round((amount / totalAmount) * 100) : 0,
         }))
@@ -650,7 +655,7 @@ export const expensesRouter = router({
       return {
         categories,
         totalAmount,
-        totalAmountFormatted: `GMD ${totalAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        totalAmountFormatted: `${currency} ${totalAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
       };
     }),
 
@@ -659,6 +664,7 @@ export const expensesRouter = router({
    */
   getMonthlyTrend: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
+      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
 
     // Get last 6 months of data
     const months = [];
@@ -702,6 +708,7 @@ export const expensesRouter = router({
     )
     .query(async ({ ctx, input }) => {
       const entityId = ctx.entityId!;
+      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
 
       const now = new Date();
       const startDate =
@@ -733,7 +740,7 @@ export const expensesRouter = router({
       return vendors.map((v) => ({
         name: v.name ?? "Unknown",
         total: parseFloat(v.total ?? "0"),
-        totalFormatted: `GMD ${parseFloat(v.total ?? "0").toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        totalFormatted: `${currency} ${parseFloat(v.total ?? "0").toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
         count: v.count,
       }));
     }),
@@ -743,6 +750,7 @@ export const expensesRouter = router({
    */
   getBudgetOverview: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
+      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
 
     // Get active budget with lines
     const budget = await db.query.budgets.findFirst({
@@ -801,9 +809,9 @@ export const expensesRouter = router({
       return {
         name: line.lineDescription ?? "Budget Line",
         budget: budgetAmount,
-        budgetFormatted: `GMD ${budgetAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        budgetFormatted: `${currency} ${budgetAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
         spent: estimatedSpent,
-        spentFormatted: `GMD ${estimatedSpent.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        spentFormatted: `${currency} ${estimatedSpent.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
         percent,
         remaining: budgetAmount - estimatedSpent,
       };
@@ -824,6 +832,7 @@ export const expensesRouter = router({
    */
   getAiInsights: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
+      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
 
     const now = new Date();
     const startDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
@@ -863,7 +872,7 @@ export const expensesRouter = router({
           id: `duplicate-${expenses[0].id}`,
           type: "warning",
           title: `${expenses.length} duplicate expenses detected`,
-          description: `You could save GMD ${amount.toLocaleString()} by reviewing duplicates`,
+          description: `You could save ${currency} ${amount.toLocaleString()} by reviewing duplicates`,
           actionLabel: "Review duplicates",
         });
         break;
@@ -934,6 +943,7 @@ export const expensesRouter = router({
     )
     .query(async ({ ctx, input }) => {
       const entityId = ctx.entityId!;
+      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
       const conditions = [eq(expenseClaims.entityId, entityId)];
       if (input.status !== "all") {
         conditions.push(eq(expenseClaims.status, input.status));
@@ -1158,6 +1168,7 @@ export const expensesRouter = router({
     .input(z.object({ expenseId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       const entityId = ctx.entityId!;
+      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
 
       const expense = await db
         .select({
@@ -1286,6 +1297,7 @@ export const expensesRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       const entityId = ctx.entityId!;
+      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
 
       const expense = await db
         .select({ id: invoicesAp.id, status: invoicesAp.status })

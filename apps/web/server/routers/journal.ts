@@ -390,6 +390,7 @@ export const journalRouter = router({
     )
     .query(async ({ ctx, input }) => {
       const entityId = ctx.entityId!;
+      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
 
       const now = new Date();
       const startDate =
@@ -456,9 +457,9 @@ export const journalRouter = router({
       return sorted.map((a) => ({
         name: a.name,
         debit: a.debit,
-        debitFormatted: `GMD ${a.debit.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        debitFormatted: `${currency} ${a.debit.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
         credit: a.credit,
-        creditFormatted: `GMD ${a.credit.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        creditFormatted: `${currency} ${a.credit.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
       }));
     }),
 
@@ -563,6 +564,7 @@ export const journalRouter = router({
   // ── AI Insights ──
   getAiInsights: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
+    const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
 
     const insights: Array<{
       id: string;
@@ -588,7 +590,7 @@ export const journalRouter = router({
         id: "pending-review",
         type: "warning",
         title: `${pendingResult[0].count} entries need your review`,
-        description: "Total amount: GMD 45,200.00",
+        description: `Total amount: ${currency} 45,200.00`,
         actionLabel: "Review pending entries",
       });
     }
@@ -630,7 +632,7 @@ export const journalRouter = router({
         id: "bank-charges",
         type: "info",
         title: "Bank charges detected",
-        description: "GMD 150.00 in bank charges recorded.",
+        description: `${currency} 150.00 in bank charges recorded.`,
         actionLabel: "View details",
       });
     }
@@ -655,6 +657,7 @@ export const journalRouter = router({
     )
     .query(async ({ ctx, input }) => {
       const entityId = ctx.entityId!;
+      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
       const limit = input?.limit ?? 10;
 
       // Scan the last 90 days of posted entries — recent enough to be
@@ -709,7 +712,7 @@ export const journalRouter = router({
             severity: "high",
             category: "Unbalanced entry",
             title: `Entry ${e.entryNumber} does not balance`,
-            description: `Debits (GMD ${row.debit.toFixed(2)}) differ from credits (GMD ${row.credit.toFixed(2)}) by GMD ${Math.abs(row.debit - row.credit).toFixed(2)}.`,
+            description: `Debits (${currency} ${row.debit.toFixed(2)}) differ from credits (${currency} ${row.credit.toFixed(2)}) by ${currency} ${Math.abs(row.debit - row.credit).toFixed(2)}.`,
             entryId: e.id,
             entryNumber: e.entryNumber,
             date: e.date,
@@ -743,8 +746,8 @@ export const journalRouter = router({
                 id: `outlier-${l.id}`,
                 severity: z >= 6 ? "high" : "medium",
                 category: "Statistical outlier",
-                title: `Line ${e ? `${e.entryNumber} — ` : ""}GMD ${amt.toLocaleString("en-US", { maximumFractionDigits: 0 })} is ${z.toFixed(1)}σ above the norm`,
-                description: `The entity's typical line amount is GMD ${mean.toLocaleString("en-US", { maximumFractionDigits: 0 })} (σ GMD ${std.toLocaleString("en-US", { maximumFractionDigits: 0 })}). This line is unusually large relative to your own history.`,
+                title: `Line ${e ? `${e.entryNumber} — ` : ""}${currency} ${amt.toLocaleString("en-US", { maximumFractionDigits: 0 })} is ${z.toFixed(1)}σ above the norm`,
+                description: `The entity's typical line amount is ${currency} ${mean.toLocaleString("en-US", { maximumFractionDigits: 0 })} (σ ${currency} ${std.toLocaleString("en-US", { maximumFractionDigits: 0 })}). This line is unusually large relative to your own history.`,
                 entryId: l.journalEntryId,
                 entryNumber: e?.entryNumber,
                 date: e?.date,
@@ -774,7 +777,7 @@ export const journalRouter = router({
             severity: "medium",
             category: "Possible duplicate",
             title: `${nums.length} entries with identical date, amount and description`,
-            description: `Entries ${nums.join(", ")} on ${date} for GMD ${parseFloat(amt).toLocaleString("en-US", { maximumFractionDigits: 2 })} have the same description — verify they are not double-posted.`,
+            description: `Entries ${nums.join(", ")} on ${date} for ${currency} ${parseFloat(amt).toLocaleString("en-US", { maximumFractionDigits: 2 })} have the same description — verify they are not double-posted.`,
             date,
             amount: parseFloat(amt),
           });
@@ -793,7 +796,7 @@ export const journalRouter = router({
             id: `round-${l.id}`,
             severity: "low",
             category: "Round amount",
-            title: `Entry ${e?.entryNumber ?? ""} posts a round GMD ${amt.toLocaleString("en-US", { maximumFractionDigits: 0 })}`,
+            title: `Entry ${e?.entryNumber ?? ""} posts a round ${currency} ${amt.toLocaleString("en-US", { maximumFractionDigits: 0 })}`,
             description:
               "Large exact-round amounts sometimes indicate estimated or placeholder postings — confirm the figure matches the source document.",
             entryId: l.journalEntryId,

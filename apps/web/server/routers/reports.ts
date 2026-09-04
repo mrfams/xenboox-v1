@@ -49,6 +49,7 @@ export const reportsRouter = router({
     )
     .query(async ({ ctx, input }) => {
       const entityId = ctx.entityId!;
+      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
 
       // Default to current month
       const now = new Date();
@@ -267,6 +268,7 @@ export const reportsRouter = router({
    */
   getPnlOverview: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
+      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
 
     const now = new Date();
     const currentMonth = now.getMonth();
@@ -395,6 +397,7 @@ export const reportsRouter = router({
     )
     .query(async ({ ctx, input }) => {
       const entityId = ctx.entityId!;
+      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
 
       const now = new Date();
       const startDate =
@@ -447,7 +450,7 @@ export const reportsRouter = router({
         .map(([name, amount]) => ({
           name,
           amount,
-          amountFormatted: `GMD ${amount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+          amountFormatted: `${currency} ${amount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
           percent:
             totalExpenses > 0
               ? Math.round((amount / totalExpenses) * 1000) / 10
@@ -459,7 +462,7 @@ export const reportsRouter = router({
       return {
         categories,
         totalExpenses,
-        totalExpensesFormatted: `GMD ${totalExpenses.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        totalExpensesFormatted: `${currency} ${totalExpenses.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
       };
     }),
 
@@ -468,6 +471,7 @@ export const reportsRouter = router({
    */
   getRecentReports: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
+      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
 
     // Real source: report snapshots written by the reporting pipeline
     // (see packages/agents/core/reporting-pipeline.ts). When none exist yet,
@@ -531,6 +535,7 @@ export const reportsRouter = router({
     )
     .query(async ({ ctx, input }) => {
       const entityId = ctx.entityId!;
+      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
       const now = new Date();
       const startDate =
         input.startDate ||
@@ -591,8 +596,8 @@ export const reportsRouter = router({
 
       const sentences: string[] = [];
       sentences.push(
-        `Revenue for the period was GMD ${Math.round(cur.revenue).toLocaleString()}, ` +
-          `${revPct >= 0 ? "up" : "down"} ${Math.abs(revPct).toFixed(1)}% vs the previous period (GMD ${Math.round(prev.revenue).toLocaleString()}).`,
+        `Revenue for the period was ${currency} ${Math.round(cur.revenue).toLocaleString()}, ` +
+          `${revPct >= 0 ? "up" : "down"} ${Math.abs(revPct).toFixed(1)}% vs the previous period (${currency} ${Math.round(prev.revenue).toLocaleString()}).`,
       );
       if (Math.abs(expPct) >= 5) {
         sentences.push(
@@ -606,13 +611,13 @@ export const reportsRouter = router({
       if (cur.grossProfit > 0 && cur.revenue > 0) {
         const margin = (cur.grossProfit / cur.revenue) * 100;
         sentences.push(
-          `Gross margin held at ${margin.toFixed(1)}% on GMD ${Math.round(cur.cogs).toLocaleString()} of cost of goods sold.`,
+          `Gross margin held at ${margin.toFixed(1)}% on ${currency} ${Math.round(cur.cogs).toLocaleString()} of cost of goods sold.`,
         );
       }
       sentences.push(
         cur.netProfit >= 0
-          ? `The period closed with a net profit of GMD ${Math.round(cur.netProfit).toLocaleString()} (${netPct >= 0 ? "+" : ""}${netPct.toFixed(1)}% vs prior period).`
-          : `The period closed with a net loss of GMD ${Math.round(Math.abs(cur.netProfit)).toLocaleString()} (${netPct >= 0 ? "improvement" : "worsening"} of ${Math.abs(netPct).toFixed(1)}% vs prior period).`,
+          ? `The period closed with a net profit of ${currency} ${Math.round(cur.netProfit).toLocaleString()} (${netPct >= 0 ? "+" : ""}${netPct.toFixed(1)}% vs prior period).`
+          : `The period closed with a net loss of ${currency} ${Math.round(Math.abs(cur.netProfit)).toLocaleString()} (${netPct >= 0 ? "improvement" : "worsening"} of ${Math.abs(netPct).toFixed(1)}% vs prior period).`,
       );
 
       const flags: Array<{
@@ -648,6 +653,7 @@ export const reportsRouter = router({
 
   getAiInsights: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
+      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
 
     // Get current and previous period data
     const now = new Date();
@@ -716,7 +722,7 @@ export const reportsRouter = router({
           id: "revenue-up",
           type: "success",
           title: `Revenue is up ${Math.abs(revenueChange).toFixed(1)}%`,
-          description: `Your revenue increased by GMD ${Math.abs(current.revenue - previous.revenue).toLocaleString()} compared to last period.`,
+          description: `Your revenue increased by ${currency} ${Math.abs(current.revenue - previous.revenue).toLocaleString()} compared to last period.`,
           actionLabel: "View analysis",
         });
       }

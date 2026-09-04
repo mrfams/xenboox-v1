@@ -349,7 +349,7 @@ export const fixedAssetsRouter = router({
         id: "1",
         type: "info" as const,
         title: "Asset Portfolio Health",
-        description: `${assets.length} assets tracked with total NBV of GMD ${assets.reduce((sum, a) => sum + parseFloat(a.netBookValue ?? "0"), 0).toLocaleString()}`,
+        description: `${assets.length} assets tracked with total NBV of ${currency} ${assets.reduce((sum, a) => sum + parseFloat(a.netBookValue ?? "0"), 0).toLocaleString()}`,
         actionLabel: "View Details",
       },
       {

@@ -136,8 +136,8 @@ async function findCandidateMatches(
         confidence: Math.min(confidence, 95),
         reason:
           overlap > 0
-            ? `Amount GMD ${entryTotal.toLocaleString()} & reference overlap`
-            : `Amount GMD ${entryTotal.toLocaleString()}`,
+            ? `Amount ${currency} ${entryTotal.toLocaleString()} & reference overlap`
+            : `Amount ${currency} ${entryTotal.toLocaleString()}`,
       });
     }
   }
@@ -165,6 +165,7 @@ export const reconciliationRouter = router({
     )
     .query(async ({ ctx, input }) => {
       const entityId = ctx.entityId!;
+      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
 
       // Default to current month
       const now = new Date();
@@ -249,10 +250,10 @@ export const reconciliationRouter = router({
           description: t.description,
           reference: t.reference,
           statementAmount: amount,
-          statementFormatted: `${amount >= 0 ? "+" : "-"}GMD ${Math.abs(amount).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+          statementFormatted: `${amount >= 0 ? "+" : "-"}${currency} ${Math.abs(amount).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
           bookAmount: hasJournal ? amount : null,
           bookFormatted: hasJournal
-            ? `${amount >= 0 ? "+" : "-"}GMD ${Math.abs(amount).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+            ? `${amount >= 0 ? "+" : "-"}${currency} ${Math.abs(amount).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
             : "—",
           matchStatus,
           matchColor,
@@ -308,11 +309,11 @@ export const reconciliationRouter = router({
         status: "In Progress",
         summary: {
           statementBalance,
-          statementBalanceFormatted: `GMD ${statementBalance.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+          statementBalanceFormatted: `${currency} ${statementBalance.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
           bookBalance,
-          bookBalanceFormatted: `GMD ${bookBalance.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+          bookBalanceFormatted: `${currency} ${bookBalance.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
           difference,
-          differenceFormatted: `${difference >= 0 ? "" : "-"}GMD ${Math.abs(difference).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+          differenceFormatted: `${difference >= 0 ? "" : "-"}${currency} ${Math.abs(difference).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
           differencePercent:
             statementBalance > 0
               ? Number(
@@ -321,14 +322,14 @@ export const reconciliationRouter = router({
               : 0,
           matchedCount: matched.length,
           matchedAmount,
-          matchedAmountFormatted: `GMD ${matchedAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+          matchedAmountFormatted: `${currency} ${matchedAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
           matchedPercent:
             totalTransactions > 0
               ? Number(((matched.length / totalTransactions) * 100).toFixed(1))
               : 0,
           unmatchedCount: unmatched.length,
           unmatchedAmount,
-          unmatchedAmountFormatted: `GMD ${unmatchedAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+          unmatchedAmountFormatted: `${currency} ${unmatchedAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
           autoMatchedCount: autoMatched.length,
           autoMatchedPercent:
             matched.length > 0
@@ -360,6 +361,7 @@ export const reconciliationRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       const entityId = ctx.entityId!;
+      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
 
       // Update transaction as reconciled
       const [updated] = await db
@@ -412,6 +414,7 @@ export const reconciliationRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       const entityId = ctx.entityId!;
+      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
 
       // Get unmatched transactions
       const unmatched = await db.query.bankTransactions.findMany({
@@ -481,6 +484,7 @@ export const reconciliationRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       const entityId = ctx.entityId!;
+      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
 
       // Verify the account's transactions are actually reconciled before
       // claiming the books match the bank. Previously this wrote
@@ -570,6 +574,7 @@ export const reconciliationRouter = router({
    */
   getOverview: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
+      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
 
     // Get all bank accounts
     const accounts = await db.query.bankAccounts.findMany({
@@ -837,6 +842,7 @@ export const reconciliationRouter = router({
    */
   getAiInsights: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
+      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
     const insights: Array<{
       id: string;
       type: "warning" | "info" | "success";
@@ -865,7 +871,7 @@ export const reconciliationRouter = router({
         id: "discrepancies",
         type: "warning",
         title: `${openDiscrepancies.length} discrepancies need attention`,
-        description: `Total unreconciled amount: GMD ${totalUnreconciled.toLocaleString()}`,
+        description: `Total unreconciled amount: ${currency} ${totalUnreconciled.toLocaleString()}`,
         actionLabel: "Review discrepancies →",
       });
     }
