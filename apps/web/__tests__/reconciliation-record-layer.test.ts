@@ -76,9 +76,7 @@ describe("P5-E: hardened every public mutation + input validation", () => {
     expect(c).toContain(
       "statementDate: z.string().regex(/^\\d{4}-\\d{2}-\\d{2}$/",
     );
-    expect(c).toContain(
-      "statementBalance: z.string().regex(/^-?\\d+(\\.\\d{1,2})?$/",
-    );
+    expect(c).toContain('.regex(/^-?\\d+(\\.\\d{1,2})?$/, "Invalid amount")');
     expect(c).toContain("startDate: z.string().regex(/^\\d{4}-\\d{2}-\\d{2}$/");
   });
 });

@@ -17,6 +17,8 @@ import {
   reimbursementRecords,
   entities,
 } from "@xenboox/db/schema";
+import { TRPCError } from "@trpc/server";
+import { isoDateString, positiveMoneyString } from "../ar-validation";
 
 import {
   router,
@@ -39,21 +41,63 @@ export const expensesRouter = router({
       z.object({
         supplierId: z.string().uuid(),
         description: z.string().min(1).max(500),
-        amount: z.string().regex(/^\d+(\.\d{1,2})?$/),
-        expenseDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-        dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-        category: z.string().optional(),
-        paymentMethod: z.string().optional(),
+        amount: positiveMoneyString,
+        expenseDate: isoDateString,
+        dueDate: isoDateString,
+        category: z.string().trim().max(100).optional(),
+        paymentMethod: z.string().trim().max(50).optional(),
       }),
     )
+    .superRefine((data, ctx) => {
+      if (data.dueDate < data.expenseDate) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["dueDate"],
+          message: "Due date cannot be before the expense date",
+        });
+      }
+    })
     .mutation(async ({ ctx, input }) => {
       try {
         const entityId = ctx.entityId!;
-      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
         const entity = await db.query.entities.findFirst({
           where: eq(entities.id, entityId),
           columns: { currency: true },
         });
+
+        // P6-A: the supplier must belong to this entity — a cross-tenant
+        // supplier id would silently record a payable to another tenant.
+        const supplier = await db.query.suppliers.findFirst({
+          where: and(
+            eq(suppliers.id, input.supplierId),
+            eq(suppliers.entityId, entityId),
+          ),
+          columns: { id: true },
+        });
+        if (!supplier) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Supplier not found",
+          });
+        }
+
+        // P6-A: expenses are AP invoice rows that must be POSTABLE — a header
+        // with no lines can never reach the ledger (invoiceApLines.accountId
+        // is NOT NULL). Resolve the category/description to a real expense
+        // account up front; the line is inserted with the header.
+        const accountId = await resolveExpenseAccountId(
+          entityId,
+          input.category ?? "",
+          input.description,
+        );
+        if (!accountId) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message:
+              "Add an expense account to your chart of accounts first, then record this expense",
+          });
+        }
+
         const now = new Date();
         const stamp =
           `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}` +
@@ -84,6 +128,25 @@ export const expensesRouter = router({
           throw new Error("Failed to create expense");
         }
 
+        // P6-A: sequential insert + compensation — never orphan a header
+        // whose line failed (no real transaction on neon-http).
+        try {
+          await db.insert(invoiceApLines).values({
+            invoiceApId: expense.id,
+            accountId,
+            description: input.description,
+            quantity: "1",
+            unitPrice: input.amount,
+            amount: input.amount,
+          });
+        } catch (lineErr) {
+          await db
+            .delete(invoicesAp)
+            .where(eq(invoicesAp.id, expense.id))
+            .catch(() => {});
+          throw lineErr;
+        }
+
         await db.insert(auditLog).values({
           entityId: ctx.entityId!,
           userId: ctx.session!.user!.id!,
@@ -95,6 +158,7 @@ export const expensesRouter = router({
             description: input.description,
             category: input.category,
             paymentMethod: input.paymentMethod,
+            accountId,
           },
         });
 
@@ -117,7 +181,8 @@ export const expensesRouter = router({
     )
     .query(async ({ ctx, input }) => {
       const entityId = ctx.entityId!;
-      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
+      const currency =
+        (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
 
       // Default to current month if no dates provided
       const now = new Date();
@@ -265,7 +330,8 @@ export const expensesRouter = router({
     )
     .query(async ({ ctx, input }) => {
       const entityId = ctx.entityId!;
-      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
+      const currency =
+        (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
 
       const now = new Date();
       const startDate =
@@ -370,7 +436,8 @@ export const expensesRouter = router({
     )
     .query(async ({ ctx, input }) => {
       const entityId = ctx.entityId!;
-      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
+      const currency =
+        (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
 
       const now = new Date();
       const startDate =
@@ -568,7 +635,8 @@ export const expensesRouter = router({
     )
     .query(async ({ ctx, input }) => {
       const entityId = ctx.entityId!;
-      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
+      const currency =
+        (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
 
       const now = new Date();
       const startDate =
@@ -664,7 +732,8 @@ export const expensesRouter = router({
    */
   getMonthlyTrend: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
-      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
+    const currency =
+      (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
 
     // Get last 6 months of data
     const months = [];
@@ -708,7 +777,8 @@ export const expensesRouter = router({
     )
     .query(async ({ ctx, input }) => {
       const entityId = ctx.entityId!;
-      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
+      const currency =
+        (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
 
       const now = new Date();
       const startDate =
@@ -750,7 +820,8 @@ export const expensesRouter = router({
    */
   getBudgetOverview: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
-      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
+    const currency =
+      (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
 
     // Get active budget with lines
     const budget = await db.query.budgets.findFirst({
@@ -832,7 +903,8 @@ export const expensesRouter = router({
    */
   getAiInsights: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
-      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
+    const currency =
+      (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
 
     const now = new Date();
     const startDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
@@ -943,7 +1015,8 @@ export const expensesRouter = router({
     )
     .query(async ({ ctx, input }) => {
       const entityId = ctx.entityId!;
-      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
+      const currency =
+        (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
       const conditions = [eq(expenseClaims.entityId, entityId)];
       if (input.status !== "all") {
         conditions.push(eq(expenseClaims.status, input.status));
@@ -1168,7 +1241,8 @@ export const expensesRouter = router({
     .input(z.object({ expenseId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       const entityId = ctx.entityId!;
-      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
+      const currency =
+        (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
 
       const expense = await db
         .select({
@@ -1297,7 +1371,8 @@ export const expensesRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       const entityId = ctx.entityId!;
-      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
+      const currency =
+        (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
 
       const expense = await db
         .select({ id: invoicesAp.id, status: invoicesAp.status })
@@ -1339,3 +1414,64 @@ export const expensesRouter = router({
       return { ok: true };
     }),
 });
+
+// ─── Helpers ───────────────────────────────────────────────────────────────
+
+/**
+ * P6-A: deterministically resolve an expense line to a COA account.
+ *
+ * Order: category/description keyword match on the account name/code/subtype
+ * → first expense-type account → none (caller surfaces the clear error).
+ * Never guesses: no match means NO account, and the caller refuses to create
+ * an unpostable expense instead of silently mis-booking it.
+ */
+async function resolveExpenseAccountId(
+  entityId: string,
+  category: string,
+  description: string,
+): Promise<string | null> {
+  const accounts = await db.query.chartOfAccounts.findMany({
+    where: and(
+      eq(chartOfAccounts.entityId, entityId),
+      eq(chartOfAccounts.type, "expense"),
+    ),
+    columns: { id: true, name: true, code: true, subtype: true },
+  });
+  if (accounts.length === 0) return null;
+
+  const haystack = `${category} ${description}`.toLowerCase();
+  const bySubtype = new Map<string, string[]>();
+  const byKeyword: Array<{ keywords: string[]; id: string }> = [];
+
+  for (const acc of accounts) {
+    const name = `${acc.name} ${acc.code} ${acc.subtype}`.toLowerCase();
+    const words = name.split(/[^a-z0-9]+/).filter((w) => w.length >= 3);
+    byKeyword.push({ keywords: words, id: acc.id });
+    const sub = (acc.subtype ?? "").toLowerCase();
+    if (!bySubtype.has(sub)) bySubtype.set(sub, []);
+    bySubtype.get(sub)!.push(acc.id);
+  }
+
+  // Subtype wins when the description matches an expense subtype word
+  // (e.g. "rent" → rent_expense, "travel" → travel_expense).
+  for (const [subtype, ids] of bySubtype) {
+    const tokens = subtype.split("_").filter((t) => t.length >= 3);
+    if (tokens.some((t) => haystack.includes(t))) return ids[0]!;
+  }
+
+  // Then keyword overlap on account names.
+  let best: { id: string; score: number } | null = null;
+  for (const cand of byKeyword) {
+    let score = 0;
+    for (const w of cand.keywords) {
+      if (haystack.includes(w)) score++;
+    }
+    if (score > 0 && (!best || score > best.score)) {
+      best = { id: cand.id, score };
+    }
+  }
+  if (best) return best.id;
+
+  // Deterministic fallback: the first expense account in the chart.
+  return accounts[0]!.id;
+}

@@ -282,7 +282,7 @@ export const reconciliationRouter = router({
           })
         : null;
       const openingBalance = lastClosed
-        ? parseFloat(String(lastClosed.statementBalance ?? "0"))
+        ? parseFloat(String(lastClosed.statementBalance ?? "d"))
         : 0;
       const reconciledNet = transactions
         .filter((t) => t.isReconciled)
@@ -391,15 +391,15 @@ export const reconciliationRouter = router({
         status: "In Progress",
         summary: {
           statementBalance,
-          statementBalanceFormatted: `${currency} ${statementBalance.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+          statementBalanceFormatted: `${currency} ${statementBalance.toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d })}`,
           bookBalance,
           bookBalanceFormatted: `${currency} ${bookBalance.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
           difference,
           differenceFormatted: `${difference >= 0 ? "" : "-"}${currency} ${Math.abs(difference).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
           differencePercent:
-            statementBalance > 0
+            statementBalance > d
               ? Number(
-                  ((Math.abs(difference) / statementBalance) * 100).toFixed(2),
+                  ((Math.abs(difference) / statementBalance) * ddd).toFixed(d),
                 )
               : 0,
           matchedCount: matched.length,
@@ -648,7 +648,7 @@ export const reconciliationRouter = router({
 
       // Verify the account's transactions are actually reconciled before
       // claiming the books match the bank. Previously this wrote
-      // bookBalance = statementBalance with difference "0" unconditionally —
+      // bookBalance = statementBalance with difference "d" unconditionally —
       // fake assurance that masked unreconciled transactions.
       const account = await db.query.bankAccounts.findFirst({
         where: and(
@@ -695,7 +695,7 @@ export const reconciliationRouter = router({
         input.statementDate,
       );
       const difference = (
-        parseFloat(bookBalance) - parseFloat(input.statementBalance || "0")
+        parseFloat(bookBalance) - parseFloat(input.statementBalance || "d")
       ).toFixed(2);
 
       // Create reconciliation record
@@ -782,12 +782,12 @@ export const reconciliationRouter = router({
     // Total reconciled MTD
     const totalReconciledMTD = currentMonthRecons
       .filter((r) => r.status === "closed")
-      .reduce((sum, r) => sum + parseFloat(r.statementBalance ?? "0"), 0);
+      .reduce((sum, r) => sum + parseFloat(r.statementBalance ?? "d"), d);
 
     // Previous month reconciled
     const prevReconciledMTD = prevMonthRecons
       .filter((r) => r.status === "closed")
-      .reduce((sum, r) => sum + parseFloat(r.statementBalance ?? "0"), 0);
+      .reduce((sum, r) => sum + parseFloat(r.statementBalance ?? "d"), d);
 
     // Unreconciled MTD
     const unreconciledMTD = currentMonthRecons
