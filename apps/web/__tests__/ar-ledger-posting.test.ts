@@ -169,3 +169,31 @@ describe("P3-C: posted-state UI surface", () => {
     expect(c).toContain("Not in ledger");
   });
 });
+
+describe("P3-D: overdue job hardening", () => {
+  const REMINDERS = path.resolve(
+    __dirname,
+    "../../../packages/jobs/reminders.ts",
+  );
+
+  it("ISO-date guard — legacy garbage due dates are never blindly marked overdue", () => {
+    const c = fs.readFileSync(REMINDERS, "utf-8");
+    const matches =
+      c.match(/~ '\^\[0-9\]\{4\}-\[0-9\]\{2\}-\[0-9\]\{2\}\$'/g) ?? [];
+    expect(matches.length).toBe(2); // AR + AP scans
+  });
+
+  it("notifies finance-capable roles, not just owners", () => {
+    const c = fs.readFileSync(REMINDERS, "utf-8");
+    expect(c).toContain("inArray(userEntityAccess.role, [");
+    expect(c).toContain('"finance_director"');
+    expect(c).toContain('"accountant"');
+    expect(c).not.toContain('eq(userEntityAccess.role, "owner")');
+  });
+
+  it("per-entity failure isolation — one entity never aborts the scan", () => {
+    const c = fs.readFileSync(REMINDERS, "utf-8");
+    expect(c).toContain("Failed to notify for newly overdue invoices");
+    expect(c).toContain("Failed to send monthly bank reminder");
+  });
+});

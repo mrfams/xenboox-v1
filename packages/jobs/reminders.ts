@@ -12,7 +12,7 @@ import {
   invoicesAp,
   auditLog,
 } from "@xenboox/db/schema";
-import { eq, and, desc, sql, lt } from "drizzle-orm";
+import { eq, and, desc, sql, lt, inArray } from "drizzle-orm";
 import { users } from "@xenboox/db/schema/auth";
 import { userEntityAccess } from "@xenboox/db/schema/organization";
 
@@ -88,35 +88,44 @@ export const sendMonthlyBankReminders = task({
         : false;
 
       if (!hasActiveConnection && !hasRecentStatement) {
+        // Owners + admins — the people who can actually connect a bank.
         const owners = await db.query.userEntityAccess.findMany({
           where: and(
             eq(userEntityAccess.entityId, entityId),
-            eq(userEntityAccess.role, "owner"),
+            inArray(userEntityAccess.role, ["owner", "admin"]),
           ),
         });
 
         for (const owner of owners) {
-          const existing = await db.query.notifications.findFirst({
-            where: and(
-              eq(notifications.userId, owner.userId),
-              eq(notifications.entityId, entityId),
-              eq(notifications.type, "bank_upload_reminder"),
-              sql`${notifications.createdAt} >= ${monthStart}`,
-            ),
-          });
-
-          if (!existing) {
-            await db.insert(notifications).values({
-              userId: owner.userId,
-              entityId,
-              type: "bank_upload_reminder",
-              priority: "medium",
-              title: "Monthly bank upload reminder",
-              body: `It's almost the end of the month. Please upload your bank statement or connect your bank account via API to keep your books up to date.`,
-              status: "pending",
+          try {
+            const existing = await db.query.notifications.findFirst({
+              where: and(
+                eq(notifications.userId, owner.userId),
+                eq(notifications.entityId, entityId),
+                eq(notifications.type, "bank_upload_reminder"),
+                sql`${notifications.createdAt} >= ${monthStart}`,
+              ),
             });
 
-            remindersSent++;
+            if (!existing) {
+              await db.insert(notifications).values({
+                userId: owner.userId,
+                entityId,
+                type: "bank_upload_reminder",
+                priority: "medium",
+                title: "Monthly bank upload reminder",
+                body: `It's almost the end of the month. Please upload your bank statement or connect your bank account via API to keep your books up to date.`,
+                status: "pending",
+              });
+
+              remindersSent++;
+            }
+          } catch (err) {
+            // One failing notification must never abort the entity batch.
+            logger.error(
+              { err, entityId, userId: owner.userId },
+              "Failed to send monthly bank reminder",
+            );
           }
         }
       }
@@ -161,7 +170,10 @@ export const markOverdueInvoices = task({
 
     logger.info("Starting overdue invoice scan", { today: todayStr });
 
-    // 1. Mark overdue sales invoices (pending/partial with dueDate < today)
+    // 1. Mark overdue sales invoices (pending/partial with dueDate < today).
+    // Date-format guard: legacy rows with non-ISO dueDate strings must not be
+    // silently marked overdue by a lexicographic text comparison — they are
+    // surfaced for manual repair instead.
     const overdueSales = await db
       .update(salesInvoices)
       .set({ status: "overdue" })
@@ -169,6 +181,7 @@ export const markOverdueInvoices = task({
         and(
           sql`${salesInvoices.status} IN ('pending', 'partial')`,
           lt(salesInvoices.dueDate, todayStr),
+          sql`${salesInvoices.dueDate} ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$'`,
         ),
       )
       .returning({
@@ -198,6 +211,7 @@ export const markOverdueInvoices = task({
     }
 
     // 2. Mark overdue purchase invoices (pending/partial with dueDate < today)
+    // — same ISO-date guard as AR.
     const overdueBills = await db
       .update(invoicesAp)
       .set({ status: "overdue" })
@@ -205,6 +219,7 @@ export const markOverdueInvoices = task({
         and(
           sql`${invoicesAp.status} IN ('pending', 'partial')`,
           lt(invoicesAp.dueDate, todayStr),
+          sql`${invoicesAp.dueDate} ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$'`,
         ),
       )
       .returning({
@@ -241,53 +256,69 @@ export const markOverdueInvoices = task({
     let notificationsSent = 0;
 
     for (const entityId of affectedEntityIds) {
-      const owners = await db.query.userEntityAccess.findMany({
-        where: and(
-          eq(userEntityAccess.entityId, entityId),
-          eq(userEntityAccess.role, "owner"),
-        ),
-      });
-
-      const salesCount = overdueSales.filter(
-        (r) => r.entityId === entityId,
-      ).length;
-      const billsCount = overdueBills.filter(
-        (r) => r.entityId === entityId,
-      ).length;
-
-      const parts: string[] = [];
-      if (salesCount > 0)
-        parts.push(
-          `${salesCount} customer invoice${salesCount > 1 ? "s" : ""}`,
-        );
-      if (billsCount > 0)
-        parts.push(`${billsCount} bill${billsCount > 1 ? "s" : ""}`);
-
-      const summary = parts.join(" and ");
-
-      // Dedup: don't send if we already notified today for this entity
-      for (const owner of owners) {
-        const existing = await db.query.notifications.findFirst({
+      try {
+        // Finance-capable roles — not just owners (a bookkeeper/accountant
+        // runs collections day-to-day and must see the overdue signal).
+        const financeUsers = await db.query.userEntityAccess.findMany({
           where: and(
-            eq(notifications.userId, owner.userId),
-            eq(notifications.entityId, entityId),
-            eq(notifications.type, "overdue_invoice"),
-            sql`${notifications.createdAt} >= ${todayStr}`,
+            eq(userEntityAccess.entityId, entityId),
+            inArray(userEntityAccess.role, [
+              "owner",
+              "admin",
+              "finance_director",
+              "accountant",
+            ]),
           ),
         });
 
-        if (!existing) {
-          await db.insert(notifications).values({
-            userId: owner.userId,
-            entityId,
-            type: "overdue_invoice",
-            priority: "high",
-            title: `${summary} now overdue`,
-            body: `You have ${summary} past their due date. Review and follow up to get paid faster.`,
-            status: "pending",
+        const salesCount = overdueSales.filter(
+          (r) => r.entityId === entityId,
+        ).length;
+        const billsCount = overdueBills.filter(
+          (r) => r.entityId === entityId,
+        ).length;
+
+        const parts: string[] = [];
+        if (salesCount > 0)
+          parts.push(
+            `${salesCount} customer invoice${salesCount > 1 ? "s" : ""}`,
+          );
+        if (billsCount > 0)
+          parts.push(`${billsCount} bill${billsCount > 1 ? "s" : ""}`);
+
+        const summary = parts.join(" and ");
+
+        // Dedup: don't send if we already notified today for this entity
+        for (const user of financeUsers) {
+          const existing = await db.query.notifications.findFirst({
+            where: and(
+              eq(notifications.userId, user.userId),
+              eq(notifications.entityId, entityId),
+              eq(notifications.type, "overdue_invoice"),
+              sql`${notifications.createdAt} >= ${todayStr}`,
+            ),
           });
-          notificationsSent++;
+
+          if (!existing) {
+            await db.insert(notifications).values({
+              userId: user.userId,
+              entityId,
+              type: "overdue_invoice",
+              priority: "high",
+              title: `${summary} now overdue`,
+              body: `You have ${summary} past their due date. Review and follow up to get paid faster.`,
+              status: "pending",
+            });
+            notificationsSent++;
+          }
         }
+      } catch (err) {
+        // One entity must never abort the whole scan — the statuses are already
+        // updated; log so the gap is visible instead of silently lost.
+        logger.error(
+          { err, entityId },
+          "Failed to notify for newly overdue invoices",
+        );
       }
     }
 
