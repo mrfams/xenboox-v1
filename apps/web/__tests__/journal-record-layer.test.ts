@@ -86,3 +86,35 @@ describe("P7-B: post/reverse state machine + period integrity", () => {
     expect(c).toContain('requirePermission("general_ledger", "delete")');
   });
 });
+
+describe("P7-C: Ledger UI surface", () => {
+  const page = fs.readFileSync(
+    path.resolve(__dirname, "../app/dashboard/ledger/page.tsx"),
+    "utf-8",
+  );
+
+  it("the journal Export button exports real rows (never rows={[]})", () => {
+    expect(page).not.toContain("rows={[]}");
+    expect(page).toContain("rows={entries.map((e) => ({");
+    expect(page).toContain('"Entry #": e.entryNumber ?? ""');
+    expect(page).toContain(
+      'filename={`journal-${new Date().toISOString().split("T")[0]}.csv`}',
+    );
+  });
+
+  it("draft entries can be discarded (server delete wired with confirm)", () => {
+    expect(page).toContain("trpc.journal.delete.useMutation");
+    expect(page).toContain("Discard Draft");
+    expect(page).toContain("Confirm Discard");
+  });
+
+  it("reversal asks for a required reason and confirms", () => {
+    expect(page).toContain("Reason for reversal (required)");
+    expect(page).toContain("Confirm Reverse");
+    expect(page).toContain("reverseMutation.mutate({");
+  });
+
+  it("post/reverse/delete mutations invalidate the journal cache", () => {
+    expect(page).toContain("utils.journal.invalidate()");
+  });
+});

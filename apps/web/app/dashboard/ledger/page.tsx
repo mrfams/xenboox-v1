@@ -18,6 +18,7 @@ import {
   Plus,
   Download,
   Upload,
+  Trash2,
 } from "lucide-react";
 
 import { useEntity } from "@/lib/entity-context";
@@ -90,7 +91,6 @@ export default function TheBookPage() {
 
   const canCreateEntry = usePermission("ledger.journal.create");
   const canImportCoa = usePermission("ledger.coa.import");
-  const canExport = usePermission("ledger.export");
   const utils = trpc.useUtils();
 
   // Debounced search
@@ -242,13 +242,6 @@ export default function TheBookPage() {
               </button>
             )}
             {tab === "coa" && canImportCoa && <CoaImportWizard />}
-            {canExport && tab === "journal" && (
-              <BulkExportButton
-                rows={[]}
-                filename={`journal-${new Date().toISOString().split("T")[0]}.csv`}
-                label="Export"
-              />
-            )}
             <span className="hidden text-[10px] text-muted-foreground/50 sm:inline">
               1/2/3 tabs · j/k navigate · Enter open · / search
             </span>
@@ -388,6 +381,23 @@ function JournalPanel({
       {/* Counts strip */}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 px-1 font-mono text-[11px] tabular-nums text-muted-foreground">
         <span>{data?.totalCount ?? 0} entries</span>
+        {entries.length > 0 && (
+          <span className="ml-auto">
+            <BulkExportButton
+              rows={entries.map((e) => ({
+                "Entry #": e.entryNumber ?? "",
+                Date: e.date ?? "",
+                Status: e.status ?? "",
+                Description: e.description ?? "",
+                Debit: e.debit,
+                Credit: e.credit,
+                Source: e.source ?? "",
+              }))}
+              filename={`journal-${new Date().toISOString().split("T")[0]}.csv`}
+              label="Export"
+            />
+          </span>
+        )}
         {counts && (
           <>
             <span className="text-attention-amber">
@@ -1357,6 +1367,7 @@ function EntryActions({
   const utils = trpc.useUtils();
   const [reverseReason, setReverseReason] = useState("");
   const [showReverse, setShowReverse] = useState(false);
+  const [showDiscard, setShowDiscard] = useState(false);
 
   const postMutation = trpc.journal.post.useMutation({
     onSuccess: () => {
@@ -1366,6 +1377,13 @@ function EntryActions({
   });
 
   const reverseMutation = trpc.journal.reverse.useMutation({
+    onSuccess: () => {
+      utils.journal.invalidate();
+      onClose();
+    },
+  });
+
+  const deleteMutation = trpc.journal.delete.useMutation({
     onSuccess: () => {
       utils.journal.invalidate();
       onClose();
@@ -1398,6 +1416,53 @@ function EntryActions({
           )}
           {isPending ? "Approve & Post" : "Post Entry"}
         </button>
+      )}
+
+      {isDraft && !showDiscard && (
+        <button
+          type="button"
+          onClick={() => setShowDiscard(true)}
+          className="flex w-full items-center justify-center gap-2 rounded-lg border border-error-clay/30 bg-error-clay/5 px-3 py-2 text-xs font-medium text-error-clay hover:bg-error-clay/10 transition-colors"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+          Discard Draft
+        </button>
+      )}
+
+      {isDraft && showDiscard && (
+        <div className="space-y-2 rounded-lg border border-error-clay/20 bg-error-clay/5 p-2">
+          <p className="text-[10px] leading-relaxed text-error-clay/80">
+            Discard this draft? It has not been posted, so nothing has hit the
+            books. This cannot be undone.
+          </p>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setShowDiscard(false)}
+              className="flex-1 rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={() => deleteMutation.mutate({ id: entry.id })}
+              disabled={deleteMutation.isPending}
+              className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg bg-error-clay px-3 py-1.5 text-xs font-medium text-white hover:bg-error-clay/90 transition-colors disabled:opacity-50"
+            >
+              {deleteMutation.isPending ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                <Trash2 className="h-3 w-3" />
+              )}
+              Confirm Discard
+            </button>
+          </div>
+          {deleteMutation.isError && (
+            <p className="text-[10px] text-error-clay">
+              {deleteMutation.error.message}
+            </p>
+          )}
+        </div>
       )}
 
       {isPosted && !showReverse && (
