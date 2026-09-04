@@ -1560,7 +1560,9 @@ export const apRouter = router({
             message: "Supplier not found",
           });
 
-        await db.delete(suppliers).where(eq(suppliers.id, input.id));
+        await db
+          .delete(suppliers)
+          .where(and(eq(suppliers.id, input.id), eq(suppliers.entityId, ctx.entityId!)));
 
         await db.insert(auditLog).values({
           entityId: ctx.entityId!,
@@ -1609,7 +1611,12 @@ export const apRouter = router({
           await tx.delete(poLines).where(eq(poLines.purchaseOrderId, input.id));
           await tx
             .delete(purchaseOrders)
-            .where(eq(purchaseOrders.id, input.id));
+            .where(
+              and(
+                eq(purchaseOrders.id, input.id),
+                eq(purchaseOrders.entityId, ctx.entityId!),
+              ),
+            );
 
           await tx.insert(auditLog).values({
             entityId: ctx.entityId!,
@@ -1662,7 +1669,11 @@ export const apRouter = router({
           await tx
             .delete(invoiceApLines)
             .where(eq(invoiceApLines.invoiceApId, input.id));
-          await tx.delete(invoicesAp).where(eq(invoicesAp.id, input.id));
+          await tx
+            .delete(invoicesAp)
+            .where(
+              and(eq(invoicesAp.id, input.id), eq(invoicesAp.entityId, ctx.entityId!)),
+            );
 
           await tx.insert(auditLog).values({
             entityId: ctx.entityId!,
@@ -1704,7 +1715,9 @@ export const apRouter = router({
             message: "Payment not found",
           });
 
-        await db.delete(paymentsAp).where(eq(paymentsAp.id, input.id));
+        await db
+          .delete(paymentsAp)
+          .where(and(eq(paymentsAp.id, input.id), eq(paymentsAp.entityId, ctx.entityId!)));
 
         await db.insert(auditLog).values({
           entityId: ctx.entityId!,

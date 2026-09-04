@@ -585,7 +585,9 @@ export const arRouter = router({
           });
         }
 
-        await db.delete(customers).where(eq(customers.id, input.id));
+        await db
+          .delete(customers)
+          .where(and(eq(customers.id, input.id), eq(customers.entityId, ctx.entityId!)));
 
         await db.insert(auditLog).values({
           entityId: ctx.entityId!,
@@ -632,7 +634,9 @@ export const arRouter = router({
           });
         }
 
-        await db.delete(salesInvoices).where(eq(salesInvoices.id, input.id));
+        await db
+          .delete(salesInvoices)
+          .where(and(eq(salesInvoices.id, input.id), eq(salesInvoices.entityId, ctx.entityId!)));
 
         await db.insert(auditLog).values({
           entityId: ctx.entityId!,
@@ -676,7 +680,9 @@ export const arRouter = router({
           });
         }
 
-        await db.delete(paymentsAr).where(eq(paymentsAr.id, input.id));
+        await db
+          .delete(paymentsAr)
+          .where(and(eq(paymentsAr.id, input.id), eq(paymentsAr.entityId, ctx.entityId!)));
 
         await db.insert(auditLog).values({
           entityId: ctx.entityId!,
