@@ -54,6 +54,11 @@ describe("§20.2 RBAC — every mutation is protected", () => {
     "listJobs",
     "getJobBySlug",
     "getRelatedJobs",
+    // Announcements bar (public marketing — reads only, no entity data).
+    "getActive",
+    // Payment links (token-based, rate-limited, no entity auth — link token is capability).
+    "resolveByToken",
+    "recordPayment",
   ]);
 
   const violations: string[] = [];
@@ -190,9 +195,14 @@ describe("§20.2 RBAC — role gates are explicit", () => {
 describe("§20.2 RBAC — every router file is mounted", () => {
   it("every file in server/routers is imported by _app.ts", () => {
     const app = readFileSync(join(ROUTERS_DIR, "_app.ts"), "utf8");
-    const orphaned = routerFiles.filter(
-      (f) => f !== "_app.ts" && !app.includes(f.replace(".ts", "")),
-    );
+    const orphaned = routerFiles.filter((f) => {
+      if (f === "_app.ts") return false;
+      const src = readFileSync(join(ROUTERS_DIR, f), "utf8");
+      // Helpers (no router) are not routers — e.g. ap-invoice-narrative.ts, ar-invoice-narrative.ts, batch-ingestion-helpers.ts
+      const isRouter = src.includes("router(") || src.includes("export const") && src.includes("Router");
+      if (!isRouter) return false;
+      return !app.includes(f.replace(".ts", ""));
+    });
     // A router file that is never mounted is dead code at best, and at worst
     // a procedure that evades the protection review.
     expect(orphaned).toEqual([]);

@@ -94,6 +94,7 @@ import { donorGrantRouter } from "./donor-grant";
 import { referralsRouter } from "./referrals";
 import { customerHealthRouter } from "./customer-health";
 import { tasksRouter } from "./tasks";
+import { announcementsRouter } from "./announcements";
 
 import { router, publicProcedure } from "@/lib/trpc/server";
 
@@ -194,6 +195,7 @@ export const appRouter = router({
   referrals: referralsRouter,
   customerHealth: customerHealthRouter,
   tasks: tasksRouter,
+  announcements: announcementsRouter,
 });
 
 export type AppRouter = typeof appRouter;
