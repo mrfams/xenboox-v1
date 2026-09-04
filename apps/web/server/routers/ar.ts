@@ -203,22 +203,55 @@ export const arRouter = router({
           });
         }
 
-        return await db.transaction(async (tx) => {
-          const [invoice] = await tx
-            .insert(salesInvoices)
-            .values({
-              ...invoiceData,
-              entityId: ctx.entityId!,
-              totalAmount: totalAmount.toFixed(2),
-              balance: totalAmount.toFixed(2),
-              status: "pending",
-            })
-            .returning();
+        // Friendly pre-check for duplicate number (uniqueIndex ar_invoice_entity_number)
+        const existing = await db.query.salesInvoices.findFirst({
+          where: and(
+            eq(salesInvoices.entityId, ctx.entityId!),
+            eq(salesInvoices.invoiceNumber, input.invoiceNumber),
+          ),
+          columns: { id: true },
+        });
+        if (existing) {
+          throw new TRPCError({
+            code: "CONFLICT",
+            message: `Invoice number ${input.invoiceNumber} already exists for this entity`,
+          });
+        }
 
-          if (!invoice) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        // Validate customer belongs to this entity (defense-in-depth)
+        const custCheck = await db.query.customers.findFirst({
+          where: and(
+            eq(customers.id, input.customerId),
+            eq(customers.entityId, ctx.entityId!),
+          ),
+          columns: { id: true },
+        });
+        if (!custCheck) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Customer not found for this entity",
+          });
+        }
 
+        // neon-http has no real transactions — use sequential inserts with compensation.
+        // The central db shim also falls back, but this path ensures no orphan invoice
+        // if the lines/audit insert fails outside a real transaction.
+        const [invoice] = await db
+          .insert(salesInvoices)
+          .values({
+            ...invoiceData,
+            entityId: ctx.entityId!,
+            totalAmount: totalAmount.toFixed(2),
+            balance: totalAmount.toFixed(2),
+            status: "pending",
+          })
+          .returning();
+
+        if (!invoice) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+
+        try {
           // Batch insert — 1 query instead of N (N+1 fix)
-          await tx.insert(salesInvoiceLines).values(
+          await db.insert(salesInvoiceLines).values(
             lines.map((line) => {
               const qty = line.quantity;
               const price = parseFloat(line.unitPrice);
@@ -234,7 +267,7 @@ export const arRouter = router({
             }),
           );
 
-          await tx.insert(auditLog).values({
+          await db.insert(auditLog).values({
             entityId: ctx.entityId!,
             userId: ctx.session!.user!.id!,
             action: "ar.createInvoice",
@@ -247,24 +280,48 @@ export const arRouter = router({
               dueDate: input.dueDate,
             },
           });
+        } catch (txError) {
+          // Compensate: remove orphan header if lines/audit failed (no real rollback)
+          await db
+            .delete(salesInvoices)
+            .where(eq(salesInvoices.id, invoice.id))
+            .catch(() => {});
+          throw txError;
+        }
 
-          // Generate invoice narrative (non-blocking)
-          generateInvoiceNarrative({
-            entityId: ctx.entityId!,
-            entityName: ctx.entityName ?? "your business",
-            currency: input.currency,
-            invoiceId: invoice.id,
-            invoiceNumber: input.invoiceNumber,
-            totalAmount,
-            customerId: input.customerId,
-            dueDate: input.dueDate,
-          }).catch((err) => {
-            logger.error({ err }, "[ar] Invoice narrative generation failed");
-          });
-
-          return invoice;
+        // Generate invoice narrative (non-blocking)
+        generateInvoiceNarrative({
+          entityId: ctx.entityId!,
+          entityName: ctx.entityName ?? "your business",
+          currency: input.currency,
+          invoiceId: invoice.id,
+          invoiceNumber: input.invoiceNumber,
+          totalAmount,
+          customerId: input.customerId,
+          dueDate: input.dueDate,
+        }).catch((err) => {
+          logger.error({ err }, "[ar] Invoice narrative generation failed");
         });
+
+        return invoice;
       } catch (error) {
+        // Map Postgres unique violation to a user-readable 409 before generic 500 masking
+        const msg = error instanceof Error ? error.message : String(error);
+        const causeMsg =
+          error && typeof error === "object" && "cause" in error
+            ? String((error as { cause?: unknown }).cause ?? "")
+            : "";
+        const combined = `${msg} ${causeMsg}`;
+        if (
+          combined.includes("duplicate key") ||
+          combined.includes("ar_invoice_entity_number") ||
+          combined.includes("23505")
+        ) {
+          throw new TRPCError({
+            code: "CONFLICT",
+            message: `Invoice number ${input.invoiceNumber} already exists`,
+          });
+        }
         handleMutationError(error, "Failed to create invoice");
       }
     }),
