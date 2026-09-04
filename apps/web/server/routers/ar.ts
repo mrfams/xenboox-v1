@@ -1281,4 +1281,65 @@ export const arRouter = router({
 
     return { count: result[0]?.count ?? 0 };
   }),
+
+  /**
+   * Post (or re-post) an invoice that was created while its period was closed
+   * or its accounts were missing — surfaces the reason when posting is still
+   * impossible, so the UI never leaves a silent unposted invoice.
+   */
+  retryPostInvoice: rlsMutateProcedure
+    .use(requirePermission("accounts_receivable", "create"))
+    .input(z.object({ id: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const invoice = await db.query.salesInvoices.findFirst({
+        where: and(
+          eq(salesInvoices.id, input.id),
+          eq(salesInvoices.entityId, ctx.entityId!),
+        ),
+        columns: { id: true, status: true },
+      });
+      if (!invoice) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Invoice not found",
+        });
+      }
+      if (invoice.status === "voided") {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Voided invoices are not posted to the ledger",
+        });
+      }
+      const result = await postArInvoiceToLedger(
+        input.id,
+        ctx.entityId!,
+        ctx.session!.user!.id!,
+      );
+      if (!result.posted) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: friendlyPostReason(result.reason),
+        });
+      }
+      return { posted: true, journalEntryId: result.journalEntryId };
+    }),
 });
+
+function friendlyPostReason(reason: string): string {
+  const map: Record<string, string> = {
+    invoice_not_found: "Invoice not found.",
+    voided: "Voided invoices are not posted.",
+    no_lines: "Invoice has no line items to post.",
+    no_chart_of_accounts:
+      "No chart of accounts exists yet — add accounts first.",
+    no_ar_account:
+      "Accounts Receivable account could not be resolved — add one to your chart of accounts.",
+    missing_line_account:
+      "A line account is missing from your chart of accounts — fix the line first.",
+    invalid_line_amount: "A line amount is invalid.",
+    journal_skipped:
+      "Posting was skipped — the invoice date's accounting period is closed or the entry failed validation.",
+    error: "Posting failed unexpectedly — check the audit log or try again.",
+  };
+  return map[reason] ?? "Could not post the invoice to the ledger.";
+}

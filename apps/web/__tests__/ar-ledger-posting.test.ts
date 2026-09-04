@@ -130,3 +130,42 @@ describe("P3-B: posting wiring (A1 — invoices/payments reach the ledger)", () 
     expect(c).toContain("cleanupJournal");
   });
 });
+
+describe("P3-C: posted-state UI surface", () => {
+  const DETAIL = path.resolve(
+    __dirname,
+    "../components/finance/invoice-detail-panel.tsx",
+  );
+  const LIST = path.resolve(
+    __dirname,
+    "../components/finance/invoices-view.tsx",
+  );
+  const INVOICING = path.resolve(__dirname, "../server/routers/invoicing.ts");
+
+  it("ar router exposes retryPostInvoice with plain-English reasons", () => {
+    const c = fs.readFileSync(AR_ROUTER, "utf-8");
+    expect(c).toContain("retryPostInvoice");
+    expect(c).toContain("journal_skipped");
+  });
+
+  it("list + detail queries expose journalEntryId so the UI can show posted state", () => {
+    const c = fs.readFileSync(INVOICING, "utf-8");
+    expect(c).toContain("journalEntryId: salesInvoices.journalEntryId");
+    expect(c).toContain("journalEntryId: invoice.journalEntryId ?? null");
+  });
+
+  it("detail panel surfaces unposted invoices and blocks payments until posted", () => {
+    const c = fs.readFileSync(DETAIL, "utf-8");
+    expect(c).toContain("retryPostInvoice");
+    expect(c).toContain("Post to ledger");
+    expect(c).toContain(
+      "Post this invoice to the ledger before recording payments",
+    );
+  });
+
+  it("invoice list marks not-in-ledger rows", () => {
+    const c = fs.readFileSync(LIST, "utf-8");
+    expect(c).toContain("journalEntryId");
+    expect(c).toContain("Not in ledger");
+  });
+});

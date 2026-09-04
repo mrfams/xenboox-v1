@@ -51,6 +51,7 @@ interface Invoice {
   totalAmount: number;
   balance: number;
   status: string;
+  journalEntryId: string | null;
   customerName: string | null;
   customerId: string | null;
 }
@@ -357,6 +358,16 @@ function InvoiceRow({
               {invoice.invoiceNumber}
             </p>
             {getStatusBadge(invoice.status)}
+            {!invoice.journalEntryId &&
+              invoice.status !== "voided" &&
+              invoice.status !== "paid" && (
+                <Badge
+                  className="border border-amber-200 bg-amber-50 text-[10px] text-amber-700"
+                  title="Not posted to the ledger — open the invoice to post it"
+                >
+                  Not in ledger
+                </Badge>
+              )}
           </div>
           <p className="text-xs text-muted-foreground mt-0.5">
             {invoice.customerName ?? "Unknown customer"} • {invoice.invoiceDate}

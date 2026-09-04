@@ -83,6 +83,7 @@ export function InvoiceDetailPanel({
 }: InvoiceDetailPanelProps) {
   const { format } = useFormatCurrency();
   const { entityId } = useEntity();
+  const utils = trpc.useUtils();
   const [showRecordPayment, setShowRecordPayment] = useState(false);
   const [showPaymentLink, setShowPaymentLink] = useState(false);
 
@@ -90,6 +91,15 @@ export function InvoiceDetailPanel({
     { invoiceId },
     { enabled: !!entityId && !!invoiceId },
   );
+
+  const retryPost = trpc.ar.retryPostInvoice.useMutation({
+    onSuccess: () => {
+      toast.success("Invoice posted to the ledger");
+      utils.invoicing.invalidate();
+      utils.ar.invalidate();
+    },
+    onError: (err) => toast.error(err.message),
+  });
 
   const generatePdf = trpc.invoicing.generatePdf.useQuery(
     { invoiceId },
@@ -154,6 +164,9 @@ export function InvoiceDetailPanel({
   const isPaid = detail.status === "paid";
   const isVoided = detail.status === "voided";
   const canPay = !isPaid && !isVoided;
+  // P3-B/C: an invoice whose journal entry failed (closed period etc.) is not
+  // in the books yet — surface it and block payments until it posts.
+  const isUnposted = !detail.journalEntryId && !isVoided;
 
   return (
     <>
@@ -237,6 +250,31 @@ export function InvoiceDetailPanel({
               </div>
             </div>
 
+            {/* P3-B: not in the ledger yet — tell the user and offer the post */}
+            {isUnposted && (
+              <div className="mb-6 flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                <AlertCircle className="h-4 w-4 shrink-0" />
+                <p className="flex-1">
+                  This invoice is not yet in the general ledger (its accounting
+                  period may have been closed when it was created).
+                </p>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="border-amber-300 bg-white text-amber-800 hover:bg-amber-100"
+                  onClick={() => retryPost.mutate({ id: detail.id })}
+                  disabled={retryPost.isPending}
+                >
+                  {retryPost.isPending ? (
+                    <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <FileText className="mr-1.5 h-3.5 w-3.5" />
+                  )}
+                  Post to ledger
+                </Button>
+              </div>
+            )}
+
             {/* Action Buttons */}
             {canPay && (
               <div className="mb-6 flex flex-wrap gap-2">
@@ -261,7 +299,16 @@ export function InvoiceDetailPanel({
                   <Link2 className="mr-1.5 h-3.5 w-3.5" />
                   Share Payment Link
                 </Button>
-                <Button size="sm" onClick={() => setShowRecordPayment(true)}>
+                <Button
+                  size="sm"
+                  onClick={() => setShowRecordPayment(true)}
+                  disabled={isUnposted || retryPost.isPending}
+                  title={
+                    isUnposted
+                      ? "Post this invoice to the ledger before recording payments"
+                      : undefined
+                  }
+                >
                   <DollarSign className="mr-1.5 h-3.5 w-3.5" />
                   Record Payment
                 </Button>

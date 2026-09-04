@@ -341,6 +341,7 @@ export const invoicingRouter = router({
           totalAmount: salesInvoices.totalAmount,
           balance: salesInvoices.balance,
           status: salesInvoices.status,
+          journalEntryId: salesInvoices.journalEntryId,
           customerId: salesInvoices.customerId,
           customerName: customers.name,
           customerEmail: customers.contactEmail,
@@ -395,6 +396,7 @@ export const invoicingRouter = router({
           amount: parseFloat(inv.totalAmount),
           balance: parseFloat(inv.balance),
           status: inv.status,
+          journalEntryId: inv.journalEntryId ?? null,
           dueStatus,
           daysUntilDue,
         };
@@ -645,6 +647,7 @@ export const invoicingRouter = router({
         paidAmount: parseFloat(invoice.paidAmount),
         balance: parseFloat(invoice.balance),
         status: invoice.status,
+        journalEntryId: invoice.journalEntryId ?? null,
         currency: invoice.currency,
         notes: invoice.notes,
         customer: customer

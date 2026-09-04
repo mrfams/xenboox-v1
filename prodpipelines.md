@@ -65,7 +65,7 @@ Status legend: ✅ done · 🔄 in progress · ⬜ not started · ⚠️ needs f
 ## Pipelines 3–12
 
 | # | Pipeline | Status | Notes |
-| --- | ---------------------------- | ------ | ------------------------------------------------------------------ || 3 | Invoice Flow | 🔄 | A: record layer ✅ · B: posting/GL ✅ · C–D + verify ⬜ |
+| --- | ---------------------------- | ------ | ------------------------------------------------------------------ || 3 | Invoice Flow | 🔄 | A+B ✅ · C: UI posted-state ✅ · D + verify ⬜ |
 | 4 | Bill Flow | ✅ | Bill detail, inline payment, PO matching, approval routing |
 | 5 | Bank Reconciliation | ✅ | Bidirectional linking, unreconcile, AI matching with batch queries |
 | 6 | Expense Recording → Approval | ✅ | Creatable combobox, detail panel, approve/reject workflow |
