@@ -480,8 +480,18 @@ function ComplianceClose() {
   const { entityId, entityCurrency } = useEntity();
   const { openWithFocus } = useModuleAi();
 
+  const utils = trpc.useUtils();
+  const [confirmClose, setConfirmClose] = useState(false);
+
   const { data: closeStatus } = trpc.fiscal.getCloseStatus.useQuery(undefined, {
     enabled: !!entityId,
+  });
+
+  const initiateClose = trpc.fiscal.initiateClose.useMutation({
+    onSuccess: () => {
+      setConfirmClose(false);
+      utils.fiscal.getCloseStatus.invalidate();
+    },
   });
 
   const completedSteps =
@@ -489,6 +499,7 @@ function ComplianceClose() {
   const totalSteps = closeStatus?.steps.length ?? 0;
   const progress =
     totalSteps > 0 ? Math.round((completedSteps / totalSteps) * 100) : 0;
+  const canStart = !!closeStatus?.currentPeriodId && !closeStatus?.isClosed;
 
   return (
     <div className="rounded-xl border border-border/50 bg-card p-4">
@@ -523,31 +534,89 @@ function ComplianceClose() {
       </div>
       <div className="space-y-2">
         {closeStatus ? (
-          <div className="flex items-center gap-3 rounded-lg bg-background/50 px-3 py-2">
-            <Calendar
-              className="h-4 w-4 text-muted-foreground/60"
-              aria-hidden="true"
-            />
-            <div className="flex-1">
-              <p className="text-xs font-medium text-foreground">
-                Month-end close
-              </p>
-              <p className="text-[10px] text-muted-foreground">
-                {closeStatus.isClosed
-                  ? `Closed through ${closeStatus.currentPeriod ?? "last month"}`
-                  : closeStatus.currentPeriod
-                    ? `In progress — ${progress}% complete`
-                    : "Not started"}
-              </p>
-              {!closeStatus.isClosed && totalSteps > 0 && (
-                <div className="mt-1.5 h-1 w-full rounded-full bg-muted overflow-hidden">
-                  <div
-                    className="h-full rounded-full bg-primary transition-all"
-                    style={{ width: `${progress}%` }}
-                  />
-                </div>
-              )}
+          <div className="rounded-lg bg-background/50 px-3 py-2">
+            <div className="flex items-center gap-3">
+              <Calendar
+                className="h-4 w-4 text-muted-foreground/60"
+                aria-hidden="true"
+              />
+              <div className="flex-1">
+                <p className="text-xs font-medium text-foreground">
+                  Month-end close
+                </p>
+                <p className="text-[10px] text-muted-foreground">
+                  {closeStatus.isClosed
+                    ? `Closed through ${closeStatus.currentPeriod ?? "last month"}`
+                    : closeStatus.currentPeriod
+                      ? `In progress — ${progress}% complete`
+                      : "Not started"}
+                </p>
+                {!closeStatus.isClosed && totalSteps > 0 && (
+                  <div className="mt-1.5 h-1 w-full rounded-full bg-muted overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-primary transition-all"
+                      style={{ width: `${progress}%` }}
+                    />
+                  </div>
+                )}
+              </div>
             </div>
+
+            {/* P8-C: a visible start affordance for the owner — the close
+                only fires after an explicit confirm, and errors surface. */}
+            {!closeStatus.isClosed && canStart && !confirmClose && (
+              <button
+                type="button"
+                onClick={() => setConfirmClose(true)}
+                className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-white hover:bg-primary/90 transition-colors"
+              >
+                <Calendar className="h-3 w-3" />
+                Start Month-End Close
+              </button>
+            )}
+
+            {!closeStatus.isClosed && confirmClose && (
+              <div className="mt-2 space-y-1.5 rounded-lg border border-attention-amber/30 bg-attention-amber/5 p-2">
+                <p className="text-[10px] leading-relaxed text-foreground/80">
+                  Close {closeStatus.currentPeriod ?? "this period"}? The close
+                  checklist runs first — drafts and pending entries will block
+                  it, and the period locks once complete.
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setConfirmClose(false)}
+                    className="flex-1 rounded-lg border border-border bg-background px-2 py-1 text-[10px] font-medium text-foreground hover:bg-muted transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    disabled={initiateClose.isPending}
+                    onClick={() =>
+                      initiateClose.mutate({
+                        periodId: closeStatus.currentPeriodId!,
+                        triggerSource: "manual",
+                      })
+                    }
+                    className="flex-1 inline-flex items-center justify-center gap-1 rounded-lg bg-primary px-2 py-1 text-[10px] font-medium text-white hover:bg-primary/90 transition-colors disabled:opacity-50"
+                  >
+                    {initiateClose.isPending ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <Calendar className="h-3 w-3" />
+                    )}
+                    Run Close
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {initiateClose.isError && (
+              <p className="mt-1.5 text-[10px] text-error-clay">
+                {initiateClose.error.message}
+              </p>
+            )}
           </div>
         ) : (
           <div className="flex items-center gap-3 rounded-lg bg-background/50 px-3 py-2">

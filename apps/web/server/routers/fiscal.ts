@@ -10,6 +10,7 @@ import {
   journalEntryLines,
 } from "@xenboox/db/schema/accounting";
 import { auditLog } from "@xenboox/db/schema/documents";
+import { notifyEntityUsers } from "@xenboox/db";
 import {
   executeClosePipeline,
   getCloseStatus,
@@ -491,6 +492,31 @@ export const fiscalRouter = router({
             errors: closeState.errors,
           },
         });
+
+        // P8-C: surface the outcome to the entity's users (deduped per period).
+        const finished =
+          closeState.status === "closed" || closeState.status === "locked";
+        if (finished) {
+          await notifyEntityUsers(db, {
+            entityId: ctx.entityId!,
+            type: "month_end_close",
+            priority: "high",
+            title: "Month-end close finished",
+            body: `The close run ${closeState.errors.length > 0 ? `completed with ${closeState.errors.length} error(s) needing review` : "completed successfully"}.`,
+            data: { periodId: input.periodId },
+            dedupeDataField: "periodId",
+          }).catch(() => {});
+        } else {
+          await notifyEntityUsers(db, {
+            entityId: ctx.entityId!,
+            type: "month_end_close",
+            priority: "medium",
+            title: "Month-end close needs review",
+            body: `The close run stopped at "${closeState.status}" — ${closeState.errors.length} error(s) need attention before the period can close.`,
+            data: { periodId: input.periodId },
+            dedupeDataField: "periodId",
+          }).catch(() => {});
+        }
 
         return {
           status: closeState.status,

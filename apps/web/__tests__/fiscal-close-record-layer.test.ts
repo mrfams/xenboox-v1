@@ -57,4 +57,42 @@ describe("P8-B: month-end close job (checklist/GL integrity)", () => {
     expect(job).toContain("journalEntryId: header.id,");
     expect(job).not.toContain("journalEntryId: jeId,");
   });
+
+  it("notifies the entity when the close completes (deduped per period)", () => {
+    expect(job).toContain("notifyEntityUsers(db, {");
+    expect(job).toContain('type: "month_end_close"');
+    expect(job).toContain('dedupeDataField: "periodId"');
+  });
+});
+
+describe("P8-C: close UI surface", () => {
+  const c = fs.readFileSync(
+    path.resolve(__dirname, "../server/routers/fiscal.ts"),
+    "utf-8",
+  );
+  const overview = fs.readFileSync(
+    path.resolve(__dirname, "../components/operations/overview-view.tsx"),
+    "utf-8",
+  );
+  const pipeline = fs.readFileSync(
+    path.resolve(__dirname, "../../../packages/agents/core/close-pipeline.ts"),
+    "utf-8",
+  );
+
+  it("getCloseStatus exposes the period id so the UI can act on it", () => {
+    expect(pipeline).toContain("currentPeriodId: string | null;");
+    expect(pipeline).toContain("currentPeriodId: openPeriod.id,");
+  });
+
+  it("the Operations widget has an explicit Start Close affordance", () => {
+    expect(overview).toContain("Start Month-End Close");
+    expect(overview).toContain("trpc.fiscal.initiateClose.useMutation");
+    expect(overview).toContain("closeStatus.currentPeriodId!");
+  });
+
+  it("initiateClose notifies users on finish and on blocked states", () => {
+    expect(c).toContain('type: "month_end_close"');
+    expect(c).toContain('title: "Month-end close finished"');
+    expect(c).toContain('title: "Month-end close needs review"');
+  });
 });

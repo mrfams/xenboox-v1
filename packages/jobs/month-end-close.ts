@@ -1,6 +1,6 @@
 import { task, logger } from "@trigger.dev/sdk";
 import { dlqOnFailure } from "./lib/dlq";
-import { db } from "@xenboox/db";
+import { db, notifyEntityUsers } from "@xenboox/db";
 import {
   journalEntries,
   fiscalPeriods,
@@ -134,6 +134,24 @@ export const processMonthEndClose = task({
       .where(eq(fiscalPeriods.id, period.id));
 
     logger.info("Period closed successfully", { periodId: period.id });
+
+    // Notify entity users the books are closed (deduped per period so a
+    // retried run never double-notifies).
+    await notifyEntityUsers(db, {
+      entityId,
+      type: "month_end_close",
+      priority: "high",
+      title: `Books closed for ${year}-${String(month).padStart(2, "0")}`,
+      body: "The month-end close completed and the period is now closed. Run reports to see final figures.",
+      data: { periodId: period.id },
+      dedupeDataField: "periodId",
+    }).catch((err: unknown) => {
+      logger.error("Failed to send close notification", {
+        entityId,
+        periodId: period.id,
+        err: err instanceof Error ? err.message : String(err),
+      });
+    });
 
     return {
       success: true,

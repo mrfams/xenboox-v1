@@ -60,7 +60,11 @@ import type { PipelineTimeoutConfig } from "./retry";
 export type CloseTriggerSource = "scheduled" | "manual" | "agent" | "auto";
 
 export type CloseStepStatus =
-  "pending" | "in_progress" | "completed" | "failed" | "skipped";
+  | "pending"
+  | "in_progress"
+  | "completed"
+  | "failed"
+  | "skipped";
 
 export type CloseStepId =
   | "validation"
@@ -1255,6 +1259,7 @@ export async function getCloseStatus(
   periodId?: string,
 ): Promise<{
   currentPeriod: string | null;
+  currentPeriodId: string | null;
   steps: CloseStep[];
   isClosed: boolean;
   lastClosedAt: string | null;
@@ -1279,6 +1284,7 @@ export async function getCloseStatus(
   if (!openPeriod) {
     return {
       currentPeriod: null,
+      currentPeriodId: null,
       steps: getInitialSteps().map((s) => ({
         ...s,
         status: "skipped" as CloseStepStatus,
@@ -1313,6 +1319,7 @@ export async function getCloseStatus(
 
   return {
     currentPeriod: periodStr,
+    currentPeriodId: openPeriod.id,
     steps,
     isClosed,
     lastClosedAt: openPeriod.closedAt?.toISOString() ?? null,
@@ -1327,7 +1334,12 @@ export async function getCloseStatus(
 // ─── Extended Types ──────────────────────────────────────────────────────────
 
 export type CloseSessionStatus =
-  "in_progress" | "ready" | "blocked" | "notified" | "locked" | "reopened";
+  | "in_progress"
+  | "ready"
+  | "blocked"
+  | "notified"
+  | "locked"
+  | "reopened";
 
 export interface CloseConfirmation {
   agentId: string;
