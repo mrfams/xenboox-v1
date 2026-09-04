@@ -234,7 +234,7 @@ function LegacySection({
   const { data: session } = useSession();
   const isDemoUser = session?.user?.email === DEMO_EMAIL;
 
-  if (!isDemoUser) return null;
+  if (!isDemoUser || process.env.NEXT_PUBLIC_ENABLE_LEGACY !== "true") return null;
 
   return (
     <div className="border-t border-white/[0.06] p-3">

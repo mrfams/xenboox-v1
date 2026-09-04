@@ -54,7 +54,7 @@
 
 > `AGENTS.md` — 5 surfaces only: Command Center, Activity Hub, Financial Pulse, Ledger, Operations.
 
-- [ ] **P1-10 Legacy duplicates** — `legacy/ledger`, `legacy/financial-pulse`, `legacy/activity-hub` + `ai-sidebar.tsx:224` `LegacySection` shows **10 items to demo@xenboox.com**. Delete or flag-gate. **High**
+- [x] **P1-10 Legacy duplicates** — `legacy/ledger`, `legacy/financial-pulse`, `legacy/activity-hub` + `ai-sidebar.tsx:224` `LegacySection` shows **10 items to demo@xenboox.com**. Delete or flag-gate. **High** — fixed `ai-sidebar.tsx:237` gate `NEXT_PUBLIC_ENABLE_LEGACY==="true"` + deleted `app/dashboard/legacy/**`, verified 5-item nav 2026-09-04
 - [ ] **P1-11 SaaS wrappers** — `operations/customers|vendors|invoices|bills|banking/page.tsx:11` still exist alongside `operations/page.tsx:56` tab absorption. 301 to `?tab=` or delete. **High**
 - [ ] **P1-12 Extra surfaces** — `donor-reporting/page.tsx:1`, `knowledge/page.tsx:54`, `knowledge-graph`, `ingestion`, `qbr`, `referrals`, `auto-approve`, `audit-trail` — 7 beyond 5. Absorb into tabs or `app/(dev)/`. **Medium**
 - [ ] **P1-13 Hidden inspector leak** — `dashboard/hidden/page.tsx:28` iframe 8 routes at `/dashboard/hidden` — move to `app/(dev)/`. **Medium**
