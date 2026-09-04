@@ -56,7 +56,7 @@
 
 - [x] **P1-10 Legacy duplicates** — `legacy/ledger`, `legacy/financial-pulse`, `legacy/activity-hub` + `ai-sidebar.tsx:224` `LegacySection` shows **10 items to demo@xenboox.com**. Delete or flag-gate. **High** — fixed `ai-sidebar.tsx:237` gate `NEXT_PUBLIC_ENABLE_LEGACY==="true"` + deleted `app/dashboard/legacy/**`, verified 5-item nav 2026-09-04
 - [x] **P1-10b People & Assets 6th surface** — payroll/inventory/assets/budget pipelines had no nav (hidden behind API only). Added `app/dashboard/people/page.tsx` 4-tab shell (payroll|inventory|assets|budget + `useSurfaceSync`), `components/people/{payroll,inventory,assets,budget}-view.tsx` (DataTable `scope=col`, `useFormatCurrency`/`entityCurrency`, `useModuleAi` Ask AI CTA), `ai-sidebar.tsx` 6th `Users` item + `mobile-bottom-nav.tsx` `People` + `use-surface-shortcuts.ts` `6` → `/dashboard/people`, a11y `role=tablist/tab` + `ArrowLeft/Right/Home/End`. **High** — verified `a11y-static 59/59` + queries `listEmployeesWithPayroll/listItems/listAssets/listBudgets` scoped 2026-09-04
-- [ ] **P1-11 SaaS wrappers** — `operations/customers|vendors|invoices|bills|banking/page.tsx:11` still exist alongside `operations/page.tsx:56` tab absorption. 301 to `?tab=` or delete. **High**
+- [x] **P1-11 SaaS wrappers** — `operations/customers|vendors|invoices|bills|banking/page.tsx:11` still exist alongside `operations/page.tsx:56` tab absorption. 301 to `?tab=` or delete. **High** — fixed 5 wrappers → `permanentRedirect("/dashboard/operations?tab=*")` + `operations/page.tsx:68` `useSearchParams` deep-link `?tab=` with `useEffect` sync, verified wrappers no longer render duplicate views 2026-09-04
 - [ ] **P1-12 Extra surfaces** — `donor-reporting/page.tsx:1`, `knowledge/page.tsx:54`, `knowledge-graph`, `ingestion`, `qbr`, `referrals`, `auto-approve`, `audit-trail` — 7 beyond 5 (now 6). Absorb into tabs or `app/(dev)/`. **Medium**
 - [ ] **P1-13 Hidden inspector leak** — `dashboard/hidden/page.tsx:28` iframe 8 routes at `/dashboard/hidden` — move to `app/(dev)/`. **Medium**
 - [ ] **P1-14 Command Center creep** — `dashboard/page.tsx:184` embeds `GettingStartedChecklist+ProactiveBriefing+MissionsBoard` as widgets inside chat-first surface. **High**
@@ -90,11 +90,11 @@
 | P0 Blockers | 6 | 6 (in §1) | 6 |
 | Security P1 | 6 | 3 | 9 |
 | Engineering | 7 | 2 | 9 |
-| 5-Surface | 4 | 2 | 6 |
+| 5-Surface | 3 | 3 | 6 |
 | Design/Tokens | 3 | 0 | 3 |
 | A11y | 4 | 0 | 4 |
 | UX Edge | 6 | 0 | 6 |
-| **Total** | **36** | **13** | **43** |
+| **Total** | **35** | **14** | **43** |
 
 **Suggested order (1-2 week sprint):**
 1. P0-2, P0-3, P0-4, P0-5 (financial + deletes + gates)

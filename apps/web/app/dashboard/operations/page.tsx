@@ -18,6 +18,8 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
+import { useSearchParams } from "next/navigation";
+
 import { useEntity } from "@/lib/entity-context";
 import { trpc } from "@/lib/trpc/client";
 import { cn, formatCurrency } from "@/lib/utils";
@@ -66,9 +68,18 @@ const TABS: { key: Tab; label: string; icon: LucideIcon }[] = [
 export default function MoneyFlowsPage() {
   const { format } = useFormatCurrency();
   const { entityId } = useEntity();
+  const searchParams = useSearchParams();
   const [tab, setTab] = useState<Tab>("cash");
 
   useSurfaceSync({ entityId, surfaces: ["operations"] });
+
+  // Deep-link ?tab= support for 301 wrappers (/operations/customers → ?tab=customers)
+  useEffect(() => {
+    const t = searchParams.get("tab") as Tab | null;
+    if (t && (TABS as { key: string }[]).some((x) => x.key === t) && t !== tab) {
+      setTab(t);
+    }
+  }, [searchParams, tab]);
 
   // Keyboard shortcuts
   useEffect(() => {
