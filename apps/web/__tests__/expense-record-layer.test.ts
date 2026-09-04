@@ -4,6 +4,27 @@ import * as path from "path";
 
 const EXPENSES = path.resolve(__dirname, "../server/routers/expenses.ts");
 
+describe("P6-B: approval posts money (recognize + settle, full rollback)", () => {
+  const c = fs.readFileSync(EXPENSES, "utf-8");
+  it("approval recognizes the expense (bill JE) and records a real payment", () => {
+    expect(c).toContain("const recognized = await postApBillToLedger(");
+    expect(c).toContain("insert(paymentsAp)");
+    expect(c).toContain("const [cas] = await db");
+  });
+  it("approval is finance-role gated", () => {
+    expect(c).toContain('requireRole("owner", "admin", "finance_director")');
+  });
+  it("payment-post failure rolls back payment, status, and the recognized JE (clears link)", () => {
+    expect(c).toContain("await reverseApBillJournal(");
+    expect(c).toContain("journalEntryId: null");
+    expect(c).toContain("the accounting period for today is closed");
+  });
+  it("rejection voids without posting (clean terminal state)", () => {
+    expect(c).toContain('action: "expense.rejected"');
+    expect(c).toContain('.set({ status: "voided" })');
+  });
+});
+
 describe("P6-A: expense record layer", () => {
   const c = fs.readFileSync(EXPENSES, "utf-8");
   it("supplier must exist in the entity (no cross-tenant payables)", () => {

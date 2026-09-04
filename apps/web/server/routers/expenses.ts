@@ -19,11 +19,17 @@ import {
 } from "@xenboox/db/schema";
 import { TRPCError } from "@trpc/server";
 import { isoDateString, positiveMoneyString } from "../ar-validation";
+import {
+  postApBillToLedger,
+  postApPaymentToLedger,
+  reverseApBillJournal,
+} from "../ap-posting";
 
 import {
   router,
   rlsProtectedProcedure,
   rlsMutateProcedure,
+  requireRole,
 } from "@/lib/trpc/server";
 import { logger } from "@/lib/logger";
 import { db } from "@/lib/db";
@@ -1360,22 +1366,34 @@ export const expensesRouter = router({
 
   /**
    * Approve or reject an expense (change status from pending to approved/rejected).
-   */
-  approveExpense: rlsMutateProcedure
+   */ approveExpense: rlsMutateProcedure
+    .use(
+      // Approving posts money — only finance-capable roles may do it.
+      requireRole("owner", "admin", "finance_director"),
+    )
     .input(
       z.object({
         expenseId: z.string().uuid(),
         decision: z.enum(["approved", "rejected"]),
         note: z.string().max(500).optional(),
+        paymentMethod: z
+          .enum(["bank_transfer", "cash", "mobile_money", "check", "card"])
+          .optional(),
+        paymentRef: z.string().max(100).optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
       const entityId = ctx.entityId!;
-      const currency =
-        (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
+      const userId = ctx.session!.user!.id!;
 
       const expense = await db
-        .select({ id: invoicesAp.id, status: invoicesAp.status })
+        .select({
+          id: invoicesAp.id,
+          status: invoicesAp.status,
+          totalAmount: invoicesAp.totalAmount,
+          invoiceNumber: invoicesAp.invoiceNumber,
+          invoiceDate: invoicesAp.invoiceDate,
+        })
         .from(invoicesAp)
         .where(
           and(
@@ -1391,24 +1409,136 @@ export const expensesRouter = router({
           `Cannot ${input.decision} expense with status: ${expense[0].status}`,
         );
 
-      const newStatus = input.decision === "approved" ? "paid" : "voided";
-      await db
+      if (input.decision === "rejected") {
+        // Rejected = never recognized; voided is the terminal AP state and
+        // P4's aggregate fixes exclude voided from every payable/report.
+        await db
+          .update(invoicesAp)
+          .set({ status: "voided" })
+          .where(
+            and(
+              eq(invoicesAp.id, input.expenseId),
+              eq(invoicesAp.entityId, entityId),
+            ),
+          );
+        await db.insert(auditLog).values({
+          entityId,
+          userId,
+          action: "expense.rejected",
+          entityType: "invoice_ap",
+          entityIdRef: input.expenseId,
+          newValues: { decision: "rejected", note: input.note ?? null },
+        });
+        return { ok: true };
+      }
+
+      // ── Approved: recognize AND settle — the expense is real money that
+      // moved. "Approved" was previously just a status flip to "paid" with no
+      // journal entry and no payment record: the P&L never saw the expense and
+      // the books never showed the cash leaving. Now approval: (1) posts the
+      // bill JE (Dr expense / Cr AP), (2) records the full payment, (3) posts
+      // the payment JE (Dr AP / Cr cash-or-bank by method). Any failure rolls
+      // the whole approval back so "paid" is never claimed without the books
+      // agreeing.
+      const recognized = await postApBillToLedger(
+        input.expenseId,
+        entityId,
+        userId,
+      );
+      if (!recognized.posted) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: friendlyExpensePostReason(recognized.reason),
+        });
+      }
+
+      const method = input.paymentMethod ?? "bank_transfer";
+      const amount = expense[0].totalAmount;
+
+      const [payment] = await db
+        .insert(paymentsAp)
+        .values({
+          entityId,
+          invoiceApId: input.expenseId,
+          amount,
+          paymentDate: new Date().toISOString().slice(0, 10),
+          method,
+          reference: input.paymentRef ?? `APPROVAL-${expense[0].invoiceNumber}`,
+        })
+        .returning({ id: paymentsAp.id });
+      if (!payment) throw new Error("Failed to record expense payment");
+
+      const [cas] = await db
         .update(invoicesAp)
-        .set({ status: newStatus })
+        .set({
+          paidAmount: amount,
+          balance: "0",
+          status: "paid",
+        })
         .where(
           and(
             eq(invoicesAp.id, input.expenseId),
             eq(invoicesAp.entityId, entityId),
+            eq(invoicesAp.status, "pending"),
           ),
-        );
+        )
+        .returning({ id: invoicesAp.id });
+      if (!cas) {
+        await db
+          .delete(paymentsAp)
+          .where(eq(paymentsAp.id, payment.id))
+          .catch(() => {});
+        throw new Error("Expense state changed — refresh and try again");
+      }
+
+      try {
+        // Throws when the payment cannot be posted (closed period) — the
+        // catch below rolls everything back so nothing half-records.
+        await postApPaymentToLedger(payment.id, entityId, userId);
+      } catch (err) {
+        await db
+          .delete(paymentsAp)
+          .where(eq(paymentsAp.id, payment.id))
+          .catch(() => {});
+        await db
+          .update(invoicesAp)
+          .set({
+            paidAmount: "0",
+            balance: amount,
+            status: "pending",
+            // The recognized JE is being reversed below — clear the link so a
+            // re-approval posts fresh instead of trusting a reversed entry.
+            journalEntryId: null,
+          })
+          .where(eq(invoicesAp.id, input.expenseId))
+          .catch(() => {});
+        // The bill JE we recognized is now orphaned — reverse it so approval
+        // leaves NO trace.
+        await reverseApBillJournal(
+          input.expenseId,
+          entityId,
+          userId,
+          "Expense approval rolled back: payment could not post",
+        ).catch(() => {});
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message:
+            "Payment could not be posted — the accounting period for today is closed. Reopen it or change the expense, then approve again.",
+        });
+      }
 
       await db.insert(auditLog).values({
         entityId,
-        userId: ctx.session!.user!.id!,
-        action: `expense.${input.decision}`,
+        userId,
+        action: "expense.approved",
         entityType: "invoice_ap",
         entityIdRef: input.expenseId,
-        newValues: { decision: input.decision, note: input.note ?? null },
+        newValues: {
+          decision: "approved",
+          note: input.note ?? null,
+          paymentMethod: method,
+          journalEntryId: recognized.journalEntryId,
+        },
       });
 
       return { ok: true };
@@ -1474,4 +1604,23 @@ async function resolveExpenseAccountId(
 
   // Deterministic fallback: the first expense account in the chart.
   return accounts[0]!.id;
+}
+
+function friendlyExpensePostReason(reason: string): string {
+  const map: Record<string, string> = {
+    invoice_not_found: "Expense not found.",
+    voided: "Voided expenses are not posted.",
+    no_lines: "Expense has no line items to post.",
+    no_chart_of_accounts:
+      "No chart of accounts exists yet — add accounts first.",
+    no_ap_account:
+      "Accounts Payable account could not be resolved — add one to your chart of accounts.",
+    missing_line_account:
+      "A line account is missing from your chart of accounts — fix the expense first.",
+    invalid_line_amount: "A line amount is invalid.",
+    journal_skipped:
+      "Posting was skipped — the expense date's accounting period is closed or the entry failed validation.",
+    error: "Posting failed unexpectedly — check the audit log or try again.",
+  };
+  return map[reason] ?? "Could not post the expense to the ledger.";
 }
