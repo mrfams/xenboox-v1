@@ -59,3 +59,19 @@ describe("P5-A: reconciliation view is reachable (mounted tab)", () => {
     expect(v).toContain("<ReconciliationView />");
   });
 });
+
+describe("P5-B: matching engine integrity", () => {
+  const c = fs.readFileSync(REC, "utf-8");
+  it("already-linked journal entries are never candidates (one-to-one)", () => {
+    expect(c).toContain("one entry ↔ one transaction");
+    expect(c).toContain("SELECT journal_entry_id FROM bank_transactions");
+  });
+  it("amount tolerance is proportional, not a flat $5", () => {
+    expect(c).toContain("Math.max(0.5, amount * 0.02)");
+    expect(c).not.toContain("amountDiff > 5");
+  });
+  it("auto-links are audit-trailed with confidence + reason", () => {
+    expect(c).toContain('action: "reconciliation.autoLink"');
+    expect(c).toContain("confidence: m.confidence");
+  });
+});

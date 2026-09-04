@@ -64,6 +64,12 @@ async function findCandidateMatches(
     where: and(
       eq(journalEntries.entityId, entityId),
       eq(journalEntries.status, "posted"),
+      // P5-B: a JE already linked to another bank transaction is never a
+      // candidate — one entry ↔ one transaction (prevents double-linking).
+      sql`${journalEntries.id} NOT IN (
+        SELECT journal_entry_id FROM bank_transactions
+        WHERE journal_entry_id IS NOT NULL AND entity_id = ${entityId}
+      )`,
       sql`${journalEntries.date} >= ${dayOffset(txDate, -windowDays)}`,
       sql`${journalEntries.date} <= ${dayOffset(txDate, windowDays)}`,
     ),
@@ -106,9 +112,11 @@ async function findCandidateMatches(
     const dateDiff =
       Math.abs(entryDate.getTime() - txDate.getTime()) / 86400000;
 
-    // Amount match — the strongest signal.
+    // Amount match — the strongest signal. Tolerance is proportional
+    // (max(50c, 2%)) — a flat $5 allowed a $10 tx to match a $15 entry.
     const amountDiff = Math.abs(entryTotal - amount);
-    if (amountDiff > 5 || (amount > 0 && entryTotal === 0)) continue;
+    const tolerance = Math.max(0.5, amount * 0.02);
+    if (amountDiff > tolerance || (amount > 0 && entryTotal === 0)) continue;
 
     // Date proximity signal: closer dates score higher (max 0.9).
     const dateScore = Math.max(0, 0.9 - dateDiff * 0.1);
@@ -466,6 +474,25 @@ export const reconciliationRouter = router({
             reason: best.reason,
           });
         }
+      }
+
+      // P5-B: every auto-link is audited (system-initiative, user-triggered
+      // batch — actor is the requesting user).
+      if (matchedLinks.length > 0) {
+        await db.insert(auditLog).values(
+          matchedLinks.map((m) => ({
+            entityId,
+            userId: ctx.session?.user?.id ?? null,
+            action: "reconciliation.autoLink",
+            entityType: "bank_transaction",
+            entityIdRef: m.transactionId,
+            newValues: {
+              journalEntryId: m.journalEntryId,
+              confidence: m.confidence,
+              reason: m.reason,
+            },
+          })),
+        );
       }
 
       return {
