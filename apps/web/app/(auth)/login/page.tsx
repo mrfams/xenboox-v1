@@ -46,6 +46,9 @@ export default async function LoginPage({
 
   const ssoEnabled = isSsoEnabled();
   const ssoDisplayName = getSsoDisplayName();
+  const callbackUrl =
+    typeof params.callbackUrl === "string" ? params.callbackUrl : undefined;
+  const expired = params.expired === "1";
 
   return (
     <div>
@@ -59,7 +62,12 @@ export default async function LoginPage({
         </Link>
       </div>
 
-      <LoginForm ssoEnabled={ssoEnabled} ssoDisplayName={ssoDisplayName} />
+      <LoginForm
+        ssoEnabled={ssoEnabled}
+        ssoDisplayName={ssoDisplayName}
+        callbackUrl={callbackUrl}
+        expired={expired}
+      />
 
       <div className="mt-6 text-center text-sm text-muted-foreground">
         Don&apos;t have an account?{" "}

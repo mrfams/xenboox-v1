@@ -1,9 +1,10 @@
-// ─── §20.1 Idle session timeout ────────────────────────────────────────────
+// ─── §20.1 Idle session timeout — single source of truth ─────────────────────
 //
 // JWT sessions expire on an absolute `maxAge`. Layering an idle timeout on
 // top requires stamping `lastActivity` into the token on every request and
 // invalidating (the jwt callback returns `null`) when the idle window elapses
-// without activity.
+// without activity. ALL entry points (server auth, Edge middleware, admin)
+// MUST import from here — never hardcode 60*60*1000 elsewhere.
 //
 // The stamp is throttled (at most once per IDLE_REFRESH_THROTTLE_MS) so a
 // per-request Set-Cookie isn't emitted on every API call, which would defeat
@@ -14,6 +15,9 @@ export const IDLE_TIMEOUT_MS =
   (Number.parseInt(process.env.AUTH_IDLE_TIMEOUT_MINUTES ?? "60", 10) || 60) *
   60 *
   1000;
+
+/** Admin idle is fixed 4h (security policy, not env-configurable). */
+export const ADMIN_IDLE_TIMEOUT_MS = 4 * 60 * 60 * 1000;
 
 /** Minimum gap between lastActivity stamps — avoids Set-Cookie on every request. */
 export const IDLE_REFRESH_THROTTLE_MS = 60 * 1000;
@@ -44,4 +48,29 @@ export function applyIdleTimeout(
     token.lastActivity = now;
   }
   return token;
+}
+
+export function applyAdminIdleTimeout(
+  token: IdleAwareToken,
+  now: number = Date.now(),
+): IdleAwareToken | null {
+  const last = token.lastActivity as number | undefined;
+  if (last === undefined) {
+    token.lastActivity = now;
+    return token;
+  }
+  if (now - last > ADMIN_IDLE_TIMEOUT_MS) return null;
+  if (now - last >= IDLE_REFRESH_THROTTLE_MS) {
+    token.lastActivity = now;
+  }
+  return token;
+}
+
+export function isIdleExpired(
+  token: IdleAwareToken | null | undefined,
+  now: number = Date.now(),
+  timeoutMs: number = IDLE_TIMEOUT_MS,
+): boolean {
+  if (!token?.lastActivity) return false;
+  return now - (token.lastActivity as number) > timeoutMs;
 }

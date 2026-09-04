@@ -2,92 +2,8 @@
 
 import { useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { httpBatchLink, TRPCLink } from "@trpc/client";
-import { observable } from "@trpc/server/observable";
 
-import { trpc } from "@/lib/trpc/client";
-import type { AppRouter } from "@/server/routers/_app";
-
-const sessionExpiryLink: TRPCLink<AppRouter> = () => {
-  return ({ next, op }) =>
-    observable((observer) => {
-      const unsubscribe = next(op).subscribe({
-        next(value) {
-          // tRPC errors come via `result.error` in the next payload, not via observer.error
-          const maybeError =
-            (
-              value as unknown as {
-                result?: { error?: unknown };
-                error?: unknown;
-              }
-            )?.result?.error ??
-            (value as unknown as { error?: unknown })?.error;
-          const code =
-            (
-              maybeError as
-                { data?: { code?: string }; code?: string } | undefined
-            )?.data?.code ??
-            (maybeError as { code?: string } | undefined)?.code;
-          const message =
-            (maybeError as { message?: string } | undefined)?.message ?? "";
-          if (
-            code === "UNAUTHORIZED" ||
-            message.includes("UNAUTHORIZED") ||
-            message.includes("Not authenticated")
-          ) {
-            if (typeof window !== "undefined") {
-              window.dispatchEvent(new CustomEvent("xenboox:session-expired"));
-            }
-          }
-          observer.next(value as never);
-        },
-        error(err) {
-          // Network / batch errors come here
-          const code =
-            (err as unknown as { data?: { code?: string } })?.data?.code ??
-            (err as unknown as { code?: string })?.code;
-          const message = (err as Error)?.message ?? "";
-          if (
-            code === "UNAUTHORIZED" ||
-            message.includes("UNAUTHORIZED") ||
-            message.includes("Not authenticated")
-          ) {
-            if (typeof window !== "undefined") {
-              window.dispatchEvent(new CustomEvent("xenboox:session-expired"));
-            }
-          }
-          observer.error(err as never);
-        },
-        complete() {
-          observer.complete();
-        },
-      });
-      return unsubscribe;
-    });
-};
-
-/**
- * Resolve the API base URL for server-side tRPC calls.
- *
- * Order: NEXT_PUBLIC_APP_URL (explicit production link) → VERCEL_URL
- * (Vercel preview) → localhost for local dev only. In production builds the
- * localhost branch is never reachable: NEXT_PUBLIC_APP_URL is always set in
- * the Vercel environment (see apps/web/.env.example) and VERCEL_URL is
- * present on preview deployments.
- */
-function getBaseUrl() {
-  if (typeof window !== "undefined") return "";
-  if (process.env.NEXT_PUBLIC_APP_URL) {
-    return process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, "");
-  }
-  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
-  if (process.env.NODE_ENV === "production") {
-    throw new Error(
-      "NEXT_PUBLIC_APP_URL must be set in production — cannot resolve API base URL.",
-    );
-  }
-  return `http://localhost:${process.env.PORT ?? 3000}`;
-}
+import { createTRPCClient, trpc } from "@/lib/trpc/client";
 
 export function TRPCProvider({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
@@ -107,28 +23,9 @@ export function TRPCProvider({ children }: { children: React.ReactNode }) {
       }),
   );
 
-  const [trpcClient] = useState(() =>
-    trpc.createClient({
-      links: [
-        sessionExpiryLink,
-        httpBatchLink({
-          url: `${getBaseUrl()}/api/trpc`,
-          headers() {
-            // Guard both window AND localStorage — localStorage is not always
-            // present (unit tests, privacy modes, some SSR paths).
-            const entityId =
-              typeof window !== "undefined" &&
-              typeof localStorage !== "undefined"
-                ? localStorage.getItem("currentEntityId")
-                : null;
-            return {
-              "x-entity-id": entityId || "",
-            };
-          },
-        }),
-      ],
-    }),
-  );
+  // Single source of truth for tRPC links (sessionExpiryLink + idempotency)
+  // is apps/web/lib/trpc/client.ts :: createTRPCClient(). Dedupe here.
+  const [trpcClient] = useState(() => createTRPCClient());
 
   return (
     <trpc.Provider client={trpcClient} queryClient={queryClient}>

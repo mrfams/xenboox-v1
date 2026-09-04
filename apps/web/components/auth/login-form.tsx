@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { signIn } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 import { trpc } from "@/lib/trpc/client";
 import { Button } from "@/components/ui";
@@ -13,17 +13,40 @@ import { Logo } from "@/components/ui/logo";
 interface LoginFormProps {
   ssoEnabled?: boolean;
   ssoDisplayName?: string | null;
+  callbackUrl?: string;
+  expired?: boolean;
 }
 
 export function LoginForm({
   ssoEnabled = false,
   ssoDisplayName,
+  callbackUrl: propCallbackUrl,
+  expired: propExpired,
 }: LoginFormProps) {
   const router = useRouter();
+  let searchCallbackUrl: string | null = null;
+  let searchExpired = false;
+  try {
+    const sp = useSearchParams();
+    searchCallbackUrl = sp.get("callbackUrl");
+    searchExpired = sp.get("expired") === "1";
+  } catch {
+    // useSearchParams requires Suspense in some render paths — fallback to props
+  }
+  const callbackUrl = propCallbackUrl || searchCallbackUrl || "/dashboard";
+  const expired = propExpired ?? searchExpired;
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    if (expired && !error) {
+      setError("Session expired due to inactivity — please sign in again.");
+    }
+    // only on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const loginMutation = trpc.auth.login.useMutation();
 
@@ -69,7 +92,7 @@ export function LoginForm({
             return;
           }
 
-          router.push("/dashboard");
+          router.push(callbackUrl);
           router.refresh();
         } catch (signInErr) {
           const msg =
@@ -107,12 +130,12 @@ export function LoginForm({
 
   async function handleGoogleSignIn() {
     setIsLoading(true);
-    await signIn("google", { callbackUrl: "/dashboard" });
+    await signIn("google", { callbackUrl });
   }
 
   async function handleSsoSignIn() {
     setIsLoading(true);
-    await signIn("sso", { callbackUrl: "/dashboard" });
+    await signIn("sso", { callbackUrl });
   }
 
   return (

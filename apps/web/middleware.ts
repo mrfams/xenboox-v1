@@ -218,14 +218,27 @@ export default auth(async (req) => {
     return response;
   }
 
-  // Redirect logged-in users away from auth pages
+  // Redirect logged-in users away from auth pages — but never bounce a
+  // request that already carries a `callbackUrl`/`expired` marker from the
+  // hard-expiry flow (stale cookie case after idle). Without this the modal's
+  // `Sign in again` → `/login?callbackUrl=...&expired=1` is immediately
+  // bounced back to `/dashboard` because Edge still sees the old JWT until the
+  // next `applyIdleTimeout` invalidation propagates.
   if (isLoggedIn && isOnAuthRoute) {
-    return NextResponse.redirect(new URL("/dashboard", req.nextUrl));
+    const hasExpiryMarker =
+      req.nextUrl.searchParams.has("expired") ||
+      req.nextUrl.searchParams.has("callbackUrl");
+    if (!hasExpiryMarker) {
+      return NextResponse.redirect(new URL("/dashboard", req.nextUrl));
+    }
   }
 
-  // Redirect unauthenticated users to login
+  // Redirect unauthenticated users to login — preserve return path
   if (!isLoggedIn && !isPublic) {
-    return NextResponse.redirect(new URL("/login", req.nextUrl));
+    const callbackUrl = req.nextUrl.pathname + req.nextUrl.search;
+    return NextResponse.redirect(
+      new URL(`/login?callbackUrl=${encodeURIComponent(callbackUrl)}`, req.nextUrl),
+    );
   }
 
   return response;

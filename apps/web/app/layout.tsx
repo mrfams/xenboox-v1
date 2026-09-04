@@ -105,7 +105,10 @@ export default async function RootLayout({
         <link rel="preconnect" href="https://lh3.googleusercontent.com" />
         <link rel="preconnect" href="https://r2.dev" />
         <ThemeProvider nonce={nonce}>
-          <SessionProvider>
+          <SessionProvider
+            refetchInterval={4 * 60}
+            refetchOnWindowFocus
+          >
             <TRPCProvider>
               <SessionExpiryProvider>
                 <PostHogProvider>{children}</PostHogProvider>

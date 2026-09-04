@@ -2,6 +2,7 @@ import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 
 import type { AdminRole } from "@/lib/admin/roles";
+import { applyAdminIdleTimeout } from "@/lib/auth/idle-session";
 
 /**
  * Lightweight admin auth config for Edge middleware.
@@ -64,6 +65,13 @@ export const { auth: edgeAdminAuth } = NextAuth({
         token.adminRole = (user as Record<string, unknown>).role as
           | AdminRole
           | undefined;
+        token.lastActivity = Date.now();
+      } else {
+        const maybe = applyAdminIdleTimeout(
+          token as Record<string, unknown>,
+        );
+        if (maybe === null) return null as unknown as typeof token;
+        return maybe as typeof token;
       }
       return token;
     },

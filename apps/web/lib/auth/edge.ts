@@ -3,6 +3,7 @@ import Google from "next-auth/providers/google";
 import Credentials from "next-auth/providers/credentials";
 
 import { buildSsoProviders } from "./sso";
+import { applyIdleTimeout } from "./idle-session";
 
 /**
  * Lightweight auth config for Edge middleware.
@@ -49,6 +50,13 @@ export const { auth: edgeAuth } = NextAuth({
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
+        token.lastActivity = Date.now();
+      } else {
+        // §20.1 idle — Edge must enforce same timeout as server (index.ts) or
+        // middleware will keep isLoggedIn=true after 60 min and never redirect.
+        const maybe = applyIdleTimeout(token as Record<string, unknown>);
+        if (maybe === null) return null as unknown as typeof token;
+        return maybe as typeof token;
       }
       return token;
     },

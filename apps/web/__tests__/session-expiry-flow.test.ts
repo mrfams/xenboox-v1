@@ -19,12 +19,14 @@ describe("Session Expiry Flow — Enterprise Grade", () => {
       expect(provider).toContain("WARNING_BEFORE_EXPIRY_MS");
     });
 
-    it("tracks last active time for proactive warning", () => {
-      expect(provider).toContain("lastActiveRef");
+    it("tracks expiry via token/JWT (not local wall-clock drift)", () => {
+      // Single source of truth is IDLE_TIMEOUT_MS + token.exp, not lastActiveRef drift.
+      expect(provider).toContain("IDLE_TIMEOUT_MS");
+      expect(provider).toContain("expires");
     });
 
-    it("has proactive polling interval (30s)", () => {
-      expect(provider).toContain("setInterval(check, 30_000)");
+    it("has proactive polling interval (15s tight check)", () => {
+      expect(provider).toContain("setInterval(check, 15_000)");
     });
 
     it("exempts login/register/mfa pages from modal", () => {
@@ -33,14 +35,16 @@ describe("Session Expiry Flow — Enterprise Grade", () => {
       expect(provider).toContain("/mfa-challenge");
     });
 
-    it("blocks dashboard interaction when modal is open (overlay)", () => {
-      expect(provider).toContain("fixed inset-0");
-      expect(provider).toContain("backdrop-blur-sm");
+    it("blocks dashboard interaction when modal is open (hard-expiry)", () => {
+      // Modal is blocking when expired — provider enforces via expired flag + Dialog prevent.
+      expect(provider).toContain("expired");
+      expect(provider).toContain("hardRedirect");
     });
 
-    it("syncs across tabs via BroadcastChannel", () => {
+    it("syncs across tabs via BroadcastChannel + storage", () => {
       expect(provider).toContain("BroadcastChannel");
       expect(provider).toContain("session-expired");
+      expect(provider).toContain("xenboox:session-expired-at");
     });
 
     it("detects session expiry via useSession status change", () => {
@@ -55,6 +59,12 @@ describe("Session Expiry Flow — Enterprise Grade", () => {
     it("re-checks on tab visibility change", () => {
       expect(provider).toContain("visibilitychange");
     });
+
+    it("hard-expires via signOut + callbackUrl (no dismiss survival)", () => {
+      expect(provider).toContain("signOut");
+      expect(provider).toContain("callbackUrl");
+      expect(provider).toContain("queryClient.clear");
+    });
   });
 
   describe("SessionExpiryModal", () => {
@@ -67,22 +77,25 @@ describe("Session Expiry Flow — Enterprise Grade", () => {
       expect(modal).toContain("countdown}s");
     });
 
-    it("has a progress bar that shrinks with countdown", () => {
+    it("has a progress bar that shrinks with countdown (uses total)", () => {
       expect(modal).toContain("width:");
       expect(modal).toContain("duration-1000");
+      expect(modal).toContain("countdownTotal");
     });
 
-    it("prevents closing by overlay click", () => {
+    it("prevents closing by overlay click when expired", () => {
       expect(modal).toContain("onInteractOutside");
       expect(modal).toContain("e.preventDefault()");
+      expect(modal).toContain("expired");
     });
 
-    it("has Sign in again button linking to login", () => {
+    it("has Sign in again button with hard signOut handler", () => {
       expect(modal).toContain("Sign in again");
-      expect(modal).toContain("/login");
+      expect(modal).toContain("onSignIn");
     });
 
-    it("has Dismiss button", () => {
+    it("has Stay/Dismiss handling (no survival when expired)", () => {
+      expect(modal).toContain("Stay signed in");
       expect(modal).toContain("Dismiss");
     });
 
@@ -106,6 +119,11 @@ describe("Session Expiry Flow — Enterprise Grade", () => {
     it("wraps app with SessionExpiryProvider", () => {
       expect(layout).toContain("SessionExpiryProvider");
     });
+
+    it("polls session every 4 min + on focus (idle stamping)", () => {
+      expect(layout).toContain("refetchInterval");
+      expect(layout).toContain("refetchOnWindowFocus");
+    });
   });
 
   describe("Security best practices", () => {
@@ -119,12 +137,22 @@ describe("Session Expiry Flow — Enterprise Grade", () => {
       expect(provider).toContain("/login?callbackUrl=");
     });
 
-    it("clears signal on dismiss so future 401 can re-trigger", () => {
+    it("clears signal on dismiss so future 401 can re-trigger (warning only)", () => {
       expect(provider).toContain("hasSignaledRef.current = false");
     });
 
     it("uses useSession for server-authoritative auth state", () => {
       expect(provider).toContain("useSession");
+    });
+
+    it("enforces idle at Edge middleware (no client-only expiry)", () => {
+      const edge = readFileSync(join(ROOT, "lib/auth/edge.ts"), "utf-8");
+      expect(edge).toContain("applyIdleTimeout");
+    });
+
+    it("middleware preserves callbackUrl on redirect", () => {
+      const mw = readFileSync(join(ROOT, "middleware.ts"), "utf-8");
+      expect(mw).toContain("callbackUrl");
     });
   });
 });

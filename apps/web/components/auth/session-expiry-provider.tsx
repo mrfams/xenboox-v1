@@ -1,9 +1,11 @@
 "use client";
 
 import * as React from "react";
-import { useSession } from "next-auth/react";
+import { signOut, useSession } from "next-auth/react";
 import { usePathname, useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
+
+import { IDLE_TIMEOUT_MS } from "@/lib/auth/idle-session";
 
 import { SessionExpiryModal } from "./session-expiry-modal";
 
@@ -35,50 +37,93 @@ export function SessionExpiryProvider({
 }: {
   children: React.ReactNode;
 }) {
-  const { status } = useSession();
+  const { data: session, status, update } = useSession();
   const pathname = usePathname();
   const router = useRouter();
   const queryClient = useQueryClient();
   const [open, setOpen] = React.useState(false);
   const [countdown, setCountdown] = React.useState(COUNTDOWN_SECONDS);
+  const [expired, setExpired] = React.useState(false);
   const wasAuthenticatedRef = React.useRef(false);
   const hasSignaledRef = React.useRef(false);
-  /** Track when session was last confirmed active for proactive warning */
-  const lastActiveRef = React.useRef<number>(Date.now());
+  const hardRedirectingRef = React.useRef(false);
 
   const callbackUrl = React.useMemo(() => {
     if (typeof window === "undefined") return "/dashboard";
     return window.location.pathname + window.location.search;
   }, [open, pathname]);
 
-  const trigger = React.useCallback(() => {
-    if (hasSignaledRef.current) return;
-    if (isExempt(pathname)) return;
-    hasSignaledRef.current = true;
-    setOpen(true);
-    // Cross-tab notify — cloud is still source of truth, this is only UX sync
-    try {
-      const bc = new BroadcastChannel("xenboox:auth");
-      bc.postMessage({ type: "session-expired" });
-      bc.close();
-    } catch {}
-  }, [pathname]);
+  const hardRedirect = React.useCallback(
+    async (reason: string) => {
+      if (hardRedirectingRef.current) return;
+      hardRedirectingRef.current = true;
+      // Clear tRPC/React-Query caches so no stale financial data survives logout.
+      try {
+        queryClient.clear();
+      } catch {}
+      try {
+        localStorage.removeItem("currentEntityId");
+      } catch {}
+      // Cross-tab notify — cloud is still source of truth, this is only UX sync.
+      try {
+        const bc = new BroadcastChannel("xenboox:auth");
+        bc.postMessage({ type: "session-expired", reason });
+        bc.close();
+      } catch {}
+      try {
+        localStorage.setItem(
+          "xenboox:session-expired-at",
+          String(Date.now()),
+        );
+      } catch {}
+      // Clear the stale JWT cookie before navigating — otherwise /login
+      // bounces back to /dashboard (middleware sees isLoggedIn=true).
+      try {
+        await signOut({ redirect: false });
+      } catch {}
+      const loginUrl = `/login?callbackUrl=${encodeURIComponent(callbackUrl)}&expired=1`;
+      router.replace(loginUrl);
+    },
+    [callbackUrl, queryClient, router],
+  );
+
+  const trigger = React.useCallback(
+    (nextExpired: boolean) => {
+      if (hasSignaledRef.current) {
+        // If already showing as warning but now hard-expired, upgrade to expired.
+        if (nextExpired && !expired) setExpired(true);
+        return;
+      }
+      if (isExempt(pathname)) return;
+      hasSignaledRef.current = true;
+      setExpired(nextExpired);
+      setOpen(true);
+      // Cross-tab notify — cloud is still source of truth, this is only UX sync
+      try {
+        const bc = new BroadcastChannel("xenboox:auth");
+        bc.postMessage({ type: "session-expired" });
+        bc.close();
+      } catch {}
+    },
+    [pathname, expired],
+  );
 
   // 1) Session status → idle timeout invalidated JWT (server returns null → unauthenticated)
   React.useEffect(() => {
     if (status === "authenticated") {
       wasAuthenticatedRef.current = true;
       hasSignaledRef.current = false;
-      lastActiveRef.current = Date.now();
+      setExpired(false);
+      hardRedirectingRef.current = false;
     }
     if (status === "unauthenticated" && wasAuthenticatedRef.current) {
-      trigger();
+      trigger(true);
     }
   }, [status, trigger]);
 
   // 2) tRPC / fetch 401 → dispatch from trpc provider or direct fetch
   React.useEffect(() => {
-    const handler = () => trigger();
+    const handler = () => trigger(true);
     window.addEventListener(
       "xenboox:session-expired",
       handler as EventListener,
@@ -90,19 +135,24 @@ export function SessionExpiryProvider({
       );
   }, [trigger]);
 
-  // 3) Cross-tab sync — BroadcastChannel only (no localStorage, cloud is authority)
+  // 3) Cross-tab sync — BroadcastChannel + storage fallback (cloud is authority)
   React.useEffect(() => {
     let bc: BroadcastChannel | null = null;
     try {
       bc = new BroadcastChannel("xenboox:auth");
       bc.onmessage = (e) => {
-        if (e.data?.type === "session-expired") trigger();
+        if (e.data?.type === "session-expired") trigger(true);
       };
     } catch {}
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === "xenboox:session-expired-at" && e.newValue) trigger(true);
+    };
+    window.addEventListener("storage", onStorage);
     return () => {
       try {
         bc?.close();
       } catch {}
+      window.removeEventListener("storage", onStorage);
     };
   }, [trigger]);
 
@@ -120,7 +170,7 @@ export function SessionExpiryProvider({
         msg.includes("UNAUTHORIZED") ||
         msg.includes("Not authenticated")
       ) {
-        trigger();
+        trigger(true);
       }
     });
     return () => unsub();
@@ -134,29 +184,43 @@ export function SessionExpiryProvider({
         wasAuthenticatedRef.current &&
         status === "unauthenticated"
       ) {
-        trigger();
+        trigger(true);
       }
     };
     document.addEventListener("visibilitychange", onVisible);
     return () => document.removeEventListener("visibilitychange", onVisible);
   }, [status, trigger]);
 
-  // 6) Proactive session expiry warning — poll every 30s, warn 30s before JWT dies
+  // 6) Proactive session expiry warning / expiry — uses token's exp + lastActivity,
+  //    not a local wall-clock that drifts from the JWT.
   React.useEffect(() => {
     if (status !== "authenticated") return;
-    const SESSION_DURATION_MS = 60 * 60 * 1000; // 1 hour
+    const tokenExpMs =
+      session && typeof (session as unknown as { expires?: string }).expires === "string"
+        ? new Date((session as unknown as { expires: string }).expires).getTime()
+        : null;
     const check = () => {
-      const elapsed = Date.now() - lastActiveRef.current;
-      const remaining = SESSION_DURATION_MS - elapsed;
-      if (remaining <= WARNING_BEFORE_EXPIRY_MS && remaining > 0) {
-        trigger();
+      const now = Date.now();
+      // Prefer absolute JWT exp if present; fallback to idle window.
+      const remaining =
+        tokenExpMs !== null && !Number.isNaN(tokenExpMs)
+          ? tokenExpMs - now
+          : IDLE_TIMEOUT_MS;
+      if (remaining <= 0) {
+        trigger(true);
+      } else if (remaining <= WARNING_BEFORE_EXPIRY_MS) {
+        trigger(false);
       }
     };
-    const id = window.setInterval(check, 30_000);
+    // Seed lastActivity drift guard: also nudge the server to refresh
+    // lastActivity at most once per IDLE_REFRESH_THROTTLE_MS via update().
+    // We don't rely on local elapsed for truth — token is truth.
+    check();
+    const id = window.setInterval(check, 15_000);
     return () => window.clearInterval(id);
-  }, [status, trigger]);
+  }, [status, session, trigger]);
 
-  // Countdown + auto-redirect
+  // Countdown + auto hard-redirect (no Dismiss survival when expired)
   React.useEffect(() => {
     if (!open) return;
     setCountdown(COUNTDOWN_SECONDS);
@@ -164,23 +228,42 @@ export function SessionExpiryProvider({
       setCountdown((c) => {
         if (c <= 1) {
           window.clearInterval(id);
-          router.push(`/login?callbackUrl=${encodeURIComponent(callbackUrl)}`);
+          void hardRedirect(expired ? "expired-countdown" : "warning-countdown");
           return 0;
         }
         return c - 1;
       });
     }, 1000);
     return () => window.clearInterval(id);
-  }, [open, callbackUrl, router]);
+  }, [open, expired, hardRedirect]);
 
-  const handleOpenChange = React.useCallback((next: boolean) => {
-    setOpen(next);
-    if (!next) {
-      // Dismiss keeps user on page but next data fetch will still 401 → modal again.
-      // We do NOT auto-redirect on dismiss, but clear the signal so a future 401 can re-trigger.
-      hasSignaledRef.current = false;
-    }
-  }, []);
+  const handleOpenChange = React.useCallback(
+    (next: boolean) => {
+      // After hard expiry the modal is blocking — no Dismiss, no overlay close.
+      if (expired && !next) return;
+      setOpen(next);
+      if (!next) {
+        // Warning phase dismiss → keep user on page but allow future 401 to re-trigger.
+        // We also refresh the session to bump lastActivity so the warning doesn't
+        // immediately re-fire (throttled server-side).
+        hasSignaledRef.current = false;
+        setExpired(false);
+        void update();
+      }
+    },
+    [expired, update],
+  );
+
+  const handleStay = React.useCallback(() => {
+    hasSignaledRef.current = false;
+    setExpired(false);
+    setOpen(false);
+    void update();
+  }, [update]);
+
+  const handleSignIn = React.useCallback(() => {
+    void hardRedirect("signin-click");
+  }, [hardRedirect]);
 
   return (
     <>
@@ -190,7 +273,11 @@ export function SessionExpiryProvider({
           open={open}
           onOpenChange={handleOpenChange}
           countdown={countdown}
+          countdownTotal={COUNTDOWN_SECONDS}
           callbackUrl={callbackUrl}
+          expired={expired}
+          onSignIn={handleSignIn}
+          onStay={handleStay}
         />
       )}
     </>

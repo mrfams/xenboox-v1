@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { ShieldAlert, LogIn } from "lucide-react";
 
 import {
@@ -17,24 +16,40 @@ type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   countdown: number;
+  countdownTotal: number;
   callbackUrl: string;
+  expired: boolean;
+  onSignIn: () => void;
+  onStay?: () => void;
 };
 
 export function SessionExpiryModal({
   open,
   onOpenChange,
   countdown,
-  callbackUrl,
+  countdownTotal,
+  callbackUrl: _callbackUrl,
+  expired,
+  onSignIn,
+  onStay,
 }: Props) {
-  const loginHref = `/login?callbackUrl=${encodeURIComponent(callbackUrl)}`;
+  const pct =
+    countdownTotal > 0
+      ? Math.max(0, Math.min(100, (countdown / countdownTotal) * 100))
+      : 0;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         className="sm:max-w-md border-border/60 bg-card p-0 overflow-hidden"
         aria-describedby="session-expiry-desc"
-        // Prevent closing by overlay click when expired — user must act
-        onInteractOutside={(e) => e.preventDefault()}
+        onInteractOutside={(e) => {
+          // Block overlay click when hard-expired — user must act via button.
+          if (expired) e.preventDefault();
+        }}
+        onEscapeKeyDown={(e) => {
+          if (expired) e.preventDefault();
+        }}
       >
         <div className="px-6 pt-6">
           <DialogHeader className="text-left">
@@ -42,15 +57,17 @@ export function SessionExpiryModal({
               <span className="flex h-9 w-9 items-center justify-center rounded-full bg-amber-500/10 text-amber-600 ring-1 ring-amber-500/15">
                 <ShieldAlert className="h-4.5 w-4.5" aria-hidden="true" />
               </span>
-              <DialogTitle className="text-base">Session expired</DialogTitle>
+              <DialogTitle className="text-base">
+                {expired ? "Session expired" : "Session expiring soon"}
+              </DialogTitle>
             </div>
             <DialogDescription
               id="session-expiry-desc"
               className="pt-2 text-[13.5px] leading-relaxed"
             >
-              Your session is expiring due to inactivity. Your data is safe.
-              Sign in again to continue, or you&apos;ll be redirected
-              automatically in{" "}
+              {expired
+                ? "Your session expired due to inactivity. Your data is safe. Sign in again to continue, or you'll be redirected automatically in "
+                : "Your session is expiring due to inactivity. Your data is safe. Stay signed in or sign in again — auto-redirect in "}
               <span className="font-mono font-medium text-foreground">
                 {countdown}s
               </span>
@@ -64,18 +81,33 @@ export function SessionExpiryModal({
         </div>
 
         <DialogFooter className="gap-2 px-6 pb-6 pt-4 sm:flex-row sm:justify-end">
+          {!expired && onStay ? (
+            <Button
+              variant="outline"
+              onClick={onStay}
+              className="rounded-full"
+              data-testid="session-stay-button"
+            >
+              Stay signed in
+            </Button>
+          ) : (
+            <Button
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              className="rounded-full"
+              disabled={expired}
+              data-testid="session-dismiss-button"
+            >
+              Dismiss
+            </Button>
+          )}
           <Button
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-            className="rounded-full"
+            onClick={onSignIn}
+            className="rounded-full gap-2"
+            data-testid="session-signin-button"
           >
-            Dismiss
-          </Button>
-          <Button asChild className="rounded-full gap-2">
-            <Link href={loginHref}>
-              <LogIn className="h-4 w-4" aria-hidden="true" />
-              Sign in again
-            </Link>
+            <LogIn className="h-4 w-4" aria-hidden="true" />
+            Sign in again
           </Button>
         </DialogFooter>
 
@@ -83,7 +115,7 @@ export function SessionExpiryModal({
         <div className="h-1 w-full bg-muted">
           <div
             className="h-full bg-primary transition-all duration-1000 ease-linear"
-            style={{ width: `${(countdown / 10) * 100}%` }}
+            style={{ width: `${pct}%` }}
             aria-hidden="true"
           />
         </div>

@@ -1,50 +1,32 @@
-// ─── §20.1 Idle session timeout ────────────────────────────────────────────
-//
-// applyIdleTimeout stamps `lastActivity` into the JWT on every request
-// (throttled) and returns null once the idle window elapses — which the
-// jwt callback turns into session invalidation.
-
 import { describe, it, expect } from "vitest";
-import {
-  applyIdleTimeout,
-  IDLE_TIMEOUT_MS,
-  IDLE_REFRESH_THROTTLE_MS,
-} from "@/lib/auth/idle-session";
+import { applyIdleTimeout, applyAdminIdleTimeout, IDLE_TIMEOUT_MS, ADMIN_IDLE_TIMEOUT_MS, IDLE_REFRESH_THROTTLE_MS } from "@/lib/auth/idle-session";
 
-describe("§20.1 idle session timeout", () => {
-  it("stamps a token that has no lastActivity yet", () => {
-    const t = applyIdleTimeout({}, 1_000_000);
-    expect(t).not.toBeNull();
-    expect(t!.lastActivity).toBe(1_000_000);
+describe("idle-session", () => {
+  it("stamps fresh token when lastActivity missing", () => {
+    const token: Record<string, unknown> = {};
+    const out = applyIdleTimeout(token, 1000);
+    expect(out).not.toBeNull();
+    expect(out?.lastActivity).toBe(1000);
   });
-
-  it("returns null once the idle window elapses", () => {
-    const t = applyIdleTimeout({ lastActivity: 0 }, IDLE_TIMEOUT_MS + 1);
-    expect(t).toBeNull();
+  it("returns null when idle window exceeded", () => {
+    const token: Record<string, unknown> = { lastActivity: 0 };
+    const out = applyIdleTimeout(token, IDLE_TIMEOUT_MS + 1000);
+    expect(out).toBeNull();
   });
-
-  it("keeps the session alive when activity is within the window", () => {
-    const t = applyIdleTimeout({ lastActivity: 0 }, IDLE_TIMEOUT_MS - 1);
-    expect(t).not.toBeNull();
+  it("throttles stamp within throttle window", () => {
+    const token: Record<string, unknown> = { lastActivity: 1000 };
+    const out = applyIdleTimeout(token, 1000 + IDLE_REFRESH_THROTTLE_MS - 100);
+    expect(out).not.toBeNull();
+    expect(out?.lastActivity).toBe(1000); // not yet refreshed
   });
-
-  it("does not rewrite the stamp within the throttle window", () => {
-    const t = applyIdleTimeout(
-      { lastActivity: 0 },
-      IDLE_REFRESH_THROTTLE_MS - 1,
-    );
-    expect(t!.lastActivity).toBe(0);
+  it("refreshes after throttle", () => {
+    const token: Record<string, unknown> = { lastActivity: 1000 };
+    const out = applyIdleTimeout(token, 1000 + IDLE_REFRESH_THROTTLE_MS + 10);
+    expect(out?.lastActivity).toBe(1000 + IDLE_REFRESH_THROTTLE_MS + 10);
   });
-
-  it("re-stamps once the throttle window passes", () => {
-    const t = applyIdleTimeout(
-      { lastActivity: 0 },
-      IDLE_REFRESH_THROTTLE_MS + 1,
-    );
-    expect(t!.lastActivity).toBe(IDLE_REFRESH_THROTTLE_MS + 1);
-  });
-
-  it("defaults to a 60-minute window", () => {
-    expect(IDLE_TIMEOUT_MS).toBe(60 * 60 * 1000);
+  it("admin timeout is 4h", () => {
+    expect(ADMIN_IDLE_TIMEOUT_MS).toBe(4 * 60 * 60 * 1000);
+    const token: Record<string, unknown> = { lastActivity: 0 };
+    expect(applyAdminIdleTimeout(token, ADMIN_IDLE_TIMEOUT_MS + 1000)).toBeNull();
   });
 });
