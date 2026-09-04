@@ -13,6 +13,7 @@ import {
   Settings,
   HelpCircle,
   History,
+  Users,
   type LucideIcon,
 } from "lucide-react";
 
@@ -68,6 +69,11 @@ const primaryNavItems: NavItem[] = [
     label: "Operations",
     href: "/dashboard/operations",
     icon: ArrowLeftRight,
+  },
+  {
+    label: "People & Assets",
+    href: "/dashboard/people",
+    icon: Users,
   },
 ];
 

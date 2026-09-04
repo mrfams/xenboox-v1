@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 
 // ─── Surface Keyboard Shortcuts ────────────────────────────────────────────
 //
-// Press 1-5 to jump between dashboard surfaces. Only active when the user
+// Press 1-6 to jump between dashboard surfaces. Only active when the user
 // is not focused on an input, textarea, select, or contenteditable element.
 // This prevents conflicts with typing in the AI chat or form fields.
 
@@ -15,6 +15,7 @@ const SURFACE_SHORTCUTS: Record<string, { href: string; label: string }> = {
   "3": { href: "/dashboard/financial-pulse", label: "Financial Pulse" },
   "4": { href: "/dashboard/ledger", label: "Ledger" },
   "5": { href: "/dashboard/operations", label: "Operations" },
+  "6": { href: "/dashboard/people", label: "People & Assets" },
 };
 
 const INTERACTIVE_TAG_NAMES = new Set([
