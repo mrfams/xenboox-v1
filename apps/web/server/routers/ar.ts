@@ -1,12 +1,21 @@
 import { z } from "zod";
-import { eq, and, desc, sql } from "drizzle-orm";
+import { eq, and, desc, sql, inArray } from "drizzle-orm";
 import {
   customers,
   salesInvoices,
   salesInvoiceLines,
   paymentsAr,
   auditLog,
+  chartOfAccounts,
 } from "@xenboox/db/schema";
+import {
+  moneyString,
+  positiveMoneyString,
+  isoDateString,
+  moneyToCents,
+  MAX_CENTS,
+  optionalMoneyString,
+} from "../ar-validation";
 import { TRPCError } from "@trpc/server";
 import {
   validateInvoice,
@@ -48,20 +57,29 @@ export const arRouter = router({
     .use(requirePermission("accounts_receivable", "create"))
     .input(
       z.object({
-        name: z.string().min(1),
+        name: z.string().trim().min(1).max(200),
         contactEmail: z.string().email().optional(),
-        contactPhone: z.string().optional(),
-        taxId: z.string().optional(),
-        address: z.string().optional(),
-        paymentTerms: z.string().default("net30"),
-        creditLimit: z.string().optional(),
+        contactPhone: z.string().max(50).optional(),
+        taxId: z.string().max(50).optional(),
+        address: z.string().max(500).optional(),
+        paymentTerms: z
+          .string()
+          .max(50)
+          .regex(/^[a-zA-Z0-9_\-]+$/, "Invalid payment terms")
+          .default("net30"),
+        creditLimit: optionalMoneyString.optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
       try {
         const [customer] = await db
           .insert(customers)
-          .values({ ...input, entityId: ctx.entityId! })
+          .values({
+            ...input,
+            // Normalize "" (forms send empty strings) to NULL for numeric col.
+            creditLimit: input.creditLimit ? input.creditLimit : undefined,
+            entityId: ctx.entityId!,
+          })
           .returning();
 
         if (customer) {
@@ -145,33 +163,73 @@ export const arRouter = router({
     .input(
       z.object({
         customerId: z.string().uuid(),
-        invoiceNumber: z.string().min(1),
-        invoiceDate: z.string(),
-        dueDate: z.string(),
+        invoiceNumber: z
+          .string()
+          .trim()
+          .min(1, "Invoice number is required")
+          .max(40, "Invoice number must be under 40 characters"),
+        invoiceDate: isoDateString,
+        dueDate: isoDateString,
         currency: z.string().length(3).default("USD"),
-        notes: z.string().optional(),
+        notes: z.string().max(4000).optional(),
         lines: z
           .array(
             z.object({
-              description: z.string().min(1),
+              description: z
+                .string()
+                .trim()
+                .min(1, "Line description is required")
+                .max(500, "Line description is too long"),
               accountId: z.string().uuid(),
-              quantity: z.number().positive(),
-              unitPrice: z.string(),
+              quantity: z.number().positive().max(999_999_999),
+              unitPrice: moneyString,
             }),
           )
-          .min(1),
+          .min(1, "An invoice needs at least one line")
+          .max(200, "An invoice can have at most 200 lines"),
       }),
     )
+    .superRefine((data, ctx) => {
+      // A3: due date must not precede the invoice date.
+      if (data.dueDate < data.invoiceDate) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["dueDate"],
+          message: "Due date cannot be before the invoice date",
+        });
+      }
+    })
     .mutation(async ({ ctx, input }) => {
       try {
         const { lines, ...invoiceData } = input;
 
-        let totalAmount = 0;
+        // A2: integer-cents math — never float-accumulate money. Each line's
+        // amount must be a safe integer within numeric(15,2); anything beyond
+        // the column's ceiling would be an un-representable total anyway.
+        let totalCents = 0;
         for (const line of lines) {
-          const qty = line.quantity;
-          const price = parseFloat(line.unitPrice);
-          totalAmount += qty * price;
+          const lineCents = Math.round(
+            line.quantity * moneyToCents(line.unitPrice),
+          );
+          if (
+            !Number.isSafeInteger(lineCents) ||
+            lineCents < 0 ||
+            lineCents > MAX_CENTS
+          ) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: `Line "${line.description}" total is too large`,
+            });
+          }
+          totalCents += lineCents;
+          if (totalCents > MAX_CENTS) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: "Invoice total is too large",
+            });
+          }
         }
+        const totalAmount = totalCents / 100;
 
         const trustResult = validateInvoice({
           entityId: ctx.entityId!,
@@ -233,6 +291,25 @@ export const arRouter = router({
           });
         }
 
+        // A4: every line account must belong to THIS entity. The FK only proves
+        // global existence — a cross-entity account id would leak other
+        // entities' accounts into this entity's books on the first posting.
+        const lineAccountIds = [...new Set(lines.map((l) => l.accountId))];
+        const ownedAccounts = await db.query.chartOfAccounts.findMany({
+          where: and(
+            eq(chartOfAccounts.entityId, ctx.entityId!),
+            inArray(chartOfAccounts.id, lineAccountIds),
+          ),
+          columns: { id: true },
+        });
+        if (ownedAccounts.length !== lineAccountIds.length) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message:
+              "One or more line accounts are not in this entity's chart of accounts",
+          });
+        }
+
         // neon-http has no real transactions — use sequential inserts with compensation.
         // The central db shim also falls back, but this path ensures no orphan invoice
         // if the lines/audit insert fails outside a real transaction.
@@ -254,8 +331,11 @@ export const arRouter = router({
           await db.insert(salesInvoiceLines).values(
             lines.map((line) => {
               const qty = line.quantity;
-              const price = parseFloat(line.unitPrice);
-              const amount = (qty * price).toFixed(2);
+              // Cents math — the header total used the same accumulation, so
+              // the stored line amounts always reconcile exactly.
+              const amount = (
+                Math.round(qty * moneyToCents(line.unitPrice)) / 100
+              ).toFixed(2);
               return {
                 salesInvoiceId: invoice.id,
                 accountId: line.accountId,
@@ -331,21 +411,109 @@ export const arRouter = router({
     .input(
       z.object({
         id: z.string().uuid(),
-        invoiceDate: z.string().optional(),
-        dueDate: z.string().optional(),
-        totalAmount: z.string().optional(),
-        notes: z.string().optional(),
-        status: z
-          .enum(["pending", "partial", "paid", "overdue", "voided"])
-          .optional(),
+        invoiceDate: isoDateString.optional(),
+        dueDate: isoDateString.optional(),
+        notes: z.string().max(4000).optional(),
+        // A5 state machine: callers may only VOID. "paid"/"partial"/"overdue"
+        // are driven by payments + the overdue job — a hand-set status (paid
+        // with no payment, paid → pending, etc.) would forge the books.
+        status: z.literal("voided").optional(),
       }),
     )
+    .superRefine((data, ctx) => {
+      if (
+        data.invoiceDate !== undefined &&
+        data.dueDate !== undefined &&
+        data.dueDate < data.invoiceDate
+      ) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["dueDate"],
+          message: "Due date cannot be before the invoice date",
+        });
+      }
+    })
     .mutation(async ({ ctx, input }) => {
       try {
         const { id, ...data } = input;
+
+        const existing = await db.query.salesInvoices.findFirst({
+          where: and(
+            eq(salesInvoices.id, id),
+            eq(salesInvoices.entityId, ctx.entityId!),
+          ),
+          columns: {
+            id: true,
+            status: true,
+            paidAmount: true,
+            balance: true,
+            invoiceNumber: true,
+            customerId: true,
+            totalAmount: true,
+            dueDate: true,
+          },
+        });
+        if (!existing) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Invoice not found",
+          });
+        }
+
+        const updates: {
+          invoiceDate?: string;
+          dueDate?: string;
+          notes?: string | null;
+          status?: "voided";
+        } = {};
+        if (data.invoiceDate !== undefined)
+          updates.invoiceDate = data.invoiceDate;
+        if (data.dueDate !== undefined) updates.dueDate = data.dueDate;
+        if (data.notes !== undefined) updates.notes = data.notes;
+
+        if (data.status === "voided") {
+          if (existing.status === "voided") {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: "Invoice is already voided",
+            });
+          }
+          const paid = moneyToCents(String(existing.paidAmount));
+          if (!Number.isNaN(paid) && paid > 0) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message:
+                "Invoice has payments recorded — reverse them before voiding",
+            });
+          }
+          if (existing.status === "paid") {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message:
+                "Cannot void a paid invoice — post a credit note instead",
+            });
+          }
+          updates.status = "voided";
+        }
+
+        if (Object.keys(updates).length === 0) {
+          // Nothing to change — return current state unchanged.
+          const [fresh] = await db
+            .select()
+            .from(salesInvoices)
+            .where(
+              and(
+                eq(salesInvoices.id, id),
+                eq(salesInvoices.entityId, ctx.entityId!),
+              ),
+            )
+            .limit(1);
+          return fresh ?? null;
+        }
+
         const [updated] = await db
           .update(salesInvoices)
-          .set(data)
+          .set(updates)
           .where(
             and(
               eq(salesInvoices.id, id),
@@ -354,26 +522,19 @@ export const arRouter = router({
           )
           .returning();
 
-        if (updated && input.status === "overdue") {
-          try {
-            void dispatchWebhookEvent({
-              entityId: ctx.entityId!,
-              eventType: "invoice.overdue",
-              data: {
-                invoiceId: updated.id,
-                invoiceNumber: updated.invoiceNumber,
-                customerId: updated.customerId,
-                totalAmount: updated.totalAmount,
-                balance: updated.balance,
-                dueDate: updated.dueDate,
-              },
-            });
-          } catch (e) {
-            logger.error(
-              { err: e },
-              "Failed to dispatch invoice.overdue webhook",
-            );
-          }
+        if (updated && updates.status === "voided") {
+          await db.insert(auditLog).values({
+            entityId: ctx.entityId!,
+            userId: ctx.session!.user!.id!,
+            action: "ar.voidInvoice",
+            entityType: "sales_invoice",
+            entityIdRef: updated.id,
+            oldValues: {
+              invoiceNumber: existing.invoiceNumber,
+              status: existing.status,
+            },
+            newValues: { status: "voided" },
+          });
         }
 
         return updated;
@@ -417,8 +578,8 @@ export const arRouter = router({
     .input(
       z.object({
         salesInvoiceId: z.string().uuid(),
-        amount: z.string(),
-        paymentDate: z.string(),
+        amount: positiveMoneyString,
+        paymentDate: isoDateString,
         method: z.enum([
           "bank_transfer",
           "cash",
@@ -426,8 +587,8 @@ export const arRouter = router({
           "check",
           "card",
         ]),
-        reference: z.string().optional(),
-        notes: z.string().optional(),
+        reference: z.string().max(100).optional(),
+        notes: z.string().max(1000).optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -437,7 +598,6 @@ export const arRouter = router({
           amount: paymentAmountStr,
           ...paymentData
         } = input;
-        const paymentAmount = parseFloat(paymentAmountStr);
 
         const invoice = await db.query.salesInvoices.findFirst({
           where: and(
@@ -452,44 +612,86 @@ export const arRouter = router({
           });
         }
 
-        const currentBalance = parseFloat(invoice.balance);
-        if (paymentAmount > currentBalance) {
+        // A7: the authoritative balance lives in the row, not in this read. On
+        // the default neon-http driver db.transaction is a no-op shim (see
+        // packages/db/client), so the final gate is a single-statement
+        // compare-and-set — two concurrent payments can never both pass a
+        // stale read.
+        const paymentCents = moneyToCents(paymentAmountStr);
+        if (Number.isNaN(paymentCents) || paymentCents <= 0) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Payment amount must be greater than zero",
+          });
+        }
+        const currentBalanceCents = moneyToCents(String(invoice.balance));
+        if (currentBalanceCents < paymentCents) {
           throw new TRPCError({
             code: "BAD_REQUEST",
             message: `Payment amount ${paymentAmountStr} exceeds invoice balance ${invoice.balance}`,
           });
         }
 
-        return await db.transaction(async (tx) => {
-          const [payment] = await tx
-            .insert(paymentsAr)
-            .values({
-              ...paymentData,
-              entityId: ctx.entityId!,
-              salesInvoiceId,
-              amount: paymentAmountStr,
-            })
-            .returning();
+        const amountStr = (paymentCents / 100).toFixed(2);
+        const newStatus =
+          currentBalanceCents - paymentCents <= 0 ? "paid" : "partial";
 
-          const newBalance = currentBalance - paymentAmount;
-          const newPaidAmount = parseFloat(invoice.paidAmount) + paymentAmount;
-          const newStatus = newBalance <= 0 ? "paid" : "partial";
+        const [payment] = await db
+          .insert(paymentsAr)
+          .values({
+            ...paymentData,
+            entityId: ctx.entityId!,
+            salesInvoiceId,
+            amount: amountStr,
+          })
+          .returning();
+        if (!payment) {
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: "Failed to record payment",
+          });
+        }
 
-          await tx
-            .update(salesInvoices)
-            .set({
-              paidAmount: newPaidAmount.toFixed(2),
-              balance: Math.max(newBalance, 0).toFixed(2),
-              status: newStatus,
-            })
+        // Atomic compare-and-set: 0 rows => the balance moved (another payment
+        // or an edit landed) after our read — fail loudly, never overpay.
+        const cas = await db
+          .update(salesInvoices)
+          .set({
+            paidAmount: sql`${salesInvoices.paidAmount}::numeric + ${amountStr}::numeric`,
+            balance: sql`${salesInvoices.balance}::numeric - ${amountStr}::numeric`,
+            status: newStatus,
+          })
+          .where(
+            and(
+              eq(salesInvoices.id, salesInvoiceId),
+              eq(salesInvoices.entityId, ctx.entityId!),
+              gte(
+                sql`${salesInvoices.balance}::numeric`,
+                sql`${amountStr}::numeric`,
+              ),
+            ),
+          )
+          .returning({ id: salesInvoices.id });
+
+        if (cas.length === 0) {
+          // Roll back the just-inserted payment row (no real tx on neon-http).
+          await db
+            .delete(paymentsAr)
             .where(
               and(
-                eq(salesInvoices.id, salesInvoiceId),
-                eq(salesInvoices.entityId, ctx.entityId!),
+                eq(paymentsAr.id, payment.id),
+                eq(paymentsAr.entityId, ctx.entityId!),
               ),
-            );
+            )
+            .catch(() => {});
+          throw new TRPCError({
+            code: "CONFLICT",
+            message: "Invoice balance changed — refresh and try again",
+          });
+        }
 
-          await tx.insert(auditLog).values({
+        try {
+          await db.insert(auditLog).values({
             entityId: ctx.entityId!,
             userId: ctx.session!.user!.id!,
             action: "ar.createPayment",
@@ -497,7 +699,7 @@ export const arRouter = router({
             entityIdRef: payment.id,
             newValues: {
               salesInvoiceId,
-              amount: paymentAmountStr,
+              amount: amountStr,
               method: input.method,
               reference: input.reference,
             },
@@ -505,7 +707,7 @@ export const arRouter = router({
 
           // Send email notification (non-blocking)
           if (invoice) {
-            const customer = await tx.query.customers.findFirst({
+            const customer = await db.query.customers.findFirst({
               where: and(
                 eq(customers.id, invoice.customerId),
                 eq(customers.entityId, ctx.entityId!),
@@ -517,7 +719,7 @@ export const arRouter = router({
                   sendPaymentReceivedEmail(customer.contactEmail!, {
                     customerName: customer.name,
                     invoiceNumber: invoice.invoiceNumber,
-                    amount: paymentAmountStr,
+                    amount: amountStr,
                     currency: invoice.currency,
                     paymentMethod: input.method,
                     reference: input.reference,
@@ -543,7 +745,7 @@ export const arRouter = router({
               data: {
                 invoiceId: salesInvoiceId,
                 invoiceNumber: invoice.invoiceNumber,
-                amount: paymentAmountStr,
+                amount: amountStr,
                 method: input.method,
                 reference: input.reference,
                 newStatus,
@@ -554,7 +756,42 @@ export const arRouter = router({
           }
 
           return payment;
-        });
+        } catch (err) {
+          // No real transaction on neon-http: if audit/email setup fails after
+          // the balance moved, roll the CAS adjustment back and drop the
+          // payment row so the invoice can never be half-applied.
+          await db
+            .delete(paymentsAr)
+            .where(
+              and(
+                eq(paymentsAr.id, payment.id),
+                eq(paymentsAr.entityId, ctx.entityId!),
+              ),
+            )
+            .catch(() => {});
+          await db
+            .update(salesInvoices)
+            .set({
+              paidAmount: sql`${salesInvoices.paidAmount}::numeric - ${amountStr}::numeric`,
+              balance: sql`${salesInvoices.balance}::numeric + ${amountStr}::numeric`,
+              // Restore the pre-payment status (pending/partial/overdue — never
+              // "paid" since a positive balance remained before this payment).
+              status:
+                invoice.status === "partial" ||
+                invoice.status === "overdue" ||
+                invoice.status === "pending"
+                  ? invoice.status
+                  : "pending",
+            })
+            .where(
+              and(
+                eq(salesInvoices.id, salesInvoiceId),
+                eq(salesInvoices.entityId, ctx.entityId!),
+              ),
+            )
+            .catch(() => {});
+          throw err;
+        }
       } catch (error) {
         handleMutationError(error, "Failed to create payment");
       }
@@ -585,9 +822,33 @@ export const arRouter = router({
           });
         }
 
+        // A6: customers with invoice history must be deactivated, not deleted
+        // (the FK would fail with a raw error anyway).
+        const invoiceCount = await db
+          .select({ n: sql<number>`count(*)::int` })
+          .from(salesInvoices)
+          .where(
+            and(
+              eq(salesInvoices.customerId, input.id),
+              eq(salesInvoices.entityId, ctx.entityId!),
+            ),
+          );
+        if ((invoiceCount[0]?.n ?? 0) > 0) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message:
+              "Customer has invoices on record — deactivate them instead of deleting",
+          });
+        }
+
         await db
           .delete(customers)
-          .where(and(eq(customers.id, input.id), eq(customers.entityId, ctx.entityId!)));
+          .where(
+            and(
+              eq(customers.id, input.id),
+              eq(customers.entityId, ctx.entityId!),
+            ),
+          );
 
         await db.insert(auditLog).values({
           entityId: ctx.entityId!,
@@ -634,9 +895,28 @@ export const arRouter = router({
           });
         }
 
+        // A6: an invoice with recorded payments is protected by the FK anyway
+        // — surface a clear conflict instead of a raw FK failure.
+        const paymentCount = await db
+          .select({ n: sql<number>`count(*)::int` })
+          .from(paymentsAr)
+          .where(eq(paymentsAr.salesInvoiceId, input.id));
+        if ((paymentCount[0]?.n ?? 0) > 0) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message:
+              "Invoice has recorded payments — reverse the payments before deleting",
+          });
+        }
+
         await db
           .delete(salesInvoices)
-          .where(and(eq(salesInvoices.id, input.id), eq(salesInvoices.entityId, ctx.entityId!)));
+          .where(
+            and(
+              eq(salesInvoices.id, input.id),
+              eq(salesInvoices.entityId, ctx.entityId!),
+            ),
+          );
 
         await db.insert(auditLog).values({
           entityId: ctx.entityId!,
@@ -680,9 +960,63 @@ export const arRouter = router({
           });
         }
 
+        const invoice = await db.query.salesInvoices.findFirst({
+          where: and(
+            eq(salesInvoices.id, existing.salesInvoiceId),
+            eq(salesInvoices.entityId, ctx.entityId!),
+          ),
+          columns: {
+            id: true,
+            totalAmount: true,
+            status: true,
+            invoiceNumber: true,
+            customerId: true,
+          },
+        });
+
         await db
           .delete(paymentsAr)
-          .where(and(eq(paymentsAr.id, input.id), eq(paymentsAr.entityId, ctx.entityId!)));
+          .where(
+            and(
+              eq(paymentsAr.id, input.id),
+              eq(paymentsAr.entityId, ctx.entityId!),
+            ),
+          );
+
+        // A11: deleting a payment must restore the invoice's paid/balance/status
+        // from the remaining payments — otherwise the invoice stays "paid" with
+        // a zero balance while its payment history disappears (books drift).
+        if (invoice) {
+          const [agg] = await db
+            .select({
+              paid: sql<string>`COALESCE(SUM(${paymentsAr.amount}::numeric), 0)::text`,
+            })
+            .from(paymentsAr)
+            .where(
+              and(
+                eq(paymentsAr.salesInvoiceId, invoice.id),
+                eq(paymentsAr.entityId, ctx.entityId!),
+              ),
+            );
+          const paid = parseFloat(agg?.paid ?? "0");
+          const total = parseFloat(String(invoice.totalAmount));
+          const balance = Math.max(total - paid, 0);
+          const nextStatus =
+            paid <= 0 ? "pending" : balance <= 0 ? "paid" : "partial";
+          await db
+            .update(salesInvoices)
+            .set({
+              paidAmount: paid.toFixed(2),
+              balance: balance.toFixed(2),
+              status: nextStatus,
+            })
+            .where(
+              and(
+                eq(salesInvoices.id, invoice.id),
+                eq(salesInvoices.entityId, ctx.entityId!),
+              ),
+            );
+        }
 
         await db.insert(auditLog).values({
           entityId: ctx.entityId!,
@@ -720,6 +1054,7 @@ export const arRouter = router({
           balance: salesInvoices.balance,
           totalAmount: salesInvoices.totalAmount,
           status: salesInvoices.status,
+          currency: salesInvoices.currency,
           customerId: salesInvoices.customerId,
         })
         .from(salesInvoices)
@@ -743,16 +1078,24 @@ export const arRouter = router({
           contactEmail: customers.contactEmail,
         })
         .from(customers)
-        .where(eq(customers.id, invoice.customerId))
+        .where(
+          and(
+            eq(customers.id, invoice.customerId),
+            // A9: defense-in-depth — never trust the invoice row's FK alone.
+            eq(customers.entityId, entityId),
+          ),
+        )
         .limit(1);
 
       const customerName = customer?.name ?? "Customer";
       const balance = parseFloat(invoice.balance);
       const due = new Date(invoice.dueDate);
-      const daysOverdue = Math.max(
-        0,
-        Math.floor((Date.now() - due.getTime()) / 86_400_000),
-      );
+      // Legacy rows may predate date validation — never let NaN poison aging.
+      const dueMs = due.getTime();
+      const rawDays = Number.isFinite(dueMs)
+        ? Math.floor((Date.now() - dueMs) / 86_400_000)
+        : 0;
+      const daysOverdue = Math.max(0, rawDays);
       const dueLabel = due.toLocaleDateString("en-US", {
         month: "long",
         day: "numeric",
@@ -781,7 +1124,7 @@ export const arRouter = router({
                   "Please arrange payment of the outstanding balance, or reach out so we can resolve any issue together.",
               };
 
-      const body = `Hi ${customerName},\n\n${tone.opener}\n\nInvoice: ${invoice.invoiceNumber}\nDue date: ${dueLabel}\nOutstanding balance: ${(ctx as { entityCurrency?: string | null }).entityCurrency ?? invoice.currency ?? "GMD"} ${balance.toLocaleString(undefined, { minimumFractionDigits: 2 })}\n\n${tone.closing}\n\nBest regards,\nThe Xenboox team`;
+      const body = `Hi ${customerName},\n\n${tone.opener}\n\nInvoice: ${invoice.invoiceNumber}\nDue date: ${dueLabel}\n        Outstanding balance: ${(ctx as { entityCurrency?: string | null }).entityCurrency ?? invoice.currency ?? "USD"} ${balance.toLocaleString(undefined, { minimumFractionDigits: 2 })}\n\n${tone.closing}\n\nBest regards,\nThe Xenboox team`;
 
       return {
         draft: {

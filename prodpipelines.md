@@ -64,18 +64,17 @@ Status legend: ✅ done · 🔄 in progress · ⬜ not started · ⚠️ needs f
 
 ## Pipelines 3–12
 
-| #   | Pipeline                     | Status | Notes                                                              |
-| --- | ---------------------------- | ------ | ------------------------------------------------------------------ |
-| 3   | Invoice Flow                 | ✅     | Detail panel, PDF, email, payments, overdue detection              |
-| 4   | Bill Flow                    | ✅     | Bill detail, inline payment, PO matching, approval routing         |
-| 5   | Bank Reconciliation          | ✅     | Bidirectional linking, unreconcile, AI matching with batch queries |
-| 6   | Expense Recording → Approval | ✅     | Creatable combobox, detail panel, approve/reject workflow          |
-| 7   | Journal Entries              | ✅     | Post/reverse UI, dynamic year prefix                               |
-| 8   | Month-End Close              | ✅     | Full checklist, idempotent task updates, AI recommendations        |
-| 9   | Financial Reporting          | ✅     | P&L, Balance Sheet, Cash Flow, Budget vs Actual                    |
-| 10  | AI Chat / Agent Routing      | ✅     | Message validation, conversation management                        |
-| 11  | Recurring Transactions       | ✅     | Batch party-name enrichment, full lifecycle                        |
-| 12  | Multi-Currency               | ✅     | 4-level FX resolution, cache, revaluation, audit logging           |
+| # | Pipeline | Status | Notes |
+| --- | ---------------------------- | ------ | ------------------------------------------------------------------ || 3 | Invoice Flow | 🔄 | A: record layer ✅ (committed) · B: posting/GL 🔜 · C–D + verify ⬜ |
+| 4 | Bill Flow | ✅ | Bill detail, inline payment, PO matching, approval routing |
+| 5 | Bank Reconciliation | ✅ | Bidirectional linking, unreconcile, AI matching with batch queries |
+| 6 | Expense Recording → Approval | ✅ | Creatable combobox, detail panel, approve/reject workflow |
+| 7 | Journal Entries | ✅ | Post/reverse UI, dynamic year prefix |
+| 8 | Month-End Close | ✅ | Full checklist, idempotent task updates, AI recommendations |
+| 9 | Financial Reporting | ✅ | P&L, Balance Sheet, Cash Flow, Budget vs Actual |
+| 10 | AI Chat / Agent Routing | ✅ | Message validation, conversation management |
+| 11 | Recurring Transactions | ✅ | Batch party-name enrichment, full lifecycle |
+| 12 | Multi-Currency | ✅ | 4-level FX resolution, cache, revaluation, audit logging |
 
 **Findings:** `findings/pipelines-3-12-audit/audit-summary.md`
 **Status:** ⚠️ One audit pass done (2 fixes landed: Bills scope-crash, Recurring N+1).
@@ -95,6 +94,21 @@ Pipelines 1–2 before true production sign-off.
 ---
 
 ## Current state (where we are now)
+
+- **Pipeline 3 (Invoice Flow) — Sub-Part A (record layer) committed:**
+
+  - `apps/web/server/ar-validation.ts` — shared money/date boundary validators.
+  - `ar.ts` — server-side money+date+length validation (NaN/negative/junk
+    amounts blocked), line `accountId` entity-scope check, `updateInvoice` is now
+    a gated state machine (void-only, no totalAmount forgery), payments use an
+    atomic compare-and-set balance update (no silent db.transaction shim race),
+    delete guards with clear conflicts, deletePayment restores invoice balance.
+  - `invoicing.getNextInvoiceNumber` — max-sequence suggestion (collision-free
+    after deletes), `create-invoice-dialog` validates lines inline (no silent
+    drops).
+  - **Next (P3-B): the critical one** — AR invoices/payments never post to the
+    GL (reports read posted journal entries only): build invoice → AR/Revenue
+    JE and payment → Cash/AR JE with TrustGuard + idempotency.
 
 - **Pipeline 2 (Banking) is fully done** — sub-parts A–H + verification loop:
   - G `30b8fbcd`: shared entity-notification helper (`notify-entity.ts`, db client

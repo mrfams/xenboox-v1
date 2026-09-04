@@ -1,5 +1,16 @@
 import { z } from "zod";
-import { eq, and, desc, sql, count, sum, gte, lte, inArray } from "drizzle-orm";
+import {
+  eq,
+  and,
+  desc,
+  sql,
+  count,
+  sum,
+  gte,
+  lte,
+  inArray,
+  like,
+} from "drizzle-orm";
 import {
   salesInvoices,
   customers,
@@ -24,7 +35,8 @@ export const invoicingRouter = router({
    */
   getOverview: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
-      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
+    const currency =
+      (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
 
     // Get all invoices
     const invoices = await db.query.salesInvoices.findMany({
@@ -267,7 +279,8 @@ export const invoicingRouter = router({
     )
     .query(async ({ ctx, input }) => {
       const entityId = ctx.entityId!;
-      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
+      const currency =
+        (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
 
       // Build conditions
       const conditions = [eq(salesInvoices.entityId, entityId)];
@@ -404,7 +417,8 @@ export const invoicingRouter = router({
     .input(z.object({ invoiceId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       const entityId = ctx.entityId!;
-      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
+      const currency =
+        (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
 
       const invoice = await db.query.salesInvoices.findFirst({
         where: and(
@@ -486,7 +500,8 @@ export const invoicingRouter = router({
     .mutation(async ({ ctx, input }) => {
       try {
         const entityId = ctx.entityId!;
-      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
+        const currency =
+          (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
 
         const invoice = await db.query.salesInvoices.findFirst({
           where: and(
@@ -585,7 +600,8 @@ export const invoicingRouter = router({
     .input(z.object({ invoiceId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       const entityId = ctx.entityId!;
-      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
+      const currency =
+        (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
 
       const invoice = await db.query.salesInvoices.findFirst({
         where: and(
@@ -661,7 +677,8 @@ export const invoicingRouter = router({
    */
   getChartsData: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
-      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
+    const currency =
+      (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
 
     // Get all invoices
     const invoices = await db.query.salesInvoices.findMany({
@@ -716,7 +733,8 @@ export const invoicingRouter = router({
    */
   getCustomers: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
-      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
+    const currency =
+      (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
 
     return db.query.customers.findMany({
       where: eq(customers.entityId, entityId),
@@ -733,7 +751,8 @@ export const invoicingRouter = router({
    */
   getAiInsights: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
-      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
+    const currency =
+      (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
     const insights: Array<{
       id: string;
       type: "warning" | "info" | "success";
@@ -841,7 +860,8 @@ export const invoicingRouter = router({
    */
   getRecentActivity: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
-      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
+    const currency =
+      (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
 
     // Get recent payments
     const recentPayments = await db.query.paymentsAr.findMany({
@@ -883,7 +903,8 @@ export const invoicingRouter = router({
    */
   getInvoicesTrend: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
-      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
+    const currency =
+      (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
 
     // Get all invoices
     const invoices = await db.query.salesInvoices.findMany({
@@ -925,7 +946,8 @@ export const invoicingRouter = router({
    */
   getNextInvoiceNumber: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
-      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
+    const currency =
+      (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
     const now = new Date();
     const year = now.getFullYear();
     const month = String(now.getMonth() + 1).padStart(2, "0");
@@ -937,18 +959,33 @@ export const invoicingRouter = router({
     const endDate = new Date(year, endMonth, 0); // last day of month
     const endDateStr = endDate.toISOString().slice(0, 10);
 
-    const [result] = await db
-      .select({ count: count() })
+    // A8: suggest max(existing sequence) + 1, not count + 1. Count-based
+    // suggestion collides after deletions (rows 1-5, delete 2 → count 4 →
+    // suggests 5, but 5 is live → 409). Voided rows keep their slot in the
+    // series (INV-...-00004 stays taken), so max-suffix handles both.
+    const prefixLike = `${prefix}-%`;
+    const existing = await db
+      .select({ invoiceNumber: salesInvoices.invoiceNumber })
       .from(salesInvoices)
       .where(
         and(
           eq(salesInvoices.entityId, entityId),
           gte(salesInvoices.invoiceDate, startDate),
           lte(salesInvoices.invoiceDate, endDateStr),
+          like(salesInvoices.invoiceNumber, prefixLike),
         ),
-      );
+      )
+      .limit(10_000);
 
-    const sequence = (result?.count ?? 0) + 1;
+    let maxSeq = 0;
+    for (const row of existing) {
+      const suffix = row.invoiceNumber.slice(prefix.length + 1);
+      if (/^\d+$/.test(suffix)) {
+        const n = parseInt(suffix, 10);
+        if (!Number.isNaN(n) && n > maxSeq) maxSeq = n;
+      }
+    }
+    const sequence = maxSeq + 1;
     const invoiceNumber = `${prefix}-${String(sequence).padStart(5, "0")}`;
 
     return { invoiceNumber };
