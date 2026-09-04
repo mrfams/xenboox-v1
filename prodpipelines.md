@@ -1,0 +1,112 @@
+# Production Pipelines — Master List
+
+Every end-to-end flow a user can run through Xenboox, audited to production grade.
+Method: **one pipeline at a time, one sub-part at a time** — fire the relevant
+"employees" (engineering, design, security, UX, edge cases), deep-audit a single
+part, plan, implement, verify, commit. Nothing ships surface-level.
+
+Status legend: ✅ done · 🔄 in progress · ⬜ not started · ⚠️ needs follow-up
+
+---
+
+## Pipeline 1 — Document Ingestion
+
+**File/image → AI extraction → TrustGuard → journal generation → posting**
+
+- Sub-part A: Intake & classification
+- Sub-part B: TrustGuard (deterministic verification — never trusts the LLM)
+- Sub-part C: AI extraction
+- Sub-part D: Journal generation
+- Sub-part E: Posting & propagation
+- Sub-part F: Notifications & status
+- Sub-part G: UI layer
+- Sub-part H: Background jobs
+
+**Findings:** `findings/pipeline-1-subpart-*`
+**Status:** ✅ Deep-audited (A–H) — committed earlier in master
+
+---
+
+## Pipeline 2 — Bank Connection → Transaction Import → Categorization
+
+**Connect bank (Plaid/Mono/manual) → sync/import transactions → categorize → post to ledger**
+
+- Sub-part A: Connection layer (link, token, exchange)
+- Sub-part B: Transaction sync (Plaid/Mono jobs, dedup, pagination)
+- Sub-part C: Categorization engine (rules, keywords, provider signals, learning loop)
+- Sub-part D: Propagation & GL posting (bank tx → journal entries)
+- Sub-part E: Statement/PDF import (CSV/PDF parsers, OCR, validation)
+- Sub-part F: UI layer (banking view, rows, rules manager, connection cards)
+- Sub-part A: Connection layer (link, token, exchange)
+- Sub-part B: Transaction sync (Plaid/Mono jobs, dedup, pagination)
+- Sub-part C: Categorization engine (rules, keywords, provider signals, learning loop)
+- Sub-part D: Propagation & GL posting (bank tx → journal entries)
+- Sub-part E: Statement/PDF import (CSV/PDF parsers, OCR, validation)
+- Sub-part F: UI layer (banking view, rows, rules manager, connection cards)
+- Sub-part G: Notifications & status
+- Sub-part H: Background jobs & scheduling
+- Verification loop: cross-sub-part re-audit
+
+**Findings:** `findings/pipeline-2-banking/subpart-*`
+
+| Sub-part | Status | Commit      |
+| -------- | ------ | ----------- |
+| A + B    | ✅     | earlier     |
+| C        | ✅     | `52152406`  |
+| D        | ✅     | `6cddb782`  |
+| E        | ✅     | `0ab15c8`   |
+| F        | ✅     | `f30ab08`   |
+| G        | ✅     | `30b8fbcd`  |
+| H        | ✅     | `b8332b2e`  |
+| Verify   | ✅     | next commit |
+
+---
+
+## Pipelines 3–12
+
+| #   | Pipeline                     | Status | Notes                                                              |
+| --- | ---------------------------- | ------ | ------------------------------------------------------------------ |
+| 3   | Invoice Flow                 | ✅     | Detail panel, PDF, email, payments, overdue detection              |
+| 4   | Bill Flow                    | ✅     | Bill detail, inline payment, PO matching, approval routing         |
+| 5   | Bank Reconciliation          | ✅     | Bidirectional linking, unreconcile, AI matching with batch queries |
+| 6   | Expense Recording → Approval | ✅     | Creatable combobox, detail panel, approve/reject workflow          |
+| 7   | Journal Entries              | ✅     | Post/reverse UI, dynamic year prefix                               |
+| 8   | Month-End Close              | ✅     | Full checklist, idempotent task updates, AI recommendations        |
+| 9   | Financial Reporting          | ✅     | P&L, Balance Sheet, Cash Flow, Budget vs Actual                    |
+| 10  | AI Chat / Agent Routing      | ✅     | Message validation, conversation management                        |
+| 11  | Recurring Transactions       | ✅     | Batch party-name enrichment, full lifecycle                        |
+| 12  | Multi-Currency               | ✅     | 4-level FX resolution, cache, revaluation, audit logging           |
+
+**Findings:** `findings/pipelines-3-12-audit/audit-summary.md`
+**Status:** ⚠️ One audit pass done (2 fixes landed: Bills scope-crash, Recurring N+1).
+Each pipeline still deserves the same deep one-sub-part-at-a-time treatment as
+Pipelines 1–2 before true production sign-off.
+
+---
+
+## Cross-cutting audit tracks
+
+- **Security audit** — `findings/security-audit/`
+- **Design critique** — `findings/design-critique/`
+- **CI/CD audit** — `findings/cicd-audit/`
+- **Engineering findings** — `findings/pipeline-2-banking/engineering-findings.md`
+- **Production gaps ledger** — `PRODUCTION_GAPS.md`
+
+---
+
+## Current state (where we are now)
+
+- **Pipeline 2 (Banking) is fully done** — sub-parts A–H + verification loop:
+  - G `30b8fbcd`: shared entity-notification helper (`notify-entity.ts`, db client
+    extracted to `packages/db/client.ts` to break the type cycle), +3 banking
+    notification types, sync/import failures now notify entity users, Plaid
+    reauth (`ITEM_LOGIN_REQUIRED`) detection, admin-notification SQL bug fixed,
+    attention destinations + connection-card error UI with retry.
+  - H `b8332b2e`: double-booking gate (bank statements can no longer silently
+    post as revenue journals — verified income never routes to ledger), provider-
+    correct sync dispatch (Plaid never sent to Mono task), scheduler rewritten
+    chunked-parallel + fail-loud.
+  - Verify (next commit): ledger-integrity lock — transactions posted to the GL
+    (`journalEntryId` set) are now locked against re-categorization/undo until
+    the journal entry is reversed; UI renders a lock + surfaces blocked undo rows.
+- **Next:** deep-audit Pipelines 3–12 one sub-part at a time with the same method.

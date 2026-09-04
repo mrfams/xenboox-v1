@@ -184,10 +184,18 @@ function TransactionsTab({
   }>({
     message: "Categorized transactions",
     onUndo: async ({ restorations }) => {
-      await revertCategorization.mutateAsync({ restorations });
-      toast.success(
-        `Categorization reverted for ${restorations.length} transactions`,
-      );
+      const result = await revertCategorization.mutateAsync({ restorations });
+      const blocked = result?.blocked?.length ?? 0;
+      const restored = result?.restoredCount ?? 0;
+      if (blocked > 0) {
+        // Ledger-integrity: posted transactions are locked — the undo must
+        // not silently pretend it reverted them.
+        toast.warning(
+          `${restored} reverted. ${blocked} skipped — already posted to the ledger (reverse the journal entry to change them).`,
+        );
+      } else {
+        toast.success(`Categorization reverted for ${restored} transactions`);
+      }
       refetch();
     },
   });

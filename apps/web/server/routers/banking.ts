@@ -364,7 +364,8 @@ export const bankingRouter = router({
    */
   getAiInsights: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
-    const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
+    const currency =
+      (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
     const insights: Array<{
       id: string;
       type: "warning" | "info" | "success";
@@ -1132,6 +1133,16 @@ export const bankingRouter = router({
           throw new Error("Transaction not found");
         }
 
+        // Ledger-integrity guard: once postToLedger links this transaction to
+        // a posted journal entry, its category/GL mapping is part of the books.
+        // Re-categorizing underneath the entry would desync the ledger — the
+        // user must reverse the journal entry first (existing reversal flow).
+        if (existing.journalEntryId) {
+          throw new Error(
+            "This transaction is already posted to the ledger. Reverse its journal entry before re-categorizing.",
+          );
+        }
+
         await db
           .update(bankTransactions)
           .set({
@@ -1585,29 +1596,56 @@ export const bankingRouter = router({
       try {
         const entityId = ctx.entityId!;
         if (input.restorations.length === 0) {
-          return { restoredCount: 0 };
+          return { restoredCount: 0, blocked: [] };
         }
 
-        await Promise.all(
-          input.restorations.map((r) =>
-            db
-              .update(bankTransactions)
-              .set({
-                category: r.category ?? "Uncategorized",
-                glAccountId: r.glAccountId ?? undefined,
-                categorizedBy: r.categorizedBy ?? undefined,
-                categorizationConfidence: r.confidence ?? undefined,
-              })
-              .where(
-                and(
-                  eq(bankTransactions.id, r.id),
-                  eq(bankTransactions.entityId, entityId),
-                ),
-              ),
+        // Ledger-integrity guard: a transaction already posted to the GL
+        // (journalEntryId set, via postToLedger) has its category/GL mapping
+        // locked — the posted JE references those accounts. Reverting the
+        // mapping underneath the entry would desync the books (JE says
+        // Account X, tx says Uncategorized, and re-post skips it forever).
+        // Such rows must go through the journal reversal flow instead.
+        const targetIds = input.restorations.map((r) => r.id);
+        const txs = await db.query.bankTransactions.findMany({
+          where: and(
+            eq(bankTransactions.entityId, entityId),
+            inArray(bankTransactions.id, targetIds),
           ),
+          columns: { id: true, journalEntryId: true },
+        });
+        const postedIds = new Set(
+          txs.filter((t) => t.journalEntryId).map((t) => t.id),
         );
+        const allowed = input.restorations.filter((r) => !postedIds.has(r.id));
+        const blocked = input.restorations
+          .filter((r) => postedIds.has(r.id))
+          .map((r) => ({
+            id: r.id,
+            reason: "already_posted_to_ledger",
+          }));
 
-        return { restoredCount: input.restorations.length };
+        if (allowed.length > 0) {
+          await Promise.all(
+            allowed.map((r) =>
+              db
+                .update(bankTransactions)
+                .set({
+                  category: r.category ?? "Uncategorized",
+                  glAccountId: r.glAccountId ?? undefined,
+                  categorizedBy: r.categorizedBy ?? undefined,
+                  categorizationConfidence: r.confidence ?? undefined,
+                })
+                .where(
+                  and(
+                    eq(bankTransactions.id, r.id),
+                    eq(bankTransactions.entityId, entityId),
+                  ),
+                ),
+            ),
+          );
+        }
+
+        return { restoredCount: allowed.length, blocked };
       } catch (error) {
         handleMutationError(error, "Failed to revert categorization");
       }

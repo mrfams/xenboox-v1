@@ -12,6 +12,7 @@ import {
   Tag,
   Link2,
   Zap,
+  Lock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useFormatCurrency } from "@/lib/hooks/use-currency";
@@ -35,6 +36,9 @@ type Transaction = {
   // undo state) may surface it as a string, so convert defensively.
   categorizationConfidence?: number | null;
   categorizedBy?: string | null;
+  // Set once the transaction is posted to the GL (postToLedger) — locks the
+  // category/GL mapping until the journal entry is reversed.
+  journalEntryId?: string | null;
 };
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -170,40 +174,56 @@ export function TransactionRow({
 
       {/* Category */}
       <div className="relative">
-        <button
-          onClick={() => setShowCategoryPicker(!showCategoryPicker)}
-          className={cn(
-            "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium transition-colors hover:opacity-80",
-            categoryColor,
-          )}
-        >
-          {tx.categorizedBy === "ai" && (
-            <Sparkles className="h-2.5 w-2.5" aria-label="AI categorized" />
-          )}
-          {tx.categorizedBy === "rule" && (
-            <Zap className="h-2.5 w-2.5" aria-label="Rule matched" />
-          )}
-          {tx.category || "Uncategorized"}
-          {confidencePct != null && confidencePct > 0 && (
-            <span
-              className={cn(
-                "ml-1 inline-flex items-center rounded px-1 py-0 text-[8px] font-bold",
-                confidencePct >= 90
-                  ? "bg-emerald-500/10 text-emerald-600"
-                  : confidencePct >= 70
-                    ? "bg-amber-500/10 text-amber-600"
-                    : "bg-red-500/10 text-red-600",
-              )}
-              title={`Confidence: ${confidencePct}%`}
-            >
-              {confidencePct}%
-            </span>
-          )}
-          <ChevronDown className="h-2.5 w-2.5" />
-        </button>
+        {/* Posted-to-ledger transactions are locked: their category/GL mapping
+            is part of a posted journal entry. Changing it here would desync
+            the books — the entry must be reversed first (see postToLedger). */}
+        {tx.journalEntryId ? (
+          <span
+            title="Posted to the ledger — reverse the journal entry to change the category"
+            className={cn(
+              "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium",
+              categoryColor,
+            )}
+          >
+            {tx.category || "Uncategorized"}
+            <Lock className="h-2.5 w-2.5 text-muted-foreground" />
+          </span>
+        ) : (
+          <button
+            onClick={() => setShowCategoryPicker(!showCategoryPicker)}
+            className={cn(
+              "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium transition-colors hover:opacity-80",
+              categoryColor,
+            )}
+          >
+            {tx.categorizedBy === "ai" && (
+              <Sparkles className="h-2.5 w-2.5" aria-label="AI categorized" />
+            )}
+            {tx.categorizedBy === "rule" && (
+              <Zap className="h-2.5 w-2.5" aria-label="Rule matched" />
+            )}
+            {tx.category || "Uncategorized"}
+            {confidencePct != null && confidencePct > 0 && (
+              <span
+                className={cn(
+                  "ml-1 inline-flex items-center rounded px-1 py-0 text-[8px] font-bold",
+                  confidencePct >= 90
+                    ? "bg-emerald-500/10 text-emerald-600"
+                    : confidencePct >= 70
+                      ? "bg-amber-500/10 text-amber-600"
+                      : "bg-red-500/10 text-red-600",
+                )}
+                title={`Confidence: ${confidencePct}%`}
+              >
+                {confidencePct}%
+              </span>
+            )}
+            <ChevronDown className="h-2.5 w-2.5" />
+          </button>
+        )}
 
         {/* Category Picker Dropdown */}
-        {showCategoryPicker && (
+        {showCategoryPicker && !tx.journalEntryId && (
           <CategoryPicker
             currentCategory={tx.category ?? null}
             onSelect={(category) => {

@@ -81,3 +81,40 @@ describe("P2-F: Banking UI layer integrity", () => {
     expect(content).toContain("learning_loop");
   });
 });
+
+describe("P2-Verification: Ledger-integrity (posted = locked)", () => {
+  it("revertCategorization pre-loads posted txs and never rewrites a posted row", () => {
+    const content = fs.readFileSync(BANKING_ROUTER, "utf-8");
+    // It must gate on journalEntryId before writing (not silently update).
+    expect(content).toContain("columns: { id: true, journalEntryId: true }");
+    expect(content).toContain("postedIds");
+    expect(content).toContain("already_posted_to_ledger");
+    expect(content).toContain("blocked");
+    // The write set still exists but only for non-posted rows.
+    expect(content).toContain("if (allowed.length > 0)");
+  });
+
+  it("single-categorize path refuses to re-categorize a posted transaction", () => {
+    const content = fs.readFileSync(BANKING_ROUTER, "utf-8");
+    expect(content).toContain(
+      "Reverse its journal entry before re-categorizing",
+    );
+    // Guard must run before the update.
+    const guardIdx = content.indexOf("journalEntryId) {") !== -1;
+    expect(guardIdx).toBe(true);
+  });
+
+  it("transaction row renders a lock instead of an editable category for posted txs", () => {
+    const content = fs.readFileSync(TRANSACTION_ROW, "utf-8");
+    expect(content).toContain("journalEntryId");
+    expect(content).toContain("Lock");
+    expect(content).toContain("showCategoryPicker && !tx.journalEntryId");
+  });
+
+  it("undo handler surfaces blocked rows instead of claiming full success", () => {
+    const content = fs.readFileSync(BANKING_VIEW, "utf-8");
+    expect(content).toContain("result?.blocked");
+    expect(content).toContain("already posted to the ledger");
+    expect(content).toContain("restoredCount");
+  });
+});
