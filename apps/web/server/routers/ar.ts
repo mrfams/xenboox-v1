@@ -37,6 +37,11 @@ import { db } from "@/lib/db";
 import { sendPaymentReceivedEmail } from "@/lib/email";
 import { getEnrichedEntityContext } from "@/lib/entity-context-enrichment";
 import { dispatchWebhookEvent } from "@/lib/webhooks/delivery";
+import {
+  postArInvoiceToLedger,
+  postArPaymentToLedger,
+  reverseArInvoiceJournal,
+} from "../ar-posting";
 
 // ─── AR Router ───────────────────────────────────────────────────────────────
 
@@ -383,6 +388,22 @@ export const arRouter = router({
           logger.error({ err }, "[ar] Invoice narrative generation failed");
         });
 
+        // P3-B (A1): recognize revenue at issue — Dr AR / Cr line accounts.
+        // Best-effort by design: a closed period or missing account must not
+        // block invoice creation; the skip is logged and the invoice stays
+        // unposted (journalEntryId null) for a later retry.
+        const postResult = await postArInvoiceToLedger(
+          invoice.id,
+          ctx.entityId!,
+          ctx.session!.user!.id!,
+        );
+        if (!postResult.posted) {
+          logger.warn(
+            { invoiceId: invoice.id, reason: postResult.reason },
+            "[ar] Invoice created but not posted to the ledger",
+          );
+        }
+
         return invoice;
       } catch (error) {
         // Map Postgres unique violation to a user-readable 409 before generic 500 masking
@@ -535,6 +556,21 @@ export const arRouter = router({
             },
             newValues: { status: "voided" },
           });
+
+          // P3-B: voiding removes the receivable — reverse the posted invoice
+          // entry (mirrored lines) so the ledger nets back to zero.
+          const revResult = await reverseArInvoiceJournal(
+            updated.id,
+            ctx.entityId!,
+            ctx.session!.user!.id!,
+            "Invoice voided",
+          );
+          if (!revResult.posted) {
+            logger.warn(
+              { invoiceId: updated.id, reason: revResult.reason },
+              "[ar] Voided invoice journal not reversed",
+            );
+          }
         }
 
         return updated;
@@ -691,6 +727,17 @@ export const arRouter = router({
         }
 
         try {
+          // P3-B (A1): post the receipt entry — Dr receipt account / Cr AR.
+          // This throws when the entry cannot be posted (closed period etc.),
+          // and the outer catch rolls the whole payment back — money can
+          // never be recorded without also hitting the ledger. It runs BEFORE
+          // the audit insert so a rolled-back payment leaves no audit trail.
+          await postArPaymentToLedger(
+            payment.id,
+            ctx.entityId!,
+            ctx.session!.user!.id!,
+          );
+
           await db.insert(auditLog).values({
             entityId: ctx.entityId!,
             userId: ctx.session!.user!.id!,
@@ -957,6 +1004,17 @@ export const arRouter = router({
           throw new TRPCError({
             code: "NOT_FOUND",
             message: "Payment not found",
+          });
+        }
+
+        // P3-B: a posted payment is part of the books — deleting it under a
+        // live journal entry would leave the ledger recording money that no
+        // longer exists. It must be reversed in the ledger first.
+        if (existing.journalEntryId) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message:
+              "Payment is posted to the ledger — reverse its journal entry before deleting",
           });
         }
 

@@ -65,7 +65,7 @@ Status legend: ✅ done · 🔄 in progress · ⬜ not started · ⚠️ needs f
 ## Pipelines 3–12
 
 | # | Pipeline | Status | Notes |
-| --- | ---------------------------- | ------ | ------------------------------------------------------------------ || 3 | Invoice Flow | 🔄 | A: record layer ✅ (committed) · B: posting/GL 🔜 · C–D + verify ⬜ |
+| --- | ---------------------------- | ------ | ------------------------------------------------------------------ || 3 | Invoice Flow | 🔄 | A: record layer ✅ · B: posting/GL ✅ · C–D + verify ⬜ |
 | 4 | Bill Flow | ✅ | Bill detail, inline payment, PO matching, approval routing |
 | 5 | Bank Reconciliation | ✅ | Bidirectional linking, unreconcile, AI matching with batch queries |
 | 6 | Expense Recording → Approval | ✅ | Creatable combobox, detail panel, approve/reject workflow |
@@ -95,7 +95,7 @@ Pipelines 1–2 before true production sign-off.
 
 ## Current state (where we are now)
 
-- **Pipeline 3 (Invoice Flow) — Sub-Part A (record layer) committed:**
+- **Pipeline 3 (Invoice Flow) — Sub-Parts A + B committed:**
 
   - `apps/web/server/ar-validation.ts` — shared money/date boundary validators.
   - `ar.ts` — server-side money+date+length validation (NaN/negative/junk
@@ -106,9 +106,15 @@ Pipelines 1–2 before true production sign-off.
   - `invoicing.getNextInvoiceNumber` — max-sequence suggestion (collision-free
     after deletes), `create-invoice-dialog` validates lines inline (no silent
     drops).
-  - **Next (P3-B): the critical one** — AR invoices/payments never post to the
-    GL (reports read posted journal entries only): build invoice → AR/Revenue
-    JE and payment → Cash/AR JE with TrustGuard + idempotency.
+  - **P3-B (posting) committed (`f2658d0` + follow-up):** AR invoices/payments
+    now reach the ledger — invoice creation posts Dr AR / Cr line accounts
+    (`ar-inv-{id}`), payments post Dr receipt / Cr AR (`ar-pay-{id}`), void
+    reverses the entry (`ar-inv-rev-{id}`). Idempotent by JE reference,
+    TrustGuard-validated, open-period gated, canonical AR/cash/bank accounts
+    auto-created (1100/1010/1020). Payment posting failure rolls the payment
+    back; deleting a posted payment is blocked (reverse first).
+  - **Next (P3-C/D):** notifications/status + UI surface (unposted state +
+    retry action), PDF/email, then verification loop.
 
 - **Pipeline 2 (Banking) is fully done** — sub-parts A–H + verification loop:
   - G `30b8fbcd`: shared entity-notification helper (`notify-entity.ts`, db client

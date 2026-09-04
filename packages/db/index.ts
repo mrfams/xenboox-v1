@@ -31,6 +31,14 @@ export {
   type CoaRow,
 } from "./lib/bank-ledger";
 export {
+  resolveArReceivableAccount,
+  resolvePaymentReceiptAccount,
+  buildArInvoiceLines,
+  buildArPaymentLines,
+  type ArCoaRow,
+  type ArLedgerLine,
+} from "./lib/ar-ledger";
+export {
   balanceEquationError,
   runningBalanceIssues,
   type BalanceRow,
