@@ -1,4 +1,4 @@
-import { eq, and, sql, gte, sum } from "drizzle-orm";
+import { eq, and, sql, gte, sum, ne } from "drizzle-orm";
 import {
   bankAccounts,
   cashAccounts,
@@ -65,6 +65,7 @@ export const getScenarioData = rlsProtectedProcedure.query(async ({ ctx }) => {
         .where(
           and(
             eq(salesInvoices.entityId, entityId),
+            ne(salesInvoices.status, "voided"),
             gte(salesInvoices.invoiceDate, sparklineStart),
           ),
         )

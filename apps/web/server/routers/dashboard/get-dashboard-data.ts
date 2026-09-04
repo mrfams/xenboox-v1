@@ -10,6 +10,7 @@ import {
   sum,
   asc,
   inArray,
+  ne,
 } from "drizzle-orm";
 import {
   bankAccounts,
@@ -302,6 +303,7 @@ export const getDashboardData = rlsProtectedProcedure
           .where(
             and(
               eq(salesInvoices.entityId, entityId),
+              ne(salesInvoices.status, "voided"),
               gte(salesInvoices.invoiceDate, sparklineStart),
             ),
           )
@@ -459,7 +461,10 @@ export const getDashboardData = rlsProtectedProcedure
           where: eq(entitySettings.entityId, entityId),
         }),
       ]);
-      const entityLocale = getEntityLocale(settingsRow, entityRow?.baseCurrency);
+      const entityLocale = getEntityLocale(
+        settingsRow,
+        entityRow?.baseCurrency,
+      );
       const overdueFmt = new Intl.NumberFormat(entityLocale);
 
       briefingItems.push({

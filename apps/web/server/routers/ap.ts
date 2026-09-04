@@ -1,5 +1,16 @@
 import { z } from "zod";
-import { eq, and, desc, sql, count, sum, gte, lte, inArray } from "drizzle-orm";
+import {
+  eq,
+  and,
+  desc,
+  sql,
+  count,
+  sum,
+  gte,
+  lte,
+  ne,
+  inArray,
+} from "drizzle-orm";
 import {
   suppliers,
   purchaseOrders,
@@ -72,13 +83,15 @@ export const apRouter = router({
       const prevStartDate = `${prevMonth.getFullYear()}-${String(prevMonth.getMonth() + 1).padStart(2, "0")}-01`;
       const prevEndDate = `${prevMonth.getFullYear()}-${String(prevMonth.getMonth() + 1).padStart(2, "0")}-${new Date(prevMonth.getFullYear(), prevMonth.getMonth() + 1, 0).getDate()}`;
 
-      // Total payables (all AP invoices)
+      // Total payables (all AP invoices; voided bills never count — their
+      // totalAmount persists on the row after voiding)
       const totalPayablesResult = await db
         .select({ total: sum(invoicesAp.totalAmount) })
         .from(invoicesAp)
         .where(
           and(
             eq(invoicesAp.entityId, entityId),
+            ne(invoicesAp.status, "voided"),
             gte(invoicesAp.invoiceDate, startDate),
             lte(invoicesAp.invoiceDate, endDate),
           ),
@@ -92,6 +105,7 @@ export const apRouter = router({
         .where(
           and(
             eq(invoicesAp.entityId, entityId),
+            ne(invoicesAp.status, "voided"),
             gte(invoicesAp.invoiceDate, prevStartDate),
             lte(invoicesAp.invoiceDate, prevEndDate),
           ),
@@ -296,6 +310,7 @@ export const apRouter = router({
             and(
               eq(invoicesAp.entityId, entityId),
               inArray(invoicesAp.supplierId, supplierIds),
+              ne(invoicesAp.status, "voided"),
             ),
           )
           .groupBy(invoicesAp.supplierId);
@@ -483,7 +498,12 @@ export const apRouter = router({
         })
         .from(invoicesAp)
         .leftJoin(suppliers, eq(invoicesAp.supplierId, suppliers.id))
-        .where(eq(invoicesAp.entityId, entityId))
+        .where(
+          and(
+            eq(invoicesAp.entityId, entityId),
+            ne(invoicesAp.status, "voided"),
+          ),
+        )
         .groupBy(suppliers.name)
         .orderBy(desc(sum(invoicesAp.totalAmount)))
         .limit(input.limit);
@@ -539,11 +559,12 @@ export const apRouter = router({
     const current60 = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
     const current90 = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
 
-    // Get all unpaid invoices
+    // Get all unpaid invoices (voided bills keep their balance — exclude)
     const unpaidInvoices = await db.query.invoicesAp.findMany({
       where: and(
         eq(invoicesAp.entityId, entityId),
         sql`${invoicesAp.balance} > 0`,
+        ne(invoicesAp.status, "voided"),
       ),
     });
 
@@ -2343,6 +2364,7 @@ export const apRouter = router({
         .where(
           and(
             eq(invoicesAp.entityId, entityId),
+            ne(invoicesAp.status, "voided"),
             gte(invoicesAp.invoiceDate, startDate),
             lte(invoicesAp.invoiceDate, endDate),
           ),

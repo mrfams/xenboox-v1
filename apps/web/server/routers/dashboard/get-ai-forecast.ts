@@ -1,11 +1,14 @@
-import { eq, and, sql, gte, sum } from "drizzle-orm";
+import { eq, and, sql, gte, sum, ne } from "drizzle-orm";
 import { salesInvoices, invoicesAp, bankAccounts } from "@xenboox/db/schema";
 
 import { rlsProtectedProcedure } from "@/lib/trpc/server";
 import { db } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { safeQuery, fillMonthlyWindow } from "./_helpers";
-import { redactPii, INJECTION_DEFENSE_SUFFIX } from "@xenboox/agents/core/security/injection-defense";
+import {
+  redactPii,
+  INJECTION_DEFENSE_SUFFIX,
+} from "@xenboox/agents/core/security/injection-defense";
 
 /**
  * Projects revenue, expenses, and cash flow for the next 3 months.
@@ -49,6 +52,7 @@ export const getAiForecast = rlsProtectedProcedure.query(async ({ ctx }) => {
         .where(
           and(
             eq(salesInvoices.entityId, entityId),
+            ne(salesInvoices.status, "voided"),
             gte(salesInvoices.invoiceDate, sixMonthsAgo),
           ),
         )

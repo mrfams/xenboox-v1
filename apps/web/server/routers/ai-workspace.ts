@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { eq, and, desc, sql, gte, lte, count, sum } from "drizzle-orm";
+import { eq, and, desc, sql, gte, lte, count, sum, ne } from "drizzle-orm";
 import {
   bankAccounts,
   bankTransactions,
@@ -278,13 +278,15 @@ export const aiWorkspaceRouter = router({
     const prevStartOfMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
     const prevEndOfMonth = new Date(now.getFullYear(), now.getMonth(), 0);
 
-    // Current month revenue
+    // Current month revenue (voided invoices never count — their totalAmount
+    // persists on the row after voiding)
     const currentRevenue = await db
       .select({ total: sum(salesInvoices.totalAmount) })
       .from(salesInvoices)
       .where(
         and(
           eq(salesInvoices.entityId, entityId),
+          ne(salesInvoices.status, "voided"),
           gte(
             salesInvoices.invoiceDate,
             startOfMonth.toISOString().split("T")[0],
@@ -299,6 +301,7 @@ export const aiWorkspaceRouter = router({
       .where(
         and(
           eq(salesInvoices.entityId, entityId),
+          ne(salesInvoices.status, "voided"),
           gte(
             salesInvoices.invoiceDate,
             prevStartOfMonth.toISOString().split("T")[0],
@@ -317,6 +320,7 @@ export const aiWorkspaceRouter = router({
       .where(
         and(
           eq(invoicesAp.entityId, entityId),
+          ne(invoicesAp.status, "voided"),
           gte(invoicesAp.invoiceDate, startOfMonth.toISOString().split("T")[0]),
         ),
       );

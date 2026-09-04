@@ -189,6 +189,32 @@ describe("P4-D: AP overdue engine + notifications", () => {
   });
 });
 
+describe("P4 verification: voided rows never count in aggregates", () => {
+  const c = fs.readFileSync(AP, "utf-8");
+  it("all five AP aggregates exclude voided bills", () => {
+    // getVendorsOverview (total + prev), getTopVendors, listVendorsWithPayables,
+    // getVendorAging, getPayablesTrend
+    expect(
+      c.match(/ne\(invoicesAp\.status, "voided"\)/g)?.length ?? 0,
+    ).toBeGreaterThanOrEqual(6);
+  });
+  it("AR aggregates exclude voided invoices for parity", () => {
+    const aw = fs.readFileSync(
+      path.resolve(__dirname, "../server/routers/ai-workspace.ts"),
+      "utf-8",
+    );
+    expect(
+      aw.match(/ne\(salesInvoices\.status, "voided"\)/g)?.length ?? 0,
+    ).toBeGreaterThanOrEqual(2);
+    expect(aw).toContain('ne(invoicesAp.status, "voided")');
+    const fc = fs.readFileSync(
+      path.resolve(__dirname, "../server/routers/dashboard/get-ai-forecast.ts"),
+      "utf-8",
+    );
+    expect(fc).toContain('ne(salesInvoices.status, "voided")');
+  });
+});
+
 describe("P4-B: ap-posting module structure", () => {
   const m = fs.readFileSync(
     path.resolve(__dirname, "../server/ap-posting.ts"),
