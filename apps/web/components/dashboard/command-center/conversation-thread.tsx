@@ -8,6 +8,7 @@ import {
   Eye,
   ThumbsUp,
   ThumbsDown,
+  FileText,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -435,7 +436,41 @@ export function ConversationThread({
                     : "rounded-2xl bg-primary px-3.5 py-2.5 text-primary-foreground",
                 )}
               >
-                <p className="whitespace-pre-wrap break-words">{msg.content}</p>
+                {/* Attachments — shown inside the bubble like ChatGPT/Claude */}
+                {msg.role === "user" &&
+                  (
+                    msg as {
+                      attachments?: Array<{ name: string; type: string }>;
+                    }
+                  ).attachments &&
+                  (
+                    msg as {
+                      attachments?: Array<{ name: string; type: string }>;
+                    }
+                  ).attachments!.length > 0 && (
+                    <div className="mb-2 flex flex-wrap gap-1.5">
+                      {(
+                        msg as {
+                          attachments?: Array<{ name: string; type: string }>;
+                        }
+                      ).attachments!.map((f, i) => (
+                        <span
+                          key={`${f.name}-${i}`}
+                          className="inline-flex items-center gap-1.5 rounded-lg bg-white/15 px-2.5 py-1 text-xs font-medium text-primary-foreground backdrop-blur"
+                        >
+                          <FileText className="h-3.5 w-3.5 shrink-0" />
+                          <span className="max-w-[160px] truncate">
+                            {f.name}
+                          </span>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                {msg.content && (
+                  <p className="whitespace-pre-wrap break-words">
+                    {msg.content}
+                  </p>
+                )}
 
                 {/* Retry button for error messages */}
                 {msg.role === "assistant" && msg.status === "error" && (

@@ -34,6 +34,7 @@ export interface DashboardChatMessage {
   batchResults: BatchIngestionResultEvent[];
   dataTables: DataTableEvent[];
   charts: ChartEvent[];
+  attachments?: Array<{ documentId: string; name: string; type: string }>;
   confidence?: number;
   durationMs?: number;
   createdAt: number;
@@ -269,6 +270,12 @@ export function useDashboardChat({ entityId }: UseDashboardChatOptions) {
           batchResults: [],
           dataTables: [],
           charts: [],
+          attachments:
+            files?.map((f) => ({
+              documentId: f.documentId,
+              name: f.name,
+              type: f.type,
+            })) ?? [],
           createdAt: Date.now(),
         },
       ]);
