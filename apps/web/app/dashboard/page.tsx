@@ -930,6 +930,7 @@ function RoleWelcome({
 // AI tells you what matters. Purple card with AI text + action buttons.
 
 function ProactiveBriefing({ entityId }: { entityId: string | null }) {
+  const { format } = useFormatCurrency();
   const [briefingText, setBriefingText] = useState<string | null>(null);
   const [briefingActions, setBriefingActions] = useState<
     Array<{ label: string; href: string }>

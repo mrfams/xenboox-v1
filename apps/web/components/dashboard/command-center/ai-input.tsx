@@ -85,25 +85,35 @@ export function AiInput({
     });
 
   // Icon/color mapping for suggestion IDs
-  const suggestionMeta: Record<
-    string,
-    { icon: typeof Wallet; color: string }
-  > = {
-    overdue_invoices: { icon: AlertTriangle, color: "text-attention-amber" },
-    pending_journals: { icon: FileText, color: "text-signal-indigo" },
-    payroll: { icon: Calendar, color: "text-signal-indigo" },
-    close_books: { icon: FileText, color: "text-signal-indigo" },
-    cash_position: { icon: Wallet, color: "text-balanced-green" },
-    forecast: { icon: TrendingUp, color: "text-primary" },
-  };
+  const suggestionMeta: Record<string, { icon: typeof Wallet; color: string }> =
+    {
+      overdue_invoices: { icon: AlertTriangle, color: "text-attention-amber" },
+      pending_journals: { icon: FileText, color: "text-signal-indigo" },
+      payroll: { icon: Calendar, color: "text-signal-indigo" },
+      close_books: { icon: FileText, color: "text-signal-indigo" },
+      cash_position: { icon: Wallet, color: "text-balanced-green" },
+      forecast: { icon: TrendingUp, color: "text-primary" },
+    };
 
   const defaultIcon = { icon: Sparkles, color: "text-primary" };
 
   const suggestions = (
     dynamicSuggestions ?? [
-      { id: "cash_position", label: "Cash position", prompt: "Explain my current cash position" },
-      { id: "forecast", label: "Show P&L", prompt: "Forecast cash flow for next month" },
-      { id: "close_books", label: "Close books", prompt: "Close the books for this month" },
+      {
+        id: "cash_position",
+        label: "Cash position",
+        prompt: "Explain my current cash position",
+      },
+      {
+        id: "forecast",
+        label: "Show P&L",
+        prompt: "Forecast cash flow for next month",
+      },
+      {
+        id: "close_books",
+        label: "Close books",
+        prompt: "Close the books for this month",
+      },
     ]
   ).map((s) => {
     const meta = suggestionMeta[s.id] ?? defaultIcon;
@@ -128,7 +138,9 @@ export function AiInput({
             <button
               key={suggestion.id}
               type="button"
-              onClick={() => handleSubmit(suggestion.prompt ?? suggestion.label)}
+              onClick={() =>
+                handleSubmit(suggestion.prompt ?? suggestion.label)
+              }
               disabled={isResponding}
               className={cn(
                 "inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border/40 bg-background/50",
@@ -208,7 +220,7 @@ export function AiInput({
               }
             }}
             placeholder="Ask anything about your accounting..."
-            className="max-h-[120px] min-h-[48px] flex-1 resize-none overflow-y-auto bg-transparent px-1 pt-[15px] pb-[11px] text-[15px] leading-5 text-foreground placeholder:text-muted-foreground/50 outline-none"
+            className="max-h-[120px] min-h-[48px] flex-1 resize-none overflow-y-auto bg-transparent px-1 pt-[15px] pb-[11px] text-[15px] leading-5 text-foreground placeholder:text-muted-foreground outline-none"
           />
           <Button
             type="button"
