@@ -51,6 +51,8 @@ type Bill = {
   status: string;
   supplierName: string | null;
   supplierId: string | null;
+  // P4-C: null until the bill is posted to the general ledger.
+  journalEntryId: string | null;
 };
 
 // ─── Status Badge ──────────────────────────────────────────────────────────
@@ -433,7 +435,21 @@ export function BillsView() {
     {
       key: "status",
       label: "Status",
-      render: (row) => <BillStatusBadge status={row.status} />,
+      render: (row) => (
+        <div className="flex items-center gap-1.5">
+          <BillStatusBadge status={row.status} />
+          {!row.journalEntryId &&
+            row.status !== "voided" &&
+            row.status !== "paid" && (
+              <span
+                className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[9px] font-bold text-amber-700"
+                title="Not posted to the ledger — open the bill to post it"
+              >
+                Not in ledger
+              </span>
+            )}
+        </div>
+      ),
     },
     {
       key: "actions",

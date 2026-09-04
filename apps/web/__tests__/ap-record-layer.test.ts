@@ -119,6 +119,52 @@ describe("P4-B: AP posting to the general ledger", () => {
   });
 });
 
+describe("P4-C: AP UI surface (posted state)", () => {
+  const BILLS_VIEW = path.resolve(
+    __dirname,
+    "../components/finance/bills-view.tsx",
+  );
+  const DETAIL_PANEL = path.resolve(
+    __dirname,
+    "../components/finance/bill-detail-panel.tsx",
+  );
+
+  it("list + detail queries expose journalEntryId so the UI can show posted state", () => {
+    const b = fs.readFileSync(BILLS, "utf-8");
+    expect(b).toContain("journalEntryId: invoicesAp.journalEntryId");
+    expect(b).toContain("journalEntryId: bill.journalEntryId ?? null");
+  });
+  it("list emits the client-expected keys (C1 — no more blank bill numbers)", () => {
+    const b = fs.readFileSync(BILLS, "utf-8");
+    expect(b).toContain("invoiceNumber: bill.invoiceNumber");
+    expect(b).toContain('supplierName: bill.supplierName ?? "Unknown Vendor"');
+  });
+  it("ap router exposes retryPostBill with plain-English reasons", () => {
+    const c = fs.readFileSync(AP, "utf-8");
+    expect(c).toContain("retryPostBill: rlsMutateProcedure");
+    expect(c).toContain("Voided bills are not posted to the ledger");
+    expect(c).toContain(
+      "Posting was skipped — the bill date's accounting period is closed",
+    );
+  });
+  it("detail panel surfaces unposted bills and blocks payments until posted", () => {
+    const d = fs.readFileSync(DETAIL_PANEL, "utf-8");
+    expect(d).toContain("isUnposted = !detail.journalEntryId && !isVoided");
+    expect(d).toContain("This bill is not yet in the general ledger");
+    expect(d).toContain("Post to ledger");
+    expect(d).toContain("disabled={isUnposted || retryPost.isPending}");
+    expect(d).toContain(
+      "Post this bill to the ledger before recording payments",
+    );
+  });
+  it("bill list marks not-in-ledger rows", () => {
+    const v = fs.readFileSync(BILLS_VIEW, "utf-8");
+    expect(v).toContain("journalEntryId: string | null");
+    expect(v).toContain("Not in ledger");
+    expect(v).toContain("!row.journalEntryId");
+  });
+});
+
 describe("P4-B: ap-posting module structure", () => {
   const m = fs.readFileSync(
     path.resolve(__dirname, "../server/ap-posting.ts"),

@@ -80,15 +80,30 @@ export function BillDetailPanel({ billId, onClose }: BillDetailPanelProps) {
   const { entityId } = useEntity();
   const [showRecordPayment, setShowRecordPayment] = useState(false);
 
+  const utils = trpc.useUtils();
+
   const { data: detail, isLoading } = trpc.bills.getBillDetail.useQuery(
     { billId },
     { enabled: !!entityId && !!billId },
   );
 
+  // P4-C: a bill created into a closed period (or with missing accounts) is
+  // unposted — surface it and let the user post it once the period reopens.
+  const retryPost = trpc.ap.retryPostBill.useMutation({
+    onSuccess: () => {
+      toast.success("Bill posted to the ledger");
+      utils.bills.invalidate();
+      utils.ap.invalidate();
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
   const recordPayment = trpc.ap.createPayment.useMutation({
     onSuccess: () => {
       toast.success("Payment recorded");
       setShowRecordPayment(false);
+      utils.bills.invalidate();
+      utils.ap.invalidate();
     },
     onError: (err) => toast.error(err.message),
   });
@@ -116,6 +131,7 @@ export function BillDetailPanel({ billId, onClose }: BillDetailPanelProps) {
   const isPaid = detail.status === "paid";
   const isVoided = detail.status === "voided";
   const canPay = !isPaid && !isVoided;
+  const isUnposted = !detail.journalEntryId && !isVoided;
 
   return (
     <>
@@ -201,10 +217,44 @@ export function BillDetailPanel({ billId, onClose }: BillDetailPanelProps) {
               </div>
             </div>
 
+            {/* P4-C: not in the ledger yet — tell the user and offer the post */}
+            {isUnposted && (
+              <div className="mb-6 flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                <AlertCircle className="h-4 w-4 shrink-0" />
+                <p className="flex-1">
+                  This bill is not yet in the general ledger (its accounting
+                  period may have been closed when it was created).
+                </p>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="border-amber-300 bg-white text-amber-800 hover:bg-amber-100"
+                  onClick={() => retryPost.mutate({ id: detail.id })}
+                  disabled={retryPost.isPending}
+                >
+                  {retryPost.isPending ? (
+                    <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <FileText className="mr-1.5 h-3.5 w-3.5" />
+                  )}
+                  Post to ledger
+                </Button>
+              </div>
+            )}
+
             {/* Action Buttons */}
             {canPay && (
               <div className="mb-6 flex flex-wrap gap-2">
-                <Button size="sm" onClick={() => setShowRecordPayment(true)}>
+                <Button
+                  size="sm"
+                  onClick={() => setShowRecordPayment(true)}
+                  disabled={isUnposted || retryPost.isPending}
+                  title={
+                    isUnposted
+                      ? "Post this bill to the ledger before recording payments"
+                      : undefined
+                  }
+                >
                   <DollarSign className="mr-1.5 h-3.5 w-3.5" />
                   Record Payment
                 </Button>

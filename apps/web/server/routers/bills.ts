@@ -392,6 +392,7 @@ export const billsRouter = router({
           supplierId: invoicesAp.supplierId,
           supplierName: suppliers.name,
           purchaseOrderId: invoicesAp.purchaseOrderId,
+          journalEntryId: invoicesAp.journalEntryId,
         })
         .from(invoicesAp)
         .leftJoin(suppliers, eq(invoicesAp.supplierId, suppliers.id))
@@ -435,6 +436,11 @@ export const billsRouter = router({
 
         return {
           id: bill.id,
+          // P4-C (C1): the client renders `invoiceNumber`/`supplierName` —
+          // emitting only `billNumber`/`vendorName` rendered "—" for every
+          // row. Both spellings are kept for any external consumers.
+          invoiceNumber: bill.invoiceNumber,
+          supplierName: bill.supplierName ?? "Unknown Vendor",
           billNumber: bill.invoiceNumber,
           vendorName: bill.supplierName ?? "Unknown Vendor",
           billDate: bill.invoiceDate,
@@ -445,6 +451,7 @@ export const billsRouter = router({
           dueStatus,
           daysUntilDue,
           purchaseOrderId: bill.purchaseOrderId,
+          journalEntryId: bill.journalEntryId ?? null,
         };
       });
 
@@ -504,6 +511,7 @@ export const billsRouter = router({
         currency: bill.currency,
         notes: bill.notes,
         purchaseOrderId: bill.purchaseOrderId,
+        journalEntryId: bill.journalEntryId ?? null,
         supplier: supplier
           ? {
               id: supplier.id,

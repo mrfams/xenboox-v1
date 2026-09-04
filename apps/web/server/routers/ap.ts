@@ -2356,9 +2356,71 @@ export const apRouter = router({
 
     return trendData;
   }),
+
+  /**
+   * P4-C: retry posting a bill to the ledger after a skip (closed period at
+   * creation, missing accounts, transient failure). Returns a plain-English
+   * reason when posting is still impossible so the UI never leaves a silent
+   * unposted bill.
+   */
+  retryPostBill: rlsMutateProcedure
+    .use(requirePermission("accounts_payable", "create"))
+    .input(z.object({ id: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const bill = await db.query.invoicesAp.findFirst({
+        where: and(
+          eq(invoicesAp.id, input.id),
+          eq(invoicesAp.entityId, ctx.entityId!),
+        ),
+        columns: { id: true, status: true },
+      });
+      if (!bill) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Bill not found",
+        });
+      }
+      if (bill.status === "voided") {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Voided bills are not posted to the ledger",
+        });
+      }
+      const result = await postApBillToLedger(
+        input.id,
+        ctx.entityId!,
+        ctx.session!.user!.id!,
+      );
+      if (!result.posted) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: friendlyApPostReason(result.reason),
+        });
+      }
+      return { posted: true, journalEntryId: result.journalEntryId };
+    }),
 });
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
+
+function friendlyApPostReason(reason: string): string {
+  const map: Record<string, string> = {
+    bill_not_found: "Bill not found.",
+    voided: "Voided bills are not posted.",
+    no_lines: "Bill has no line items to post.",
+    no_chart_of_accounts:
+      "No chart of accounts exists yet — add accounts first.",
+    no_ap_account:
+      "Accounts Payable account could not be resolved — add one to your chart of accounts.",
+    missing_line_account:
+      "A line account is missing from your chart of accounts — fix the line first.",
+    invalid_line_amount: "A line amount is invalid.",
+    journal_skipped:
+      "Posting was skipped — the bill date's accounting period is closed or the entry failed validation.",
+    error: "Posting failed unexpectedly — check the audit log or try again.",
+  };
+  return map[reason] ?? "Could not post the bill to the ledger.";
+}
 
 /**
  * Name-keyword patterns used both to derive vendorType in the response and
