@@ -15,6 +15,8 @@ import {
   trustGuardToError,
 } from "@xenboox/agents";
 
+import { moneyString, moneyToCents, MAX_CENTS } from "../ar-validation";
+
 import { db } from "@/lib/db";
 import {
   handleMutationError,
@@ -937,18 +939,13 @@ export const journalRouter = router({
           .array(
             z.object({
               accountId: z.string().uuid(),
-              debit: z
-                .string()
-                .regex(/^\d+(\.\d{1,2})?$/)
-                .default("0"),
-              credit: z
-                .string()
-                .regex(/^\d+(\.\d{1,2})?$/)
-                .default("0"),
+              debit: moneyString.default("0"),
+              credit: moneyString.default("0"),
               description: z.string().max(500).optional(),
             }),
           )
-          .min(2),
+          .min(2)
+          .max(200),
         source: z.string().optional(),
         confidence: z.number().min(0).max(1).optional(),
       }),
@@ -983,42 +980,113 @@ export const journalRouter = router({
           });
         }
 
-        const lastEntry = await db.query.journalEntries.findFirst({
-          where: eq(journalEntries.entityId, ctx.entityId!),
-          orderBy: [desc(journalEntries.entryNumber)],
-        });
-        const entryNumber = (lastEntry?.entryNumber ?? 0) + 1;
+        // P7-A: money safety — each amount must fit numeric(15,2) as exact
+        // integer cents (MONEY_RE already bounds the string; this is the
+        // belt-and-suspenders cent check).
+        for (const line of input.lines) {
+          const debitCents = moneyToCents(line.debit);
+          const creditCents = moneyToCents(line.credit);
+          if (
+            !Number.isSafeInteger(debitCents) ||
+            !Number.isSafeInteger(creditCents) ||
+            debitCents > MAX_CENTS ||
+            creditCents > MAX_CENTS
+          ) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message:
+                "Line amount is too large — maximum is 9,999,999,999,999.99",
+            });
+          }
+        }
 
-        const [entry] = await db
-          .insert(journalEntries)
-          .values({
-            entityId: ctx.entityId!,
-            entryNumber,
-            description: input.description,
-            reference: input.reference,
-            date: input.date,
-            periodId: input.periodId,
-            status: "draft",
-            source: input.source,
-            confidence: input.confidence ? String(input.confidence) : undefined,
-          })
-          .returning();
+        // P7-A: friendly duplicate-reference pre-check. The (entityId,
+        // reference) unique index is the idempotency key for posted entries —
+        // surfacing a raw constraint 500 would leak internals and confuse.
+        if (input.reference) {
+          const existing = await db.query.journalEntries.findFirst({
+            where: and(
+              eq(journalEntries.entityId, ctx.entityId!),
+              eq(journalEntries.reference, input.reference),
+            ),
+            columns: { id: true },
+          });
+          if (existing) {
+            throw new TRPCError({
+              code: "CONFLICT",
+              message: `A journal entry with reference "${input.reference}" already exists for this entity`,
+            });
+          }
+        }
 
-        // Batch insert all lines in a single query (N+1 fix)
-        const lineValues = input.lines.map((line) => ({
-          journalEntryId: entry.id,
-          accountId: line.accountId,
-          debit: line.debit,
-          credit: line.credit,
-          description: line.description,
-        }));
+        // P7-A: entry numbers must never collide under concurrency. The
+        // (entityId, entryNumber) index is unique, so two creates reading the
+        // same max would race — retry with a freshly-read max on collision.
+        let entry: typeof journalEntries.$inferSelect | null = null;
+        for (let attempt = 0; attempt < 3 && !entry; attempt++) {
+          const lastEntry = await db.query.journalEntries.findFirst({
+            where: eq(journalEntries.entityId, ctx.entityId!),
+            orderBy: [desc(journalEntries.entryNumber)],
+          });
+          const entryNumber = (lastEntry?.entryNumber ?? 0) + 1;
+          try {
+            const [created] = await db
+              .insert(journalEntries)
+              .values({
+                entityId: ctx.entityId!,
+                entryNumber,
+                description: input.description,
+                reference: input.reference,
+                date: input.date,
+                periodId: input.periodId,
+                status: "draft",
+                source: input.source,
+                confidence: input.confidence
+                  ? String(input.confidence)
+                  : undefined,
+              })
+              .returning();
+            entry = created;
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            const isNumberCollision =
+              /je_entity_entry_number|duplicate key value/.test(msg);
+            if (!isNumberCollision || attempt === 2) throw err;
+            // Another create took the number we computed — loop and re-read max.
+          }
+        }
+        if (!entry) {
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: "Could not allocate a journal entry number — try again",
+          });
+        }
 
-        const lines = await db
-          .insert(journalEntryLines)
-          .values(lineValues)
-          .returning();
+        // Batch insert all lines in a single query (N+1 fix). If the lines
+        // fail, compensate: delete the just-created header so no orphaned
+        // draft (and its consumed entry number) survives.
+        try {
+          const lineValues = input.lines.map((line) => ({
+            journalEntryId: entry.id,
+            accountId: line.accountId,
+            debit: line.debit,
+            credit: line.credit,
+            description: line.description,
+          }));
 
-        return { entry, lines };
+          const lines = await db
+            .insert(journalEntryLines)
+            .values(lineValues)
+            .returning();
+
+          return { entry, lines };
+        } catch (error) {
+          await db
+            .delete(journalEntries)
+            .where(eq(journalEntries.id, entry.id))
+            .catch(() => undefined);
+          throw error;
+        }
       } catch (error) {
         handleMutationError(error, "Failed to create journal entry");
       }

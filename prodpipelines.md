@@ -64,17 +64,18 @@ Status legend: ✅ done · 🔄 in progress · ⬜ not started · ⚠️ needs f
 
 ## Pipelines 3–12
 
-| # | Pipeline | Status | Notes |
-| --- | ---------------------------- | ------ | ------------------------------------------------------------------ || 3 | Invoice Flow | ✅ | A–D + verification loop committed |
-| 4 | Bill Flow | ✅ | A–D + verification loop committed |
-| 5 | Bank Reconciliation | ✅ | A–E + verification loop committed |
-| 6 | Expense Recording → Approval | ✅ | A ✅ · B ✅ · C ✅ · D ✅ · E ✅ (EXP- partition, superRefine tree fix, GMD sweep, tax-install layering) |
-| 7 | Journal Entries | ✅ | Post/reverse UI, dynamic year prefix |
-| 8 | Month-End Close | ✅ | Full checklist, idempotent task updates, AI recommendations |
-| 9 | Financial Reporting | ✅ | P&L, Balance Sheet, Cash Flow, Budget vs Actual |
-| 10 | AI Chat / Agent Routing | ✅ | Message validation, conversation management |
-| 11 | Recurring Transactions | ✅ | Batch party-name enrichment, full lifecycle |
-| 12 | Multi-Currency | ✅ | 4-level FX resolution, cache, revaluation, audit logging |
+| #   | Pipeline                     | Status | Notes                                                                                                    |
+| --- | ---------------------------- | ------ | -------------------------------------------------------------------------------------------------------- |
+| 3   | Invoice Flow                 | ✅     | A–D + verification loop committed                                                                        |
+| 4   | Bill Flow                    | ✅     | A–D + verification loop committed                                                                        |
+| 5   | Bank Reconciliation          | ✅     | A–E + verification loop committed                                                                        |
+| 6   | Expense Recording → Approval | ✅     | A ✅ · B ✅ · C ✅ · D ✅ · E ✅ (EXP- partition, superRefine tree fix, GMD sweep, tax-install layering) |
+| 7   | Journal Entries              | 🔄     | Deep-audit: A ✅ (record layer) · B ⬜ · C ⬜ · D ⬜                                                     |
+| 8   | Month-End Close              | ✅     | Full checklist, idempotent task updates, AI recommendations                                              |
+| 9   | Financial Reporting          | ✅     | P&L, Balance Sheet, Cash Flow, Budget vs Actual                                                          |
+| 10  | AI Chat / Agent Routing      | ✅     | Message validation, conversation management                                                              |
+| 11  | Recurring Transactions       | ✅     | Batch party-name enrichment, full lifecycle                                                              |
+| 12  | Multi-Currency               | ✅     | 4-level FX resolution, cache, revaluation, audit logging                                                 |
 
 **Findings:** `findings/pipelines-3-12-audit/audit-summary.md`
 **Status:** ⚠️ One audit pass done (2 fixes landed: Bills scope-crash, Recurring N+1).
