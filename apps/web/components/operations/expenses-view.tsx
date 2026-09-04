@@ -26,8 +26,12 @@ import {
   Eye,
   Send,
   XCircle,
+  UserRound,
+  HandCoins,
+  Loader2,
   type LucideIcon,
 } from "lucide-react";
+import { toast } from "sonner";
 
 import { useEntity } from "@/lib/entity-context";
 import { trpc } from "@/lib/trpc/client";
@@ -245,6 +249,224 @@ function SummaryCards({
   );
 }
 
+// ─── Claims Inbox (employee reimbursement HITL) ──────────────────────────
+// Claims are submitted by the AI on the employee's behalf. Humans decide:
+// approve (money owed to the employee is recognized) or reject, then
+// reimburse (money actually moves out — posts to the ledger). Surfaces here
+// so nothing needs a decision stays hidden.
+
+function ClaimsInbox() {
+  const { entityId, entityCurrency } = useEntity();
+  const { format } = useFormatCurrency();
+  const [rejectingId, setRejectingId] = useState<string | null>(null);
+  const [rejectNote, setRejectNote] = useState("");
+
+  const { data, isLoading, refetch } = trpc.expenses.listClaims.useQuery(
+    { status: "all", limit: 100 },
+    { enabled: !!entityId },
+  );
+
+  const refresh = () => {
+    refetch();
+  };
+
+  const decide = trpc.expenses.decideClaim.useMutation({
+    onSuccess: () => {
+      toast.success("Claim decision recorded");
+      setRejectingId(null);
+      setRejectNote("");
+      refresh();
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const reimburse = trpc.expenses.reimburseClaim.useMutation({
+    onSuccess: () => toast.success("Claim marked as reimbursed"),
+    onError: (err) => toast.error(err.message),
+  });
+
+  const actionable =
+    data?.claims?.filter((c) =>
+      ["submitted", "flagged", "approved"].includes(c.status),
+    ) ?? [];
+  const busy = decide.isPending || reimburse.isPending || (isLoading && !data);
+
+  if (!isLoading && data && actionable.length === 0) return null;
+
+  return (
+    <div className="rounded-xl border border-border/50 bg-card">
+      <div className="flex items-center gap-2 border-b border-border/50 px-4 py-3">
+        <div className="flex h-6 w-6 items-center justify-center rounded-md bg-attention-amber/10">
+          <UserRound className="h-3.5 w-3.5 text-attention-amber" />
+        </div>
+        <p className="text-xs font-semibold text-foreground">Employee Claims</p>
+        <span className="rounded-full bg-muted px-1.5 py-0.5 text-[9px] font-bold text-muted-foreground">
+          {actionable.length} need attention
+        </span>
+        {busy && (
+          <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground ml-auto" />
+        )}
+      </div>
+
+      <div className="divide-y divide-border/50">
+        {actionable.map((claim) => (
+          <div key={claim.id} className="px-4 py-3">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-sm font-medium text-foreground">
+                    {claim.claimantName || "—"}
+                  </p>
+                  <span className="text-[10px] text-muted-foreground">
+                    {claim.claimNumber}
+                  </span>
+                  {claim.department && (
+                    <span className="inline-flex items-center rounded-full bg-muted px-1.5 py-0.5 text-[9px] font-medium text-muted-foreground">
+                      {claim.department}
+                    </span>
+                  )}
+                  {claim.status === "flagged" && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-error-clay/10 px-1.5 py-0.5 text-[9px] font-bold text-error-clay">
+                      <AlertCircle className="h-2.5 w-2.5" />
+                      Flagged
+                    </span>
+                  )}
+                  {claim.status === "approved" && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-balanced-green/10 px-1.5 py-0.5 text-[9px] font-bold text-balanced-green">
+                      <CheckCircle2 className="h-2.5 w-2.5" />
+                      Approved
+                    </span>
+                  )}
+                </div>
+                <p className="mt-0.5 text-[11px] text-muted-foreground line-clamp-1">
+                  {claim.description || claim.category || "No description"}
+                </p>
+                {claim.flaggedReason && (
+                  <p className="mt-1 text-[10px] font-medium text-error-clay">
+                    {claim.flaggedReason}
+                  </p>
+                )}
+                {claim.lines && claim.lines.length > 0 && (
+                  <div className="mt-1.5 flex flex-wrap gap-1">
+                    {claim.lines.map((l, i) => (
+                      <span
+                        key={i}
+                        className={cn(
+                          "inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[9px] font-medium",
+                          l.isFlagged
+                            ? "bg-error-clay/10 text-error-clay"
+                            : "bg-muted text-muted-foreground",
+                        )}
+                      >
+                        {l.category}
+                        <span className="tabular-nums">
+                          {format(Number(l.amount), entityCurrency ?? "USD")}
+                        </span>
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="flex shrink-0 flex-col items-end gap-2">
+                <p className="text-sm font-bold tabular-nums text-foreground">
+                  {format(Number(claim.totalAmount), entityCurrency ?? "USD")}
+                </p>
+
+                {rejectingId === claim.id ? (
+                  <div className="flex flex-col items-end gap-1.5">
+                    <input
+                      type="text"
+                      placeholder="Reason for rejection (optional)"
+                      value={rejectNote}
+                      onChange={(e) => setRejectNote(e.target.value)}
+                      className="h-8 w-56 rounded-lg border border-border bg-background px-2.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                    />
+                    <div className="flex gap-1.5">
+                      <button
+                        type="button"
+                        disabled={decide.isPending}
+                        onClick={() =>
+                          decide.mutate({
+                            claimId: claim.id,
+                            decision: "rejected",
+                            note: rejectNote || undefined,
+                          })
+                        }
+                        className="inline-flex items-center gap-1 rounded-lg bg-error-clay px-2.5 py-1 text-[10px] font-medium text-white hover:bg-error-clay/90 transition-colors disabled:opacity-50"
+                      >
+                        <XCircle className="h-3 w-3" />
+                        Confirm reject
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setRejectingId(null);
+                          setRejectNote("");
+                        }}
+                        className="inline-flex items-center rounded-lg border border-border bg-background px-2.5 py-1 text-[10px] font-medium text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex gap-1.5">
+                    {claim.status === "approved" ? (
+                      <button
+                        type="button"
+                        disabled={reimburse.isPending}
+                        onClick={() =>
+                          reimburse.mutate({
+                            claimId: claim.id,
+                            paymentMethod: "bank_transfer",
+                          })
+                        }
+                        className="inline-flex items-center gap-1 rounded-lg bg-primary px-2.5 py-1 text-[10px] font-medium text-primary-foreground shadow-sm hover:bg-primary/90 transition-colors disabled:opacity-50"
+                      >
+                        <HandCoins className="h-3 w-3" />
+                        Reimburse
+                      </button>
+                    ) : (
+                      <>
+                        <button
+                          type="button"
+                          disabled={decide.isPending}
+                          onClick={() =>
+                            decide.mutate({
+                              claimId: claim.id,
+                              decision: "approved",
+                            })
+                          }
+                          className="inline-flex items-center gap-1 rounded-lg bg-balanced-green px-2.5 py-1 text-[10px] font-medium text-white hover:bg-balanced-green/90 transition-colors disabled:opacity-50"
+                        >
+                          <CheckCircle2 className="h-3 w-3" />
+                          Approve
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setRejectingId(claim.id);
+                            setRejectNote("");
+                          }}
+                          className="inline-flex items-center gap-1 rounded-lg border border-error-clay/30 bg-error-clay/5 px-2.5 py-1 text-[10px] font-medium text-error-clay hover:bg-error-clay/10 transition-colors"
+                        >
+                          <XCircle className="h-3 w-3" />
+                          Reject
+                        </button>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ─── Component ────────────────────────────────────────────────────────────
 
 export function ExpensesView() {
@@ -380,6 +602,9 @@ export function ExpensesView() {
         pendingCount={pendingCount}
         reimbursedCount={reimbursedCount}
       />
+
+      {/* Employee Claims awaiting human decision */}
+      <ClaimsInbox />
 
       {/* AI Insights */}
       <AiInsightsStrip />

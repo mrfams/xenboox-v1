@@ -3,6 +3,42 @@ import * as fs from "fs";
 import * as path from "path";
 
 const EXPENSES = path.resolve(__dirname, "../server/routers/expenses.ts");
+const VIEW = path.resolve(
+  __dirname,
+  "../components/operations/expenses-view.tsx",
+);
+const PANEL = path.resolve(
+  __dirname,
+  "../components/finance/expense-detail-panel.tsx",
+);
+
+describe("P6-D: UI surface — claims inbox + approve panel", () => {
+  const v = fs.readFileSync(VIEW, "utf-8");
+  const p = fs.readFileSync(PANEL, "utf-8");
+  it("claims surface with a human decision path (approve/reject/reimburse)", () => {
+    expect(v).toContain("Employee Claims");
+    expect(v).toContain("trpc.expenses.decideClaim.useMutation");
+    expect(v).toContain("trpc.expenses.reimburseClaim.useMutation");
+    expect(v).toContain('decision: "rejected"');
+    expect(v).toContain('decision: "approved"');
+    expect(v).toContain('paymentMethod: "bank_transfer"');
+  });
+  it("claims only render when something needs attention (no dead space)", () => {
+    expect(v).toContain("actionable.length === 0");
+    expect(v).toContain("return null");
+  });
+  it("approve panel surfaces a payment-method choice + toast feedback", () => {
+    expect(p).toContain('from "sonner"');
+    expect(p).toContain("toast.success");
+    expect(p).toContain("toast.error");
+    expect(p).toContain("paymentMethod");
+  });
+  it("claim decisions are finance-role gated on the server", () => {
+    const c = fs.readFileSync(EXPENSES, "utf-8");
+    const gate = 'requireRole("owner", "admin", "finance_director")';
+    expect(c.split(gate).length - 1).toBeGreaterThanOrEqual(3);
+  });
+});
 
 describe("P6-C: claim reimbursement posts to the ledger", () => {
   const c = fs.readFileSync(EXPENSES, "utf-8");

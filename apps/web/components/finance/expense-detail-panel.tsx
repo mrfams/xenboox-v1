@@ -23,6 +23,8 @@ import {
   ChevronUp,
 } from "lucide-react";
 
+import { toast } from "sonner";
+
 import { trpc } from "@/lib/trpc/client";
 import { cn } from "@/lib/utils";
 import { useFormatCurrency } from "@/lib/hooks/use-currency";
@@ -108,6 +110,10 @@ export function ExpenseDetailPanel({
   const [showPayments, setShowPayments] = useState(true);
   const [showAudit, setShowAudit] = useState(false);
   const [approveNote, setApproveNote] = useState("");
+  // P6-D: how the money actually left — drives the settlement account.
+  const [approveMethod, setApproveMethod] = useState<
+    "bank_transfer" | "cash" | "mobile_money" | "check" | "card"
+  >("bank_transfer");
 
   const { data: detail, isLoading } = trpc.expenses.getExpenseDetail.useQuery(
     { expenseId },
@@ -118,9 +124,12 @@ export function ExpenseDetailPanel({
 
   const approveExpense = trpc.expenses.approveExpense.useMutation({
     onSuccess: () => {
+      toast.success("Expense approved and posted");
       utils.expenses.invalidate();
       onClose();
     },
+    // P6-D: approval failures (closed period etc.) must never be silent.
+    onError: (err) => toast.error(err.message),
   });
 
   if (isLoading) {
@@ -254,6 +263,34 @@ export function ExpenseDetailPanel({
                 onChange={(e) => setApproveNote(e.target.value)}
                 className="flex h-9 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 mb-3"
               />
+              <div className="mb-3">
+                <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground/70">
+                  Payment method
+                </p>
+                <div className="flex flex-wrap gap-1">
+                  {[
+                    "bank_transfer",
+                    "mobile_money",
+                    "cash",
+                    "check",
+                    "card",
+                  ].map((method) => (
+                    <button
+                      key={method}
+                      type="button"
+                      onClick={() => setApproveMethod(method)}
+                      className={cn(
+                        "rounded-lg px-2.5 py-1 text-[10px] font-medium capitalize transition-colors",
+                        approveMethod === method
+                          ? "bg-primary text-primary-foreground shadow-sm"
+                          : "border border-border bg-background text-muted-foreground hover:text-foreground",
+                      )}
+                    >
+                      {method.replace("_", " ")}
+                    </button>
+                  ))}
+                </div>
+              </div>
               <div className="flex gap-2">
                 <button
                   type="button"
@@ -280,6 +317,7 @@ export function ExpenseDetailPanel({
                     approveExpense.mutate({
                       expenseId,
                       decision: "approved",
+                      paymentMethod: approveMethod,
                       note: approveNote || undefined,
                     })
                   }
@@ -291,7 +329,7 @@ export function ExpenseDetailPanel({
                   ) : (
                     <CheckCircle2 className="h-3 w-3" />
                   )}
-                  Approve
+                  Approve & Pay
                 </button>
               </div>
             </div>

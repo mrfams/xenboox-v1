@@ -1122,6 +1122,10 @@ export const expensesRouter = router({
    * (audit trail) and flips the claim status. Flags stay visible.
    */
   decideClaim: rlsMutateProcedure
+    .use(
+      // Approving pays employees real money — only finance-capable roles.
+      requireRole("owner", "admin", "finance_director"),
+    )
     .input(
       z.object({
         claimId: z.string().uuid(),
@@ -1187,6 +1191,10 @@ export const expensesRouter = router({
    * the reimbursement record and moves the claim to reimbursed.
    */
   reimburseClaim: rlsMutateProcedure
+    .use(
+      // Reimbursement posts a ledger entry moving cash OUT — finance-only.
+      requireRole("owner", "admin", "finance_director"),
+    )
     .input(
       z.object({
         claimId: z.string().uuid(),
