@@ -15,6 +15,7 @@ import { CreatableCombobox } from "@/components/shared/customer-combobox";
 import { trpc } from "@/lib/trpc/client";
 import { useEntity } from "@/lib/entity-context";
 import { SUPPORTED_CURRENCIES } from "@/lib/config";
+import { isValidMoney } from "../../server/ar-validation";
 
 interface CreateBillDialogProps {
   open: boolean;
@@ -87,21 +88,46 @@ export function CreateBillDialog({ open, onClose }: CreateBillDialogProps) {
   const expenseAccounts = (accounts ?? []).filter(
     (a) => a.type === "expense" || a.type === "asset",
   );
-  const validLines = lines.filter(
-    (l) =>
-      l.description.trim() &&
-      l.accountId &&
-      parseFloat(l.quantity) > 0 &&
-      parseFloat(l.unitPrice) >= 0,
-  );
-  const total = validLines.reduce(
-    (sum, l) => sum + parseFloat(l.quantity) * parseFloat(l.unitPrice),
-    0,
-  );
-  const canSubmit = supplierId && invoiceNumber.trim() && validLines.length > 0;
+
+  // B10: validate every line and tell the user — never silently drop an
+  // invalid line from the submitted bill (parity with the invoice dialog).
+  const lineErrors = lines.map((l) => {
+    if (!l.description.trim()) return "Description is required";
+    if (!l.accountId) return "Choose an account for this line";
+    if (!(parseFloat(l.quantity) > 0)) {
+      return "Quantity must be greater than 0";
+    }
+    if (!isValidMoney(l.unitPrice)) {
+      return "Enter a valid price, e.g. 25.00";
+    }
+    return null;
+  });
+  const invalidLineCount = lineErrors.filter(Boolean).length;
+  const total = lines.reduce((sum, l) => {
+    if (!isValidMoney(l.unitPrice)) return sum;
+    const qty = parseFloat(l.quantity);
+    if (!(qty > 0)) return sum;
+    return sum + qty * parseFloat(l.unitPrice);
+  }, 0);
+  const canSubmit =
+    supplierId &&
+    invoiceNumber.trim() &&
+    lines.length > 0 &&
+    invalidLineCount === 0;
 
   const handleSubmit = () => {
     setError(null);
+    if (invalidLineCount > 0) {
+      const firstErrors = [
+        ...new Set(lineErrors.filter((e): e is string => !!e)),
+      ]
+        .slice(0, 3)
+        .join("; ");
+      setError(
+        `Fix ${invalidLineCount} line item${invalidLineCount > 1 ? "s" : ""} first — ${firstErrors}`,
+      );
+      return;
+    }
     createBill.mutate({
       supplierId,
       invoiceNumber: invoiceNumber.trim(),
@@ -109,7 +135,7 @@ export function CreateBillDialog({ open, onClose }: CreateBillDialogProps) {
       dueDate,
       currency,
       notes: notes.trim() || undefined,
-      lines: validLines.map((l) => ({
+      lines: lines.map((l) => ({
         description: l.description.trim(),
         accountId: l.accountId,
         quantity: parseFloat(l.quantity),
@@ -237,6 +263,17 @@ export function CreateBillDialog({ open, onClose }: CreateBillDialogProps) {
           accounts={expenseAccounts}
           currency={currency}
         />
+
+        {invalidLineCount > 0 && (
+          <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+            <span>
+              {invalidLineCount} line item{invalidLineCount > 1 ? "s" : ""} need
+              {invalidLineCount > 1 ? "" : "s"} attention before this bill can
+              be created — fix the highlighted fields or remove the line.
+            </span>
+          </div>
+        )}
 
         <div>
           <label className={modalLabelCls} htmlFor="bill-notes">

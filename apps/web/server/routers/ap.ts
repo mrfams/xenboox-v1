@@ -8,7 +8,15 @@ import {
   invoiceApLines,
   paymentsAp,
   auditLog,
+  chartOfAccounts,
 } from "@xenboox/db/schema";
+import {
+  moneyString,
+  positiveMoneyString,
+  isoDateString,
+  moneyToCents,
+  MAX_CENTS,
+} from "../ar-validation";
 import { TRPCError } from "@trpc/server";
 import {
   validateInvoice,
@@ -202,7 +210,8 @@ export const apRouter = router({
     )
     .query(async ({ ctx, input }) => {
       const entityId = ctx.entityId!;
-      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
+      const currency =
+        (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
 
       // Build conditions
       const conditions = [eq(suppliers.entityId, entityId)];
@@ -459,7 +468,8 @@ export const apRouter = router({
     )
     .query(async ({ ctx, input }) => {
       const entityId = ctx.entityId!;
-      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
+      const currency =
+        (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
 
       const vendors = await db
         .select({
@@ -516,7 +526,8 @@ export const apRouter = router({
   // ── Vendor Aging ──
   getVendorAging: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
-    const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
+    const currency =
+      (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
 
     const now = new Date();
     const current30 = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
@@ -588,7 +599,8 @@ export const apRouter = router({
   // ── AI Insights ──
   getVendorAiInsights: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
-    const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
+    const currency =
+      (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
 
     const insights: Array<{
       id: string;
@@ -917,12 +929,16 @@ export const apRouter = router({
     .use(requirePermission("accounts_payable", "create"))
     .input(
       z.object({
-        name: z.string().min(1),
+        name: z.string().trim().min(1).max(200),
         contactEmail: z.string().email().optional(),
-        contactPhone: z.string().optional(),
-        taxId: z.string().optional(),
-        address: z.string().optional(),
-        paymentTerms: z.string().default("net30"),
+        contactPhone: z.string().max(50).optional(),
+        taxId: z.string().max(50).optional(),
+        address: z.string().max(500).optional(),
+        paymentTerms: z
+          .string()
+          .max(50)
+          .regex(/^[a-zA-Z0-9_\-]+$/, "Invalid payment terms")
+          .default("net30"),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -958,12 +974,16 @@ export const apRouter = router({
     .input(
       z.object({
         id: z.string().uuid(),
-        name: z.string().min(1).optional(),
+        name: z.string().trim().min(1).max(200).optional(),
         contactEmail: z.string().email().optional(),
-        contactPhone: z.string().optional(),
-        taxId: z.string().optional(),
-        address: z.string().optional(),
-        paymentTerms: z.string().optional(),
+        contactPhone: z.string().max(50).optional(),
+        taxId: z.string().max(50).optional(),
+        address: z.string().max(500).optional(),
+        paymentTerms: z
+          .string()
+          .max(50)
+          .regex(/^[a-zA-Z0-9_\-]+$/, "Invalid payment terms")
+          .optional(),
         isActive: z.boolean().optional(),
       }),
     )
@@ -1007,53 +1027,140 @@ export const apRouter = router({
     .input(
       z.object({
         supplierId: z.string().uuid(),
-        poNumber: z.string().min(1),
-        orderDate: z.string(),
-        expectedDate: z.string().optional(),
+        poNumber: z
+          .string()
+          .trim()
+          .min(1, "PO number is required")
+          .max(40, "PO number must be under 40 characters"),
+        orderDate: isoDateString,
+        expectedDate: isoDateString.optional(),
         currency: z.string().length(3).default("USD"),
-        notes: z.string().optional(),
+        notes: z.string().max(4000).optional(),
         lines: z
           .array(
             z.object({
-              description: z.string().min(1),
+              description: z
+                .string()
+                .trim()
+                .min(1, "Line description is required")
+                .max(500),
               accountId: z.string().uuid(),
-              quantity: z.number().positive(),
-              unitPrice: z.string(),
+              quantity: z.number().positive().max(999_999_999),
+              unitPrice: moneyString,
             }),
           )
-          .min(1),
+          .min(1, "A purchase order needs at least one line")
+          .max(200),
       }),
     )
+    .superRefine((data, ctx) => {
+      if (
+        data.expectedDate !== undefined &&
+        data.expectedDate < data.orderDate
+      ) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["expectedDate"],
+          message: "Expected date cannot be before the order date",
+        });
+      }
+    })
     .mutation(async ({ ctx, input }) => {
       try {
         const { lines, ...poData } = input;
 
-        let totalAmount = 0;
+        // B2: integer-cents math (mirrors AR) — never float-accumulate money.
+        let totalCents = 0;
         for (const line of lines) {
-          const qty = line.quantity;
-          const price = parseFloat(line.unitPrice);
-          totalAmount += qty * price;
+          const lineCents = Math.round(
+            line.quantity * moneyToCents(line.unitPrice),
+          );
+          if (
+            !Number.isSafeInteger(lineCents) ||
+            lineCents < 0 ||
+            lineCents > MAX_CENTS
+          ) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: `Line "${line.description}" total is too large`,
+            });
+          }
+          totalCents += lineCents;
+          if (totalCents > MAX_CENTS) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: "Purchase order total is too large",
+            });
+          }
+        }
+        const totalAmount = totalCents / 100;
+
+        // B3: supplier + line accounts must belong to THIS entity.
+        const supplier = await db.query.suppliers.findFirst({
+          where: and(
+            eq(suppliers.id, input.supplierId),
+            eq(suppliers.entityId, ctx.entityId!),
+          ),
+          columns: { id: true },
+        });
+        if (!supplier) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Supplier not found for this entity",
+          });
+        }
+        const poAccountIds = [...new Set(lines.map((l) => l.accountId))];
+        const owned = await db.query.chartOfAccounts.findMany({
+          where: and(
+            eq(chartOfAccounts.entityId, ctx.entityId!),
+            inArray(chartOfAccounts.id, poAccountIds),
+          ),
+          columns: { id: true },
+        });
+        if (owned.length !== poAccountIds.length) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message:
+              "One or more line accounts are not in this entity's chart of accounts",
+          });
         }
 
-        return await db.transaction(async (tx) => {
-          const [po] = await tx
-            .insert(purchaseOrders)
-            .values({
-              ...poData,
-              entityId: ctx.entityId!,
-              totalAmount: totalAmount.toFixed(2),
-              status: "draft",
-            })
-            .returning();
+        // Friendly duplicate pre-check (uniqueIndex po_entity_number).
+        const existingPo = await db.query.purchaseOrders.findFirst({
+          where: and(
+            eq(purchaseOrders.entityId, ctx.entityId!),
+            eq(purchaseOrders.poNumber, input.poNumber),
+          ),
+          columns: { id: true },
+        });
+        if (existingPo) {
+          throw new TRPCError({
+            code: "CONFLICT",
+            message: `PO number ${input.poNumber} already exists for this entity`,
+          });
+        }
 
-          if (!po) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        // B4: neon-http transaction shim is a silent no-op — sequential insert
+        // with compensation so a lines/audit failure never orphans a header.
+        const [po] = await db
+          .insert(purchaseOrders)
+          .values({
+            ...poData,
+            entityId: ctx.entityId!,
+            totalAmount: totalAmount.toFixed(2),
+            status: "draft",
+          })
+          .returning();
 
-          // Batch insert — 1 query instead of N
-          await tx.insert(poLines).values(
+        if (!po) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+
+        try {
+          await db.insert(poLines).values(
             lines.map((line) => {
               const qty = line.quantity;
-              const price = parseFloat(line.unitPrice);
-              const amount = (qty * price).toFixed(2);
+              const amount = (
+                Math.round(qty * moneyToCents(line.unitPrice)) / 100
+              ).toFixed(2);
               return {
                 purchaseOrderId: po.id,
                 accountId: line.accountId,
@@ -1065,7 +1172,7 @@ export const apRouter = router({
             }),
           );
 
-          await tx.insert(auditLog).values({
+          await db.insert(auditLog).values({
             entityId: ctx.entityId!,
             userId: ctx.session!.user!.id!,
             action: "ap.createPO",
@@ -1078,9 +1185,15 @@ export const apRouter = router({
               lineCount: lines.length,
             },
           });
+        } catch (txError) {
+          await db
+            .delete(purchaseOrders)
+            .where(eq(purchaseOrders.id, po.id))
+            .catch(() => {});
+          throw txError;
+        }
 
-          return po;
-        });
+        return po;
       } catch (error) {
         handleMutationError(error, "Failed to create purchase order");
       }
@@ -1092,8 +1205,8 @@ export const apRouter = router({
       z.object({
         id: z.string().uuid(),
         supplierId: z.string().uuid().optional(),
-        expectedDate: z.string().optional(),
-        notes: z.string().optional(),
+        expectedDate: isoDateString.optional(),
+        notes: z.string().max(4000).optional(),
         status: z
           .enum([
             "draft",
@@ -1109,6 +1222,41 @@ export const apRouter = router({
     .mutation(async ({ ctx, input }) => {
       try {
         const { id, ...data } = input;
+
+        // B8: once a PO is approved (or received/partially received) its
+        // supplier and approval status are committed — only notes and the
+        // expected date remain editable here. Approval/receipt state changes
+        // belong to their own workflow procedures.
+        const existing = await db.query.purchaseOrders.findFirst({
+          where: and(
+            eq(purchaseOrders.id, id),
+            eq(purchaseOrders.entityId, ctx.entityId!),
+          ),
+          columns: { id: true, status: true },
+        });
+        if (!existing) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Purchase order not found",
+          });
+        }
+        const locked = ["approved", "received", "partial"].includes(
+          existing.status,
+        );
+        if (locked && data.supplierId !== undefined) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Supplier is locked once a purchase order is approved",
+          });
+        }
+        if (locked && data.status !== undefined) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message:
+              "Status is managed by the approval/receipt workflow after a PO is approved",
+          });
+        }
+
         const [updated] = await db
           .update(purchaseOrders)
           .set(data)
@@ -1193,34 +1341,71 @@ export const apRouter = router({
     .input(
       z.object({
         supplierId: z.string().uuid(),
-        invoiceNumber: z.string().min(1),
-        invoiceDate: z.string(),
-        dueDate: z.string(),
+        invoiceNumber: z
+          .string()
+          .trim()
+          .min(1, "Invoice number is required")
+          .max(40, "Invoice number must be under 40 characters"),
+        invoiceDate: isoDateString,
+        dueDate: isoDateString,
         currency: z.string().length(3).default("USD"),
-        notes: z.string().optional(),
+        notes: z.string().max(4000).optional(),
         purchaseOrderId: z.string().uuid().optional(),
         lines: z
           .array(
             z.object({
-              description: z.string().min(1),
+              description: z
+                .string()
+                .trim()
+                .min(1, "Line description is required")
+                .max(500),
               accountId: z.string().uuid(),
-              quantity: z.number().positive(),
-              unitPrice: z.string(),
+              quantity: z.number().positive().max(999_999_999),
+              unitPrice: moneyString,
             }),
           )
-          .min(1),
+          .min(1, "A bill needs at least one line")
+          .max(200),
       }),
     )
+    .superRefine((data, ctx) => {
+      if (data.dueDate < data.invoiceDate) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["dueDate"],
+          message: "Due date cannot be before the invoice date",
+        });
+      }
+    })
     .mutation(async ({ ctx, input }) => {
       try {
         const { lines, purchaseOrderId, ...invoiceData } = input;
 
-        let totalAmount = 0;
+        // B2: integer-cents math (mirrors AR).
+        let totalCents = 0;
         for (const line of lines) {
-          const qty = line.quantity;
-          const price = parseFloat(line.unitPrice);
-          totalAmount += qty * price;
+          const lineCents = Math.round(
+            line.quantity * moneyToCents(line.unitPrice),
+          );
+          if (
+            !Number.isSafeInteger(lineCents) ||
+            lineCents < 0 ||
+            lineCents > MAX_CENTS
+          ) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: `Line "${line.description}" total is too large`,
+            });
+          }
+          totalCents += lineCents;
+          if (totalCents > MAX_CENTS) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: "Invoice total is too large",
+            });
+          }
         }
+        const totalAmount = totalCents / 100;
 
         const trustResult = validateInvoice({
           entityId: ctx.entityId!,
@@ -1252,27 +1437,97 @@ export const apRouter = router({
           });
         }
 
-        return await db.transaction(async (tx) => {
-          const [invoice] = await tx
-            .insert(invoicesAp)
-            .values({
-              ...invoiceData,
-              entityId: ctx.entityId!,
-              purchaseOrderId: purchaseOrderId ?? null,
-              totalAmount: totalAmount.toFixed(2),
-              balance: totalAmount.toFixed(2),
-              status: "pending",
-            })
-            .returning();
+        // B3: supplier + (optional) PO + line accounts must belong to this
+        // entity; a linked PO must already be approved-or-beyond.
+        const supplier = await db.query.suppliers.findFirst({
+          where: and(
+            eq(suppliers.id, input.supplierId),
+            eq(suppliers.entityId, ctx.entityId!),
+          ),
+          columns: { id: true },
+        });
+        if (!supplier) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Supplier not found for this entity",
+          });
+        }
+        if (purchaseOrderId) {
+          const po = await db.query.purchaseOrders.findFirst({
+            where: and(
+              eq(purchaseOrders.id, purchaseOrderId),
+              eq(purchaseOrders.entityId, ctx.entityId!),
+            ),
+            columns: { id: true, status: true },
+          });
+          if (!po) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: "Purchase order not found for this entity",
+            });
+          }
+          if (!["approved", "received", "partial"].includes(po.status)) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message:
+                "A bill can only be linked to an approved (or received) purchase order",
+            });
+          }
+        }
+        const billAccountIds = [...new Set(lines.map((l) => l.accountId))];
+        const ownedAccounts = await db.query.chartOfAccounts.findMany({
+          where: and(
+            eq(chartOfAccounts.entityId, ctx.entityId!),
+            inArray(chartOfAccounts.id, billAccountIds),
+          ),
+          columns: { id: true },
+        });
+        if (ownedAccounts.length !== billAccountIds.length) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message:
+              "One or more line accounts are not in this entity's chart of accounts",
+          });
+        }
 
-          if (!invoice) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        // Friendly duplicate pre-check (uniqueIndex ap_invoice_entity_number).
+        const existingBill = await db.query.invoicesAp.findFirst({
+          where: and(
+            eq(invoicesAp.entityId, ctx.entityId!),
+            eq(invoicesAp.invoiceNumber, input.invoiceNumber),
+          ),
+          columns: { id: true },
+        });
+        if (existingBill) {
+          throw new TRPCError({
+            code: "CONFLICT",
+            message: `Invoice number ${input.invoiceNumber} already exists for this entity`,
+          });
+        }
 
-          // Batch insert — 1 query instead of N
-          await tx.insert(invoiceApLines).values(
+        // B4: sequential insert with compensation (the db.transaction shim is
+        // a silent no-op on neon-http) — never orphan a header.
+        const [invoice] = await db
+          .insert(invoicesAp)
+          .values({
+            ...invoiceData,
+            entityId: ctx.entityId!,
+            purchaseOrderId: purchaseOrderId ?? null,
+            totalAmount: totalAmount.toFixed(2),
+            balance: totalAmount.toFixed(2),
+            status: "pending",
+          })
+          .returning();
+
+        if (!invoice) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+
+        try {
+          await db.insert(invoiceApLines).values(
             lines.map((line) => {
               const qty = line.quantity;
-              const price = parseFloat(line.unitPrice);
-              const amount = (qty * price).toFixed(2);
+              const amount = (
+                Math.round(qty * moneyToCents(line.unitPrice)) / 100
+              ).toFixed(2);
               return {
                 invoiceApId: invoice.id,
                 accountId: line.accountId,
@@ -1284,7 +1539,7 @@ export const apRouter = router({
             }),
           );
 
-          await tx.insert(auditLog).values({
+          await db.insert(auditLog).values({
             entityId: ctx.entityId!,
             userId: ctx.session!.user!.id!,
             action: "ap.createInvoice",
@@ -1297,72 +1552,170 @@ export const apRouter = router({
               dueDate: input.dueDate,
             },
           });
+        } catch (txError) {
+          await db
+            .delete(invoicesAp)
+            .where(eq(invoicesAp.id, invoice.id))
+            .catch(() => {});
+          throw txError;
+        }
 
-          // Generate bill narrative (non-blocking)
-          generateBillNarrative({
-            entityId: ctx.entityId!,
-            entityName: ctx.entityName ?? "your business",
-            currency: input.currency,
-            invoiceId: invoice.id,
-            invoiceNumber: input.invoiceNumber,
-            totalAmount,
-            supplierId: input.supplierId,
-            dueDate: input.dueDate,
-          }).catch((err) => {
-            logger.error({ err }, "[ap] Bill narrative generation failed");
-          });
-
-          return invoice;
+        // Generate bill narrative (non-blocking)
+        generateBillNarrative({
+          entityId: ctx.entityId!,
+          entityName: ctx.entityName ?? "your business",
+          currency: input.currency,
+          invoiceId: invoice.id,
+          invoiceNumber: input.invoiceNumber,
+          totalAmount,
+          supplierId: input.supplierId,
+          dueDate: input.dueDate,
+        }).catch((err) => {
+          logger.error({ err }, "[ap] Bill narrative generation failed");
         });
+
+        return invoice;
       } catch (error) {
+        // Map unique violations to a readable 409 (race-safe duplicate).
+        const msg = error instanceof Error ? error.message : String(error);
+        const causeMsg =
+          error && typeof error === "object" && "cause" in error
+            ? String((error as { cause?: unknown }).cause ?? "")
+            : "";
+        if (
+          `${msg} ${causeMsg}`.includes("duplicate key") ||
+          `${msg} ${causeMsg}`.includes("ap_invoice_entity_number") ||
+          `${msg} ${causeMsg}`.includes("23505")
+        ) {
+          throw new TRPCError({
+            code: "CONFLICT",
+            message: `Invoice number ${input.invoiceNumber} already exists`,
+          });
+        }
         handleMutationError(error, "Failed to create invoice");
       }
     }),
 
   updateInvoice: rlsMutateProcedure
+    .use(requireRole("owner", "admin", "finance_director", "accountant"))
     .input(
       z.object({
         id: z.string().uuid(),
-        invoiceDate: z.string().optional(),
-        dueDate: z.string().optional(),
-        totalAmount: z.string().optional(),
-        notes: z.string().optional(),
-        status: z
-          .enum(["pending", "partial", "paid", "overdue", "voided"])
-          .optional(),
+        invoiceDate: isoDateString.optional(),
+        dueDate: isoDateString.optional(),
+        notes: z.string().max(4000).optional(),
+        // B5 state machine: callers may only VOID. "paid"/"partial"/"overdue"
+        // are driven by payments + the overdue job — never set by hand.
+        status: z.literal("voided").optional(),
       }),
     )
+    .superRefine((data, ctx) => {
+      if (
+        data.invoiceDate !== undefined &&
+        data.dueDate !== undefined &&
+        data.dueDate < data.invoiceDate
+      ) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["dueDate"],
+          message: "Due date cannot be before the invoice date",
+        });
+      }
+    })
     .mutation(async ({ ctx, input }) => {
       try {
         const { id, ...data } = input;
+
+        const existing = await db.query.invoicesAp.findFirst({
+          where: and(
+            eq(invoicesAp.id, id),
+            eq(invoicesAp.entityId, ctx.entityId!),
+          ),
+          columns: {
+            id: true,
+            status: true,
+            paidAmount: true,
+            invoiceNumber: true,
+            supplierId: true,
+          },
+        });
+        if (!existing) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Invoice not found",
+          });
+        }
+
+        const updates: {
+          invoiceDate?: string;
+          dueDate?: string;
+          notes?: string | null;
+          status?: "voided";
+        } = {};
+        if (data.invoiceDate !== undefined)
+          updates.invoiceDate = data.invoiceDate;
+        if (data.dueDate !== undefined) updates.dueDate = data.dueDate;
+        if (data.notes !== undefined) updates.notes = data.notes;
+
+        if (data.status === "voided") {
+          if (existing.status === "voided") {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: "Invoice is already voided",
+            });
+          }
+          const paid = moneyToCents(String(existing.paidAmount));
+          if (!Number.isNaN(paid) && paid > 0) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message:
+                "Invoice has payments recorded — reverse them before voiding",
+            });
+          }
+          if (existing.status === "paid") {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: "Cannot void a paid invoice",
+            });
+          }
+          updates.status = "voided";
+        }
+
+        if (Object.keys(updates).length === 0) {
+          const [fresh] = await db
+            .select()
+            .from(invoicesAp)
+            .where(
+              and(
+                eq(invoicesAp.id, id),
+                eq(invoicesAp.entityId, ctx.entityId!),
+              ),
+            )
+            .limit(1);
+          return fresh ?? null;
+        }
+
         const [updated] = await db
           .update(invoicesAp)
-          .set(data)
+          .set(updates)
           .where(
             and(eq(invoicesAp.id, id), eq(invoicesAp.entityId, ctx.entityId!)),
           )
           .returning();
 
-        if (updated && input.status === "overdue") {
-          try {
-            void dispatchWebhookEvent({
-              entityId: ctx.entityId!,
-              eventType: "invoice.overdue",
-              data: {
-                invoiceId: updated.id,
-                invoiceNumber: updated.invoiceNumber,
-                supplierId: updated.supplierId,
-                totalAmount: updated.totalAmount,
-                balance: updated.balance,
-                dueDate: updated.dueDate,
-              },
-            });
-          } catch (e) {
-            logger.error(
-              { err: e },
-              "Failed to dispatch invoice.overdue webhook",
-            );
-          }
+        if (updated && updates.status === "voided") {
+          await db.insert(auditLog).values({
+            entityId: ctx.entityId!,
+            userId: ctx.session!.user!.id!,
+            action: "ap.voidInvoice",
+            entityType: "invoice_ap",
+            entityIdRef: updated.id,
+            oldValues: {
+              invoiceNumber: existing.invoiceNumber,
+              status: existing.status,
+            },
+            newValues: { status: "voided" },
+          });
         }
 
         return updated;
@@ -1402,8 +1755,8 @@ export const apRouter = router({
     .input(
       z.object({
         invoiceApId: z.string().uuid(),
-        amount: z.string(),
-        paymentDate: z.string(),
+        amount: positiveMoneyString,
+        paymentDate: isoDateString,
         method: z.enum([
           "bank_transfer",
           "cash",
@@ -1411,14 +1764,13 @@ export const apRouter = router({
           "check",
           "card",
         ]),
-        reference: z.string().optional(),
-        notes: z.string().optional(),
+        reference: z.string().max(100).optional(),
+        notes: z.string().max(1000).optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
       try {
         const { invoiceApId, amount: paymentAmountStr, ...paymentData } = input;
-        const paymentAmount = parseFloat(paymentAmountStr);
 
         const invoice = await db.query.invoicesAp.findFirst({
           where: and(
@@ -1432,45 +1784,83 @@ export const apRouter = router({
             message: "Invoice not found",
           });
         }
+        if (invoice.status === "voided") {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Cannot pay a voided invoice",
+          });
+        }
 
-        const currentBalance = parseFloat(invoice.balance);
-        if (paymentAmount > currentBalance) {
+        // B6: authoritative balance lives in the row, not this read — the
+        // final gate is a single-statement compare-and-set (the db.transaction
+        // shim is a silent no-op on neon-http), so two concurrent payments can
+        // never both pass a stale check.
+        const paymentCents = moneyToCents(paymentAmountStr);
+        const currentBalanceCents = moneyToCents(String(invoice.balance));
+        if (currentBalanceCents < paymentCents) {
           throw new TRPCError({
             code: "BAD_REQUEST",
             message: `Payment amount ${paymentAmountStr} exceeds invoice balance ${invoice.balance}`,
           });
         }
 
-        return await db.transaction(async (tx) => {
-          const [payment] = await tx
-            .insert(paymentsAp)
-            .values({
-              ...paymentData,
-              entityId: ctx.entityId!,
-              invoiceApId,
-              amount: paymentAmountStr,
-            })
-            .returning();
+        const amountStr = (paymentCents / 100).toFixed(2);
+        const newStatus =
+          currentBalanceCents - paymentCents <= 0 ? "paid" : "partial";
 
-          const newBalance = currentBalance - paymentAmount;
-          const newPaidAmount = parseFloat(invoice.paidAmount) + paymentAmount;
-          const newStatus = newBalance <= 0 ? "paid" : "partial";
+        const [payment] = await db
+          .insert(paymentsAp)
+          .values({
+            ...paymentData,
+            entityId: ctx.entityId!,
+            invoiceApId,
+            amount: amountStr,
+          })
+          .returning();
+        if (!payment) {
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: "Failed to record payment",
+          });
+        }
 
-          await tx
-            .update(invoicesAp)
-            .set({
-              paidAmount: newPaidAmount.toFixed(2),
-              balance: Math.max(newBalance, 0).toFixed(2),
-              status: newStatus,
-            })
+        const cas = await db
+          .update(invoicesAp)
+          .set({
+            paidAmount: sql`${invoicesAp.paidAmount}::numeric + ${amountStr}::numeric`,
+            balance: sql`${invoicesAp.balance}::numeric - ${amountStr}::numeric`,
+            status: newStatus,
+          })
+          .where(
+            and(
+              eq(invoicesAp.id, invoiceApId),
+              eq(invoicesAp.entityId, ctx.entityId!),
+              gte(
+                sql`${invoicesAp.balance}::numeric`,
+                sql`${amountStr}::numeric`,
+              ),
+            ),
+          )
+          .returning({ id: invoicesAp.id });
+
+        if (cas.length === 0) {
+          await db
+            .delete(paymentsAp)
             .where(
               and(
-                eq(invoicesAp.id, invoiceApId),
-                eq(invoicesAp.entityId, ctx.entityId!),
+                eq(paymentsAp.id, payment.id),
+                eq(paymentsAp.entityId, ctx.entityId!),
               ),
-            );
+            )
+            .catch(() => {});
+          throw new TRPCError({
+            code: "CONFLICT",
+            message: "Invoice balance changed — refresh and try again",
+          });
+        }
 
-          await tx.insert(auditLog).values({
+        try {
+          await db.insert(auditLog).values({
             entityId: ctx.entityId!,
             userId: ctx.session!.user!.id!,
             action: "ap.createPayment",
@@ -1478,7 +1868,7 @@ export const apRouter = router({
             entityIdRef: payment.id,
             newValues: {
               invoiceApId,
-              amount: paymentAmountStr,
+              amount: amountStr,
               method: input.method,
               reference: input.reference,
             },
@@ -1486,7 +1876,7 @@ export const apRouter = router({
 
           // Send email notification (non-blocking)
           if (invoice) {
-            const supplier = await tx.query.suppliers.findFirst({
+            const supplier = await db.query.suppliers.findFirst({
               where: and(
                 eq(suppliers.id, invoice.supplierId),
                 eq(suppliers.entityId, ctx.entityId!),
@@ -1498,7 +1888,7 @@ export const apRouter = router({
                   sendPaymentSentEmail(supplier.contactEmail!, {
                     supplierName: supplier.name,
                     invoiceNumber: invoice.invoiceNumber,
-                    amount: paymentAmountStr,
+                    amount: amountStr,
                     currency: invoice.currency,
                     paymentMethod: input.method,
                     reference: input.reference,
@@ -1524,7 +1914,7 @@ export const apRouter = router({
               data: {
                 invoiceId: invoiceApId,
                 invoiceNumber: invoice.invoiceNumber,
-                amount: paymentAmountStr,
+                amount: amountStr,
                 method: input.method,
                 reference: input.reference,
                 newStatus,
@@ -1535,7 +1925,38 @@ export const apRouter = router({
           }
 
           return payment;
-        });
+        } catch (err) {
+          // Roll the CAS back and drop the payment row on any late failure.
+          await db
+            .delete(paymentsAp)
+            .where(
+              and(
+                eq(paymentsAp.id, payment.id),
+                eq(paymentsAp.entityId, ctx.entityId!),
+              ),
+            )
+            .catch(() => {});
+          await db
+            .update(invoicesAp)
+            .set({
+              paidAmount: sql`${invoicesAp.paidAmount}::numeric - ${amountStr}::numeric`,
+              balance: sql`${invoicesAp.balance}::numeric + ${amountStr}::numeric`,
+              status:
+                invoice.status === "partial" ||
+                invoice.status === "overdue" ||
+                invoice.status === "pending"
+                  ? invoice.status
+                  : "pending",
+            })
+            .where(
+              and(
+                eq(invoicesAp.id, invoiceApId),
+                eq(invoicesAp.entityId, ctx.entityId!),
+              ),
+            )
+            .catch(() => {});
+          throw err;
+        }
       } catch (error) {
         handleMutationError(error, "Failed to create payment");
       }
@@ -1564,9 +1985,31 @@ export const apRouter = router({
             message: "Supplier not found",
           });
 
+        // B7: suppliers with purchase history must be deactivated, not deleted.
+        const [poCount] = await db
+          .select({ n: sql<number>`count(*)::int` })
+          .from(purchaseOrders)
+          .where(eq(purchaseOrders.supplierId, input.id));
+        const [billCount] = await db
+          .select({ n: sql<number>`count(*)::int` })
+          .from(invoicesAp)
+          .where(eq(invoicesAp.supplierId, input.id));
+        if ((poCount?.n ?? 0) + (billCount?.n ?? 0) > 0) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message:
+              "Supplier has purchase orders or bills on record — deactivate them instead of deleting",
+          });
+        }
+
         await db
           .delete(suppliers)
-          .where(and(eq(suppliers.id, input.id), eq(suppliers.entityId, ctx.entityId!)));
+          .where(
+            and(
+              eq(suppliers.id, input.id),
+              eq(suppliers.entityId, ctx.entityId!),
+            ),
+          );
 
         await db.insert(auditLog).values({
           entityId: ctx.entityId!,
@@ -1611,28 +2054,41 @@ export const apRouter = router({
           });
         }
 
-        await db.transaction(async (tx) => {
-          await tx.delete(poLines).where(eq(poLines.purchaseOrderId, input.id));
-          await tx
-            .delete(purchaseOrders)
-            .where(
-              and(
-                eq(purchaseOrders.id, input.id),
-                eq(purchaseOrders.entityId, ctx.entityId!),
-              ),
-            );
-
-          await tx.insert(auditLog).values({
-            entityId: ctx.entityId!,
-            userId: ctx.session!.user!.id!,
-            action: "ap.deletePO",
-            entityType: "purchase_order",
-            entityIdRef: input.id,
-            oldValues: {
-              poNumber: existing.poNumber,
-              supplierId: existing.supplierId,
-            },
+        // B7: a PO already billed (linked from an AP invoice) is protected by
+        // the FK — surface a clear conflict instead of a raw failure.
+        const [linkCount] = await db
+          .select({ n: sql<number>`count(*)::int` })
+          .from(invoicesAp)
+          .where(eq(invoicesAp.purchaseOrderId, input.id));
+        if ((linkCount?.n ?? 0) > 0) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message:
+              "Purchase order is linked to bills — delete or unlink those bills first",
           });
+        }
+
+        // Sequential + compensation (no real transaction on neon-http).
+        await db.delete(poLines).where(eq(poLines.purchaseOrderId, input.id));
+        await db
+          .delete(purchaseOrders)
+          .where(
+            and(
+              eq(purchaseOrders.id, input.id),
+              eq(purchaseOrders.entityId, ctx.entityId!),
+            ),
+          );
+
+        await db.insert(auditLog).values({
+          entityId: ctx.entityId!,
+          userId: ctx.session!.user!.id!,
+          action: "ap.deletePO",
+          entityType: "purchase_order",
+          entityIdRef: input.id,
+          oldValues: {
+            poNumber: existing.poNumber,
+            supplierId: existing.supplierId,
+          },
         });
 
         return { success: true };
@@ -1669,27 +2125,52 @@ export const apRouter = router({
           });
         }
 
-        await db.transaction(async (tx) => {
-          await tx
-            .delete(invoiceApLines)
-            .where(eq(invoiceApLines.invoiceApId, input.id));
-          await tx
-            .delete(invoicesAp)
-            .where(
-              and(eq(invoicesAp.id, input.id), eq(invoicesAp.entityId, ctx.entityId!)),
-            );
-
-          await tx.insert(auditLog).values({
-            entityId: ctx.entityId!,
-            userId: ctx.session!.user!.id!,
-            action: "ap.deleteInvoice",
-            entityType: "invoice_ap",
-            entityIdRef: input.id,
-            oldValues: {
-              invoiceNumber: existing.invoiceNumber,
-              supplierId: existing.supplierId,
-            },
+        // B7/P3-verify parity: once in the ledger (posted JE) the row must
+        // stay for audit — void instead (reversal keeps the books clean).
+        if (existing.journalEntryId) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message:
+              "Invoice is in the ledger — void it instead (void reverses the journal entry and keeps the audit trail)",
           });
+        }
+
+        // B7: recorded payments protect the row via FK — surface clearly.
+        const [payCount] = await db
+          .select({ n: sql<number>`count(*)::int` })
+          .from(paymentsAp)
+          .where(eq(paymentsAp.invoiceApId, input.id));
+        if ((payCount?.n ?? 0) > 0) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message:
+              "Invoice has recorded payments — reverse the payments before deleting",
+          });
+        }
+
+        // Sequential + compensation (no real transaction on neon-http).
+        await db
+          .delete(invoiceApLines)
+          .where(eq(invoiceApLines.invoiceApId, input.id));
+        await db
+          .delete(invoicesAp)
+          .where(
+            and(
+              eq(invoicesAp.id, input.id),
+              eq(invoicesAp.entityId, ctx.entityId!),
+            ),
+          );
+
+        await db.insert(auditLog).values({
+          entityId: ctx.entityId!,
+          userId: ctx.session!.user!.id!,
+          action: "ap.deleteInvoice",
+          entityType: "invoice_ap",
+          entityIdRef: input.id,
+          oldValues: {
+            invoiceNumber: existing.invoiceNumber,
+            supplierId: existing.supplierId,
+          },
         });
 
         return { success: true };
@@ -1719,9 +2200,64 @@ export const apRouter = router({
             message: "Payment not found",
           });
 
+        // P3-verify parity: posted payments are part of the books — reverse
+        // the journal entry first.
+        if (existing.journalEntryId) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message:
+              "Payment is posted to the ledger — reverse its journal entry before deleting",
+          });
+        }
+
         await db
           .delete(paymentsAp)
-          .where(and(eq(paymentsAp.id, input.id), eq(paymentsAp.entityId, ctx.entityId!)));
+          .where(
+            and(
+              eq(paymentsAp.id, input.id),
+              eq(paymentsAp.entityId, ctx.entityId!),
+            ),
+          );
+
+        // B7: deleting a payment must restore the bill's paid/balance/status.
+        const bill = await db.query.invoicesAp.findFirst({
+          where: and(
+            eq(invoicesAp.id, existing.invoiceApId),
+            eq(invoicesAp.entityId, ctx.entityId!),
+          ),
+          columns: { id: true, totalAmount: true },
+        });
+        if (bill) {
+          const [agg] = await db
+            .select({
+              paid: sql<string>`COALESCE(SUM(${paymentsAp.amount}::numeric), 0)::text`,
+            })
+            .from(paymentsAp)
+            .where(
+              and(
+                eq(paymentsAp.invoiceApId, bill.id),
+                eq(paymentsAp.entityId, ctx.entityId!),
+              ),
+            );
+          const paid = parseFloat(agg?.paid ?? "0");
+          const total = parseFloat(String(bill.totalAmount));
+          const balance = Math.max(total - paid, 0);
+          const nextStatus =
+            paid <= 0 ? "pending" : balance <= 0 ? "paid" : "partial";
+          await db
+            .update(invoicesAp)
+            .set({
+              paidAmount: paid.toFixed(2),
+              balance: balance.toFixed(2),
+              status: nextStatus,
+            })
+            .where(
+              and(
+                eq(invoicesAp.id, bill.id),
+                eq(invoicesAp.entityId, ctx.entityId!),
+              ),
+            );
+        }
 
         await db.insert(auditLog).values({
           entityId: ctx.entityId!,

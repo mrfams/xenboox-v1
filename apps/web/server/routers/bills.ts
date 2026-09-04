@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { eq, and, desc, sql, count, sum, gte, inArray } from "drizzle-orm";
+import { eq, and, desc, sql, sum, gte, lte, inArray, like } from "drizzle-orm";
 import {
   invoicesAp,
   suppliers,
@@ -60,7 +60,8 @@ export const billsRouter = router({
    */
   getOverview: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
-      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
+    const currency =
+      (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
 
     // Get all bills (AP invoices)
     const allBills = await db.query.invoicesAp.findMany({
@@ -330,7 +331,8 @@ export const billsRouter = router({
     )
     .query(async ({ ctx, input }) => {
       const entityId = ctx.entityId!;
-      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
+      const currency =
+        (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
 
       // Build conditions
       const conditions = [eq(invoicesAp.entityId, entityId)];
@@ -462,7 +464,8 @@ export const billsRouter = router({
     .input(z.object({ billId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       const entityId = ctx.entityId!;
-      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
+      const currency =
+        (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
 
       const bill = await db.query.invoicesAp.findFirst({
         where: and(
@@ -528,7 +531,8 @@ export const billsRouter = router({
     .input(z.object({ billId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       const entityId = ctx.entityId!;
-      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
+      const currency =
+        (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
       const [bill] = await db
         .select({
           id: invoicesAp.id,
@@ -622,7 +626,8 @@ export const billsRouter = router({
     .mutation(async ({ ctx, input }) => {
       try {
         const entityId = ctx.entityId!;
-      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
+        const currency =
+          (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
         const [bill] = await db
           .update(invoicesAp)
           .set({ purchaseOrderId: input.poId })
@@ -647,7 +652,8 @@ export const billsRouter = router({
    */
   getBillsTrend: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
-      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
+    const currency =
+      (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
 
     // Get all bills
     const bills = await db.query.invoicesAp.findMany({
@@ -685,7 +691,8 @@ export const billsRouter = router({
    */
   getAiInsights: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
-      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
+    const currency =
+      (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
     const insights: Array<{
       id: string;
       type: "warning" | "info" | "success";
@@ -784,7 +791,8 @@ export const billsRouter = router({
 
   getPaymentSchedule: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
-      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
+    const currency =
+      (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
     const cashPosition = await getCashPosition(entityId);
 
     const openBills = await db
@@ -886,7 +894,8 @@ export const billsRouter = router({
 
   getApprovalRouting: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
-      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
+    const currency =
+      (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
     const today = todayStr();
     const monthAgo = new Date();
     monthAgo.setDate(monthAgo.getDate() - 30);
@@ -999,7 +1008,8 @@ export const billsRouter = router({
    */
   getNextBillNumber: rlsProtectedProcedure.query(async ({ ctx }) => {
     const entityId = ctx.entityId!;
-      const currency = (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
+    const currency =
+      (ctx as { entityCurrency?: string | null }).entityCurrency ?? "GMD";
     const now = new Date();
     const year = now.getFullYear();
     const month = String(now.getMonth() + 1).padStart(2, "0");
@@ -1010,18 +1020,30 @@ export const billsRouter = router({
     const endDate = new Date(year, endMonth, 0);
     const endDateStr = endDate.toISOString().slice(0, 10);
 
-    const [result] = await db
-      .select({ count: count() })
+    // B9: suggest max(existing sequence) + 1, not count + 1 — count-based
+    // suggestions collide after deletions (mirrors the AR numbering fix).
+    const existing = await db
+      .select({ invoiceNumber: invoicesAp.invoiceNumber })
       .from(invoicesAp)
       .where(
         and(
           eq(invoicesAp.entityId, entityId),
           gte(invoicesAp.invoiceDate, startDate),
           lte(invoicesAp.invoiceDate, endDateStr),
+          like(invoicesAp.invoiceNumber, `${prefix}-%`),
         ),
-      );
+      )
+      .limit(10_000);
 
-    const sequence = (result?.count ?? 0) + 1;
+    let maxSeq = 0;
+    for (const row of existing) {
+      const suffix = row.invoiceNumber.slice(prefix.length + 1);
+      if (/^\d+$/.test(suffix)) {
+        const n = parseInt(suffix, 10);
+        if (!Number.isNaN(n) && n > maxSeq) maxSeq = n;
+      }
+    }
+    const sequence = maxSeq + 1;
     const billNumber = `${prefix}-${String(sequence).padStart(5, "0")}`;
 
     return { billNumber };
