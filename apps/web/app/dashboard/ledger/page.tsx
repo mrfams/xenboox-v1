@@ -658,6 +658,7 @@ function TrialBalancePanel({
   setCursor: (n: number) => void;
   onOpenAccount: (id: string, name: string) => void;
 }) {
+  const { format } = useFormatCurrency();
   const { entityId } = useEntity();
   const { openWithFocus } = useModuleAi();
 
@@ -889,6 +890,7 @@ function RegisterRow({
   isFocused: boolean;
   onOpen: () => void;
 }) {
+  const { format } = useFormatCurrency();
   const statusTone =
     entry.statusColor === "emerald"
       ? "bg-balanced-green"
@@ -951,6 +953,7 @@ function EntryDetailDrawer({
   entryId: string;
   onClose: () => void;
 }) {
+  const { format } = useFormatCurrency();
   const { entityId } = useEntity();
   const { openWithFocus } = useModuleAi();
   const { data: entry, isLoading } = trpc.journal.getById.useQuery(

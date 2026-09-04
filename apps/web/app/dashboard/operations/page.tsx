@@ -173,6 +173,7 @@ export default function MoneyFlowsPage() {
 // ─── Cash Position Panel ────────────────────────────────────────────────────
 
 function CashPositionPanel() {
+  const { format } = useFormatCurrency();
   const { entityId } = useEntity();
   const { data: dash, isLoading: dashLoading } =
     trpc.dashboard.getDashboardData.useQuery({}, { enabled: !!entityId });

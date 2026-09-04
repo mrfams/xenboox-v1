@@ -26,6 +26,7 @@ import { useEntity } from "@/lib/entity-context";
 import { trpc } from "@/lib/trpc/client";
 import { cn, formatCurrency } from "@/lib/utils";
 import { useSurfaceSync } from "@/lib/hooks/use-surface-sync";
+import { useFormatCurrency } from "@/lib/hooks/use-currency";
 import { ProvenanceBadge } from "@/components/ai-native-v2/provenance";
 import { MetricNarrative } from "@/components/ai-native-v2/metric-narrative";
 import { CommandBar } from "@/components/ai-native-v2/command-bar";
@@ -338,6 +339,7 @@ function OverviewPanel({
     | undefined;
   ask: (prompt: string) => void;
 }) {
+  const { format } = useFormatCurrency();
   return (
     <div className="space-y-5">
       {/* AI Narrative */}
@@ -412,7 +414,7 @@ function OverviewPanel({
             <p className="text-sm leading-relaxed text-foreground/85">
               {pnl && pnl.revenue > 0 && (
                 <>
-                  Revenue is {formatCurrency(pnl.revenue, displayCurrency)}
+                  Revenue is {format(pnl.revenue)}
                   {pnl.revenueChange
                     ? ` (${pnl.revenueChange > 0 ? "+" : ""}${pnl.revenueChange.toFixed(1)}% vs prior)`
                     : ""}
@@ -421,7 +423,7 @@ function OverviewPanel({
               )}
               {pnl && pnl.expenses > 0 && (
                 <>
-                  Expenses are {formatCurrency(pnl.expenses, displayCurrency)}
+                  Expenses are {format(pnl.expenses)}
                   {pnl.expensesChange
                     ? ` (${pnl.expensesChange > 0 ? "+" : ""}${pnl.expensesChange.toFixed(1)}%)`
                     : ""}
@@ -431,11 +433,7 @@ function OverviewPanel({
               {(pnl?.netProfit ?? 0) !== 0 && (
                 <>
                   Net {(pnl?.netProfit ?? 0) >= 0 ? "profit" : "loss"} is{" "}
-                  {formatCurrency(
-                    Math.abs(pnl?.netProfit ?? 0),
-                    displayCurrency,
-                  )}
-                  .
+                  {format(Math.abs(pnl?.netProfit ?? 0))}.
                 </>
               )}
             </p>
@@ -451,7 +449,7 @@ function OverviewPanel({
         <div className="rounded-xl border border-border/50 bg-card p-4">
           <MetricNarrative
             label="Revenue"
-            value={formatCurrency(pnl?.revenue ?? 0, displayCurrency)}
+            value={format(pnl?.revenue ?? 0)}
             narrative={
               pnl?.revenueChange
                 ? `${pnl.revenueChange > 0 ? "Up" : "Down"} ${Math.abs(pnl.revenueChange).toFixed(1)}% vs prior — ${pnl.revenueChange > 5 ? "strong" : "steady"}.`
@@ -474,7 +472,7 @@ function OverviewPanel({
         <div className="rounded-xl border border-border/50 bg-card p-4">
           <MetricNarrative
             label="Expenses"
-            value={formatCurrency(pnl?.expenses ?? 0, displayCurrency)}
+            value={format(pnl?.expenses ?? 0)}
             narrative={
               pnl?.expensesChange
                 ? `${pnl.expensesChange > 0 ? "Up" : "Down"} ${Math.abs(pnl.expensesChange).toFixed(1)}% — watch the trend.`
@@ -495,7 +493,7 @@ function OverviewPanel({
         <div className="rounded-xl border border-border/50 bg-card p-4">
           <MetricNarrative
             label="Net Profit"
-            value={formatCurrency(pnl?.netProfit ?? 0, displayCurrency)}
+            value={format(pnl?.netProfit ?? 0)}
             narrative={
               pnl?.revenue && pnl.revenue > 0
                 ? `${(((pnl.netProfit ?? 0) / pnl.revenue) * 100).toFixed(1)}% margin.`
@@ -519,7 +517,7 @@ function OverviewPanel({
         <div className="rounded-xl border border-border/50 bg-card p-4">
           <MetricNarrative
             label="Cash & runway"
-            value={formatCurrency(overview?.cashBalance ?? 0, displayCurrency)}
+            value={format(overview?.cashBalance ?? 0)}
             narrative={
               overview?.runway != null
                 ? overview.runway < 3
@@ -729,6 +727,7 @@ function BudgetVsActualCard({
   entityId: string;
   ask: (prompt: string) => void;
 }) {
+  const { format } = useFormatCurrency();
   const { data: currentPeriod } = trpc.fiscal.getCurrent.useQuery(undefined, {
     enabled: !!entityId,
   });
@@ -844,10 +843,10 @@ function BudgetVsActualCard({
                       {item.category}
                     </td>
                     <td className="px-4 py-2 text-right font-mono tabular-nums text-muted-foreground">
-                      {formatCurrency(item.budget, displayCurrency)}
+                      {format(item.budget)}
                     </td>
                     <td className="px-4 py-2 text-right font-mono tabular-nums text-foreground">
-                      {formatCurrency(item.actual, displayCurrency)}
+                      {format(item.actual)}
                     </td>
                     <td
                       className={cn(
@@ -856,7 +855,7 @@ function BudgetVsActualCard({
                       )}
                     >
                       {isOver ? "+" : ""}
-                      {formatCurrency(item.variance, displayCurrency)}
+                      {format(item.variance)}
                     </td>
                   </tr>
                 );
