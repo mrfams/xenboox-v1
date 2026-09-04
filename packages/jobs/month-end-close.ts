@@ -7,7 +7,7 @@ import {
   journalEntryLines,
   chartOfAccounts,
 } from "@xenboox/db/schema";
-import { eq, and, sql } from "drizzle-orm";
+import { eq, and, desc, sql } from "drizzle-orm";
 
 export const processMonthEndClose = task({
   id: "process-month-end-close",
@@ -71,7 +71,8 @@ export const processMonthEndClose = task({
       };
     }
 
-    // 2. Validate all journal entries are posted
+    // 2. Validate all journal entries are posted (drafts AND pending_review —
+    // both become unpostable once the period closes)
     const draftEntries = await db
       .select()
       .from(journalEntries)
@@ -79,13 +80,13 @@ export const processMonthEndClose = task({
         and(
           eq(journalEntries.entityId, entityId),
           eq(journalEntries.periodId, period.id),
-          eq(journalEntries.status, "draft"),
+          sql`${journalEntries.status} IN ('draft', 'pending_review')`,
         ),
       );
 
     if (draftEntries.length > 0) {
       throw new Error(
-        `${draftEntries.length} draft entries must be posted before close`,
+        `${draftEntries.length} draft/pending journal entries must be posted before close`,
       );
     }
 
@@ -191,54 +192,70 @@ async function runDepreciation(entityId: string, periodId: string) {
     return;
   }
 
-  // 3. Get existing entry numbers to avoid collision
-  const lastEntry = await db
-    .select({ entryNumber: journalEntries.entryNumber })
-    .from(journalEntries)
-    .where(eq(journalEntries.entityId, entityId))
-    .orderBy(journalEntries.entryNumber)
-    .limit(1);
-  let nextEntryNumber = (lastEntry[0]?.entryNumber ?? 0) + 1;
+  // 3. Existing entry numbers — the next number is MAX + 1 (a fresh max per
+  // loop pass). Ordering DESC is critical: ASC returns the MINIMUM entry
+  // number, which would collide with an existing row on the very first insert.
+  let nextEntryNumber: number;
+  const readMax = async () => {
+    const [last] = await db
+      .select({ entryNumber: journalEntries.entryNumber })
+      .from(journalEntries)
+      .where(eq(journalEntries.entityId, entityId))
+      .orderBy(desc(journalEntries.entryNumber))
+      .limit(1);
+    return (last?.entryNumber ?? 0) + 1;
+  };
+  nextEntryNumber = await readMax();
 
   for (const asset of fixedAssets) {
     if (asset.name.includes("Accumulated")) continue;
 
-    const jeId = crypto.randomUUID();
     const today = new Date().toISOString().split("T")[0]!;
 
     // Calculate depreciation from asset metadata (cost, useful life, method)
     const assetMeta = (asset.metadata ?? {}) as Record<string, unknown>;
     const cost = Number(assetMeta.cost ?? asset.openingBalance ?? 0);
     const usefulLifeMonths = Number(assetMeta.usefulLifeMonths ?? 60);
-    const monthlyDepreciation = cost > 0 && usefulLifeMonths > 0
-      ? cost / usefulLifeMonths
-      : 0;
+    const monthlyDepreciation =
+      cost > 0 && usefulLifeMonths > 0 ? cost / usefulLifeMonths : 0;
 
     if (monthlyDepreciation <= 0) continue;
 
-    await db.insert(journalEntries).values({
-      entityId,
-      entryNumber: nextEntryNumber++,
-      description: `Depreciation - ${asset.name}`,
-      date: today,
-      periodId,
-      status: "posted",
-      postedBy: "system",
-      postedAt: new Date(),
-      source: "depreciation",
-    });
+    // Header and lines must share ONE journal entry id. Insert the header
+    // first and use its returned id — lines pointing at a random UUID that was
+    // never inserted violate the FK and fail the whole close.
+    const [header] = await db
+      .insert(journalEntries)
+      .values({
+        entityId,
+        entryNumber: nextEntryNumber,
+        description: `Depreciation - ${asset.name}`,
+        date: today,
+        periodId,
+        status: "posted",
+        postedBy: "system",
+        postedAt: new Date(),
+        source: "depreciation",
+      })
+      .returning({ id: journalEntries.id });
+    if (!header) {
+      throw new Error(`Depreciation header insert failed for ${asset.name}`);
+    }
+    // Re-read the max each pass — entryNumber is unique per entity and other
+    // writers may have posted between passes.
+    nextEntryNumber = await readMax();
 
     const amount = monthlyDepreciation.toFixed(2);
 
     await db.insert(journalEntryLines).values({
-      journalEntryId: jeId,
+      journalEntryId: header.id,
       accountId: expenseAccount.id,
       debit: amount,
       credit: "0",
       description: `Depreciation expense - ${asset.name}`,
     });
     await db.insert(journalEntryLines).values({
-      journalEntryId: jeId,
+      journalEntryId: header.id,
       accountId: accumAccount.id,
       debit: "0",
       credit: amount,

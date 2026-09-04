@@ -36,3 +36,25 @@ describe("P8-A: fiscal period close state machine", () => {
     expect(c).toContain("Cannot delete a period with journal entries");
   });
 });
+
+describe("P8-B: month-end close job (checklist/GL integrity)", () => {
+  const job = fs.readFileSync(
+    path.resolve(__dirname, "../../../packages/jobs/month-end-close.ts"),
+    "utf-8",
+  );
+
+  it("guards draft AND pending_review entries before close", () => {
+    expect(job).toContain("IN ('draft', 'pending_review')");
+  });
+
+  it("allocates depreciation entry numbers from the MAX (desc), never min", () => {
+    expect(job).toContain("orderBy(desc(journalEntries.entryNumber))");
+    expect(job).not.toContain(".orderBy(journalEntries.entryNumber)");
+  });
+
+  it("links depreciation lines to the inserted header id (no random-UUID FK)", () => {
+    expect(job).toContain(".returning({ id: journalEntries.id })");
+    expect(job).toContain("journalEntryId: header.id,");
+    expect(job).not.toContain("journalEntryId: jeId,");
+  });
+});
