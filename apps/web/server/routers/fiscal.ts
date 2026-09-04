@@ -145,6 +145,31 @@ export const fiscalRouter = router({
           });
         }
 
+        // P8-A: a close must never strand money. Draft/pending_review entries
+        // in this period can no longer be posted once it closes — refusing
+        // here (with counts) beats silently losing unposted work.
+        const unpostable = await db.query.journalEntries.findMany({
+          where: and(
+            eq(journalEntries.entityId, ctx.entityId!),
+            eq(journalEntries.periodId, input.periodId),
+            inArray(journalEntries.status, ["draft", "pending_review"]),
+          ),
+          columns: { id: true, status: true },
+        });
+        if (unpostable.length > 0) {
+          const drafts = unpostable.filter((e) => e.status === "draft").length;
+          const pending = unpostable.filter(
+            (e) => e.status === "pending_review",
+          ).length;
+          const parts: string[] = [];
+          if (drafts > 0) parts.push(`${drafts} draft`);
+          if (pending > 0) parts.push(`${pending} pending review`);
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: `Cannot close — ${parts.join(" and ")} journal ${unpostable.length === 1 ? "entry is" : "entries are"} still unposted in this period. Post, discard, or reverse them first.`,
+          });
+        }
+
         const entryIds = await db
           .select({ id: journalEntries.id })
           .from(journalEntries)
@@ -192,10 +217,17 @@ export const fiscalRouter = router({
           }),
         );
 
+        // Idempotent snapshot: the (entityId, periodId, accountId) index is
+        // unique — a retried close (after a partial failure) must not 500 on
+        // its own snapshot.
         if (snapshotValues.length > 0) {
-          await db.insert(trialBalanceSnapshots).values(snapshotValues);
+          await db
+            .insert(trialBalanceSnapshots)
+            .values(snapshotValues)
+            .onConflictDoNothing();
         }
 
+        // Conditional flip: a concurrent close must not double-flip.
         const [updated] = await db
           .update(fiscalPeriods)
           .set({
@@ -207,9 +239,17 @@ export const fiscalRouter = router({
             and(
               eq(fiscalPeriods.id, input.periodId),
               eq(fiscalPeriods.entityId, ctx.entityId!),
+              eq(fiscalPeriods.status, "open"),
             ),
           )
           .returning();
+
+        if (!updated) {
+          throw new TRPCError({
+            code: "CONFLICT",
+            message: "Period was already closed",
+          });
+        }
 
         if (updated) {
           await db.insert(auditLog).values({
