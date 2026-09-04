@@ -102,31 +102,45 @@ export async function createPostedJournal(opts: {
     return null;
   }
 
-  // entryNumber: unique per entity — compute under the same best-effort
-  // pattern used by banking (compensate on failure; no real tx on neon-http).
-  const [last] = await db
-    .select({ n: journalEntries.entryNumber })
-    .from(journalEntries)
-    .where(eq(journalEntries.entityId, entityId))
-    .orderBy(desc(journalEntries.entryNumber))
-    .limit(1);
-
-  const [entry] = await db
-    .insert(journalEntries)
-    .values({
-      entityId,
-      entryNumber: (last?.n ?? 0) + 1,
-      description,
-      reference,
-      date,
-      periodId: period.id,
-      status: "posted",
-      postedBy: userId,
-      postedAt: new Date(),
-      source,
-      metadata: { autoPost: true },
-    })
-    .returning({ id: journalEntries.id });
+  // entryNumber: unique per entity. Every pipeline computes max+1, so
+  // concurrent postings (bank syncs, approvals, reimbursements) collide on
+  // the (entityId, entryNumber) index — retry with a freshly-read max instead
+  // of letting a legit posting abort on a raw constraint error.
+  let entry: { id: string } | null = null;
+  for (let attempt = 0; attempt < 3 && !entry; attempt++) {
+    const [last] = await db
+      .select({ n: journalEntries.entryNumber })
+      .from(journalEntries)
+      .where(eq(journalEntries.entityId, entityId))
+      .orderBy(desc(journalEntries.entryNumber))
+      .limit(1);
+    try {
+      const [created] = await db
+        .insert(journalEntries)
+        .values({
+          entityId,
+          entryNumber: (last?.n ?? 0) + 1,
+          description,
+          reference,
+          date,
+          periodId: period.id,
+          status: "posted",
+          postedBy: userId,
+          postedAt: new Date(),
+          source,
+          metadata: { autoPost: true },
+        })
+        .returning({ id: journalEntries.id });
+      entry = created ?? null;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      const isCollision = /je_entity_entry_number|duplicate key value/.test(
+        msg,
+      );
+      if (!isCollision || attempt === 2) throw err;
+      // A concurrent posting took the number — re-read the max and retry.
+    }
+  }
   if (!entry) return null;
 
   try {

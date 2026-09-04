@@ -254,42 +254,69 @@ export async function runAllValidations(
 // ─── Database Operations ───────────────────────────────────────────────────
 
 export async function postEntry(entry: PendingEntry, entityId: string) {
-  // Generate entry number
-  const lastEntry = await db.query.journalEntries.findFirst({
-    where: eq(journalEntries.entityId, entityId),
-    orderBy: [desc(journalEntries.entryNumber)],
-  });
-  const entryNumber = (lastEntry?.entryNumber ?? 0) + 1;
+  // Entry number is unique per entity; every writer computes max+1, so
+  // concurrent postings collide on the (entityId, entryNumber) index. Retry
+  // with a freshly-read max instead of aborting the post on a raw constraint.
+  let journalEntry: typeof journalEntries.$inferSelect | null = null;
+  for (let attempt = 0; attempt < 3 && !journalEntry; attempt++) {
+    const lastEntry = await db.query.journalEntries.findFirst({
+      where: eq(journalEntries.entityId, entityId),
+      orderBy: [desc(journalEntries.entryNumber)],
+    });
+    const entryNumber = (lastEntry?.entryNumber ?? 0) + 1;
+    try {
+      const [created] = await db
+        .insert(journalEntries)
+        .values({
+          entityId,
+          entryNumber,
+          description: entry.description,
+          reference: entry.reference,
+          date: entry.date,
+          periodId: entry.periodId,
+          status: "posted",
+          postedBy: "ledger-agent",
+          postedAt: new Date(),
+          source: entry.sourceAgent,
+          confidence: "0.95",
+        })
+        .returning();
+      journalEntry = created ?? null;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      const isCollision = /je_entity_entry_number|duplicate key value/.test(
+        msg,
+      );
+      if (!isCollision || attempt === 2) throw err;
+      // Concurrent post took the number — re-read the max and retry.
+    }
+  }
+  if (!journalEntry) {
+    throw new Error("Failed to allocate a journal entry number");
+  }
 
-  // Insert journal entry
-  const [journalEntry] = await db
-    .insert(journalEntries)
-    .values({
-      entityId,
-      entryNumber,
-      description: entry.description,
-      reference: entry.reference,
-      date: entry.date,
-      periodId: entry.periodId,
-      status: "posted",
-      postedBy: "ledger-agent",
-      postedAt: new Date(),
-      source: entry.sourceAgent,
-      confidence: "0.95",
-    })
-    .returning();
-
-  // Insert lines
-  await Promise.all(
-    entry.entries.map((line) =>
-      db.insert(journalEntryLines).values({
+  // Batch-insert all lines in one query. If they fail, compensate — never
+  // leave a posted entry that records money without its lines.
+  try {
+    await db.insert(journalEntryLines).values(
+      entry.entries.map((line) => ({
         journalEntryId: journalEntry.id,
         accountId: line.accountId,
         debit: String(line.debit),
         credit: String(line.credit),
-      }),
-    ),
-  );
+      })),
+    );
+  } catch (err) {
+    await db
+      .delete(journalEntryLines)
+      .where(eq(journalEntryLines.journalEntryId, journalEntry.id))
+      .catch(() => {});
+    await db
+      .delete(journalEntries)
+      .where(eq(journalEntries.id, journalEntry.id))
+      .catch(() => {});
+    throw err;
+  }
 
   return journalEntry;
 }
@@ -360,7 +387,11 @@ export async function generateTrialBalance(entityId: string, periodId: string) {
       accountCode: data.code,
       accountName: data.name,
       accountType: data.type as
-        "asset" | "liability" | "equity" | "revenue" | "expense",
+        | "asset"
+        | "liability"
+        | "equity"
+        | "revenue"
+        | "expense",
       debitBalance: data.debit,
       creditBalance: data.credit,
       netBalance: data.debit - data.credit,

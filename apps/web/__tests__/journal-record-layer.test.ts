@@ -118,3 +118,41 @@ describe("P7-C: Ledger UI surface", () => {
     expect(page).toContain("utils.journal.invalidate()");
   });
 });
+
+describe("P7-D: posting choke point + Ledger Agent are race-safe", () => {
+  const core = fs.readFileSync(
+    path.resolve(__dirname, "../server/journal-posting-core.ts"),
+    "utf-8",
+  );
+  const ar = fs.readFileSync(
+    path.resolve(__dirname, "../server/ar-posting.ts"),
+    "utf-8",
+  );
+  const ap = fs.readFileSync(
+    path.resolve(__dirname, "../server/ap-posting.ts"),
+    "utf-8",
+  );
+  const ledgerTools = fs.readFileSync(
+    path.resolve(
+      __dirname,
+      "../../../packages/agents/tier3/ledger-agent/tools.ts",
+    ),
+    "utf-8",
+  );
+
+  it("createPostedJournal retries entry-number collisions (never races to a 500)", () => {
+    expect(core).toContain("attempt < 3");
+    expect(core).toContain("je_entity_entry_number|duplicate key value");
+  });
+
+  it("AR/AP void reversals retry entry-number collisions", () => {
+    expect(ar).toContain("je_entity_entry_number|duplicate key value");
+    expect(ap).toContain("je_entity_entry_number|duplicate key value");
+  });
+
+  it("Ledger Agent postEntry retries numbering and compensates a failed lines insert", () => {
+    expect(ledgerTools).toContain("je_entity_entry_number|duplicate key value");
+    expect(ledgerTools).toContain("delete(journalEntries)");
+    expect(ledgerTools).toContain("Failed to allocate a journal entry number");
+  });
+});

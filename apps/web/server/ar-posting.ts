@@ -332,30 +332,44 @@ export async function reverseArInvoiceJournal(
   const originalLines = await db.query.journalEntryLines.findMany({
     where: eq(journalEntryLines.journalEntryId, original.id),
   });
-  const [last] = await db
-    .select({ n: journalEntries.entryNumber })
-    .from(journalEntries)
-    .where(eq(journalEntries.entityId, entityId))
-    .orderBy(desc(journalEntries.entryNumber))
-    .limit(1);
 
   const reference = `ar-inv-rev-${invoice.id}`;
-  const [reversal] = await db
-    .insert(journalEntries)
-    .values({
-      entityId,
-      entryNumber: (last?.n ?? 0) + 1,
-      description: `Reversal of invoice ${invoice.invoiceNumber}${reason ? `: ${reason}` : ""}`,
-      reference,
-      date: new Date().toISOString().slice(0, 10),
-      periodId: original.periodId,
-      status: "posted",
-      reversedBy: original.id,
-      postedBy: userId,
-      postedAt: new Date(),
-      source: "ar_invoice_void",
-    })
-    .returning({ id: journalEntries.id });
+  // Reversals allocate a unique entry number like every other writer; a
+  // concurrent posting could take the computed max — retry on the collision.
+  let reversal: { id: string } | null = null;
+  for (let attempt = 0; attempt < 3 && !reversal; attempt++) {
+    const [last] = await db
+      .select({ n: journalEntries.entryNumber })
+      .from(journalEntries)
+      .where(eq(journalEntries.entityId, entityId))
+      .orderBy(desc(journalEntries.entryNumber))
+      .limit(1);
+    try {
+      const [created] = await db
+        .insert(journalEntries)
+        .values({
+          entityId,
+          entryNumber: (last?.n ?? 0) + 1,
+          description: `Reversal of invoice ${invoice.invoiceNumber}${reason ? `: ${reason}` : ""}`,
+          reference,
+          date: new Date().toISOString().slice(0, 10),
+          periodId: original.periodId,
+          status: "posted",
+          reversedBy: original.id,
+          postedBy: userId,
+          postedAt: new Date(),
+          source: "ar_invoice_void",
+        })
+        .returning({ id: journalEntries.id });
+      reversal = created ?? null;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      const isCollision = /je_entity_entry_number|duplicate key value/.test(
+        msg,
+      );
+      if (!isCollision || attempt === 2) throw err;
+    }
+  }
   if (!reversal) return { posted: false, reason: "reversal_insert_failed" };
 
   try {
