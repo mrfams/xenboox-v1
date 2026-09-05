@@ -20,10 +20,13 @@ import {
   fiscalPeriods,
   journalEntries,
   journalEntryLines,
-  chartOfAccounts,
   trialBalanceSnapshots,
 } from "@xenboox/db/schema/accounting";
 import { bankTransactions } from "@xenboox/db/schema/treasury";
+import {
+  fixedAssets,
+  depreciationSchedule,
+} from "@xenboox/db/schema/fixed-assets";
 import {
   closeSessions,
   closeConfirmations,
@@ -492,16 +495,24 @@ export async function executeClosePipeline(params: {
         stepStart,
       );
 
-      // Graceful degradation: if adjustments fail, log warning but don't crash
+      // Failed adjustments are not safe to skip: the close must stop before
+      // changing fiscal-period state so a human can repair the missing schedule.
       if (!adjustmentResult.success) {
+        closeState.status = "awaiting_human";
         closeState.warnings.push(
-          "Automated adjustments failed — proceeding with graceful degradation",
+          "Automated adjustments failed; period close was not attempted.",
         );
-        closeState.steps = updateStep(closeState.steps, "adjustments", {
-          status: "completed" as CloseStepStatus,
-          completedAt: new Date().toISOString(),
-          details: { gracefulDegradation: true, skipped: true },
+        closeState.completedAt = new Date().toISOString();
+        await trace.update({
+          output: { status: "awaiting_human", step: "adjustments" },
         });
+        const result = {
+          closeState,
+          stepTelemetry,
+          durationMs: Date.now() - startTime,
+        };
+        setIdempotencyResult(idempotencyKey, result);
+        return result;
       }
 
       // ── Step 4: Final Trial Balance Verification ────────────────────────
@@ -929,79 +940,138 @@ async function runAutomatedAdjustments(
   let depreciationCount = 0;
 
   try {
-    // Run depreciation for fixed assets — batch COA lookups first
-    const allCoa = await db.query.chartOfAccounts.findMany({
-      where: and(eq(chartOfAccounts.entityId, entityId)),
+    const period = await db.query.fiscalPeriods.findFirst({
+      where: and(
+        eq(fiscalPeriods.id, periodId),
+        eq(fiscalPeriods.entityId, entityId),
+      ),
+      columns: { startDate: true, endDate: true },
     });
+    if (!period) return { success: false, depreciationCount, adjustments };
 
-    const fixedAssetAccounts = allCoa.filter(
-      (a) =>
-        a.type === "asset" &&
-        a.subtype === "fixed_asset" &&
-        !a.name.includes("Accumulated"),
-    );
-    const accumAccount = allCoa.find((a) => a.code === "1510");
-    const expenseAccount = allCoa.find((a) => a.code === "6040");
+    const schedules = await db
+      .select({
+        assetId: depreciationSchedule.fixedAssetId,
+        assetName: fixedAssets.name,
+        amount: depreciationSchedule.depreciationAmount,
+        journalEntryId: depreciationSchedule.journalEntryId,
+        expenseAccountId: fixedAssets.glAccountId,
+        accumulatedAccountId: fixedAssets.accumulatedDepreciationAccountId,
+      })
+      .from(depreciationSchedule)
+      .innerJoin(
+        fixedAssets,
+        eq(depreciationSchedule.fixedAssetId, fixedAssets.id),
+      )
+      .where(
+        and(
+          eq(depreciationSchedule.entityId, entityId),
+          eq(depreciationSchedule.periodId, periodId),
+          eq(fixedAssets.entityId, entityId),
+        ),
+      );
 
-    if (accumAccount && expenseAccount) {
-      const today = new Date().toISOString().split("T")[0]!;
+    for (const schedule of schedules) {
+      if (schedule.journalEntryId) {
+        adjustments.push(
+          `Depreciation already posted for ${schedule.assetName}`,
+        );
+        continue;
+      }
+      if (!schedule.expenseAccountId || !schedule.accumulatedAccountId) {
+        return { success: false, depreciationCount, adjustments };
+      }
+      const amount = Number(schedule.amount);
+      if (!Number.isFinite(amount) || amount <= 0) {
+        return { success: false, depreciationCount, adjustments };
+      }
 
-      // Wrap depreciation entry creation in a transaction to guarantee atomicity
-      await db.transaction(async (tx) => {
-        for (const asset of fixedAssetAccounts) {
-          // Calculate depreciation: 10% per annum straight-line, monthly
-          // Use account code as a proxy for asset cost tier
-          const estimatedAssetCost = Math.max(0, Number(asset.code) * 1000);
-          const monthlyDepreciation = Math.max(
-            1,
-            Math.round((estimatedAssetCost * 0.1) / 12),
-          );
-          const depreciationAmount = String(monthlyDepreciation);
-
-          const [entry] = await tx
-            .insert(journalEntries)
-            .values({
-              entityId,
-              entryNumber: 9000 + Math.floor(Math.random() * 1000),
-              description: `Depreciation - ${asset.name}`,
-              date: today,
-              periodId,
-              status: "posted",
-              postedBy: "system",
-              postedAt: new Date(),
-              source: "automatic_close_adjustment",
-            })
-            .returning({ id: journalEntries.id });
-
-          if (entry) {
-            await tx.insert(journalEntryLines).values([
-              {
-                journalEntryId: entry.id,
-                accountId: expenseAccount.id,
-                debit: depreciationAmount,
-                credit: "0",
-                description: `Depreciation expense - ${asset.name}`,
-              },
-              {
-                journalEntryId: entry.id,
-                accountId: accumAccount.id,
-                debit: "0",
-                credit: depreciationAmount,
-                description: `Accumulated depreciation - ${asset.name}`,
-              },
-            ]);
-            depreciationCount++;
-            adjustments.push(
-              `Depreciation for ${asset.name}: ${depreciationAmount}`,
-            );
-          }
-        }
+      const reference = `depreciation:${entityId}:${periodId}:${schedule.assetId}`;
+      const existing = await db.query.journalEntries.findFirst({
+        where: and(
+          eq(journalEntries.entityId, entityId),
+          eq(journalEntries.reference, reference),
+        ),
+        columns: { id: true },
       });
+      if (existing) {
+        await db
+          .update(depreciationSchedule)
+          .set({ journalEntryId: existing.id })
+          .where(
+            and(
+              eq(depreciationSchedule.entityId, entityId),
+              eq(depreciationSchedule.fixedAssetId, schedule.assetId),
+              eq(depreciationSchedule.periodId, periodId),
+            ),
+          );
+        adjustments.push(
+          `Depreciation already posted for ${schedule.assetName}`,
+        );
+        continue;
+      }
+
+      const [entry] = await db.transaction(async (tx) => {
+        const [last] = await tx
+          .select({ entryNumber: journalEntries.entryNumber })
+          .from(journalEntries)
+          .where(eq(journalEntries.entityId, entityId))
+          .orderBy(desc(journalEntries.entryNumber))
+          .limit(1);
+        const [created] = await tx
+          .insert(journalEntries)
+          .values({
+            entityId,
+            entryNumber: (last?.entryNumber ?? 0) + 1,
+            description: `Depreciation - ${schedule.assetName}`,
+            reference,
+            date: period.endDate,
+            periodId,
+            status: "posted",
+            postedBy: "system",
+            postedAt: new Date(),
+            source: "automatic_close_adjustment",
+          })
+          .returning({ id: journalEntries.id });
+        if (!created)
+          throw new Error("Failed to create depreciation journal entry");
+        await tx.insert(journalEntryLines).values([
+          {
+            journalEntryId: created.id,
+            accountId: schedule.expenseAccountId,
+            debit: String(amount.toFixed(2)),
+            credit: "0",
+            description: `Depreciation expense - ${schedule.assetName}`,
+          },
+          {
+            journalEntryId: created.id,
+            accountId: schedule.accumulatedAccountId,
+            debit: "0",
+            credit: String(amount.toFixed(2)),
+            description: `Accumulated depreciation - ${schedule.assetName}`,
+          },
+        ]);
+        await tx
+          .update(depreciationSchedule)
+          .set({ journalEntryId: created.id, calculatedBy: "close-pipeline" })
+          .where(
+            and(
+              eq(depreciationSchedule.entityId, entityId),
+              eq(depreciationSchedule.fixedAssetId, schedule.assetId),
+              eq(depreciationSchedule.periodId, periodId),
+            ),
+          );
+        return [created] as const;
+      });
+      if (!entry) return { success: false, depreciationCount, adjustments };
+      depreciationCount += 1;
+      adjustments.push(
+        `Depreciation for ${schedule.assetName}: ${amount.toFixed(2)}`,
+      );
     }
 
     return { success: true, depreciationCount, adjustments };
-  } catch (error) {
-    // Pipeline failure does not crash the orchestrator
+  } catch {
     return { success: false, depreciationCount, adjustments };
   }
 }

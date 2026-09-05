@@ -10,13 +10,19 @@ import {
 } from "@xenboox/db/schema/chat";
 import { users } from "@xenboox/db/schema/auth";
 import { documents } from "@xenboox/db/schema/documents";
-import { journalEntries, chartOfAccounts } from "@xenboox/db/schema/accounting";
+import {
+  journalEntries,
+  journalEntryLines,
+  chartOfAccounts,
+} from "@xenboox/db/schema/accounting";
 import {
   salesInvoices,
+  salesInvoiceLines,
   invoicesAp,
   customers,
   suppliers,
 } from "@xenboox/db/schema/ap-ar";
+import { ensureAccount, findOpenPeriod } from "../journal-posting-core";
 
 import type { MentionItem } from "@/lib/chat/mention-types";
 import {
@@ -1540,8 +1546,9 @@ export const chatRouter = router({
       }),
     )
     .query(async ({ ctx, input }) => {
-      const { searchRelevantConversations } =
-        await import("@/lib/chat/cross-conversation-memory");
+      const { searchRelevantConversations } = await import(
+        "@/lib/chat/cross-conversation-memory"
+      );
 
       const results = await searchRelevantConversations(
         ctx.entityId!,
@@ -1577,14 +1584,9 @@ n   * mutation, logging to the audit trail.
     )
     .mutation(async ({ ctx, input }) => {
       const entityId = ctx.entityId!;
-      const userId = ctx.session!.user!.id!;
 
       switch (input.creationType) {
         case "create_invoice": {
-          const { salesInvoices, salesInvoiceLines, customers } =
-            await import("@xenboox/db/schema");
-          const { eq: eqOp } = await import("drizzle-orm");
-
           const data = input.parsedData as {
             customerName: string;
             customerEmail?: string;
@@ -1598,20 +1600,28 @@ n   * mutation, logging to the audit trail.
             notes?: string;
           };
 
-          // Find or create customer
-          let customer = await db.query.customers.findFirst({
-            where: eqOp(customers.name, data.customerName),
-          });
+          if (!data.lines?.length) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: "Invoice needs at least one line item",
+            });
+          }
 
+          // Entity-scoped customer find-or-create. The lookup must never
+          // cross entity boundaries.
+          let customer = await db.query.customers.findFirst({
+            where: and(
+              eq(customers.entityId, entityId),
+              eq(customers.name, data.customerName),
+            ),
+          });
           if (!customer) {
             const [newCustomer] = await db
               .insert(customers)
               .values({
                 entityId,
                 name: data.customerName,
-                email: data.customerEmail ?? null,
-                createdAt: new Date(),
-                updatedAt: new Date(),
+                contactEmail: data.customerEmail ?? null,
               })
               .returning();
             customer = newCustomer;
@@ -1621,49 +1631,67 @@ n   * mutation, logging to the audit trail.
             (sum, l) => sum + l.quantity * l.unitPrice,
             0,
           );
+          const today = new Date().toISOString().slice(0, 10);
+          const dueDate = new Date(
+            Date.now() + data.dueInDays * 24 * 60 * 60 * 1000,
+          )
+            .toISOString()
+            .slice(0, 10);
 
-          const dueDate = new Date();
-          dueDate.setDate(dueDate.getDate() + data.dueInDays);
-
-          const [invoice] = await db
-            .insert(salesInvoices)
-            .values({
-              entityId,
-              customerId: customer!.id,
-              invoiceNumber: `INV-${Date.now()}`,
-              status: "draft",
-              currency: data.currency,
-              totalAmount: String(totalAmount),
-              taxAmount: "0",
-              discountAmount: "0",
-              amountPaid: "0",
-              balance: String(totalAmount),
-              issueDate: new Date(),
-              dueDate,
-              notes: data.notes ?? null,
-              createdAt: new Date(),
-              updatedAt: new Date(),
-            })
-            .returning();
-
-          for (const line of data.lines) {
-            await db.insert(salesInvoiceLines).values({
-              entityId,
-              invoiceId: invoice.id,
-              description: line.description,
-              quantity: String(line.quantity),
-              unitPrice: String(line.unitPrice),
-              amount: String(line.quantity * line.unitPrice),
-              createdAt: new Date(),
-              updatedAt: new Date(),
+          // Invoice lines carry a NOT NULL account reference. AI-parsed
+          // lines have no account, so post them against the entity's
+          // canonical sales account (created on demand, same convention as
+          // the shared posting core).
+          const salesAccountId = await ensureAccount(entityId, {
+            code: "4000",
+            name: "Sales Revenue",
+            type: "revenue",
+            subtype: "sales_revenue",
+          });
+          if (!salesAccountId) {
+            throw new TRPCError({
+              code: "INTERNAL_SERVER_ERROR",
+              message: "Could not resolve a sales account for invoice lines",
             });
           }
+
+          // Header and lines commit together — a partial invoice must never
+          // be observable after a failure.
+          const invoice = await db.transaction(async (tx) => {
+            const [created] = await tx
+              .insert(salesInvoices)
+              .values({
+                entityId,
+                customerId: customer.id,
+                invoiceNumber: `INV-${Date.now()}`,
+                invoiceDate: today,
+                dueDate,
+                status: "pending",
+                totalAmount: String(totalAmount),
+                paidAmount: "0",
+                balance: String(totalAmount),
+                currency: data.currency,
+                notes: data.notes ?? null,
+              })
+              .returning();
+
+            await tx.insert(salesInvoiceLines).values(
+              data.lines.map((line) => ({
+                salesInvoiceId: created.id,
+                accountId: salesAccountId,
+                description: line.description,
+                quantity: String(line.quantity),
+                unitPrice: String(line.unitPrice),
+                amount: String(line.quantity * line.unitPrice),
+              })),
+            );
+            return created;
+          });
 
           return { success: true, id: invoice.id, type: "invoice" as const };
         }
 
         case "create_vendor": {
-          const { suppliers } = await import("@xenboox/db/schema");
           const data = input.parsedData as {
             name: string;
             email?: string;
@@ -1676,12 +1704,9 @@ n   * mutation, logging to the audit trail.
             .values({
               entityId,
               name: data.name,
-              email: data.email ?? null,
-              phone: data.phone ?? null,
+              contactEmail: data.email ?? null,
+              contactPhone: data.phone ?? null,
               taxId: data.taxId ?? null,
-              isActive: true,
-              createdAt: new Date(),
-              updatedAt: new Date(),
             })
             .returning();
 
@@ -1689,7 +1714,6 @@ n   * mutation, logging to the audit trail.
         }
 
         case "create_customer": {
-          const { customers } = await import("@xenboox/db/schema");
           const data = input.parsedData as {
             name: string;
             email?: string;
@@ -1702,11 +1726,9 @@ n   * mutation, logging to the audit trail.
             .values({
               entityId,
               name: data.name,
-              email: data.email ?? null,
-              phone: data.phone ?? null,
+              contactEmail: data.email ?? null,
+              contactPhone: data.phone ?? null,
               taxId: data.taxId ?? null,
-              createdAt: new Date(),
-              updatedAt: new Date(),
             })
             .returning();
 
@@ -1714,35 +1736,17 @@ n   * mutation, logging to the audit trail.
         }
 
         case "create_expense": {
-          // Reuse existing expense creation logic
-          const { expenses } = await import("@xenboox/db/schema");
-          const data = input.parsedData as {
-            description: string;
-            amount: number;
-            currency: string;
-            vendorName?: string;
-            category?: string;
-          };
-
-          const [expense] = await db
-            .insert(expenses)
-            .values({
-              entityId,
-              description: data.description,
-              amount: String(data.amount),
-              currency: data.currency,
-              status: "draft",
-              createdAt: new Date(),
-              updatedAt: new Date(),
-            })
-            .returning();
-
-          return { success: true, id: expense.id, type: "expense" as const };
+          // There is no standalone expenses table — expenses are AP bills
+          // (invoices_ap) or employee claims (expenseClaims). Never fake a
+          // write that cannot exist; direct the user to the real surface.
+          throw new TRPCError({
+            code: "NOT_IMPLEMENTED",
+            message:
+              "Expense creation via AI is not supported yet. Record the expense as a bill in Operations or as an expense claim.",
+          });
         }
 
         case "create_journal_entry": {
-          const { journalEntries: jeTable, journalEntryLines: jeLines } =
-            await import("@xenboox/db/schema/accounting");
           const data = input.parsedData as {
             description: string;
             lines: Array<{
@@ -1752,30 +1756,84 @@ n   * mutation, logging to the audit trail.
             }>;
           };
 
-          const [entry] = await db
-            .insert(jeTable)
-            .values({
-              entityId,
-              description: data.description,
-              entryDate: new Date(),
-              status: "draft",
-              createdBy: userId,
-              createdAt: new Date(),
-              updatedAt: new Date(),
-            })
-            .returning();
-
-          for (const line of data.lines) {
-            await db.insert(jeLines).values({
-              entityId,
-              journalEntryId: entry.id,
-              accountId: line.accountCode,
-              debit: String(line.debit),
-              credit: String(line.credit),
-              createdAt: new Date(),
-              updatedAt: new Date(),
+          if (!data.lines?.length) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: "Journal entry needs at least one line",
             });
           }
+
+          // Resolve account codes to real entity-scoped COA rows. The AI
+          // never supplies account UUIDs directly.
+          const resolvedLines: Array<{
+            accountId: string;
+            debit: number;
+            credit: number;
+          }> = [];
+          for (const line of data.lines) {
+            const account = await db.query.chartOfAccounts.findFirst({
+              where: and(
+                eq(chartOfAccounts.entityId, entityId),
+                eq(chartOfAccounts.code, line.accountCode),
+              ),
+              columns: { id: true },
+            });
+            if (!account) {
+              throw new TRPCError({
+                code: "BAD_REQUEST",
+                message: `Account code ${line.accountCode} not found in the chart of accounts`,
+              });
+            }
+            resolvedLines.push({
+              accountId: account.id,
+              debit: line.debit,
+              credit: line.credit,
+            });
+          }
+
+          // Draft entries still require a period and a sequential entry
+          // number (both NOT NULL) — resolve them from the entity's open
+          // period for today.
+          const today = new Date().toISOString().slice(0, 10);
+          const period = await findOpenPeriod(entityId, today);
+          if (!period) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message:
+                "No open fiscal period for today's date — open the period before creating journal entries",
+            });
+          }
+
+          const entry = await db.transaction(async (tx) => {
+            const [last] = await tx
+              .select({ n: journalEntries.entryNumber })
+              .from(journalEntries)
+              .where(eq(journalEntries.entityId, entityId))
+              .orderBy(desc(journalEntries.entryNumber))
+              .limit(1);
+
+            const [created] = await tx
+              .insert(journalEntries)
+              .values({
+                entityId,
+                entryNumber: (last?.n ?? 0) + 1,
+                description: data.description,
+                date: today,
+                periodId: period.id,
+                status: "draft",
+              })
+              .returning();
+
+            await tx.insert(journalEntryLines).values(
+              resolvedLines.map((line) => ({
+                journalEntryId: created.id,
+                accountId: line.accountId,
+                debit: String(line.debit),
+                credit: String(line.credit),
+              })),
+            );
+            return created;
+          });
 
           return {
             success: true,

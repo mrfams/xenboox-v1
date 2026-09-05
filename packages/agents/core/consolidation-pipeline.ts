@@ -36,8 +36,17 @@ import {
 } from "@xenboox/db/schema/consolidation";
 import {
   journalEntries,
-  trialBalanceSnapshots,
+  journalEntryLines,
+  chartOfAccounts,
+  fiscalPeriods,
 } from "@xenboox/db/schema/accounting";
+import {
+  aggregateReportRows,
+  derivePnl,
+  deriveBalanceSheet,
+  type ReportLineLike,
+  type ReportAccountLike,
+} from "@xenboox/db";
 import { auditLog, exchangeRates } from "@xenboox/db/schema/documents";
 import {
   withRetry,
@@ -67,7 +76,12 @@ export type ConsolidationStepId =
   | "audit_trail";
 
 export type ConsolidationStepStatus =
-  "pending" | "in_progress" | "completed" | "skipped" | "failed" | "flagged";
+  | "pending"
+  | "in_progress"
+  | "completed"
+  | "skipped"
+  | "failed"
+  | "flagged";
 
 export interface ConsolidationStep {
   id: ConsolidationStepId;
@@ -214,6 +228,98 @@ function recordFailedStep(
     status: "failed",
     metadata: error ? { error } : undefined,
   });
+}
+
+// ─── Real Ledger Financials (P9-B) ─────────────────────────────────────────
+//
+// The consolidation steps previously FABRICATED subsidiary numbers:
+//   P&L = 30% of balance-sheet magnitude, minority net income/equity from
+//   fixed 500000/2000000 constants, parent revenue guessed from the sign of
+//   snapshot balances. Every number below now comes from the entity's own
+//   posted ledger via the canonical report-math builders.
+
+interface EntityFinancials {
+  revenue: number;
+  expenses: number;
+  netIncome: number;
+  totalAssets: number;
+  totalLiabilities: number;
+  totalEquity: number; // explicit equity accounts only
+  equityWithEarnings: number; // + current earnings (net income to date)
+}
+
+async function loadEntityFinancials(
+  targetEntityId: string,
+  period: string, // "YYYY-MM"
+  warnings: string[],
+): Promise<EntityFinancials | null> {
+  const [year, month] = period.split("-").map(Number);
+  const periodRow = await db.query.fiscalPeriods.findFirst({
+    where: and(
+      eq(fiscalPeriods.entityId, targetEntityId),
+      eq(fiscalPeriods.year, year),
+      eq(fiscalPeriods.month, month),
+    ),
+  });
+  if (!periodRow) {
+    warnings.push(
+      `No fiscal period ${period} found for entity ${targetEntityId} — its financials are excluded.`,
+    );
+    return null;
+  }
+
+  const accounts = (await db.query.chartOfAccounts.findMany({
+    where: eq(chartOfAccounts.entityId, targetEntityId),
+  })) as unknown as ReportAccountLike[];
+
+  // P&L: posted entries within the period window.
+  const windowEntries = await db.query.journalEntries.findMany({
+    where: and(
+      eq(journalEntries.entityId, targetEntityId),
+      eq(journalEntries.status, "posted"),
+      sql`${journalEntries.date} >= ${periodRow.startDate}`,
+      sql`${journalEntries.date} <= ${periodRow.endDate}`,
+    ),
+  });
+  const windowIds = windowEntries.map((e) => e.id);
+  const windowLines =
+    windowIds.length > 0
+      ? await db.query.journalEntryLines.findMany({
+          where: inArray(journalEntryLines.journalEntryId, windowIds),
+        })
+      : [];
+  const pnl = derivePnl(
+    aggregateReportRows(windowLines as ReportLineLike[], accounts),
+  );
+
+  // Balance sheet: cumulative posted entries as of period end.
+  const bsEntries = await db.query.journalEntries.findMany({
+    where: and(
+      eq(journalEntries.entityId, targetEntityId),
+      eq(journalEntries.status, "posted"),
+      sql`${journalEntries.date} <= ${periodRow.endDate}`,
+    ),
+  });
+  const bsIds = bsEntries.map((e) => e.id);
+  const bsLines =
+    bsIds.length > 0
+      ? await db.query.journalEntryLines.findMany({
+          where: inArray(journalEntryLines.journalEntryId, bsIds),
+        })
+      : [];
+  const bs = deriveBalanceSheet(
+    aggregateReportRows(bsLines as ReportLineLike[], accounts),
+  );
+
+  return {
+    revenue: pnl.totalRevenue,
+    expenses: pnl.totalCogs + pnl.totalOperatingExpenses,
+    netIncome: pnl.netIncome,
+    totalAssets: bs.totalAssets,
+    totalLiabilities: bs.totalLiabilities,
+    totalEquity: bs.totalEquity,
+    equityWithEarnings: bs.totalEquityWithEarnings,
+  };
 }
 
 // ─── Pipeline Runner ─────────────────────────────────────────────────────────
@@ -579,54 +685,69 @@ export async function runConsolidationPipeline(
         const parentCurrency = parentEntity?.currency ?? "USD";
 
         const translationsArr: TranslationItem[] = [];
+        // Real subsidiary financials loaded from each entity's own ledger,
+        // keyed for reuse by minority-interest and assembly steps.
+        const subFinancials = new Map<string, EntityFinancials>();
+        // Translated totals per subsidiary (parent currency) for assembly.
+        const translatedSubs = new Map<
+          string,
+          {
+            revenue: number;
+            expenses: number;
+            netIncome: number;
+            assets: number;
+            liabilities: number;
+            equity: number;
+          }
+        >();
+
         for (const sub of subsidiaries) {
-          if (sub.currency === parentCurrency) {
-            // Same currency, no translation needed
-            continue;
-          }
+          const fin = await loadEntityFinancials(
+            sub.subsidiaryId,
+            period,
+            warnings,
+          );
+          if (!fin) continue;
+          subFinancials.set(sub.subsidiaryId, fin);
 
-          // Look up exchange rate from database (uses existing FX layer)
-          const rateRecord = await db.query.exchangeRates.findFirst({
-            where: and(
-              eq(exchangeRates.fromCurrency, sub.currency),
-              eq(exchangeRates.toCurrency, parentCurrency),
-            ),
-            orderBy: [desc(exchangeRates.validFrom)],
-          });
-
-          if (!rateRecord) {
-            warnings.push(
-              `No exchange rate found for ${sub.currency} → ${parentCurrency}. Using rate of 1.0 — translated amounts may be inaccurate for ${sub.subsidiaryName}.`,
-            );
-          }
-
-          const exchangeRate = rateRecord ? Number(rateRecord.rate) : 1.0;
-
-          // Get trial balance for subsidiary
-          const subAccounts = await db.query.trialBalanceSnapshots.findMany({
-            where: and(
-              eq(trialBalanceSnapshots.entityId, sub.subsidiaryId),
-              gte(
-                trialBalanceSnapshots.generatedAt,
-                new Date(`${period.slice(0, 4)}-01-01`),
+          let rate = 1;
+          if (sub.currency !== parentCurrency) {
+            const rateRecord = await db.query.exchangeRates.findFirst({
+              where: and(
+                eq(exchangeRates.fromCurrency, sub.currency),
+                eq(exchangeRates.toCurrency, parentCurrency),
               ),
-            ),
-          });
+              orderBy: [desc(exchangeRates.validFrom)],
+            });
+            if (!rateRecord) {
+              warnings.push(
+                `No exchange rate found for ${sub.currency} → ${parentCurrency}. Excluding ${sub.subsidiaryName} from translation.`,
+              );
+              continue;
+            }
+            rate = Number(rateRecord.rate);
+          }
 
-          const bsTotal = subAccounts
-            .filter((a) => a.balance !== "0")
-            .reduce((s, a) => s + Math.abs(Number(a.balance)), 0);
+          const tx = {
+            revenue: fin.revenue * rate,
+            expenses: fin.expenses * rate,
+            netIncome: fin.netIncome * rate,
+            assets: fin.totalAssets * rate,
+            liabilities: fin.totalLiabilities * rate,
+            equity: fin.equityWithEarnings * rate,
+          };
+          translatedSubs.set(sub.subsidiaryId, tx);
 
           translationsArr.push({
             subsidiaryId: sub.subsidiaryId,
             subsidiaryName: sub.subsidiaryName,
             originalCurrency: sub.currency,
             parentCurrency,
-            exchangeRate,
-            bsAmount: bsTotal,
-            plAmount: bsTotal * 0.3, // Approximate P&L as 30% of balance sheet
-            translatedBs: bsTotal * exchangeRate,
-            translatedPl: bsTotal * 0.3 * exchangeRate,
+            exchangeRate: rate,
+            bsAmount: fin.totalAssets,
+            plAmount: fin.netIncome,
+            translatedBs: tx.assets,
+            translatedPl: tx.netIncome,
           });
         }
 
@@ -672,11 +793,13 @@ export async function runConsolidationPipeline(
         for (const sub of subsidiaries) {
           if (sub.ownershipPct >= 100) continue; // 100% owned, no minority interest
 
-          const minorityPct = 100 - sub.ownershipPct;
+          const fin = subFinancials.get(sub.subsidiaryId);
+          if (!fin) continue; // no period data → nothing to attribute
 
-          // Simulate subsidiary net income and equity (in prod, pull from financial statements)
-          const subNetIncome = 500000 * (sub.ownershipPct / 100);
-          const subEquity = 2000000 * (sub.ownershipPct / 100);
+          const minorityPct = 100 - sub.ownershipPct;
+          // Real attributable figures — no fixed 500k/2M constants.
+          const subNetIncome = fin.netIncome;
+          const subEquity = fin.equityWithEarnings;
           const minorityIncome = subNetIncome * (minorityPct / 100);
           const minorityEquity = subEquity * (minorityPct / 100);
 
@@ -752,38 +875,34 @@ export async function runConsolidationPipeline(
         step6.status = "in_progress";
         step6.startedAt = new Date().toISOString();
 
-        // Get parent entity's financial aggregates
-        const parentAccounts = await db.query.trialBalanceSnapshots.findMany({
-          where: and(
-            eq(trialBalanceSnapshots.entityId, entityId),
-            gte(
-              trialBalanceSnapshots.generatedAt,
-              new Date(`${period.slice(0, 4)}-01-01`),
-            ),
-          ),
-        });
-
-        const totalRevenue = parentAccounts
-          .filter((a) => Number(a.balance) > 0)
-          .reduce((s, a) => s + Number(a.balance), 0);
-        const totalExpenses = parentAccounts
-          .filter((a) => Number(a.balance) < 0)
-          .reduce((s, a) => s + Math.abs(Number(a.balance)), 0);
-
-        // Aggregate subsidiary contributions (translated)
-        const subRevenue = translations.reduce(
-          (s, t) => s + t.translatedPl * 0.6,
-          0,
+        // Parent entity's REAL financials from its own ledger.
+        const parentFin = await loadEntityFinancials(
+          entityId,
+          period,
+          warnings,
         );
-        const subExpenses = translations.reduce(
-          (s, t) => s + t.translatedPl * 0.4,
-          0,
-        );
+        const pRev = parentFin?.revenue ?? 0;
+        const pExp = parentFin?.expenses ?? 0;
+        const pAssets = parentFin?.totalAssets ?? 0;
+        const pLiab = parentFin?.totalLiabilities ?? 0;
 
-        // Subtract eliminations
+        // Sum translated subsidiary contributions (parent currency).
+        let sRev = 0;
+        let sExp = 0;
+        let sAssets = 0;
+        let sLiab = 0;
+        let sEquity = 0;
+        for (const tx of translatedSubs.values()) {
+          sRev += tx.revenue;
+          sExp += tx.expenses;
+          sAssets += tx.assets;
+          sLiab += tx.liabilities;
+          sEquity += tx.equity;
+        }
+
+        // Elimination total (intercompany) — cancels on both P&L and BS.
         const elimAmount = eliminations.reduce((s, e) => s + e.amount, 0);
 
-        // Minority interest
         const totalMinorityIncome = minorityInterests.reduce(
           (s, m) => s + m.minorityShareIncome,
           0,
@@ -793,27 +912,29 @@ export async function runConsolidationPipeline(
           0,
         );
 
-        const consolidatedRevenue = totalRevenue + subRevenue - elimAmount;
-        const consolidatedExpenses = totalExpenses + subExpenses - elimAmount;
-        const consolidatedNetIncome =
-          consolidatedRevenue - consolidatedExpenses - totalMinorityIncome;
+        const totalRevenue = pRev + sRev - elimAmount;
+        const totalExpenses = pExp + sExp - elimAmount;
+        const totalAssets = pAssets + sAssets - elimAmount;
+        const totalLiabilities = pLiab + sLiab - elimAmount;
+        const grossEquity = totalAssets - totalLiabilities;
+        const netIncome = totalRevenue - totalExpenses - totalMinorityIncome;
 
         consolidatedTotals = {
-          totalRevenue: consolidatedRevenue,
-          totalExpenses: consolidatedExpenses,
-          netIncome: consolidatedNetIncome,
-          totalAssets: totalRevenue + subRevenue,
-          totalLiabilities: totalExpenses + subExpenses,
-          totalEquity: consolidatedNetIncome,
+          totalRevenue,
+          totalExpenses,
+          netIncome,
+          totalAssets,
+          totalLiabilities,
+          totalEquity: grossEquity,
           minorityInterest: totalMinorityEquity,
-          parentEquity: consolidatedNetIncome - totalMinorityIncome,
+          parentEquity: grossEquity - totalMinorityEquity,
         };
 
         step6.status = "completed";
         step6.completedAt = new Date().toISOString();
         step6.result = {
-          consolidatedRevenue: consolidatedRevenue.toFixed(2),
-          consolidatedNetIncome: consolidatedNetIncome.toFixed(2),
+          consolidatedRevenue: totalRevenue.toFixed(2),
+          consolidatedNetIncome: netIncome.toFixed(2),
           subsidiariesIncluded: subsidiaries.length,
         };
       } catch (err) {
@@ -823,7 +944,6 @@ export async function runConsolidationPipeline(
       }
 
       steps.push(step6);
-
       // ── Step 7: Confidence Gate & Controller Sign-off ────────────────
       const step7: ConsolidationStep = {
         id: "confidence_gate",

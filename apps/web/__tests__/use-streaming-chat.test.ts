@@ -224,4 +224,43 @@ describe("useStreamingChat", () => {
       expect(result.current.thinkingEvents).toHaveLength(0);
     });
   });
+
+  it("preserves an SSE event split across network chunks", async () => {
+    const encoder = new TextEncoder();
+    const firstChunk = encoder.encode('data: {"type":"token","content":"hello');
+    const secondChunk = encoder.encode(
+      ' world"}\\n\\ndata: {"type":"done","messageId":"m-split","confidence":0.9,"agentsInvolved":[]}\\n\\n',
+    );
+    const reader = {
+      read: vi
+        .fn()
+        .mockResolvedValueOnce({ done: false, value: firstChunk })
+        .mockResolvedValueOnce({ done: false, value: secondChunk })
+        .mockResolvedValueOnce({ done: true, value: undefined }),
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          ({
+            ok: true,
+            body: { getReader: () => reader },
+          }) as unknown as Response,
+      ),
+    );
+
+    const onComplete = vi.fn();
+    const { result } = renderHook(() =>
+      useStreamingChat({ entityId: "entity-1", onComplete }),
+    );
+    await result.current.sendMessage("Split this");
+
+    await waitFor(() => {
+      expect(onComplete).toHaveBeenCalledWith(
+        "hello world",
+        expect.objectContaining({ messageId: "m-split" }),
+      );
+    });
+    expect(result.current.streamedContent).toBe("hello world");
+  });
 });

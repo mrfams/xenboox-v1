@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useState } from "react";
+import { useRouter } from "next/navigation";
 
 import type { PageFocus } from "@/lib/chat/page-context";
 
@@ -38,16 +39,35 @@ type ModuleAiContextValue = {
 const ModuleAiContext = createContext<ModuleAiContextValue | null>(null);
 
 export function useModuleAi(): ModuleAiContextValue {
+  const router = useRouter();
   const ctx = useContext(ModuleAiContext);
-  // Outside a shell (e.g. a component preview) the action degrades to a no-op
-  // instead of crashing — the button just won't do anything.
-  if (!ctx) {
-    return {
-      focusRequest: null,
-      openWithFocus: () => {},
-    };
-  }
-  return ctx;
+  if (ctx) return ctx;
+
+  // Outside a shell (pages without a module copilot — e.g. Ledger,
+  // Operations) the request must not vanish silently: route it to the
+  // Command Center as a real prompt, carrying the record context so the
+  // AI can target the same thing the user was looking at.
+  return {
+    focusRequest: null,
+    openWithFocus: (focus, initialPrompt) => {
+      if (typeof window === "undefined") return;
+      const parts: string[] = [];
+      if (initialPrompt) parts.push(initialPrompt);
+      const focusBits = [
+        focus.kind ? `this ${focus.kind.toLowerCase()}` : "",
+        focus.name || "",
+        ...(focus.fields ?? [])
+          .slice(0, 5)
+          .map((f) => `${f.label}: ${f.value}`),
+      ].filter(Boolean);
+      if (focusBits.length) {
+        parts.push(`Context — ${focusBits.join(", ")}`);
+      }
+      const prompt =
+        parts.join("\n") || "Help me with the record I was just looking at.";
+      router.push(`/dashboard?prompt=${encodeURIComponent(prompt)}`);
+    },
+  };
 }
 
 export function ModuleAiProvider({ children }: { children: React.ReactNode }) {

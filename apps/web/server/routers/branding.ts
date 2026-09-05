@@ -5,10 +5,11 @@
 // isolation, RBAC, or agent behavior.
 
 import crypto from "crypto";
+import dns from "dns/promises";
 
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, ne } from "drizzle-orm";
 import { firmBrandingConfig, customDomains } from "@xenboox/db/schema";
 import { entities, organizations } from "@xenboox/db/schema/organization";
 import { auditLog } from "@xenboox/db/schema/documents";
@@ -270,7 +271,9 @@ export const brandingRouter = router({
           });
         }
 
-        // If set as primary, unset other primary domains
+        // If set as primary, unset any other primary domains for this org
+        // (ne() excludes the newly added one — eq() here would unset the
+        // new domain itself and leave stale primaries in place).
         if (input.setAsPrimary) {
           await db
             .update(customDomains)
@@ -279,7 +282,7 @@ export const brandingRouter = router({
               and(
                 eq(customDomains.firmOrgId, orgId),
                 eq(customDomains.isPrimary, true),
-                eq(customDomains.id, domain.id), // Don't unset the newly added one
+                ne(customDomains.id, domain.id),
               ),
             );
         }
@@ -339,8 +342,29 @@ export const brandingRouter = router({
           });
         }
 
-        // In production, this would perform a DNS TXT record lookup
-        // For now, we simulate verification by marking as verified
+        // Real DNS TXT verification: look up the domain's TXT records and
+        // require the exact verification token. Never mark verified on
+        // trust — a failed or missing record is an explicit failure.
+        let records: string[][];
+        try {
+          records = await dns.resolveTxt(domain.domain);
+        } catch {
+          throw new TRPCError({
+            code: "PRECONDITION_FAILED",
+            message: `No DNS TXT records found for ${domain.domain} yet. Add the record "${domain.verificationToken}" and try again (DNS changes can take up to 48 hours to propagate).`,
+          });
+        }
+
+        const found = records.some((chunks) =>
+          chunks.join("").includes(domain.verificationToken),
+        );
+        if (!found) {
+          throw new TRPCError({
+            code: "PRECONDITION_FAILED",
+            message: `Verification record not found for ${domain.domain}. Add the TXT record "${domain.verificationToken}" and try again (DNS changes can take up to 48 hours to propagate).`,
+          });
+        }
+
         await db
           .update(customDomains)
           .set({

@@ -13,7 +13,7 @@ import { Label } from "@xenboox/ui";
 import { Switch } from "@xenboox/ui";
 import { Key, Save, RefreshCw, UserCheck } from "lucide-react";
 import { toast } from "sonner";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 import { trpc } from "@/lib/trpc/client";
 import { AdminMfaSetup } from "@/components/admin/admin-mfa-setup";
@@ -28,37 +28,62 @@ export default function AdminSettingsPage() {
     },
   });
 
+  // Load persisted settings so the form reflects what was actually saved
+  // server-side, instead of resetting to defaults on every page load.
+  const { data: savedSettings } = trpc.admin.getSettings.useQuery();
+
+  const [emailAlerts, setEmailAlerts] = useState<boolean | null>(null);
+  const [slackAlerts, setSlackAlerts] = useState<boolean | null>(null);
+  const [smsAlerts, setSmsAlerts] = useState<boolean | null>(null);
+  const [autoScaling, setAutoScaling] = useState<boolean | null>(null);
+  const [costOptimization, setCostOptimization] = useState<boolean | null>(
+    null,
+  );
+  const [providerFallback, setProviderFallback] = useState<boolean | null>(
+    null,
+  );
+  const [maintenanceMode, setMaintenanceMode] = useState<boolean | null>(null);
+  const [debugMode, setDebugMode] = useState<boolean | null>(null);
+  const [auditLogging, setAuditLogging] = useState<boolean | null>(null);
+
+  const [anthropicBudget, setAnthropicBudget] = useState<string | null>(null);
+  const [openaiBudget, setOpenaiBudget] = useState<string | null>(null);
+  const [haikuBudget, setHaikuBudget] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!savedSettings) return;
+    setEmailAlerts(savedSettings.emailAlerts);
+    setSlackAlerts(savedSettings.slackAlerts);
+    setSmsAlerts(savedSettings.smsAlerts);
+    setAutoScaling(savedSettings.autoScaling);
+    setCostOptimization(savedSettings.costOptimization);
+    setProviderFallback(savedSettings.providerFallback);
+    setMaintenanceMode(savedSettings.maintenanceMode);
+    setDebugMode(savedSettings.debugMode);
+    setAuditLogging(savedSettings.auditLogging);
+    setAnthropicBudget(savedSettings.budgets.anthropic);
+    setOpenaiBudget(savedSettings.budgets.openai);
+    setHaikuBudget(savedSettings.budgets.haiku);
+  }, [savedSettings]);
+
   const handleSave = () => {
     saveMutation.mutate({
-      emailAlerts,
-      slackAlerts,
-      smsAlerts,
-      autoScaling,
-      costOptimization,
-      providerFallback,
-      maintenanceMode,
-      debugMode,
-      auditLogging,
+      emailAlerts: emailAlerts ?? true,
+      slackAlerts: slackAlerts ?? false,
+      smsAlerts: smsAlerts ?? false,
+      autoScaling: autoScaling ?? false,
+      costOptimization: costOptimization ?? true,
+      providerFallback: providerFallback ?? true,
+      maintenanceMode: maintenanceMode ?? false,
+      debugMode: debugMode ?? false,
+      auditLogging: auditLogging ?? true,
       budgets: {
-        anthropic: anthropicBudget,
-        openai: openaiBudget,
-        haiku: haikuBudget,
+        anthropic: anthropicBudget ?? "25000",
+        openai: openaiBudget ?? "20000",
+        haiku: haikuBudget ?? "5000",
       },
     });
   };
-  const [emailAlerts, setEmailAlerts] = useState(true);
-  const [slackAlerts, setSlackAlerts] = useState(false);
-  const [smsAlerts, setSmsAlerts] = useState(false);
-  const [autoScaling, setAutoScaling] = useState(false);
-  const [costOptimization, setCostOptimization] = useState(true);
-  const [providerFallback, setProviderFallback] = useState(true);
-  const [maintenanceMode, setMaintenanceMode] = useState(false);
-  const [debugMode, setDebugMode] = useState(false);
-  const [auditLogging, setAuditLogging] = useState(true);
-
-  const [anthropicBudget, setAnthropicBudget] = useState("25000");
-  const [openaiBudget, setOpenaiBudget] = useState("20000");
-  const [haikuBudget, setHaikuBudget] = useState("5000");
 
   return (
     <div className="space-y-6">
@@ -91,7 +116,10 @@ export default function AdminSettingsPage() {
                   Receive alerts via email
                 </span>
               </Label>
-              <Switch checked={emailAlerts} onCheckedChange={setEmailAlerts} />
+              <Switch
+                checked={emailAlerts ?? true}
+                onCheckedChange={setEmailAlerts}
+              />
             </div>
             <div className="flex items-center justify-between">
               <Label className="flex flex-col gap-1.5">
@@ -100,7 +128,10 @@ export default function AdminSettingsPage() {
                   Receive alerts via Slack
                 </span>
               </Label>
-              <Switch checked={slackAlerts} onCheckedChange={setSlackAlerts} />
+              <Switch
+                checked={slackAlerts ?? false}
+                onCheckedChange={setSlackAlerts}
+              />
             </div>
             <div className="flex items-center justify-between">
               <Label className="flex flex-col gap-1.5">
@@ -109,7 +140,10 @@ export default function AdminSettingsPage() {
                   Receive alerts via SMS
                 </span>
               </Label>
-              <Switch checked={smsAlerts} onCheckedChange={setSmsAlerts} />
+              <Switch
+                checked={smsAlerts ?? false}
+                onCheckedChange={setSmsAlerts}
+              />
             </div>
           </CardContent>
         </Card>
@@ -129,7 +163,10 @@ export default function AdminSettingsPage() {
                   Automatically increase budgets when approaching limits
                 </span>
               </Label>
-              <Switch checked={autoScaling} onCheckedChange={setAutoScaling} />
+              <Switch
+                checked={autoScaling ?? false}
+                onCheckedChange={setAutoScaling}
+              />
             </div>
             <div className="flex items-center justify-between">
               <Label className="flex flex-col gap-1.5">
@@ -139,7 +176,7 @@ export default function AdminSettingsPage() {
                 </span>
               </Label>
               <Switch
-                checked={costOptimization}
+                checked={costOptimization ?? true}
                 onCheckedChange={setCostOptimization}
               />
             </div>
@@ -151,7 +188,7 @@ export default function AdminSettingsPage() {
                 </span>
               </Label>
               <Switch
-                checked={providerFallback}
+                checked={providerFallback ?? true}
                 onCheckedChange={setProviderFallback}
               />
             </div>
@@ -172,7 +209,7 @@ export default function AdminSettingsPage() {
                 </span>
               </Label>
               <Switch
-                checked={maintenanceMode}
+                checked={maintenanceMode ?? false}
                 onCheckedChange={setMaintenanceMode}
               />
             </div>
@@ -183,7 +220,10 @@ export default function AdminSettingsPage() {
                   Enable detailed logging and debugging
                 </span>
               </Label>
-              <Switch checked={debugMode} onCheckedChange={setDebugMode} />
+              <Switch
+                checked={debugMode ?? false}
+                onCheckedChange={setDebugMode}
+              />
             </div>
             <div className="flex items-center justify-between">
               <Label className="flex flex-col gap-1.5">
@@ -193,7 +233,7 @@ export default function AdminSettingsPage() {
                 </span>
               </Label>
               <Switch
-                checked={auditLogging}
+                checked={auditLogging ?? true}
                 onCheckedChange={setAuditLogging}
               />
             </div>
@@ -240,7 +280,7 @@ export default function AdminSettingsPage() {
               </Label>
               <Input
                 type="number"
-                value={anthropicBudget}
+                value={anthropicBudget ?? ""}
                 onChange={(e) => setAnthropicBudget(e.target.value)}
                 className="mt-1"
               />
@@ -249,7 +289,7 @@ export default function AdminSettingsPage() {
               <Label htmlFor="openai-budget">OpenAI Budget (Monthly)</Label>
               <Input
                 type="number"
-                value={openaiBudget}
+                value={openaiBudget ?? ""}
                 onChange={(e) => setOpenaiBudget(e.target.value)}
                 className="mt-1"
               />
@@ -260,7 +300,7 @@ export default function AdminSettingsPage() {
               </Label>
               <Input
                 type="number"
-                value={haikuBudget}
+                value={haikuBudget ?? ""}
                 onChange={(e) => setHaikuBudget(e.target.value)}
                 className="mt-1"
               />

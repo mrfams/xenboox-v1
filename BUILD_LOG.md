@@ -1250,4 +1250,47 @@ Donor report generated
 
 ```
 
+---
+
+## 2026-09-05 — Production Integrity Sweep: False-Success Elimination
+
+**Commits:** (this session)
+**Scope:** prodway.md execution — eliminate every simulated/fake-success backend path; entity-scoping hardening; truthful onboarding; real admin telemetry
+
+### Fixed (all verified syntax-clean; targeted tests green)
+
+| Area | False behavior before | Real behavior now |
+| ---- | --------------------- | ----------------- |
+| Journal posting | Header + lines written separately | Single transaction, retry-safe entry numbering |
+| Month-end close | Depreciation fabricated from COA codes; close continued after adjustment failure | Real depreciation schedules, deterministic refs, `awaiting_human` on failure |
+| Data import/export | Trusted caller-supplied entityId (cross-tenant); `Object.values` export columns; unvalidated journal import (posted w/o lines, closed periods) | `assertEntityAccess` on all 9 entity procedures; explicit column maps; period/status/date validation; per-row entry numbers; in-file dedupe |
+| FX revaluation | Recorded "completed" run, posted nothing | Real balanced revaluation entry via canonical posting, idempotent per (entity, period), FX gain/loss accounts auto-ensured |
+| Recurring triggerRun | Non-atomic header/lines/run/schedule writes; false success with no customer/lines | Upfront validation + single transaction + failure run logs |
+| AI confirmCreation | Written against nonexistent schema (5/5 branches crashed); unscoped customer lookup; accountCode-as-uuid | Real schema, entity-scoped, transactional invoices/journal, honest NOT_IMPLEMENTED for expenses |
+| Activity Hub approvals | listAgentApprovals returned agentActivity IDs, resolver searched agentRoutingLogs → every approve failed | Dual resolver with atomic claims; entity-scoped; resolved items leave the queue |
+| Ask AI handoff | `?prompt=` silently dropped; module AI no-op outside shells | Command Center consumes prompt once + URL cleanup; no-shell fallback routes to Command Center with context |
+| Onboarding | Timer-simulated setup; fabricated "47 accounts" | `onboarding.finalizeAiSetup` runs the real idempotent pipeline; UI shows real counts and per-step failures |
+| Admin settings | Save button did nothing (no persistence) | Persisted to feature_flags with audit log; `getSettings` hydrates the form |
+| Admin AI telemetry | Hardcoded fabricated spend/latency/success | Real usage from `ops_token_by_model` (30d); latency/success null-rendered "—" until data exists; true avg confidence |
+| Automation runNow | Simulated success ("Posted recurring entry…") without doing anything | Real reminder delivery (AR/AP due → notifications), real report generation, honest failure statuses |
+| Branding verifyDomain | Simulated DNS verification (marked verified unconditionally) | Real `dns.resolveTxt` TXT-token check with explicit failure states |
+| Branding addDomain | `eq(id, newId)` inverted — unset the new primary instead of stale ones | `ne()` — only stale primaries unset |
+
+### New backend surface
+
+- `onboarding.finalizeAiSetup` — org-scoped entity ownership check, runs `runOnboardingPipeline`, returns real DB counts
+- `admin.getSettings` — reads persisted admin settings (defaults merged)
+- `@xenboox/jobs/report-generation` — package export added for in-app report generation
+
+### Verification evidence
+
+- Targeted: `use-streaming-chat` regression (split-SSE token) green; `report-math` green; `onboarding-router` suite green (exit 0)
+- Full web `tsc --noEmit` run in progress on constrained local RAM (results logged before commit)
+- Agents + jobs package typechecks passed earlier in session
+- Live: xenboox.vercel.app auth + dashboard verified earlier in session
+
+### Explicitly not committed
+
+- `.agents/` skill deletions, `.opencode`, `.semgrep` (pre-existing worktree deletions — preserved uncommitted)
+- Logs and temp artifacts (`*.log`, `.commandcode/`, `original-streaming-chat.ts`, `findings/`)
 ```

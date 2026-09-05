@@ -122,9 +122,10 @@ export function QBRReport() {
     );
   }
 
-  // Calculate QBR metrics from available data
+  // Calculate QBR metrics from available data (COGS + operating expenses)
   const totalRevenue = overview?.revenue ?? 0;
-  const totalExpenses = overview?.operatingExpenses ?? 0;
+  const totalExpenses =
+    (overview?.cogs ?? 0) + (overview?.operatingExpenses ?? 0);
   const netIncome = overview?.netProfit ?? 0;
   const margin = totalRevenue > 0 ? (netIncome / totalRevenue) * 100 : 0;
 

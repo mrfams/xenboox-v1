@@ -41,6 +41,13 @@ export interface PostJournalLine {
   debit: string;
   credit: string;
   description?: string;
+  /** Multi-currency stamp: the currency this line is denominated in. Lines
+   * posted in the entity base currency set this explicitly so FX revaluation
+   * runs (which exclude base-currency lines) never re-value them. */
+  currency?: string;
+  baseCurrency?: string;
+  baseAmount?: string;
+  exchangeRate?: string;
 }
 
 /**
@@ -102,65 +109,75 @@ export async function createPostedJournal(opts: {
     return null;
   }
 
-  // entryNumber: unique per entity. Every pipeline computes max+1, so
-  // concurrent postings (bank syncs, approvals, reimbursements) collide on
-  // the (entityId, entryNumber) index — retry with a freshly-read max instead
-  // of letting a legit posting abort on a raw constraint error.
-  let entry: { id: string } | null = null;
-  for (let attempt = 0; attempt < 3 && !entry; attempt++) {
-    const [last] = await db
-      .select({ n: journalEntries.entryNumber })
-      .from(journalEntries)
-      .where(eq(journalEntries.entityId, entityId))
-      .orderBy(desc(journalEntries.entryNumber))
-      .limit(1);
+  // Header and lines must commit together. A posted header without lines is
+  // an invalid ledger state and must never be observable after a failure.
+  for (let attempt = 0; attempt < 3; attempt++) {
     try {
-      const [created] = await db
-        .insert(journalEntries)
-        .values({
-          entityId,
-          entryNumber: (last?.n ?? 0) + 1,
-          description,
-          reference,
-          date,
-          periodId: period.id,
-          status: "posted",
-          postedBy: userId,
-          postedAt: new Date(),
-          source,
-          metadata: { autoPost: true },
-        })
-        .returning({ id: journalEntries.id });
-      entry = created ?? null;
+      const entry = await db.transaction(async (tx) => {
+        const [last] = await tx
+          .select({ n: journalEntries.entryNumber })
+          .from(journalEntries)
+          .where(eq(journalEntries.entityId, entityId))
+          .orderBy(desc(journalEntries.entryNumber))
+          .limit(1);
+
+        const [created] = await tx
+          .insert(journalEntries)
+          .values({
+            entityId,
+            entryNumber: (last?.n ?? 0) + 1,
+            description,
+            reference,
+            date,
+            periodId: period.id,
+            status: "posted",
+            postedBy: userId,
+            postedAt: new Date(),
+            source,
+            metadata: { autoPost: true },
+          })
+          .returning({ id: journalEntries.id });
+        if (!created) throw new Error("Journal entry creation failed");
+
+        await tx.insert(journalEntryLines).values(
+          lines.map((l) => ({
+            journalEntryId: created.id,
+            accountId: l.accountId,
+            debit: l.debit,
+            credit: l.credit,
+            description: l.description ?? description,
+            currency: l.currency,
+            baseCurrency: l.baseCurrency,
+            baseAmount: l.baseAmount,
+            exchangeRate: l.exchangeRate,
+          })),
+        );
+        return created;
+      });
+      return entry.id;
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      const isCollision = /je_entity_entry_number|duplicate key value/.test(
-        msg,
-      );
-      if (!isCollision || attempt === 2) throw err;
-      // A concurrent posting took the number — re-read the max and retry.
+      const isRetryableConflict =
+        /je_entity_entry_number|je_entity_reference|duplicate key value/.test(
+          msg,
+        );
+      if (!isRetryableConflict || attempt === 2) throw err;
+
+      // Another writer may have won either the reference or entry number. If
+      // it was this reference, return its durable result; otherwise retry with
+      // a fresh entry number inside a new transaction.
+      const winner = await db.query.journalEntries.findFirst({
+        where: and(
+          eq(journalEntries.entityId, entityId),
+          eq(journalEntries.reference, reference),
+        ),
+        columns: { id: true },
+      });
+      if (winner) return winner.id;
     }
   }
-  if (!entry) return null;
 
-  try {
-    await db.insert(journalEntryLines).values(
-      lines.map((l) => ({
-        journalEntryId: entry.id,
-        accountId: l.accountId,
-        debit: l.debit,
-        credit: l.credit,
-        description: l.description ?? description,
-      })),
-    );
-  } catch (err) {
-    await db
-      .delete(journalEntries)
-      .where(eq(journalEntries.id, entry.id))
-      .catch(() => {});
-    throw err;
-  }
-  return entry.id;
+  return null;
 }
 
 /**
@@ -185,7 +202,7 @@ export async function ensureAccount(
   row: {
     code: string;
     name: string;
-    type: "asset" | "liability";
+    type: "asset" | "liability" | "revenue" | "expense";
     subtype: string;
   },
 ): Promise<string> {

@@ -320,127 +320,141 @@ export function useStreamingChat({
 
         const decoder = new TextDecoder();
         let fullResponse = "";
+        let bufferedLine = "";
+
+        const processLine = (line: string) => {
+          if (!line.startsWith("data: ")) return;
+          try {
+            const data: SSEEvent = JSON.parse(line.slice(6));
+
+            switch (data.type) {
+              case "conversation":
+                onConversationCreated?.(data.conversationId, data.title);
+                break;
+
+              case "agent_activity":
+                setAgentActivities((prev) => [...prev, data]);
+                onAgentActivity?.(data);
+                break;
+
+              case "thinking":
+                setThinkingEvents((prev) => [...prev, data]);
+                onThinking?.(data);
+                break;
+
+              case "delegation":
+                setDelegations((prev) => [...prev, data]);
+                onDelegation?.(data);
+                break;
+
+              case "document_created":
+                setDocuments((prev) => [...prev, data]);
+                onDocumentCreated?.(data);
+                break;
+
+              case "approval_needed":
+                setApprovals((prev) => [...prev, data]);
+                onApprovalNeeded?.(data);
+                break;
+
+              case "needs_input":
+                onNeedsInput?.(data as NeedsInputEvent);
+                break;
+
+              case "data_table":
+                setDataTables((prev) => [...prev, data as DataTableEvent]);
+                onDataTable?.(data as DataTableEvent);
+                break;
+
+              case "chart":
+                setCharts((prev) => [...prev, data as ChartEvent]);
+                onChart?.(data as ChartEvent);
+                break;
+
+              case "knowledge_citations":
+                onKnowledgeCitations?.(data as KnowledgeCitationEvent);
+                break;
+
+              case "batch_ingestion_result":
+                onBatchIngestionResult?.(data as BatchIngestionResultEvent);
+                break;
+
+              case "tool_call": {
+                const trace: ToolTrace = {
+                  toolName: data.toolName,
+                  args: data.args,
+                  status: "running",
+                };
+                setToolTraces((prev) => [...prev, trace]);
+                onToolCall?.(trace);
+                break;
+              }
+
+              case "tool_result": {
+                setToolTraces((prev) => {
+                  // Complete the most recent running trace with this name.
+                  let idx = -1;
+                  for (let i = prev.length - 1; i >= 0; i--) {
+                    if (
+                      prev[i].toolName === data.toolName &&
+                      prev[i].status === "running"
+                    ) {
+                      idx = i;
+                      break;
+                    }
+                  }
+                  if (idx === -1) return prev;
+                  const next = [...prev];
+                  next[idx] = {
+                    ...next[idx],
+                    status: data.success ? "success" : "failed",
+                  };
+                  return next;
+                });
+                break;
+              }
+
+              case "token":
+                if (data.content) {
+                  fullResponse += data.content;
+                  setStreamedContent(fullResponse);
+                  onToken?.(data.content);
+                }
+                break;
+
+              case "done":
+                onComplete?.(fullResponse, data);
+                break;
+
+              case "error":
+                onError?.(data.message || "Unknown error");
+                break;
+            }
+          } catch {
+            // Skip invalid JSON lines
+          }
+        };
 
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
 
-          const chunk = decoder.decode(value);
-          const lines = chunk.split("\n");
+          bufferedLine += decoder.decode(value, { stream: true });
+          const lines = bufferedLine.split("\n");
+          bufferedLine = lines.pop() ?? "";
 
           for (const line of lines) {
-            if (line.startsWith("data: ")) {
-              try {
-                const data: SSEEvent = JSON.parse(line.slice(6));
-
-                switch (data.type) {
-                  case "conversation":
-                    onConversationCreated?.(data.conversationId, data.title);
-                    break;
-
-                  case "agent_activity":
-                    setAgentActivities((prev) => [...prev, data]);
-                    onAgentActivity?.(data);
-                    break;
-
-                  case "thinking":
-                    setThinkingEvents((prev) => [...prev, data]);
-                    onThinking?.(data);
-                    break;
-
-                  case "delegation":
-                    setDelegations((prev) => [...prev, data]);
-                    onDelegation?.(data);
-                    break;
-
-                  case "document_created":
-                    setDocuments((prev) => [...prev, data]);
-                    onDocumentCreated?.(data);
-                    break;
-
-                  case "approval_needed":
-                    setApprovals((prev) => [...prev, data]);
-                    onApprovalNeeded?.(data);
-                    break;
-
-                  case "needs_input":
-                    onNeedsInput?.(data as NeedsInputEvent);
-                    break;
-
-                  case "data_table":
-                    setDataTables((prev) => [...prev, data as DataTableEvent]);
-                    onDataTable?.(data as DataTableEvent);
-                    break;
-
-                  case "chart":
-                    setCharts((prev) => [...prev, data as ChartEvent]);
-                    onChart?.(data as ChartEvent);
-                    break;
-
-                  case "knowledge_citations":
-                    onKnowledgeCitations?.(data as KnowledgeCitationEvent);
-                    break;
-
-                  case "batch_ingestion_result":
-                    onBatchIngestionResult?.(data as BatchIngestionResultEvent);
-                    break;
-
-                  case "tool_call": {
-                    const trace: ToolTrace = {
-                      toolName: data.toolName,
-                      args: data.args,
-                      status: "running",
-                    };
-                    setToolTraces((prev) => [...prev, trace]);
-                    onToolCall?.(trace);
-                    break;
-                  }
-
-                  case "tool_result": {
-                    setToolTraces((prev) => {
-                      // Complete the most recent running trace with this name.
-                      let idx = -1;
-                      for (let i = prev.length - 1; i >= 0; i--) {
-                        if (
-                          prev[i].toolName === data.toolName &&
-                          prev[i].status === "running"
-                        ) {
-                          idx = i;
-                          break;
-                        }
-                      }
-                      if (idx === -1) return prev;
-                      const next = [...prev];
-                      next[idx] = {
-                        ...next[idx],
-                        status: data.success ? "success" : "failed",
-                      };
-                      return next;
-                    });
-                    break;
-                  }
-
-                  case "token":
-                    if (data.content) {
-                      fullResponse += data.content;
-                      setStreamedContent(fullResponse);
-                      onToken?.(data.content);
-                    }
-                    break;
-
-                  case "done":
-                    onComplete?.(fullResponse, data);
-                    break;
-
-                  case "error":
-                    onError?.(data.message || "Unknown error");
-                    break;
-                }
-              } catch {
-                // Skip invalid JSON lines
-              }
-            }
+            processLine(line.endsWith("\r") ? line.slice(0, -1) : line);
           }
+        }
+
+        bufferedLine += decoder.decode();
+        if (bufferedLine) {
+          processLine(
+            bufferedLine.endsWith("\r")
+              ? bufferedLine.slice(0, -1)
+              : bufferedLine,
+          );
         }
       } catch (error) {
         if (error instanceof Error && error.name === "AbortError") {

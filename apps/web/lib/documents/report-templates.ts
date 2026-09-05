@@ -569,3 +569,113 @@ export function buildDonorReportPdf(data: DonorReportData): ReportData {
     sections,
   };
 }
+
+// ─── Tax Summary Template ──────────────────────────────────────────────────
+
+export type TaxSummaryData = {
+  entityName: string;
+  currency: string;
+  period: string;
+  vat: {
+    rows: Array<{
+      period: string;
+      outputVat: number;
+      inputVat: number;
+      netPosition: number;
+      status: string;
+    }>;
+    totalOutputVat: number;
+    totalInputVat: number;
+    totalNetPosition: number;
+  };
+  withholding: {
+    rows: Array<{
+      payeeName: string;
+      amount: number;
+      taxWithheld: number;
+      jurisdiction: string;
+      filed: boolean;
+    }>;
+    totalWithheld: number;
+    totalFiled: number;
+  };
+  narrative?: string;
+};
+
+export function buildTaxSummaryReport(data: TaxSummaryData): ReportData {
+  const sections: ReportSection[] = [];
+
+  if (data.narrative) {
+    sections.push({
+      heading: "Summary",
+      paragraphs: [data.narrative],
+    });
+  }
+
+  // ── VAT ──
+  sections.push({
+    heading: "Value Added Tax",
+    table: {
+      columns: ["Period", "Output VAT", "Input VAT", "Net Position", "Status"],
+      rows:
+        data.vat.rows.length > 0
+          ? data.vat.rows.map((r) => [
+              r.period,
+              formatAmount(r.outputVat, data.currency),
+              formatAmount(r.inputVat, data.currency),
+              formatAmount(r.netPosition, data.currency),
+              r.status.charAt(0).toUpperCase() + r.status.slice(1),
+            ])
+          : [["—", "—", "—", "—", "No VAT calculations for this period"]],
+    },
+    footer: [
+      {
+        label: "Net VAT Position",
+        value: `${formatAmount(data.vat.totalNetPosition, data.currency)} ${
+          data.vat.totalNetPosition >= 0 ? "(payable)" : "(refundable)"
+        }`,
+      },
+    ],
+  });
+
+  // ── Withholding ──
+  const whtRows = data.withholding.rows;
+  sections.push({
+    heading: "Withholding Tax",
+    intro:
+      whtRows.length > 0
+        ? undefined
+        : "No withholding records for this period.",
+    table: {
+      columns: [
+        "Payee",
+        "Gross Amount",
+        "Tax Withheld",
+        "Jurisdiction",
+        "Filed",
+      ],
+      rows: whtRows.map((r) => [
+        r.payeeName || "Unknown payee",
+        formatAmount(r.amount, data.currency),
+        formatAmount(r.taxWithheld, data.currency),
+        r.jurisdiction,
+        r.filed ? "Yes" : "No",
+      ]),
+    },
+    footer: [
+      {
+        label: "Total Withheld",
+        value: formatAmount(data.withholding.totalWithheld, data.currency),
+      },
+    ],
+  });
+
+  return {
+    title: "Tax Summary",
+    subtitle: `${data.entityName} · ${data.period}`,
+    entityName: data.entityName,
+    currency: data.currency,
+    generatedAt: new Date(),
+    sections,
+  };
+}

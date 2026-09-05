@@ -17,6 +17,12 @@
 //   11. Audit Trail — Every generation logged
 
 import { db } from "@xenboox/db";
+import {
+  derivePnl,
+  deriveBalanceSheet,
+  type ReportBalanceRow,
+  type ReportStatementLine,
+} from "@xenboox/db";
 import { eq, and, desc, sql, inArray } from "drizzle-orm";
 import {
   fiscalPeriods,
@@ -308,67 +314,77 @@ export async function takeLedgerSnapshot(
 export function buildProfitAndLoss(
   snapshot: LedgerSnapshot,
 ): ProfitAndLossStatement {
-  const revenueAccounts: ProfitAndLossStatement["revenueAccounts"] = [];
-  const expenseAccounts: ProfitAndLossStatement["expenseAccounts"] = [];
+  // Canonical derivation (P9-A): real COGS split by subtype and per-account
+  // netting via report-math. Old code Math.abs'd every account and lumped
+  // COGS into expenses.
+  const rows = toBalanceRows(snapshot);
+  const pnl = derivePnl(rows);
 
-  for (const acct of snapshot.accountBalances) {
-    if (acct.type === "revenue") {
-      revenueAccounts.push({
-        accountCode: acct.code,
-        accountName: acct.name,
-        amount: Math.abs(acct.netAmount),
-      });
-    } else if (acct.type === "expense") {
-      expenseAccounts.push({
-        accountCode: acct.code,
-        accountName: acct.name,
-        amount: Math.abs(acct.netAmount),
-      });
-    }
-  }
-
-  const totalRevenue = revenueAccounts.reduce((s, a) => s + a.amount, 0);
-  const totalExpenses = expenseAccounts.reduce((s, a) => s + a.amount, 0);
+  const toList = (
+    list: ReportStatementLine[],
+  ): ProfitAndLossStatement["revenueAccounts"] =>
+    list.map((l) => ({
+      accountCode: l.code,
+      accountName: l.name,
+      amount: Math.abs(l.amount),
+    }));
 
   return {
-    revenue: totalRevenue,
-    expenses: totalExpenses,
-    netProfit: totalRevenue - totalExpenses,
-    revenueAccounts,
-    expenseAccounts,
+    revenue: pnl.totalRevenue,
+    expenses: pnl.totalCogs + pnl.totalOperatingExpenses,
+    netProfit: pnl.netIncome,
+    revenueAccounts: toList(pnl.revenue),
+    expenseAccounts: toList([...pnl.cogs, ...pnl.operatingExpenses]),
   };
 }
 
 export function buildBalanceSheet(
   snapshot: LedgerSnapshot,
 ): BalanceSheetStatement {
-  const assets: BalanceSheetStatement["assets"] = [];
-  const liabilities: BalanceSheetStatement["liabilities"] = [];
-  const equity: BalanceSheetStatement["equity"] = [];
+  // Canonical derivation (P9-A): normal-balance display signs and current
+  // earnings folded into equity so the statement can actually balance.
+  const bs = deriveBalanceSheet(toBalanceRows(snapshot));
 
-  for (const acct of snapshot.accountBalances) {
-    const amount = Math.abs(acct.netAmount);
-    if (acct.type === "asset") {
-      assets.push({ accountCode: acct.code, accountName: acct.name, amount });
-    } else if (acct.type === "liability") {
-      liabilities.push({
-        accountCode: acct.code,
-        accountName: acct.name,
-        amount,
-      });
-    } else if (acct.type === "equity") {
-      equity.push({ accountCode: acct.code, accountName: acct.name, amount });
-    }
+  const toList = (
+    list: ReportStatementLine[],
+  ): BalanceSheetStatement["assets"] =>
+    list.map((l) => ({
+      accountCode: l.code,
+      accountName: l.name,
+      amount: Math.abs(l.amount),
+    }));
+
+  const equity = toList(bs.equity);
+  if (Math.abs(bs.currentEarnings) >= 0.005) {
+    equity.push({
+      accountCode: "",
+      accountName: "Current Earnings",
+      amount: Math.abs(bs.currentEarnings),
+    });
   }
 
   return {
-    totalAssets: assets.reduce((s, a) => s + a.amount, 0),
-    totalLiabilities: liabilities.reduce((s, a) => s + a.amount, 0),
-    totalEquity: equity.reduce((s, a) => s + a.amount, 0),
-    assets,
-    liabilities,
+    totalAssets: bs.totalAssets,
+    totalLiabilities: bs.totalLiabilities,
+    totalEquity: bs.totalEquityWithEarnings,
+    assets: toList(bs.assets),
+    liabilities: toList(bs.liabilities),
     equity,
   };
+}
+
+/** Map a ledger snapshot's account balances onto canonical raw-balance rows. */
+function toBalanceRows(snapshot: LedgerSnapshot): ReportBalanceRow[] {
+  return snapshot.accountBalances.map((a) => ({
+    accountId: a.accountId,
+    code: a.code,
+    name: a.name,
+    type: a.type,
+    subtype: a.subtype ?? null,
+    debit: a.debit,
+    credit: a.credit,
+    raw: a.netAmount, // snapshot already stores debit − credit
+  }));
 }
 
 export function buildCashFlow(

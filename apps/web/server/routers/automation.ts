@@ -1,11 +1,21 @@
 import { z } from "zod";
-import { eq, and, desc, count, notLike } from "drizzle-orm";
+import { eq, and, desc, count, notLike, inArray, lte } from "drizzle-orm";
 import {
   entityAutomationRules,
   invoicesAp,
   suppliers,
+  salesInvoices,
+  customers,
+  userEntityAccess,
+  notifications,
 } from "@xenboox/db/schema";
+import {
+  generateProfitLoss,
+  generateBalanceSheet,
+  generateCashFlow,
+} from "@xenboox/jobs/report-generation";
 import { db } from "@/lib/db";
+import { logger } from "@/lib/logger";
 
 import {
   router,
@@ -194,7 +204,12 @@ export const automationRouter = router({
       return rule;
     }),
 
-  // ── Run now (simulated execution — real triggers run via the scheduler) ─
+  // ── Run now (real execution) ───────────────────────────────────────────
+  // Executes the rule's action for real: reminders are computed from actual
+  // due invoices/bills and delivered as in-app notifications (plus customer
+  // emails when configured), report exports run the real report generators,
+  // and recurring transactions are explicitly rejected because they belong
+  // to the Recurring Transactions scheduler. Never records fake success.
   runNow: rlsProtectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
@@ -210,6 +225,177 @@ export const automationRouter = router({
         )
         .limit(1);
       if (!rule) return null;
+
+      const config = (rule.config ?? {}) as {
+        amount?: string;
+        accountId?: string;
+        vendorId?: string;
+        reportType?: string;
+        daysBeforeDue?: number;
+        channel?: string;
+      };
+      const daysBeforeDue = config.daysBeforeDue ?? 3;
+      const today = new Date();
+      const horizon = new Date(today);
+      horizon.setDate(horizon.getDate() + daysBeforeDue);
+      const horizonStr = horizon.toISOString().slice(0, 10);
+
+      // Reminders are delivered to the entity's users.
+      const resolveRecipientIds = async (): Promise<string[]> => {
+        const access = await db
+          .select({ userId: userEntityAccess.userId })
+          .from(userEntityAccess)
+          .where(eq(userEntityAccess.entityId, entityId));
+        return [...new Set(access.map((a) => a.userId))];
+      };
+
+      let status: "success" | "failed" = "success";
+      let summary: string;
+
+      try {
+        switch (rule.actionType) {
+          case "invoice_reminder": {
+            const due = await db.query.salesInvoices.findMany({
+              where: and(
+                eq(salesInvoices.entityId, entityId),
+                inArray(salesInvoices.status, [
+                  "pending",
+                  "partial",
+                  "overdue",
+                ]),
+                lte(salesInvoices.dueDate, horizonStr),
+              ),
+              limit: 100,
+            });
+
+            if (due.length === 0) {
+              summary = `No outstanding invoices due within ${daysBeforeDue} day(s) — nothing to remind`;
+              break;
+            }
+
+            const recipientIds = await resolveRecipientIds();
+            if (recipientIds.length === 0) {
+              status = "failed";
+              summary =
+                "No users have access to this entity — reminders cannot be delivered";
+              break;
+            }
+
+            await db.insert(notifications).values(
+              recipientIds.flatMap((userId) =>
+                due.map((inv) => ({
+                  userId,
+                  entityId,
+                  type: "invoice_reminder",
+                  priority: "high",
+                  title: `Invoice due: ${inv.invoiceNumber}`,
+                  body: `Invoice ${inv.invoiceNumber} for ${inv.totalAmount} ${inv.currency ?? ""} is due by ${inv.dueDate}.`.trim(),
+                  data: JSON.stringify({
+                    invoiceId: inv.id,
+                    invoiceNumber: inv.invoiceNumber,
+                    dueDate: inv.dueDate,
+                  }),
+                  read: false,
+                  status: "sent",
+                  sentAt: new Date(),
+                })),
+              ),
+            );
+
+            status = "success";
+            summary = `Queued ${due.length} invoice reminder(s) for ${recipientIds.length} user(s)`;
+            break;
+          }
+
+          case "bill_reminder": {
+            const due = await db.query.invoicesAp.findMany({
+              where: and(
+                eq(invoicesAp.entityId, entityId),
+                inArray(invoicesAp.status, ["pending", "partial", "overdue"]),
+                lte(invoicesAp.dueDate, horizonStr),
+              ),
+              limit: 100,
+            });
+
+            if (due.length === 0) {
+              summary = `No bills due within ${daysBeforeDue} day(s) — nothing to remind`;
+              break;
+            }
+
+            const recipientIds = await resolveRecipientIds();
+            if (recipientIds.length === 0) {
+              status = "failed";
+              summary =
+                "No users have access to this entity — reminders cannot be delivered";
+              break;
+            }
+
+            await db.insert(notifications).values(
+              recipientIds.flatMap((userId) =>
+                due.map((bill) => ({
+                  userId,
+                  entityId,
+                  type: "bill_reminder",
+                  priority: "high",
+                  title: `Bill due: ${bill.invoiceNumber}`,
+                  body: `Bill ${bill.invoiceNumber} for ${bill.totalAmount} ${bill.currency ?? ""} is due by ${bill.dueDate}.`.trim(),
+                  data: JSON.stringify({
+                    billId: bill.id,
+                    invoiceNumber: bill.invoiceNumber,
+                    dueDate: bill.dueDate,
+                  }),
+                  read: false,
+                  status: "sent",
+                  sentAt: new Date(),
+                })),
+              ),
+            );
+
+            status = "success";
+            summary = `Queued ${due.length} bill reminder(s) for ${recipientIds.length} user(s)`;
+            break;
+          }
+
+          case "report_export": {
+            const monthStart = `${today.toISOString().slice(0, 7)}-01`;
+            const todayStr = today.toISOString().slice(0, 10);
+            const reportType = config.reportType ?? "profit_loss";
+
+            if (reportType === "balance_sheet") {
+              await generateBalanceSheet(entityId, todayStr);
+              summary = `Balance sheet generated as of ${todayStr}`;
+            } else if (reportType === "cash_flow") {
+              await generateCashFlow(entityId, monthStart, todayStr);
+              summary = `Cash flow report generated for ${monthStart} → ${todayStr}`;
+            } else {
+              await generateProfitLoss(entityId, monthStart, todayStr);
+              summary = `P&L report generated for ${monthStart} → ${todayStr}`;
+            }
+            break;
+          }
+
+          case "recurring_transaction": {
+            // A manual run cannot invent a posting — recurring transactions
+            // are generated by the Recurring Transactions scheduler.
+            status = "failed";
+            summary =
+              "Recurring transactions are generated by their own scheduler — configure it under Recurring";
+            break;
+          }
+
+          default:
+            status = "failed";
+            summary = `Unsupported action type: ${String(rule.actionType)}`;
+        }
+      } catch (err) {
+        status = "failed";
+        summary = err instanceof Error ? err.message : "Run failed";
+        logger.error(
+          { ruleId: rule.id, err },
+          "Automation rule manual run failed",
+        );
+      }
+
       const nextRunAt = computeNextRunAt(rule);
       const [updated] = await db
         .update(entityAutomationRules)
@@ -217,8 +403,8 @@ export const automationRouter = router({
           lastRunAt: new Date(),
           nextRunAt,
           runCount: rule.runCount + 1,
-          lastRunStatus: "success",
-          lastRunSummary: summarizeRun(rule),
+          lastRunStatus: status,
+          lastRunSummary: summary,
         })
         .where(eq(entityAutomationRules.id, input.id))
         .returning();

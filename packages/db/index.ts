@@ -50,6 +50,17 @@ export {
   type BalanceRow,
 } from "./lib/bank-statement-validation";
 export {
+  aggregateReportRows,
+  derivePnl,
+  deriveBalanceSheet,
+  isDebitNormal,
+  signedByNormal,
+  type ReportBalanceRow,
+  type ReportLineLike,
+  type ReportAccountLike,
+  type ReportStatementLine,
+} from "./lib/report-math";
+export {
   notifyEntityUsers,
   clearEntityFailureNotifications,
   type EntityNotificationInput,

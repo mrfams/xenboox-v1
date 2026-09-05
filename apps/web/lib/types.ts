@@ -33,8 +33,10 @@ export type AIComparison = {
   costPerMTokens: number;
   selfHostCostPerMonth: number;
   hostingProvider?: HostingProvider;
-  avgLatencyMs: number;
-  successRate: number;
+  /** Observed average latency — null when no real usage has been recorded. */
+  avgLatencyMs: number | null;
+  /** Observed success rate — null when no real usage has been recorded. */
+  successRate: number | null;
   monthlySpend: number;
   monthlyTokens: number;
   budgetLimit: number;
@@ -45,6 +47,8 @@ export type AIComparison = {
   breakEvenTokens: number;
   recommendation: "api" | "self-host" | "hybrid";
   totalCost?: number;
+  /** True when real usage data exists for this model in the last 30 days. */
+  hasUsage?: boolean;
 };
 
 export type SelfHostedModel = {

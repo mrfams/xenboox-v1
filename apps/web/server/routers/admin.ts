@@ -14,6 +14,11 @@ import {
 import { bankAccounts } from "@xenboox/db/schema/treasury";
 import { documents } from "@xenboox/db/schema/documents";
 import { agentActivity } from "@xenboox/db/schema/documents";
+import {
+  featureFlags,
+  featureFlagAuditLog,
+} from "@xenboox/db/schema/ops-feature-flags";
+import { opsTokenByModel } from "@xenboox/db/schema/ops-token-usage";
 import bcrypt from "bcryptjs";
 
 import { db } from "@/lib/db";
@@ -58,8 +63,10 @@ export type AIComparison = {
   costPerMTokens: number;
   selfHostCostPerMonth: number;
   hostingProvider?: HostingProvider;
-  avgLatencyMs: number;
-  successRate: number;
+  /** Observed average latency — null when no real usage has been recorded. */
+  avgLatencyMs: number | null;
+  /** Observed success rate — null when no real usage has been recorded. */
+  successRate: number | null;
   monthlySpend: number;
   monthlyTokens: number;
   budgetLimit: number;
@@ -70,6 +77,8 @@ export type AIComparison = {
   breakEvenTokens: number;
   recommendation: "api" | "self-host" | "hybrid";
   totalCost?: number;
+  /** True when real usage data exists for this model in the last 30 days. */
+  hasUsage?: boolean;
 };
 
 export type SelfHostedModel = {
@@ -107,7 +116,22 @@ export type SpendAlert = {
   alertLevel: "low" | "warning" | "critical";
 };
 
-const AI_PROVIDERS: AIComparison[] = [
+/**
+ * Model unit-economics configuration: pricing, self-host cost, and budget
+ * limits. These are admin-maintained configuration values, not telemetry.
+ * Every usage figure (spend, tokens) surfaced by the admin AI pages is
+ * computed from real recorded usage (ops_token_by_model, trailing 30 days)
+ * at query time — previously these numbers were fabricated constants.
+ */
+const MODEL_CATALOG: Array<{
+  provider: AIProvider;
+  model: string;
+  deploymentMode: DeploymentMode;
+  costPerMTokens: number;
+  selfHostCostPerMonth: number;
+  hostingProvider?: HostingProvider;
+  budgetLimit: number;
+}> = [
   {
     provider: "anthropic",
     model: "claude-sonnet-4.6",
@@ -115,17 +139,7 @@ const AI_PROVIDERS: AIComparison[] = [
     costPerMTokens: 3.0,
     selfHostCostPerMonth: 2500,
     hostingProvider: "aws",
-    avgLatencyMs: 850,
-    successRate: 0.98,
-    monthlySpend: 12500,
-    monthlyTokens: 4166667,
     budgetLimit: 25000,
-    threshold80: 20000,
-    recommendedAt80: 20000,
-    recommendedAt90: 22500,
-    utilization: 50,
-    breakEvenTokens: 833333,
-    recommendation: "api",
   },
   {
     provider: "anthropic",
@@ -134,17 +148,7 @@ const AI_PROVIDERS: AIComparison[] = [
     costPerMTokens: 0.3,
     selfHostCostPerMonth: 500,
     hostingProvider: "aws",
-    avgLatencyMs: 320,
-    successRate: 0.97,
-    monthlySpend: 850,
-    monthlyTokens: 2833333,
     budgetLimit: 5000,
-    threshold80: 4000,
-    recommendedAt80: 4000,
-    recommendedAt90: 4500,
-    utilization: 17,
-    breakEvenTokens: 1666667,
-    recommendation: "api",
   },
   {
     provider: "openai",
@@ -153,17 +157,7 @@ const AI_PROVIDERS: AIComparison[] = [
     costPerMTokens: 15.0,
     selfHostCostPerMonth: 5000,
     hostingProvider: "aws",
-    avgLatencyMs: 720,
-    successRate: 0.96,
-    monthlySpend: 9200,
-    monthlyTokens: 613333,
     budgetLimit: 20000,
-    threshold80: 16000,
-    recommendedAt80: 16000,
-    recommendedAt90: 18000,
-    utilization: 46,
-    breakEvenTokens: 333333,
-    recommendation: "api",
   },
   {
     provider: "deepseek",
@@ -172,17 +166,7 @@ const AI_PROVIDERS: AIComparison[] = [
     costPerMTokens: 8.0,
     selfHostCostPerMonth: 1500,
     hostingProvider: "aws",
-    avgLatencyMs: 450,
-    successRate: 0.96,
-    monthlySpend: 2400,
-    monthlyTokens: 30000000,
     budgetLimit: 15000,
-    threshold80: 12000,
-    recommendedAt80: 13500,
-    recommendedAt90: 15000,
-    utilization: 16,
-    breakEvenTokens: 18750000,
-    recommendation: "api",
   },
   {
     provider: "deepseek",
@@ -191,17 +175,7 @@ const AI_PROVIDERS: AIComparison[] = [
     costPerMTokens: 8.0,
     selfHostCostPerMonth: 1500,
     hostingProvider: "aws",
-    avgLatencyMs: 400,
-    successRate: 0.95,
-    monthlySpend: 2200,
-    monthlyTokens: 27500000,
     budgetLimit: 12000,
-    threshold80: 9600,
-    recommendedAt80: 10800,
-    recommendedAt90: 12000,
-    utilization: 18,
-    breakEvenTokens: 18750000,
-    recommendation: "api",
   },
   {
     provider: "deepseek",
@@ -210,17 +184,7 @@ const AI_PROVIDERS: AIComparison[] = [
     costPerMTokens: 6.0,
     selfHostCostPerMonth: 1500,
     hostingProvider: "aws",
-    avgLatencyMs: 380,
-    successRate: 0.94,
-    monthlySpend: 1800,
-    monthlyTokens: 30000000,
     budgetLimit: 15000,
-    threshold80: 12000,
-    recommendedAt80: 13500,
-    recommendedAt90: 15000,
-    utilization: 12,
-    breakEvenTokens: 25000000,
-    recommendation: "api",
   },
   {
     provider: "glm",
@@ -229,17 +193,7 @@ const AI_PROVIDERS: AIComparison[] = [
     costPerMTokens: 1.2,
     selfHostCostPerMonth: 1000,
     hostingProvider: "aws",
-    avgLatencyMs: 280,
-    successRate: 0.97,
-    monthlySpend: 1200,
-    monthlyTokens: 100000000,
     budgetLimit: 10000,
-    threshold80: 8000,
-    recommendedAt80: 9000,
-    recommendedAt90: 10000,
-    utilization: 12,
-    breakEvenTokens: 83333333,
-    recommendation: "api",
   },
   {
     provider: "glm",
@@ -248,17 +202,7 @@ const AI_PROVIDERS: AIComparison[] = [
     costPerMTokens: 3.0,
     selfHostCostPerMonth: 1000,
     hostingProvider: "aws",
-    avgLatencyMs: 550,
-    successRate: 0.98,
-    monthlySpend: 3600,
-    monthlyTokens: 120000000,
     budgetLimit: 15000,
-    threshold80: 12000,
-    recommendedAt80: 13500,
-    recommendedAt90: 15000,
-    utilization: 24,
-    breakEvenTokens: 33333333,
-    recommendation: "api",
   },
   {
     provider: "qwen",
@@ -267,17 +211,7 @@ const AI_PROVIDERS: AIComparison[] = [
     costPerMTokens: 6.0,
     selfHostCostPerMonth: 1500,
     hostingProvider: "aws",
-    avgLatencyMs: 500,
-    successRate: 0.96,
-    monthlySpend: 4200,
-    monthlyTokens: 70000000,
     budgetLimit: 15000,
-    threshold80: 12000,
-    recommendedAt80: 13500,
-    recommendedAt90: 15000,
-    utilization: 28,
-    breakEvenTokens: 25000000,
-    recommendation: "api",
   },
   {
     provider: "minimax",
@@ -286,17 +220,7 @@ const AI_PROVIDERS: AIComparison[] = [
     costPerMTokens: 5.0,
     selfHostCostPerMonth: 1200,
     hostingProvider: "aws",
-    avgLatencyMs: 350,
-    successRate: 0.93,
-    monthlySpend: 1800,
-    monthlyTokens: 36000000,
     budgetLimit: 12000,
-    threshold80: 9600,
-    recommendedAt80: 10800,
-    recommendedAt90: 12000,
-    utilization: 15,
-    breakEvenTokens: 24000000,
-    recommendation: "api",
   },
   {
     provider: "kiwi",
@@ -305,17 +229,7 @@ const AI_PROVIDERS: AIComparison[] = [
     costPerMTokens: 0,
     selfHostCostPerMonth: 2200,
     hostingProvider: "runpod",
-    avgLatencyMs: 550,
-    successRate: 0.91,
-    monthlySpend: 2200,
-    monthlyTokens: 25000000,
     budgetLimit: 8000,
-    threshold80: 6400,
-    recommendedAt80: 7200,
-    recommendedAt90: 8000,
-    utilization: 27,
-    breakEvenTokens: 25000000,
-    recommendation: "self-host",
   },
   {
     provider: "cohere",
@@ -324,17 +238,7 @@ const AI_PROVIDERS: AIComparison[] = [
     costPerMTokens: 3.0,
     selfHostCostPerMonth: 3000,
     hostingProvider: "aws",
-    avgLatencyMs: 600,
-    successRate: 0.95,
-    monthlySpend: 4500,
-    monthlyTokens: 15000000,
     budgetLimit: 20000,
-    threshold80: 16000,
-    recommendedAt80: 18000,
-    recommendedAt90: 20000,
-    utilization: 22,
-    breakEvenTokens: 10000000,
-    recommendation: "api",
   },
   {
     provider: "mistral",
@@ -343,17 +247,7 @@ const AI_PROVIDERS: AIComparison[] = [
     costPerMTokens: 2.0,
     selfHostCostPerMonth: 2500,
     hostingProvider: "aws",
-    avgLatencyMs: 520,
-    successRate: 0.94,
-    monthlySpend: 3500,
-    monthlyTokens: 17500000,
     budgetLimit: 18000,
-    threshold80: 14400,
-    recommendedAt80: 16200,
-    recommendedAt90: 18000,
-    utilization: 19,
-    breakEvenTokens: 12500000,
-    recommendation: "api",
   },
   {
     provider: "together",
@@ -362,17 +256,7 @@ const AI_PROVIDERS: AIComparison[] = [
     costPerMTokens: 1.0,
     selfHostCostPerMonth: 1800,
     hostingProvider: "together",
-    avgLatencyMs: 450,
-    successRate: 0.92,
-    monthlySpend: 1800,
-    monthlyTokens: 18000000,
     budgetLimit: 12000,
-    threshold80: 9600,
-    recommendedAt80: 10800,
-    recommendedAt90: 12000,
-    utilization: 15,
-    breakEvenTokens: 18000000,
-    recommendation: "api",
   },
   {
     provider: "self-hosted",
@@ -381,19 +265,33 @@ const AI_PROVIDERS: AIComparison[] = [
     costPerMTokens: 0,
     selfHostCostPerMonth: 800,
     hostingProvider: "vastai",
-    avgLatencyMs: 200,
-    successRate: 0.89,
-    monthlySpend: 800,
-    monthlyTokens: 10000000,
     budgetLimit: 5000,
-    threshold80: 4000,
-    recommendedAt80: 4000,
-    recommendedAt90: 4500,
-    utilization: 16,
-    breakEvenTokens: 8000000,
-    recommendation: "self-host",
   },
 ];
+
+/** Real trailing-30-day usage per model, from the ops token ledger. */
+async function getTrailing30DayModelUsage(): Promise<
+  Map<string, { tokens: number; cost: number }>
+> {
+  const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+    .toISOString()
+    .slice(0, 10);
+  const rows = await db
+    .select({
+      modelName: opsTokenByModel.modelName,
+      tokens: sql<string>`COALESCE(SUM(${opsTokenByModel.totalTokens}), '0')`,
+      cost: sql<string>`COALESCE(SUM(${opsTokenByModel.costUsd}), '0')`,
+    })
+    .from(opsTokenByModel)
+    .where(sql`${opsTokenByModel.date} >= ${since}`)
+    .groupBy(opsTokenByModel.modelName);
+  return new Map(
+    rows.map((r) => [
+      r.modelName,
+      { tokens: Number(r.tokens), cost: Number(r.cost) },
+    ]),
+  );
+}
 
 export const adminRouter = router({
   checkAccess: adminProtectedProcedure.query(async () => {
@@ -555,19 +453,48 @@ export const adminRouter = router({
     }),
 
   getAIComparison: adminProtectedProcedure.query(async () => {
-    return AI_PROVIDERS.map((c) => ({
-      ...c,
-      utilization:
-        ((c.monthlySpend + c.selfHostCostPerMonth) / c.budgetLimit) * 100,
-      totalCost: c.monthlySpend + c.selfHostCostPerMonth,
-    }));
+    const usage = await getTrailing30DayModelUsage();
+
+    return MODEL_CATALOG.map((c) => {
+      const u = usage.get(c.model);
+      const monthlySpend = u?.cost ?? 0;
+      const monthlyTokens = u?.tokens ?? 0;
+      const recommendation: "api" | "self-host" | "hybrid" =
+        monthlySpend > 0 && c.selfHostCostPerMonth < monthlySpend * 0.7
+          ? "self-host"
+          : monthlySpend > 0 && c.selfHostCostPerMonth < monthlySpend
+            ? "hybrid"
+            : "api";
+
+      return {
+        ...c,
+        monthlySpend,
+        monthlyTokens,
+        // No real per-model latency/success telemetry exists yet — report
+        // null (rendered as "—") instead of fabricated values.
+        avgLatencyMs: null,
+        successRate: null,
+        utilization:
+          c.budgetLimit > 0 ? (monthlySpend / c.budgetLimit) * 100 : 0,
+        totalCost: monthlySpend + c.selfHostCostPerMonth,
+        breakEvenTokens:
+          c.costPerMTokens > 0
+            ? Math.ceil((c.selfHostCostPerMonth / c.costPerMTokens) * 1_000_000)
+            : 0,
+        recommendation,
+        hasUsage: Boolean(u),
+      };
+    });
   }),
 
   getSpendAlerts: adminProtectedProcedure.query(async () => {
+    const usage = await getTrailing30DayModelUsage();
     const alerts: SpendAlert[] = [];
 
-    for (const item of AI_PROVIDERS) {
-      const percentage = (item.monthlySpend / item.budgetLimit) * 100;
+    for (const item of MODEL_CATALOG) {
+      const currentSpend = usage.get(item.model)?.cost ?? 0;
+      const percentage =
+        item.budgetLimit > 0 ? (currentSpend / item.budgetLimit) * 100 : 0;
       let alertLevel: "low" | "warning" | "critical" = "low";
 
       if (percentage >= 90) alertLevel = "critical";
@@ -576,7 +503,7 @@ export const adminRouter = router({
       alerts.push({
         provider: item.provider,
         model: item.model,
-        currentSpend: item.monthlySpend,
+        currentSpend,
         budgetLimit: item.budgetLimit,
         percentage,
         alertLevel,
@@ -595,24 +522,35 @@ export const adminRouter = router({
     const usageByAgent = activities.reduce(
       (acc, act) => {
         if (!acc[act.agentName]) {
-          acc[act.agentName] = { count: 0, totalDuration: 0, avgConfidence: 0 };
+          acc[act.agentName] = {
+            count: 0,
+            totalDuration: 0,
+            confidenceSum: 0,
+            avgConfidence: 0,
+          };
         }
         acc[act.agentName].count += 1;
         acc[act.agentName].totalDuration += act.durationMs || 0;
         const confidence = act.confidence ? parseFloat(act.confidence) : 0;
-        acc[act.agentName].avgConfidence =
-          (acc[act.agentName].avgConfidence + confidence) / 2;
+        acc[act.agentName].confidenceSum += confidence;
         return acc;
       },
       {} as Record<
         string,
-        { count: number; totalDuration: number; avgConfidence: number }
+        {
+          count: number;
+          totalDuration: number;
+          confidenceSum: number;
+          avgConfidence: number;
+        }
       >,
     );
 
     return Object.entries(usageByAgent).map(([agent, data]) => ({
       agent,
-      ...data,
+      count: data.count,
+      totalDuration: data.totalDuration,
+      avgConfidence: data.count > 0 ? data.confidenceSum / data.count : 0,
       avgLatency: data.totalDuration / data.count,
     }));
   }),
@@ -636,28 +574,111 @@ export const adminRouter = router({
         }),
       }),
     )
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
       try {
-        logger.info("Admin settings update");
+        const actor = ctx.session?.user?.email ?? "unknown";
+
+        // Persist every setting as a platform feature flag
+        // (admin.settings.*). Without this the save button lies: values
+        // reset on every page load because they were never stored.
+        const settings: Record<string, unknown> = { ...input };
+
+        await db.transaction(async (tx) => {
+          for (const [key, value] of Object.entries(settings)) {
+            const flagKey = `admin.settings.${key}`;
+            const flagValue = JSON.stringify(value);
+
+            const [upserted] = await tx
+              .insert(featureFlags)
+              .values({
+                key: flagKey,
+                name: key,
+                description: "Admin platform setting",
+                status:
+                  value === true ? "on" : value === false ? "off" : "scheduled",
+                targetingRules: { value },
+              })
+              .onConflictDoUpdate({
+                target: featureFlags.key,
+                set: {
+                  status:
+                    value === true
+                      ? "on"
+                      : value === false
+                        ? "off"
+                        : "scheduled",
+                  targetingRules: { value },
+                  updatedAt: new Date(),
+                },
+              })
+              .returning({ id: featureFlags.id });
+
+            await tx.insert(featureFlagAuditLog).values({
+              flagId: upserted.id,
+              action: "updated",
+              performedBy: actor,
+              field: key,
+              newValue: flagValue,
+            });
+          }
+        });
+
+        logger.info(
+          { actor, keys: Object.keys(settings) },
+          "Admin settings updated",
+        );
         return { success: true };
       } catch (error) {
         handleMutationError(error, "Failed to update settings");
       }
     }),
 
+  getSettings: adminProtectedProcedure.query(async () => {
+    const flags = await db.query.featureFlags.findMany({
+      where: sql`${featureFlags.key} LIKE 'admin.settings.%'`,
+    });
+
+    const defaults = {
+      emailAlerts: true,
+      slackAlerts: false,
+      smsAlerts: false,
+      autoScaling: false,
+      costOptimization: true,
+      providerFallback: true,
+      maintenanceMode: false,
+      debugMode: false,
+      auditLogging: true,
+      budgets: { anthropic: "25000", openai: "20000", haiku: "5000" },
+    };
+
+    for (const flag of flags) {
+      const key = flag.key.replace("admin.settings.", "");
+      const value = (flag.targetingRules as { value?: unknown } | null)?.value;
+      if (value === undefined || value === null) continue;
+      if (key in defaults) {
+        (defaults as Record<string, unknown>)[key] = value;
+      }
+    }
+
+    return defaults;
+  }),
+
   getCostComparison: adminProtectedProcedure.query(async () => {
-    const costComparison = AI_PROVIDERS.map((c) => {
-      const apiCost = c.monthlySpend;
+    const usage = await getTrailing30DayModelUsage();
+
+    const costComparison = MODEL_CATALOG.map((c) => {
+      const apiCost = usage.get(c.model)?.cost ?? 0;
       const selfHostCost = c.selfHostCostPerMonth;
+      const totalTokens = usage.get(c.model)?.tokens ?? 0;
       const breakEvenPoint =
         c.costPerMTokens > 0
           ? Math.ceil((selfHostCost / c.costPerMTokens) * 1000000)
           : 0;
 
       let recommendation: "api" | "self-host" | "hybrid" = "api";
-      if (selfHostCost < apiCost * 0.7) {
+      if (apiCost > 0 && selfHostCost < apiCost * 0.7) {
         recommendation = "self-host";
-      } else if (selfHostCost < apiCost) {
+      } else if (apiCost > 0 && selfHostCost < apiCost) {
         recommendation = "hybrid";
       }
 
@@ -666,7 +687,7 @@ export const adminRouter = router({
         model: c.model,
         apiCost,
         selfHostCost,
-        totalTokens: c.monthlyTokens,
+        totalTokens,
         breakEvenPoint,
         recommendation,
         monthlySavings: Math.max(0, apiCost - selfHostCost),

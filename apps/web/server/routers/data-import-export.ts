@@ -7,15 +7,15 @@
  * - exportInvoices: Export invoices (AP + AR) to CSV
  * - exportCustomers: Export customers to CSV
  * - exportSuppliers: Export suppliers to CSV
- * - importTransactions: Import bank transactions from CSV with validation
- * - importJournalEntries: Import journal entries from CSV with validation
  * - importCustomers: Import customers from CSV with validation
  * - importSuppliers: Import suppliers from CSV with validation
+ * - importJournalEntries: Import journal entry headers from CSV
  * - getImportTemplate: Download CSV template for a data type
  * - validateImport: Preview and validate CSV data before import
  */
 
 import { z } from "zod";
+import { TRPCError } from "@trpc/server";
 import { eq, and, desc } from "drizzle-orm";
 
 import { router, protectedProcedure } from "@/lib/trpc/server";
@@ -27,9 +27,10 @@ import {
   customers,
   suppliers,
   bankTransactions,
-  accounts,
   invoicesAp,
   salesInvoices,
+  fiscalPeriods,
+  userEntityAccess,
 } from "@xenboox/db/schema";
 
 // ─── CSV Helpers ──────────────────────────────────────────────────────────
@@ -86,6 +87,41 @@ function parseCsv(content: string): { headers: string[]; rows: string[][] } {
   const headers = parseCsvLine(lines[0]);
   const rows = lines.slice(1).map((l) => parseCsvLine(l));
   return { headers, rows };
+}
+
+// ─── Entity Authorization ─────────────────────────────────────────────────
+
+/**
+ * Every procedure in this router takes a caller-supplied entityId. That value
+ * must never be trusted directly: either it matches the caller's active
+ * session entity (already validated by entityScopingMiddleware), or the
+ * caller must have an explicit userEntityAccess membership row. Otherwise
+ * any authenticated user could export or import another entity's books.
+ */
+async function assertEntityAccess(
+  ctx: { session?: { user?: { id?: string } } | null; entityId?: string },
+  entityId: string,
+): Promise<void> {
+  if (ctx.entityId === entityId) return;
+
+  const userId = ctx.session?.user?.id;
+  if (!userId) {
+    throw new TRPCError({ code: "UNAUTHORIZED", message: "Not authenticated" });
+  }
+
+  const access = await db.query.userEntityAccess.findFirst({
+    where: and(
+      eq(userEntityAccess.userId, userId),
+      eq(userEntityAccess.entityId, entityId),
+    ),
+    columns: { userId: true },
+  });
+  if (!access) {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "You do not have access to this entity",
+    });
+  }
 }
 
 // ─── Template Definitions ─────────────────────────────────────────────────
@@ -221,6 +257,7 @@ export const dataImportExportRouter = router({
       }),
     )
     .query(async ({ ctx, input }) => {
+      await assertEntityAccess(ctx, input.entityId);
       const rows = await db.query.bankTransactions.findMany({
         where: eq(bankTransactions.entityId, input.entityId),
         orderBy: [desc(bankTransactions.createdAt)],
@@ -279,6 +316,7 @@ export const dataImportExportRouter = router({
       }),
     )
     .query(async ({ ctx, input }) => {
+      await assertEntityAccess(ctx, input.entityId);
       const rows = await db.query.journalEntries.findMany({
         where: eq(journalEntries.entityId, input.entityId),
         orderBy: [desc(journalEntries.createdAt)],
@@ -333,8 +371,11 @@ export const dataImportExportRouter = router({
       }),
     )
     .query(async ({ ctx, input }) => {
+      await assertEntityAccess(ctx, input.entityId);
       let rows: any[];
       let headers: string[];
+      // Column names on the row objects (camelCase) aligned 1:1 with `headers`.
+      let columns: string[];
 
       if (input.type === "ap") {
         rows = await db.query.invoicesAp.findMany({
@@ -348,11 +389,27 @@ export const dataImportExportRouter = router({
           "invoice_number",
           "invoice_date",
           "due_date",
-          "total_amount",
-          "tax_amount",
           "status",
-          "description",
+          "total_amount",
+          "paid_amount",
+          "balance",
+          "currency",
+          "notes",
           "created_at",
+        ];
+        columns = [
+          "id",
+          "supplierId",
+          "invoiceNumber",
+          "invoiceDate",
+          "dueDate",
+          "status",
+          "totalAmount",
+          "paidAmount",
+          "balance",
+          "currency",
+          "notes",
+          "createdAt",
         ];
       } else {
         rows = await db.query.salesInvoices.findMany({
@@ -366,17 +423,34 @@ export const dataImportExportRouter = router({
           "invoice_number",
           "invoice_date",
           "due_date",
-          "total_amount",
-          "tax_amount",
           "status",
-          "description",
+          "total_amount",
+          "paid_amount",
+          "balance",
+          "currency",
+          "notes",
           "created_at",
+        ];
+        columns = [
+          "id",
+          "customerId",
+          "invoiceNumber",
+          "invoiceDate",
+          "dueDate",
+          "status",
+          "totalAmount",
+          "paidAmount",
+          "balance",
+          "currency",
+          "notes",
+          "createdAt",
         ];
       }
 
       const csvLines = [headers.join(",")];
       for (const row of rows) {
-        csvLines.push(toCsvRow(Object.values(row)));
+        const record = row as Record<string, unknown>;
+        csvLines.push(toCsvRow(columns.map((c) => record[c])));
       }
 
       return {
@@ -397,6 +471,7 @@ export const dataImportExportRouter = router({
       }),
     )
     .query(async ({ ctx, input }) => {
+      await assertEntityAccess(ctx, input.entityId);
       const rows = await db.query.customers.findMany({
         where: eq(customers.entityId, input.entityId),
         orderBy: [desc(customers.createdAt)],
@@ -419,7 +494,22 @@ export const dataImportExportRouter = router({
 
       const csvLines = [headers.join(",")];
       for (const row of rows) {
-        csvLines.push(toCsvRow(Object.values(row)));
+        const record = row as Record<string, unknown>;
+        csvLines.push(
+          toCsvRow([
+            record.id,
+            record.name,
+            record.contactEmail,
+            record.contactPhone,
+            record.address,
+            record.taxId,
+            record.paymentTerms,
+            record.creditLimit,
+            record.isDonor,
+            record.isActive,
+            record.createdAt,
+          ]),
+        );
       }
 
       return {
@@ -440,6 +530,7 @@ export const dataImportExportRouter = router({
       }),
     )
     .query(async ({ ctx, input }) => {
+      await assertEntityAccess(ctx, input.entityId);
       const rows = await db.query.suppliers.findMany({
         where: eq(suppliers.entityId, input.entityId),
         orderBy: [desc(suppliers.createdAt)],
@@ -461,7 +552,21 @@ export const dataImportExportRouter = router({
 
       const csvLines = [headers.join(",")];
       for (const row of rows) {
-        csvLines.push(toCsvRow(Object.values(row)));
+        const record = row as Record<string, unknown>;
+        csvLines.push(
+          toCsvRow([
+            record.id,
+            record.name,
+            record.contactEmail,
+            record.contactPhone,
+            record.address,
+            record.taxId,
+            record.paymentTerms,
+            record.isActive,
+            record.is1099,
+            record.createdAt,
+          ]),
+        );
       }
 
       return {
@@ -490,6 +595,7 @@ export const dataImportExportRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      await assertEntityAccess(ctx, input.entityId);
       const template = TEMPLATES[input.dataType];
       const { headers, rows } = parseCsv(input.csvContent);
 
@@ -570,12 +676,16 @@ export const dataImportExportRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      await assertEntityAccess(ctx, input.entityId);
       const { headers, rows } = parseCsv(input.csvContent);
       const headerIdx = Object.fromEntries(headers.map((h, i) => [h, i]));
 
       let imported = 0;
       let skipped = 0;
       const errors: { row: number; message: string }[] = [];
+      // Emails already seen in this file — the DB check only catches rows
+      // persisted by earlier inserts, not duplicates later in the same CSV.
+      const seenEmails = new Set<string>();
 
       for (let i = 0; i < rows.length; i++) {
         const row = rows[i];
@@ -588,6 +698,11 @@ export const dataImportExportRouter = router({
         }
 
         if (input.skipDuplicates && email) {
+          if (seenEmails.has(email)) {
+            skipped++;
+            continue;
+          }
+          seenEmails.add(email);
           const existing = await db.query.customers.findFirst({
             where: and(
               eq(customers.entityId, input.entityId),
@@ -645,12 +760,14 @@ export const dataImportExportRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      await assertEntityAccess(ctx, input.entityId);
       const { headers, rows } = parseCsv(input.csvContent);
       const headerIdx = Object.fromEntries(headers.map((h, i) => [h, i]));
 
       let imported = 0;
       let skipped = 0;
       const errors: { row: number; message: string }[] = [];
+      const seenEmails = new Set<string>();
 
       for (let i = 0; i < rows.length; i++) {
         const row = rows[i];
@@ -663,6 +780,11 @@ export const dataImportExportRouter = router({
         }
 
         if (input.skipDuplicates && email) {
+          if (seenEmails.has(email)) {
+            skipped++;
+            continue;
+          }
+          seenEmails.add(email);
           const existing = await db.query.suppliers.findFirst({
             where: and(
               eq(suppliers.entityId, input.entityId),
@@ -706,7 +828,9 @@ export const dataImportExportRouter = router({
     }),
 
   /**
-   * Import journal entries from CSV.
+   * Import journal entry headers from CSV. Entries are imported as draft or
+   * pending_review only — a header without balanced lines must never enter
+   * the ledger as "posted". Lines are managed through the normal editor.
    */
   importJournalEntries: protectedProcedure
     .input(
@@ -717,23 +841,40 @@ export const dataImportExportRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      await assertEntityAccess(ctx, input.entityId);
+
+      // The target period must belong to this entity and still be open —
+      // importing into a closed period would corrupt closed books.
+      const period = await db.query.fiscalPeriods.findFirst({
+        where: and(
+          eq(fiscalPeriods.id, input.periodId),
+          eq(fiscalPeriods.entityId, input.entityId),
+        ),
+      });
+      if (!period) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Period not found for this entity",
+        });
+      }
+      if (period.status === "closed") {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Cannot import journal entries into a closed period",
+        });
+      }
+
       const { headers, rows } = parseCsv(input.csvContent);
       const headerIdx = Object.fromEntries(headers.map((h, i) => [h, i]));
 
       let imported = 0;
       const errors: { row: number; message: string }[] = [];
 
-      // Get next entry number
-      const lastEntry = await db.query.journalEntries.findFirst({
-        where: eq(journalEntries.entityId, input.entityId),
-        orderBy: [desc(journalEntries.entryNumber)],
-      });
-      let nextEntryNumber = (lastEntry?.entryNumber ?? 0) + 1;
-
       for (let i = 0; i < rows.length; i++) {
         const row = rows[i];
         const date = row[headerIdx["date"]]?.trim();
         const description = row[headerIdx["description"]]?.trim();
+        const rawStatus = row[headerIdx["status"]]?.trim() || "draft";
 
         if (!date || !description) {
           errors.push({
@@ -743,15 +884,41 @@ export const dataImportExportRouter = router({
           continue;
         }
 
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || isNaN(Date.parse(date))) {
+          errors.push({
+            row: i + 2,
+            message: "date must be a valid date in YYYY-MM-DD format",
+          });
+          continue;
+        }
+
+        if (rawStatus !== "draft" && rawStatus !== "pending_review") {
+          errors.push({
+            row: i + 2,
+            message: `status "${rawStatus}" cannot be imported; use draft or pending_review (posted entries require balanced lines via the journal editor)`,
+          });
+          continue;
+        }
+
         try {
+          // Recompute max+1 per row: concurrent posting writers (bank syncs,
+          // approvals, imports) share the (entityId, entryNumber) unique
+          // index, so a batch-cached counter would collide. A fresh read per
+          // insert keeps the race window minimal; the unique index remains
+          // the backstop and surfaces as a row error if it is lost.
+          const lastEntry = await db.query.journalEntries.findFirst({
+            where: eq(journalEntries.entityId, input.entityId),
+            orderBy: [desc(journalEntries.entryNumber)],
+          });
+          const entryNumber = (lastEntry?.entryNumber ?? 0) + 1;
+
           await db.insert(journalEntries).values({
             entityId: input.entityId,
-            entryNumber: nextEntryNumber++,
+            entryNumber,
             date,
             description,
             reference: row[headerIdx["reference"]]?.trim() || null,
-            status: (row[headerIdx["status"]]?.trim() ||
-              "draft") as typeof journalEntries.$inferInsert.status,
+            status: rawStatus as "draft" | "pending_review",
             periodId: input.periodId,
           });
           imported++;

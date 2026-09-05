@@ -38,6 +38,10 @@
       "import": "./lib/audit-archival.ts",
       "default": "./lib/audit-archival.ts"
     },
+    "./report-generation": {
+      "import": "./report-generation.ts",
+      "default": "./report-generation.ts"
+    },
     "./lib/data-retention": {
       "import": "./lib/data-retention.ts",
       "default": "./lib/data-retention.ts"

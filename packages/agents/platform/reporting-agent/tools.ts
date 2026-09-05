@@ -1,4 +1,12 @@
 import { db } from "@xenboox/db";
+import {
+  aggregateReportRows,
+  deriveBalanceSheet,
+  derivePnl,
+  type ReportLineLike,
+  type ReportAccountLike,
+  type ReportStatementLine,
+} from "@xenboox/db/lib";
 import { eq, and, inArray } from "drizzle-orm";
 import {
   chartOfAccounts,
@@ -17,9 +25,15 @@ import {
 } from "@xenboox/db/schema/donor-grant";
 import { callModel } from "@xenboox/models";
 import { langfuse } from "../../core/langfuse";
-import { redactPii, INJECTION_DEFENSE_SUFFIX } from "../../core/security/injection-defense";
+import {
+  redactPii,
+  INJECTION_DEFENSE_SUFFIX,
+} from "../../core/security/injection-defense";
 import { checkRateLimit } from "../../core/rate-limiter";
-import { getCachedNarrative, setCachedNarrative } from "../../core/narrative-cache";
+import {
+  getCachedNarrative,
+  setCachedNarrative,
+} from "../../core/narrative-cache";
 import { saveNarrativeHistory } from "@xenboox/db/schema/analytics";
 import type {
   ProfitAndLoss,
@@ -393,7 +407,9 @@ function generateDonorNarrative(
  */
 export async function findProjectsDueForReport(
   entityId: string,
-): Promise<Array<{ project: typeof donorProjects.$inferSelect; period: string }>> {
+): Promise<
+  Array<{ project: typeof donorProjects.$inferSelect; period: string }>
+> {
   const projects = await db.query.donorProjects.findMany({
     where: and(
       eq(donorProjects.entityId, entityId),
@@ -430,10 +446,7 @@ export async function findProjectsDueForReport(
 /**
  * Calculate the current period string based on reporting cadence.
  */
-function calculateCurrentPeriod(
-  now: Date,
-  cadence: string,
-): string {
+function calculateCurrentPeriod(now: Date, cadence: string): string {
   const year = now.getFullYear();
   const month = now.getMonth() + 1;
 
@@ -555,11 +568,18 @@ export async function generateBudgetVsActual(
         })
       : [];
 
-  const lineAccountIds = [...new Set(budgetLinesList.map((l) => l.accountId))];
+  // Load accounts for BOTH budget lines and actuals so unbudgeted spend rows
+  // resolve real account codes/names (previously they rendered "Unknown").
+  const neededAccountIds = [
+    ...new Set([
+      ...budgetLinesList.map((l) => l.accountId),
+      ...actualByAccount.keys(),
+    ]),
+  ];
   const lineAccounts =
-    lineAccountIds.length > 0
+    neededAccountIds.length > 0
       ? await db.query.chartOfAccounts.findMany({
-          where: inArray(chartOfAccounts.id, lineAccountIds),
+          where: inArray(chartOfAccounts.id, neededAccountIds),
         })
       : [];
   const lineAccountMap = new Map(lineAccounts.map((a) => [a.id, a]));
@@ -618,15 +638,20 @@ export async function generateBudgetVsActual(
     });
   }
 
-  // Accounts with actuals but no budget line → flag as unbudgeted spend
+  // Accounts with actuals but no budget line → flag as unbudgeted spend.
+  // Budget-vs-actual is an income-statement comparison: only revenue/expense
+  // accounts count. Cash/AR/AP movements (balance-sheet accounts) must NOT be
+  // surfaced as unbudgeted "spend" — they would pollute every variance total.
   for (const [accountId, actual] of actualByAccount) {
     if (coveredAccounts.has(accountId)) continue;
     if (Math.abs(actual) < 0.01) continue;
     const account = lineAccountMap.get(accountId);
+    if (!account) continue;
+    if (account.type !== "revenue" && account.type !== "expense") continue;
     lines.push({
       accountId,
-      accountCode: account?.code ?? "???",
-      accountName: account?.name ?? "Unknown",
+      accountCode: account.code ?? "???",
+      accountName: account.name ?? "Unknown",
       budgetedAmount: 0,
       actualAmount: actual,
       variance: actual,
@@ -684,76 +709,45 @@ export async function generateProfitLoss(
   });
 
   const accountIds = [...new Set(allLines.map((l) => l.accountId))];
-  const accounts = await db.query.chartOfAccounts.findMany({
-    where: inArray(chartOfAccounts.id, accountIds),
-  });
-  const accountMap = new Map(accounts.map((a) => [a.id, a]));
+  const accounts = (await db.query.chartOfAccounts.findMany({
+    where: and(
+      inArray(chartOfAccounts.id, accountIds),
+      eq(chartOfAccounts.entityId, entityId),
+    ),
+  })) as unknown as ReportAccountLike[];
 
-  const revenueAccounts = new Map<
-    string,
-    { code: string; name: string; total: number }
-  >();
-  const expenseAccounts = new Map<
-    string,
-    { code: string; name: string; total: number }
-  >();
+  // Canonical derivation (P9-A): per-account netting — the old code took
+  // Math.abs per line, so a reversal (credit on an expense account) INFLATED
+  // expenses instead of netting against them.
+  const rows = aggregateReportRows(allLines as ReportLineLike[], accounts);
+  const pnl = derivePnl(rows);
 
-  for (const line of allLines) {
-    const account = accountMap.get(line.accountId);
-    if (!account || account.entityId !== entityId) continue;
-
-    const amount = Number(line.credit) - Number(line.debit);
-
-    if (account.type === "revenue") {
-      const existing = revenueAccounts.get(account.id);
-      if (existing) {
-        existing.total += amount;
-      } else {
-        revenueAccounts.set(account.id, {
-          code: account.code,
-          name: account.name,
-          total: amount,
-        });
-      }
-    } else if (account.type === "expense") {
-      const existing = expenseAccounts.get(account.id);
-      if (existing) {
-        existing.total += Math.abs(amount);
-      } else {
-        expenseAccounts.set(account.id, {
-          code: account.code,
-          name: account.name,
-          total: Math.abs(amount),
-        });
-      }
-    }
-  }
-
-  const revenueByAccount = Array.from(revenueAccounts.entries()).map(
-    ([accountId, data]) => ({
-      accountId,
-      accountCode: data.code,
-      accountName: data.name,
-      amount: data.total,
+  const revenueByAccount: ProfitAndLoss["revenueByAccount"] = pnl.revenue.map(
+    (l) => ({
+      accountId: l.accountId,
+      accountCode: l.code,
+      accountName: l.name,
+      amount: Math.abs(l.amount),
     }),
   );
 
-  const expensesByAccount = Array.from(expenseAccounts.entries()).map(
-    ([accountId, data]) => ({
-      accountId,
-      accountCode: data.code,
-      accountName: data.name,
-      amount: data.total,
-    }),
-  );
+  const expensesByAccount: ProfitAndLoss["expensesByAccount"] = [
+    ...pnl.cogs,
+    ...pnl.operatingExpenses,
+  ].map((l) => ({
+    accountId: l.accountId,
+    accountCode: l.code,
+    accountName: l.name,
+    amount: Math.abs(l.amount),
+  }));
 
-  const revenue = revenueByAccount.reduce((sum, a) => sum + a.amount, 0);
-  const expenses = expensesByAccount.reduce((sum, a) => sum + a.amount, 0);
+  const revenue = pnl.totalRevenue;
+  const expenses = pnl.totalCogs + pnl.totalOperatingExpenses;
 
   return {
     revenue,
     expenses,
-    netProfit: revenue - expenses,
+    netProfit: pnl.netIncome,
     revenueByAccount,
     expensesByAccount,
   };
@@ -764,12 +758,17 @@ export async function generateProfitLoss(
 export async function generateBalanceSheet(
   entityId: string,
 ): Promise<BalanceSheet> {
-  const accounts = await db.query.chartOfAccounts.findMany({
+  // Canonical derivation (P9-A): all posted entries to date, normal-balance
+  // display signs, and current earnings folded into equity. The previous
+  // implementation took Math.abs per account and never folded earnings, so
+  // Assets − (Liabilities + Equity) could never be ≈ 0 for a profitable
+  // entity.
+  const accounts = (await db.query.chartOfAccounts.findMany({
     where: and(
       eq(chartOfAccounts.entityId, entityId),
       eq(chartOfAccounts.isActive, true),
     ),
-  });
+  })) as unknown as ReportAccountLike[];
 
   const entries = await db.query.journalEntries.findMany({
     where: and(
@@ -778,75 +777,45 @@ export async function generateBalanceSheet(
     ),
   });
 
-  const accountBalances = new Map<string, number>();
+  const allLines =
+    entries.length > 0
+      ? await db.query.journalEntryLines.findMany({
+          where: inArray(
+            journalEntryLines.journalEntryId,
+            entries.map((e) => e.id),
+          ),
+        })
+      : [];
 
-  if (entries.length > 0) {
-    const entryIds = entries.map((e) => e.id);
-    const allLines = await db.query.journalEntryLines.findMany({
-      where: inArray(journalEntryLines.journalEntryId, entryIds),
+  const rows = aggregateReportRows(allLines as ReportLineLike[], accounts);
+  const bs = deriveBalanceSheet(rows);
+
+  const mapRows = (
+    list: ReportStatementLine[],
+  ): BalanceSheet["assetsByAccount"] =>
+    list.map((l) => ({
+      accountId: l.accountId,
+      accountCode: l.code,
+      accountName: l.name,
+      amount: Math.abs(l.amount),
+    }));
+
+  const equityByAccount = mapRows(bs.equity);
+  if (Math.abs(bs.currentEarnings) >= 0.005) {
+    equityByAccount.push({
+      accountId: "current-earnings",
+      accountCode: "",
+      accountName: "Current Earnings",
+      amount: Math.abs(bs.currentEarnings),
     });
-
-    for (const line of allLines) {
-      const current = accountBalances.get(line.accountId) ?? 0;
-      accountBalances.set(
-        line.accountId,
-        current + Number(line.debit) - Number(line.credit),
-      );
-    }
   }
-
-  const assetsByAccount: {
-    accountId: string;
-    accountCode: string;
-    accountName: string;
-    amount: number;
-  }[] = [];
-  const liabilitiesByAccount: {
-    accountId: string;
-    accountCode: string;
-    accountName: string;
-    amount: number;
-  }[] = [];
-  const equityByAccount: {
-    accountId: string;
-    accountCode: string;
-    accountName: string;
-    amount: number;
-  }[] = [];
-
-  for (const account of accounts) {
-    const balance = accountBalances.get(account.id) ?? 0;
-    if (balance === 0) continue;
-
-    const entry = {
-      accountId: account.id,
-      accountCode: account.code,
-      accountName: account.name,
-      amount: Math.abs(balance),
-    };
-
-    if (account.type === "asset") {
-      assetsByAccount.push(entry);
-    } else if (account.type === "liability") {
-      liabilitiesByAccount.push(entry);
-    } else if (account.type === "equity") {
-      equityByAccount.push(entry);
-    }
-  }
-
-  const assets = assetsByAccount.reduce((sum, a) => sum + a.amount, 0);
-  const liabilities = liabilitiesByAccount.reduce(
-    (sum, a) => sum + a.amount,
-    0,
-  );
-  const equity = equityByAccount.reduce((sum, a) => sum + a.amount, 0);
 
   return {
-    assets,
-    liabilities,
-    equity,
-    assetsByAccount,
-    liabilitiesByAccount,
+    assets: bs.totalAssets,
+    liabilities: bs.totalLiabilities,
+    equity: bs.totalEquityWithEarnings,
+    assetsByAccount: mapRows(bs.assets),
+    liabilitiesByAccount: mapRows(bs.liabilities),
     equityByAccount,
   };
 }
@@ -929,12 +898,12 @@ const circuitBreaker = {
   state: "closed" as "closed" | "open" | "half-open",
   threshold: 5,
   resetTimeoutMs: 60000,
-  
+
   recordSuccess() {
     this.failures = 0;
     this.state = "closed";
   },
-  
+
   recordFailure() {
     this.failures++;
     this.lastFailureTime = Date.now();
@@ -942,7 +911,7 @@ const circuitBreaker = {
       this.state = "open";
     }
   },
-  
+
   canExecute() {
     if (this.state === "closed") return true;
     if (this.state === "open") {
@@ -962,7 +931,7 @@ const circuitBreaker = {
 function formatAmount(amount: number, currency: string): string {
   const absAmount = Math.abs(amount);
   const sign = amount < 0 ? "-" : "";
-  
+
   if (absAmount >= 1_000_000_000) {
     return `${sign}${currency} ${(absAmount / 1_000_000_000).toFixed(1)}B`;
   } else if (absAmount >= 1_000_000) {
@@ -978,23 +947,23 @@ function formatAmount(amount: number, currency: string): string {
 function buildPnlContext(pnl: ProfitAndLoss, currency: string): string[] {
   const parts: string[] = [];
   parts.push("=== Profit & Loss ===");
-  
+
   // Handle zero revenue
   if (pnl.revenue === 0) {
     parts.push(`Revenue: ${currency} 0 (no revenue recorded this period)`);
   } else {
     parts.push(`Revenue: ${formatAmount(pnl.revenue, currency)}`);
   }
-  
+
   // Handle zero expenses
   if (pnl.expenses === 0) {
     parts.push(`Expenses: ${currency} 0 (no expenses recorded this period)`);
   } else {
     parts.push(`Expenses: ${formatAmount(pnl.expenses, currency)}`);
   }
-  
+
   parts.push(`Net Profit: ${formatAmount(pnl.netProfit, currency)}`);
-  
+
   // Handle profit margin (avoid division by zero)
   if (pnl.revenue > 0) {
     const margin = ((pnl.netProfit / pnl.revenue) * 100).toFixed(1);
@@ -1005,48 +974,66 @@ function buildPnlContext(pnl: ProfitAndLoss, currency: string): string[] {
     parts.push(`Profit Margin: N/A (no revenue)`);
   }
   parts.push("");
-  
+
   // Revenue by account (handle missing names)
   parts.push("Revenue by account:");
   for (const acc of pnl.revenueByAccount.slice(0, 5)) {
     const accountName = acc.accountName || "Unknown Account";
     const safeName = sanitizeForInjection(redactPii(accountName).text);
-    parts.push(`  - ${safeName} (${acc.accountCode}): ${formatAmount(acc.amount, currency)}`);
+    parts.push(
+      `  - ${safeName} (${acc.accountCode}): ${formatAmount(acc.amount, currency)}`,
+    );
   }
   parts.push("");
-  
+
   // Expenses by account (handle missing names)
   parts.push("Expenses by account:");
   for (const acc of pnl.expensesByAccount.slice(0, 5)) {
     const accountName = acc.accountName || "Unknown Account";
     const safeName = sanitizeForInjection(redactPii(accountName).text);
-    parts.push(`  - ${safeName} (${acc.accountCode}): ${formatAmount(acc.amount, currency)}`);
+    parts.push(
+      `  - ${safeName} (${acc.accountCode}): ${formatAmount(acc.amount, currency)}`,
+    );
   }
   parts.push("");
   return parts;
 }
 
 // ─── Helper: Build Cash vs Non-Cash Context ───────────────────────────────
-function buildCashVsNonCashContext(pnl: ProfitAndLoss, currency: string): string[] {
+function buildCashVsNonCashContext(
+  pnl: ProfitAndLoss,
+  currency: string,
+): string[] {
   const parts: string[] = [];
-  const depreciationExpenses = pnl.expensesByAccount.filter(acc => 
-    acc.accountName.toLowerCase().includes("depreciation") || 
-    acc.accountName.toLowerCase().includes("amortization")
+  const depreciationExpenses = pnl.expensesByAccount.filter(
+    (acc) =>
+      acc.accountName.toLowerCase().includes("depreciation") ||
+      acc.accountName.toLowerCase().includes("amortization"),
   );
-  const totalDepreciation = depreciationExpenses.reduce((sum, acc) => sum + acc.amount, 0);
-  
+  const totalDepreciation = depreciationExpenses.reduce(
+    (sum, acc) => sum + acc.amount,
+    0,
+  );
+
   if (totalDepreciation > 0) {
     parts.push("Cash vs Non-Cash Analysis:");
-    parts.push(`  Non-cash expenses (depreciation/amortization): ${formatAmount(totalDepreciation, currency)}`);
+    parts.push(
+      `  Non-cash expenses (depreciation/amortization): ${formatAmount(totalDepreciation, currency)}`,
+    );
     parts.push(`  Cash expenses: ${formatAmount(pnl.expenses, currency)}`);
-    parts.push(`  Operating cash flow (approx): ${formatAmount(pnl.netProfit + totalDepreciation, currency)}`);
+    parts.push(
+      `  Operating cash flow (approx): ${formatAmount(pnl.netProfit + totalDepreciation, currency)}`,
+    );
     parts.push("");
   }
   return parts;
 }
 
 // ─── Helper: Build Balance Sheet Context ───────────────────────────────────
-function buildBalanceSheetContext(bs: BalanceSheet, currency: string): string[] {
+function buildBalanceSheetContext(
+  bs: BalanceSheet,
+  currency: string,
+): string[] {
   const parts: string[] = [];
   parts.push("=== Balance Sheet ===");
   parts.push(`Total Assets: ${formatAmount(bs.assets, currency)}`);
@@ -1057,14 +1044,19 @@ function buildBalanceSheetContext(bs: BalanceSheet, currency: string): string[] 
   for (const acc of bs.assetsByAccount.slice(0, 5)) {
     const accountName = acc.accountName || "Unknown Account";
     const safeName = sanitizeForInjection(redactPii(accountName).text);
-    parts.push(`  - ${safeName} (${acc.accountCode}): ${formatAmount(acc.amount, currency)}`);
+    parts.push(
+      `  - ${safeName} (${acc.accountCode}): ${formatAmount(acc.amount, currency)}`,
+    );
   }
   parts.push("");
   return parts;
 }
 
 // ─── Helper: Build Trial Balance Context ───────────────────────────────────
-function buildTrialBalanceContext(tb: TrialBalance, currency: string): string[] {
+function buildTrialBalanceContext(
+  tb: TrialBalance,
+  currency: string,
+): string[] {
   const parts: string[] = [];
   parts.push("=== Trial Balance ===");
   parts.push(`Total Debits: ${formatAmount(tb.totalDebits, currency)}`);
@@ -1086,12 +1078,17 @@ function buildCashFlowContext(cf: CashFlow, currency: string): string[] {
 }
 
 // ─── Helper: Build Budget vs Actual Context ────────────────────────────────
-function buildBudgetVsActualContext(bva: BudgetVsActual, currency: string): string[] {
+function buildBudgetVsActualContext(
+  bva: BudgetVsActual,
+  currency: string,
+): string[] {
   const parts: string[] = [];
   parts.push("=== Budget vs Actual ===");
   parts.push(`Total Budgeted: ${formatAmount(bva.totalBudgeted, currency)}`);
   parts.push(`Total Actual: ${formatAmount(bva.totalActual, currency)}`);
-  parts.push(`Variance: ${formatAmount(bva.totalVariance, currency)} (${bva.totalVariancePct}%)`);
+  parts.push(
+    `Variance: ${formatAmount(bva.totalVariance, currency)} (${bva.totalVariancePct}%)`,
+  );
   parts.push("");
   return parts;
 }
@@ -1109,32 +1106,53 @@ function buildPriorPeriodContext(
   currency: string,
 ): string[] {
   const parts: string[] = [];
-  
+
   if (priorPeriodData.profitAndLoss && reportData.profitAndLoss) {
     const priorPnl = priorPeriodData.profitAndLoss;
     parts.push("=== Period-over-Period Changes ===");
-    
+
     const revenueChange = reportData.profitAndLoss.revenue - priorPnl.revenue;
-    const revenueChangePct = priorPnl.revenue !== 0 ? ((revenueChange / priorPnl.revenue) * 100).toFixed(1) : "N/A";
-    parts.push(`Revenue Change: ${formatAmount(revenueChange, currency)} (${revenueChangePct}%)`);
-    
+    const revenueChangePct =
+      priorPnl.revenue !== 0
+        ? ((revenueChange / priorPnl.revenue) * 100).toFixed(1)
+        : "N/A";
+    parts.push(
+      `Revenue Change: ${formatAmount(revenueChange, currency)} (${revenueChangePct}%)`,
+    );
+
     const expenseChange = reportData.profitAndLoss.expenses - priorPnl.expenses;
-    const expenseChangePct = priorPnl.expenses !== 0 ? ((expenseChange / priorPnl.expenses) * 100).toFixed(1) : "N/A";
-    parts.push(`Expense Change: ${formatAmount(expenseChange, currency)} (${expenseChangePct}%)`);
-    
-    const profitChange = reportData.profitAndLoss.netProfit - priorPnl.netProfit;
+    const expenseChangePct =
+      priorPnl.expenses !== 0
+        ? ((expenseChange / priorPnl.expenses) * 100).toFixed(1)
+        : "N/A";
+    parts.push(
+      `Expense Change: ${formatAmount(expenseChange, currency)} (${expenseChangePct}%)`,
+    );
+
+    const profitChange =
+      reportData.profitAndLoss.netProfit - priorPnl.netProfit;
     parts.push(`Profit Change: ${formatAmount(profitChange, currency)}`);
-    
+
     const priorDepreciation = priorPnl.expensesByAccount
-      .filter(acc => acc.accountName.toLowerCase().includes("depreciation") || acc.accountName.toLowerCase().includes("amortization"))
+      .filter(
+        (acc) =>
+          acc.accountName.toLowerCase().includes("depreciation") ||
+          acc.accountName.toLowerCase().includes("amortization"),
+      )
       .reduce((sum, acc) => sum + acc.amount, 0);
     const currentDepreciation = reportData.profitAndLoss.expensesByAccount
-      .filter(acc => acc.accountName.toLowerCase().includes("depreciation") || acc.accountName.toLowerCase().includes("amortization"))
+      .filter(
+        (acc) =>
+          acc.accountName.toLowerCase().includes("depreciation") ||
+          acc.accountName.toLowerCase().includes("amortization"),
+      )
       .reduce((sum, acc) => sum + acc.amount, 0);
-    
+
     if (priorDepreciation > 0 || currentDepreciation > 0) {
       const depreciationChange = currentDepreciation - priorDepreciation;
-      parts.push(`Depreciation Change: ${formatAmount(depreciationChange, currency)}`);
+      parts.push(
+        `Depreciation Change: ${formatAmount(depreciationChange, currency)}`,
+      );
     }
     parts.push("");
   }
@@ -1142,18 +1160,19 @@ function buildPriorPeriodContext(
   if (priorPeriodData.balanceSheet && reportData.balanceSheet) {
     const priorBs = priorPeriodData.balanceSheet;
     parts.push("=== Balance Sheet Changes ===");
-    
+
     const assetChange = reportData.balanceSheet.assets - priorBs.assets;
     parts.push(`Asset Change: ${formatAmount(assetChange, currency)}`);
-    
-    const liabilityChange = reportData.balanceSheet.liabilities - priorBs.liabilities;
+
+    const liabilityChange =
+      reportData.balanceSheet.liabilities - priorBs.liabilities;
     parts.push(`Liability Change: ${formatAmount(liabilityChange, currency)}`);
-    
+
     const equityChange = reportData.balanceSheet.equity - priorBs.equity;
     parts.push(`Equity Change: ${formatAmount(equityChange, currency)}`);
     parts.push("");
   }
-  
+
   return parts;
 }
 
@@ -1163,7 +1182,7 @@ function redactNarrativeFields(text: string): string {
 }
 
 function redactNarrativeArray(arr: string[]): string[] {
-  return arr.map(item => redactPii(item).text);
+  return arr.map((item) => redactPii(item).text);
 }
 
 // ─── Helper: Sanitize Input Against Injection ──────────────────────────────
@@ -1185,12 +1204,12 @@ function sanitizeForInjection(text: string): string {
     .replace(/```[\s\S]*?```/g, "") // Remove code blocks
     .replace(/\n{3,}/g, "\n\n") // Limit newlines
     .trim();
-  
+
   // Limit length
   if (sanitized.length > 200) {
     sanitized = sanitized.substring(0, 200);
   }
-  
+
   return sanitized;
 }
 
@@ -1198,7 +1217,7 @@ function sanitizeForInjection(text: string): string {
 function validateReportData(reportData: unknown): boolean {
   if (!reportData || typeof reportData !== "object") return false;
   const data = reportData as Record<string, unknown>;
-  
+
   // Check for suspicious patterns in string values
   const suspiciousPatterns = [
     /ignore.*instructions/i,
@@ -1207,18 +1226,20 @@ function validateReportData(reportData: unknown): boolean {
     /<\|.*\|>/i,
     /```/,
   ];
-  
+
   for (const [key, value] of Object.entries(data)) {
     if (typeof value === "string") {
       for (const pattern of suspiciousPatterns) {
         if (pattern.test(value)) {
-          console.error(`Suspicious pattern detected in report data field: ${key}`);
+          console.error(
+            `Suspicious pattern detected in report data field: ${key}`,
+          );
           return false;
         }
       }
     }
   }
-  
+
   return true;
 }
 
@@ -1249,7 +1270,9 @@ function buildNarrativeContext(
 
   if (reportData.profitAndLoss) {
     parts.push(...buildPnlContext(reportData.profitAndLoss, currency));
-    parts.push(...buildCashVsNonCashContext(reportData.profitAndLoss, currency));
+    parts.push(
+      ...buildCashVsNonCashContext(reportData.profitAndLoss, currency),
+    );
   }
 
   if (reportData.balanceSheet) {
@@ -1262,42 +1285,56 @@ function buildNarrativeContext(
 
   if (reportData.cashFlow) {
     parts.push(...buildCashFlowContext(reportData.cashFlow, currency));
-    
+
     // Add cash flow analysis if we have balance sheet data
     if (reportData.balanceSheet) {
       const bs = reportData.balanceSheet;
-      
+
       // Find AR and AP accounts
-      const arAccounts = bs.assetsByAccount.filter(acc => 
-        acc.accountName.toLowerCase().includes("receivable") ||
-        acc.accountName.toLowerCase().includes("ar")
+      const arAccounts = bs.assetsByAccount.filter(
+        (acc) =>
+          acc.accountName.toLowerCase().includes("receivable") ||
+          acc.accountName.toLowerCase().includes("ar"),
       );
-      const apAccounts = bs.liabilitiesByAccount.filter(acc => 
-        acc.accountName.toLowerCase().includes("payable") ||
-        acc.accountName.toLowerCase().includes("ap")
+      const apAccounts = bs.liabilitiesByAccount.filter(
+        (acc) =>
+          acc.accountName.toLowerCase().includes("payable") ||
+          acc.accountName.toLowerCase().includes("ap"),
       );
-      
+
       const totalAR = arAccounts.reduce((sum, acc) => sum + acc.amount, 0);
       const totalAP = apAccounts.reduce((sum, acc) => sum + acc.amount, 0);
-      
+
       if (totalAR > 0 || totalAP > 0) {
         parts.push("Cash Flow Analysis:");
         if (totalAR > 0) {
-          parts.push(`  Accounts Receivable: ${formatAmount(totalAR, currency)} (customers owe you)`);
+          parts.push(
+            `  Accounts Receivable: ${formatAmount(totalAR, currency)} (customers owe you)`,
+          );
         }
         if (totalAP > 0) {
-          parts.push(`  Accounts Payable: ${formatAmount(totalAP, currency)} (you owe vendors)`);
+          parts.push(
+            `  Accounts Payable: ${formatAmount(totalAP, currency)} (you owe vendors)`,
+          );
         }
-        
+
         // Warn about cash flow vs profit disconnect
         if (reportData.profitAndLoss) {
           const profit = reportData.profitAndLoss.netProfit;
           if (profit > 0 && reportData.cashFlow.netCashChange < 0) {
-            parts.push(`  WARNING: You made ${formatAmount(profit, currency)} profit but your cash decreased by ${formatAmount(Math.abs(reportData.cashFlow.netCashChange), currency)}`);
-            parts.push(`  This suggests customers are paying slowly (high AR) or you're paying vendors faster (low AP)`);
+            parts.push(
+              `  WARNING: You made ${formatAmount(profit, currency)} profit but your cash decreased by ${formatAmount(Math.abs(reportData.cashFlow.netCashChange), currency)}`,
+            );
+            parts.push(
+              `  This suggests customers are paying slowly (high AR) or you're paying vendors faster (low AP)`,
+            );
           } else if (profit < 0 && reportData.cashFlow.netCashChange > 0) {
-            parts.push(`  NOTE: You had a loss of ${formatAmount(Math.abs(profit), currency)} but cash increased by ${formatAmount(reportData.cashFlow.netCashChange, currency)}`);
-            parts.push(`  This may be due to collecting on old receivables or delaying payments`);
+            parts.push(
+              `  NOTE: You had a loss of ${formatAmount(Math.abs(profit), currency)} but cash increased by ${formatAmount(reportData.cashFlow.netCashChange, currency)}`,
+            );
+            parts.push(
+              `  This may be due to collecting on old receivables or delaying payments`,
+            );
           }
         }
         parts.push("");
@@ -1306,11 +1343,15 @@ function buildNarrativeContext(
   }
 
   if (reportData.budgetVsActual) {
-    parts.push(...buildBudgetVsActualContext(reportData.budgetVsActual, currency));
+    parts.push(
+      ...buildBudgetVsActualContext(reportData.budgetVsActual, currency),
+    );
   }
 
   if (priorPeriodData) {
-    parts.push(...buildPriorPeriodContext(priorPeriodData, reportData, currency));
+    parts.push(
+      ...buildPriorPeriodContext(priorPeriodData, reportData, currency),
+    );
   }
 
   return parts.join("\n");
@@ -1337,44 +1378,57 @@ export async function generateNarrativeLLM(
   },
 ): Promise<Narrative> {
   try {
-  const trace = await langfuse.trace({
-    name: "narrative-llm-generation",
-    metadata: { entityId, entityName },
-  });
-
-  // Check cache first
-  const cacheKey = `${entityId}:${JSON.stringify(reportData.profitAndLoss?.revenue ?? 0)}:${JSON.stringify(reportData.balanceSheet?.assets ?? 0)}`;
-  const cached = await getCachedNarrative<{ summary: string; highlights: string[]; concerns: string[]; action?: string; confidence: number; generatedAt: string; poweredBy: "llm" | "fallback" }>(entityId, cacheKey, "narrative");
-  if (cached) {
-    langfuse.event({ name: "narrative-cache-hit", metadata: { entityId } });
-    return cached;
-  }
-
-  // Rate limit check
-  const rateLimit = await checkRateLimit(entityId);
-  if (!rateLimit.allowed) {
-    langfuse.event({
-      name: "narrative-rate-limited",
-      metadata: { entityId, retryAfterMs: rateLimit.retryAfterMs },
-    });
-    return generateNarrativeFallback(entityName, reportData, currency);
-  }
-
-  // Validate report data for injection patterns
-  if (!validateReportData(reportData)) {
-    langfuse.event({
-      name: "narrative-injection-detected",
+    const trace = await langfuse.trace({
+      name: "narrative-llm-generation",
       metadata: { entityId, entityName },
     });
-    // Fall back to rule-based narrative
-    return generateNarrativeFallback(entityName, reportData, currency);
-  }
 
-  const context = buildNarrativeContext(entityName, reportData, currency, priorPeriodData);
+    // Check cache first
+    const cacheKey = `${entityId}:${JSON.stringify(reportData.profitAndLoss?.revenue ?? 0)}:${JSON.stringify(reportData.balanceSheet?.assets ?? 0)}`;
+    const cached = await getCachedNarrative<{
+      summary: string;
+      highlights: string[];
+      concerns: string[];
+      action?: string;
+      confidence: number;
+      generatedAt: string;
+      poweredBy: "llm" | "fallback";
+    }>(entityId, cacheKey, "narrative");
+    if (cached) {
+      langfuse.event({ name: "narrative-cache-hit", metadata: { entityId } });
+      return cached;
+    }
 
-  const safeEntityName = sanitizeForInjection(redactPii(entityName).text);
+    // Rate limit check
+    const rateLimit = await checkRateLimit(entityId);
+    if (!rateLimit.allowed) {
+      langfuse.event({
+        name: "narrative-rate-limited",
+        metadata: { entityId, retryAfterMs: rateLimit.retryAfterMs },
+      });
+      return generateNarrativeFallback(entityName, reportData, currency);
+    }
 
-  const systemPrompt = `You are a financial analyst for ${safeEntityName}. Generate a plain-English financial narrative.
+    // Validate report data for injection patterns
+    if (!validateReportData(reportData)) {
+      langfuse.event({
+        name: "narrative-injection-detected",
+        metadata: { entityId, entityName },
+      });
+      // Fall back to rule-based narrative
+      return generateNarrativeFallback(entityName, reportData, currency);
+    }
+
+    const context = buildNarrativeContext(
+      entityName,
+      reportData,
+      currency,
+      priorPeriodData,
+    );
+
+    const safeEntityName = sanitizeForInjection(redactPii(entityName).text);
+
+    const systemPrompt = `You are a financial analyst for ${safeEntityName}. Generate a plain-English financial narrative.
 
 Rules:
 1. Explain WHAT changed (headline) with specific numbers
@@ -1413,172 +1467,185 @@ ACTION: [specific recommendation with expected outcome]
 
 ${INJECTION_DEFENSE_SUFFIX}`;
 
-  const userMessage = `Generate a financial narrative for this period:\n\n${context}`;
+    const userMessage = `Generate a financial narrative for this period:\n\n${context}`;
 
-  // Check circuit breaker
-  if (!circuitBreaker.canExecute()) {
-    langfuse.event({
-      name: "narrative-circuit-open",
-      metadata: { entityId },
-    });
-    throw new Error("Circuit breaker open — LLM API unavailable");
-  }
-  
-  // Retry configuration
-  const MAX_RETRIES = 3;
-  const RETRY_DELAY_MS = 1000;
-  const TIMEOUT_MS = 30000;
-  
-  let lastError: Error | null = null;
-  let result: Awaited<ReturnType<typeof callModel>> | null = null;
-  
-  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-    try {
-      // Add timeout to the call
-      const timeoutPromise = new Promise<never>((_, reject) => {
-        setTimeout(() => reject(new Error("LLM call timeout")), TIMEOUT_MS);
-      });
-      
-      const callPromise = callModel({
-        agentName: "reporting-agent",
-        taskType: "strategic_planning",
-        entityId,
-        systemPrompt,
-        messages: [{ role: "user", content: userMessage }],
-        traceId: trace.id,
-        maxTokens: 1024,
-        temperature: 0.3,
-      });
-      
-      result = await Promise.race([callPromise, timeoutPromise]);
-      circuitBreaker.recordSuccess();
-      break; // Success, exit retry loop
-    } catch (error) {
-      lastError = error instanceof Error ? error : new Error(String(error));
-      circuitBreaker.recordFailure();
+    // Check circuit breaker
+    if (!circuitBreaker.canExecute()) {
       langfuse.event({
-        name: "narrative-llm-retry",
-        metadata: { entityId, attempt, error: lastError.message },
+        name: "narrative-circuit-open",
+        metadata: { entityId },
       });
-      
-      if (attempt < MAX_RETRIES) {
-        // Exponential backoff
-        await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS * attempt));
+      throw new Error("Circuit breaker open — LLM API unavailable");
+    }
+
+    // Retry configuration
+    const MAX_RETRIES = 3;
+    const RETRY_DELAY_MS = 1000;
+    const TIMEOUT_MS = 30000;
+
+    let lastError: Error | null = null;
+    let result: Awaited<ReturnType<typeof callModel>> | null = null;
+
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        // Add timeout to the call
+        const timeoutPromise = new Promise<never>((_, reject) => {
+          setTimeout(() => reject(new Error("LLM call timeout")), TIMEOUT_MS);
+        });
+
+        const callPromise = callModel({
+          agentName: "reporting-agent",
+          taskType: "strategic_planning",
+          entityId,
+          systemPrompt,
+          messages: [{ role: "user", content: userMessage }],
+          traceId: trace.id,
+          maxTokens: 1024,
+          temperature: 0.3,
+        });
+
+        result = await Promise.race([callPromise, timeoutPromise]);
+        circuitBreaker.recordSuccess();
+        break; // Success, exit retry loop
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error(String(error));
+        circuitBreaker.recordFailure();
+        langfuse.event({
+          name: "narrative-llm-retry",
+          metadata: { entityId, attempt, error: lastError.message },
+        });
+
+        if (attempt < MAX_RETRIES) {
+          // Exponential backoff
+          await new Promise((resolve) =>
+            setTimeout(resolve, RETRY_DELAY_MS * attempt),
+          );
+        }
       }
     }
-  }
-  
-  if (!result) {
-    throw lastError || new Error("LLM call failed after retries");
-  }
 
-  let content = result.content;
+    if (!result) {
+      throw lastError || new Error("LLM call failed after retries");
+    }
 
-  // Validate response length
-  const MAX_RESPONSE_LENGTH = 2000;
-  if (content.length > MAX_RESPONSE_LENGTH) {
-    content = content.substring(0, MAX_RESPONSE_LENGTH);
-    langfuse.event({
-      name: "narrative-response-truncated",
-      metadata: { entityId, originalLength: result.content.length, truncatedLength: content.length },
+    let content = result.content;
+
+    // Validate response length
+    const MAX_RESPONSE_LENGTH = 2000;
+    if (content.length > MAX_RESPONSE_LENGTH) {
+      content = content.substring(0, MAX_RESPONSE_LENGTH);
+      langfuse.event({
+        name: "narrative-response-truncated",
+        metadata: {
+          entityId,
+          originalLength: result.content.length,
+          truncatedLength: content.length,
+        },
+      });
+    }
+
+    // Parse the structured response
+    const summaryMatch = content.match(/SUMMARY:\s*(.+?)(?=\n|$)/i);
+    const highlightsMatch = content.match(
+      /HIGHLIGHTS:\s*([\s\S]*?)(?=CONCERNS:|ACTION:|$)/i,
+    );
+    const concernsMatch = content.match(/CONCERNS:\s*([\s\S]*?)(?=ACTION:|$)/i);
+    const actionMatch = content.match(/ACTION:\s*(.+?)(?=\n|$)/i);
+
+    let summary =
+      summaryMatch?.[1]?.trim() ||
+      content.split("\n")[0] ||
+      `${entityName} financial summary`;
+
+    let highlightText = highlightsMatch?.[1]?.trim() || "";
+    let highlights = highlightText
+      .split("\n")
+      .map((h) => h.replace(/^[-•*]\s*/, "").trim())
+      .filter((h) => h.length > 0);
+
+    let concernText = concernsMatch?.[1]?.trim() || "";
+    let concerns = concernText
+      .split("\n")
+      .map((c) => c.replace(/^[-•*]\s*/, "").trim())
+      .filter((c) => c.length > 0);
+
+    let action = actionMatch?.[1]?.trim() || undefined;
+
+    // Post-processing: Redact PII from LLM responses
+    summary = redactPii(summary).text;
+    highlights = highlights.map((h) => redactPii(h).text);
+    concerns = concerns.map((c) => redactPii(c).text);
+    if (action) action = redactPii(action).text;
+
+    await trace.update({
+      output: {
+        summary: summary.substring(0, 200),
+        highlightsCount: highlights.length,
+        concernsCount: concerns.length,
+        hasAction: !!action,
+      },
     });
-  }
 
-  // Parse the structured response
-  const summaryMatch = content.match(/SUMMARY:\s*(.+?)(?=\n|$)/i);
-  const highlightsMatch = content.match(/HIGHLIGHTS:\s*([\s\S]*?)(?=CONCERNS:|ACTION:|$)/i);
-  const concernsMatch = content.match(/CONCERNS:\s*([\s\S]*?)(?=ACTION:|$)/i);
-  const actionMatch = content.match(/ACTION:\s*(.+?)(?=\n|$)/i);
+    langfuse.event({
+      name: "narrative-generated",
+      metadata: {
+        entityId,
+        provider: result.providerId,
+        model: result.modelId,
+        inputTokens: result.tokensUsed.input,
+        outputTokens: result.tokensUsed.output,
+      },
+    });
 
-  let summary = summaryMatch?.[1]?.trim() || content.split("\n")[0] || `${entityName} financial summary`;
+    const narrativeResult = {
+      summary,
+      highlights,
+      concerns,
+      action,
+      confidence: 0.88,
+      generatedAt: new Date().toISOString(),
+      poweredBy: "llm" as const,
+    };
 
-  let highlightText = highlightsMatch?.[1]?.trim() || "";
-  let highlights = highlightText
-    .split("\n")
-    .map((h) => h.replace(/^[-•*]\s*/, "").trim())
-    .filter((h) => h.length > 0);
+    // Cache the result (non-blocking)
+    setCachedNarrative(entityId, cacheKey, "narrative", narrativeResult).catch(
+      () => {},
+    );
 
-  let concernText = concernsMatch?.[1]?.trim() || "";
-  let concerns = concernText
-    .split("\n")
-    .map((c) => c.replace(/^[-•*]\s*/, "").trim())
-    .filter((c) => c.length > 0);
-
-  let action = actionMatch?.[1]?.trim() || undefined;
-
-  // Post-processing: Redact PII from LLM responses
-  summary = redactPii(summary).text;
-  highlights = highlights.map(h => redactPii(h).text);
-  concerns = concerns.map(c => redactPii(c).text);
-  if (action) action = redactPii(action).text;
-
-  await trace.update({
-    output: {
-      summary: summary.substring(0, 200),
-      highlightsCount: highlights.length,
-      concernsCount: concerns.length,
-      hasAction: !!action,
-    },
-  });
-
-  langfuse.event({
-    name: "narrative-generated",
-    metadata: {
+    // Save to history (non-blocking)
+    saveNarrativeHistory(db, {
       entityId,
-      provider: result.providerId,
-      model: result.modelId,
-      inputTokens: result.tokensUsed.input,
-      outputTokens: result.tokensUsed.output,
-    },
-  });
-
-  const narrativeResult = {
-    summary,
-    highlights,
-    concerns,
-    action,
-    confidence: 0.88,
-    generatedAt: new Date().toISOString(),
-    poweredBy: "llm" as const,
-  };
-
-  // Cache the result (non-blocking)
-  setCachedNarrative(entityId, cacheKey, "narrative", narrativeResult).catch(() => {});
-
-  // Save to history (non-blocking)
-  saveNarrativeHistory(db, {
-    entityId,
-    narrativeType: "report",
-    summary,
-    highlights,
-    concerns,
-    action,
-    confidence: 0.88,
-    poweredBy: "llm",
-    metadata: {
-      provider: result.providerId,
-      model: result.modelId,
-      inputTokens: result.tokensUsed.input,
-      outputTokens: result.tokensUsed.output,
-    },
-  }).catch((err) => {
-    langfuse.event({
-      name: "narrative-history-save-failed",
-      metadata: { entityId, error: String(err) },
+      narrativeType: "report",
+      summary,
+      highlights,
+      concerns,
+      action,
+      confidence: 0.88,
+      poweredBy: "llm",
+      metadata: {
+        provider: result.providerId,
+        model: result.modelId,
+        inputTokens: result.tokensUsed.input,
+        outputTokens: result.tokensUsed.output,
+      },
+    }).catch((err) => {
+      langfuse.event({
+        name: "narrative-history-save-failed",
+        metadata: { entityId, error: String(err) },
+      });
     });
-  });
 
-  return narrativeResult;
-} catch (error) {
-  const msg = error instanceof Error ? error.message : String(error);
-  langfuse.event({
-    name: "narrative-llm-failed",
-    metadata: { entityId, error: msg },
-  });
+    return narrativeResult;
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    langfuse.event({
+      name: "narrative-llm-failed",
+      metadata: { entityId, error: msg },
+    });
 
-  // Fallback to rule-based narrative
-  return generateNarrativeFallback(entityName, reportData, currency);
-}
+    // Fallback to rule-based narrative
+    return generateNarrativeFallback(entityName, reportData, currency);
+  }
 }
 
 /**

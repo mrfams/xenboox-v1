@@ -5,7 +5,8 @@ import {
   journalEntries,
   fiscalPeriods,
   journalEntryLines,
-  chartOfAccounts,
+  fixedAssets,
+  depreciationSchedule,
 } from "@xenboox/db/schema";
 import { eq, and, desc, sql } from "drizzle-orm";
 
@@ -164,120 +165,113 @@ export const processMonthEndClose = task({
 });
 
 async function runDepreciation(entityId: string, periodId: string) {
-  // 1. Query all fixed assets for this entity (already entity-scoped)
-  const fixedAssets = await db
-    .select()
-    .from(chartOfAccounts)
+  const schedules = await db
+    .select({
+      assetId: depreciationSchedule.fixedAssetId,
+      assetName: fixedAssets.name,
+      amount: depreciationSchedule.depreciationAmount,
+      journalEntryId: depreciationSchedule.journalEntryId,
+      expenseAccountId: fixedAssets.glAccountId,
+      accumulatedAccountId: fixedAssets.accumulatedDepreciationAccountId,
+    })
+    .from(depreciationSchedule)
+    .innerJoin(
+      fixedAssets,
+      eq(depreciationSchedule.fixedAssetId, fixedAssets.id),
+    )
     .where(
       and(
-        eq(chartOfAccounts.entityId, entityId),
-        eq(chartOfAccounts.type, "asset"),
-        eq(chartOfAccounts.subtype, "fixed_asset"),
+        eq(depreciationSchedule.entityId, entityId),
+        eq(depreciationSchedule.periodId, periodId),
+        eq(fixedAssets.entityId, entityId),
       ),
     );
 
-  if (fixedAssets.length === 0) return;
-
-  // 2. Pre-fetch accumulated depreciation and expense accounts (avoid N+1)
-  const accumAccounts = await db
-    .select()
-    .from(chartOfAccounts)
-    .where(
-      and(
-        eq(chartOfAccounts.entityId, entityId),
-        eq(chartOfAccounts.code, "1510"),
-      ),
-    );
-  const accumAccount = accumAccounts[0];
-
-  const expenseAccounts = await db
-    .select()
-    .from(chartOfAccounts)
-    .where(
-      and(
-        eq(chartOfAccounts.entityId, entityId),
-        eq(chartOfAccounts.code, "6040"),
-      ),
-    );
-  const expenseAccount = expenseAccounts[0];
-
-  if (!accumAccount || !expenseAccount) {
-    logger.warn("Missing depreciation accounts, skipping", {
-      entityId,
-      hasAccum: !!accumAccount,
-      hasExpense: !!expenseAccount,
-    });
-    return;
-  }
-
-  // 3. Existing entry numbers — the next number is MAX + 1 (a fresh max per
-  // loop pass). Ordering DESC is critical: ASC returns the MINIMUM entry
-  // number, which would collide with an existing row on the very first insert.
-  let nextEntryNumber: number;
-  const readMax = async () => {
-    const [last] = await db
-      .select({ entryNumber: journalEntries.entryNumber })
-      .from(journalEntries)
-      .where(eq(journalEntries.entityId, entityId))
-      .orderBy(desc(journalEntries.entryNumber))
-      .limit(1);
-    return (last?.entryNumber ?? 0) + 1;
-  };
-  nextEntryNumber = await readMax();
-
-  for (const asset of fixedAssets) {
-    if (asset.name.includes("Accumulated")) continue;
-
-    const today = new Date().toISOString().split("T")[0]!;
-
-    // Calculate depreciation from asset metadata (cost, useful life, method)
-    const assetMeta = (asset.metadata ?? {}) as Record<string, unknown>;
-    const cost = Number(assetMeta.cost ?? asset.openingBalance ?? 0);
-    const usefulLifeMonths = Number(assetMeta.usefulLifeMonths ?? 60);
-    const monthlyDepreciation =
-      cost > 0 && usefulLifeMonths > 0 ? cost / usefulLifeMonths : 0;
-
-    if (monthlyDepreciation <= 0) continue;
-
-    // Header and lines must share ONE journal entry id. Insert the header
-    // first and use its returned id — lines pointing at a random UUID that was
-    // never inserted violate the FK and fail the whole close.
-    const [header] = await db
-      .insert(journalEntries)
-      .values({
-        entityId,
-        entryNumber: nextEntryNumber,
-        description: `Depreciation - ${asset.name}`,
-        date: today,
-        periodId,
-        status: "posted",
-        postedBy: "system",
-        postedAt: new Date(),
-        source: "depreciation",
-      })
-      .returning({ id: journalEntries.id });
-    if (!header) {
-      throw new Error(`Depreciation header insert failed for ${asset.name}`);
+  for (const schedule of schedules) {
+    if (schedule.journalEntryId) continue;
+    if (!schedule.expenseAccountId || !schedule.accumulatedAccountId) {
+      throw new Error(
+        `Depreciation accounts are not configured for ${schedule.assetName}`,
+      );
     }
-    // Re-read the max each pass — entryNumber is unique per entity and other
-    // writers may have posted between passes.
-    nextEntryNumber = await readMax();
-
-    const amount = monthlyDepreciation.toFixed(2);
-
-    await db.insert(journalEntryLines).values({
-      journalEntryId: header.id,
-      accountId: expenseAccount.id,
-      debit: amount,
-      credit: "0",
-      description: `Depreciation expense - ${asset.name}`,
+    const amount = Number(schedule.amount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      throw new Error(`Invalid depreciation amount for ${schedule.assetName}`);
+    }
+    const reference = `depreciation:${entityId}:${periodId}:${schedule.assetId}`;
+    const existing = await db.query.journalEntries.findFirst({
+      where: and(
+        eq(journalEntries.entityId, entityId),
+        eq(journalEntries.reference, reference),
+      ),
+      columns: { id: true },
     });
-    await db.insert(journalEntryLines).values({
-      journalEntryId: header.id,
-      accountId: accumAccount.id,
-      debit: "0",
-      credit: amount,
-      description: `Accumulated depreciation - ${asset.name}`,
+    if (existing) {
+      await db
+        .update(depreciationSchedule)
+        .set({ journalEntryId: existing.id })
+        .where(
+          and(
+            eq(depreciationSchedule.entityId, entityId),
+            eq(depreciationSchedule.fixedAssetId, schedule.assetId),
+            eq(depreciationSchedule.periodId, periodId),
+          ),
+        );
+      continue;
+    }
+
+    await db.transaction(async (tx) => {
+      const [last] = await tx
+        .select({ entryNumber: journalEntries.entryNumber })
+        .from(journalEntries)
+        .where(eq(journalEntries.entityId, entityId))
+        .orderBy(desc(journalEntries.entryNumber))
+        .limit(1);
+      const [entry] = await tx
+        .insert(journalEntries)
+        .values({
+          entityId,
+          entryNumber: (last?.entryNumber ?? 0) + 1,
+          description: `Depreciation - ${schedule.assetName}`,
+          reference,
+          date: new Date().toISOString().slice(0, 10),
+          periodId,
+          status: "posted",
+          postedBy: "system",
+          postedAt: new Date(),
+          source: "depreciation",
+        })
+        .returning({ id: journalEntries.id });
+      if (!entry)
+        throw new Error(
+          `Depreciation entry creation failed for ${schedule.assetName}`,
+        );
+      await tx.insert(journalEntryLines).values([
+        {
+          journalEntryId: entry.id,
+          accountId: schedule.expenseAccountId,
+          debit: amount.toFixed(2),
+          credit: "0",
+          description: `Depreciation expense - ${schedule.assetName}`,
+        },
+        {
+          journalEntryId: entry.id,
+          accountId: schedule.accumulatedAccountId,
+          debit: "0",
+          credit: amount.toFixed(2),
+          description: `Accumulated depreciation - ${schedule.assetName}`,
+        },
+      ]);
+      await tx
+        .update(depreciationSchedule)
+        .set({ journalEntryId: entry.id, calculatedBy: "month-end-close" })
+        .where(
+          and(
+            eq(depreciationSchedule.entityId, entityId),
+            eq(depreciationSchedule.fixedAssetId, schedule.assetId),
+            eq(depreciationSchedule.periodId, periodId),
+          ),
+        );
     });
   }
 }

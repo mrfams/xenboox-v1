@@ -495,108 +495,146 @@ export const recurringRouter = router({
         : 0;
       const totalAmount = subtotal + taxAmount - discountAmount;
 
+      // Validation before any write: a run must either generate a real
+      // document or fail loudly. A schedule missing its counterparty, an
+      // unknown direction, or a template with no postable lines must never
+      // silently "generate" nothing while advancing the schedule.
+      if (schedule.direction !== "ar" && schedule.direction !== "ap") {
+        throw new Error(`Unknown schedule direction: ${schedule.direction}`);
+      }
+      if (schedule.direction === "ar" && !schedule.customerId) {
+        throw new Error("Schedule has no customer configured");
+      }
+      if (schedule.direction === "ap" && !schedule.supplierId) {
+        throw new Error("Schedule has no supplier configured");
+      }
+      const postableLines = lines.filter((l) => l.accountId);
+      if (postableLines.length === 0) {
+        throw new Error(
+          "Template has no lines with an account — nothing to generate",
+        );
+      }
+      if (!Number.isFinite(totalAmount)) {
+        throw new Error("Computed invoice total is not a finite number");
+      }
+
       // Generate invoice number
       const prefix = schedule.direction === "ar" ? "SI" : "PI";
       const runCount = schedule.totalGenerated + 1;
       const invoiceNumber = `${prefix}-${new Date().getFullYear()}-${String(runCount).padStart(4, "0")}`;
 
-      let generatedInvoiceId: string | undefined;
+      const nextRunDate = calculateNextRunDate(
+        invoiceDate,
+        schedule.frequency,
+        schedule.intervalValue,
+        schedule.dayOfMonth,
+      );
+
+      let generatedInvoiceId: string;
 
       try {
-        if (schedule.direction === "ar" && schedule.customerId) {
-          // Generate sales invoice
-          const [invoice] = await db
-            .insert(salesInvoices)
-            .values({
-              entityId,
-              customerId: schedule.customerId,
-              invoiceNumber,
-              invoiceDate,
-              dueDate,
-              totalAmount: String(totalAmount),
-              balance: String(totalAmount),
-              currency: schedule.currency,
-              notes: schedule.notes,
-              status: "pending",
-            })
-            .returning();
+        // Atomic generation: document + lines + run log + schedule advance
+        // commit together or not at all. A partial invoice (header without
+        // line items) must never be observable after a mid-loop failure, and
+        // a retried or concurrent run that loses the invoice-number race
+        // (unique (entityId, invoiceNumber) index) fails honestly.
+        generatedInvoiceId = await db.transaction(async (tx) => {
+          if (schedule.direction === "ar") {
+            const [invoice] = await tx
+              .insert(salesInvoices)
+              .values({
+                entityId,
+                customerId: schedule.customerId!,
+                invoiceNumber,
+                invoiceDate,
+                dueDate,
+                totalAmount: String(totalAmount),
+                balance: String(totalAmount),
+                currency: schedule.currency,
+                notes: schedule.notes,
+                status: "pending",
+              })
+              .returning({ id: salesInvoices.id });
 
-          generatedInvoiceId = invoice.id;
-
-          // Insert line items
-          for (const line of lines) {
-            if (line.accountId) {
-              await db.insert(salesInvoiceLines).values({
+            await tx.insert(salesInvoiceLines).values(
+              postableLines.map((line) => ({
                 salesInvoiceId: invoice.id,
-                accountId: line.accountId,
+                accountId: line.accountId!,
                 description: line.description,
                 quantity: String(line.quantity),
                 unitPrice: String(line.unitPrice),
                 amount: String(line.quantity * line.unitPrice),
-              });
-            }
-          }
-        } else if (schedule.direction === "ap" && schedule.supplierId) {
-          // Generate AP invoice
-          const [invoice] = await db
-            .insert(invoicesAp)
-            .values({
+              })),
+            );
+
+            await tx.insert(recurringRuns).values({
+              scheduleId: schedule.id,
               entityId,
-              supplierId: schedule.supplierId,
+              generatedInvoiceId: invoice.id,
               invoiceNumber,
-              invoiceDate,
-              dueDate,
-              totalAmount: String(totalAmount),
-              balance: String(totalAmount),
-              currency: schedule.currency,
-              notes: schedule.notes,
-              status: "pending",
-            })
-            .returning();
+              amount: String(totalAmount),
+              status: "generated",
+            });
 
-          generatedInvoiceId = invoice.id;
+            await tx
+              .update(recurringSchedules)
+              .set({
+                lastRunDate: invoiceDate,
+                nextRunDate,
+                totalGenerated: runCount,
+              })
+              .where(eq(recurringSchedules.id, schedule.id));
 
-          // Insert line items
-          for (const line of lines) {
-            if (line.accountId) {
-              await db.insert(invoiceApLines).values({
+            return invoice.id;
+          } else {
+            const [invoice] = await tx
+              .insert(invoicesAp)
+              .values({
+                entityId,
+                supplierId: schedule.supplierId!,
+                invoiceNumber,
+                invoiceDate,
+                dueDate,
+                totalAmount: String(totalAmount),
+                balance: String(totalAmount),
+                currency: schedule.currency,
+                notes: schedule.notes,
+                status: "pending",
+              })
+              .returning({ id: invoicesAp.id });
+
+            await tx.insert(invoiceApLines).values(
+              postableLines.map((line) => ({
                 invoiceApId: invoice.id,
-                accountId: line.accountId,
+                accountId: line.accountId!,
                 description: line.description,
                 quantity: String(line.quantity),
                 unitPrice: String(line.unitPrice),
                 amount: String(line.quantity * line.unitPrice),
-              });
-            }
+              })),
+            );
+
+            await tx.insert(recurringRuns).values({
+              scheduleId: schedule.id,
+              entityId,
+              generatedInvoiceId: invoice.id,
+              invoiceNumber,
+              amount: String(totalAmount),
+              status: "generated",
+            });
+
+            await tx
+              .update(recurringSchedules)
+              .set({
+                lastRunDate: invoiceDate,
+                nextRunDate,
+                totalGenerated: runCount,
+              })
+              .where(eq(recurringSchedules.id, schedule.id));
+
+            return invoice.id;
           }
-        }
-
-        // Log the run
-        await db.insert(recurringRuns).values({
-          scheduleId: schedule.id,
-          entityId,
-          generatedInvoiceId,
-          invoiceNumber,
-          amount: String(totalAmount),
-          status: "generated",
         });
-
-        // Update schedule
-        const nextRunDate = calculateNextRunDate(
-          invoiceDate,
-          schedule.frequency,
-          schedule.intervalValue,
-          schedule.dayOfMonth,
-        );
-
-        await db
-          .update(recurringSchedules)
-          .set({
-            lastRunDate: invoiceDate,
-            nextRunDate,
-            totalGenerated: runCount,
-          })
-          .where(eq(recurringSchedules.id, schedule.id));
 
         return {
           success: true,
@@ -605,15 +643,23 @@ export const recurringRouter = router({
           amount: totalAmount,
         };
       } catch (error) {
-        // Log failed run
-        await db.insert(recurringRuns).values({
-          scheduleId: schedule.id,
-          entityId,
-          invoiceNumber,
-          amount: String(totalAmount),
-          status: "failed",
-          error: error instanceof Error ? error.message : String(error),
-        });
+        // Best-effort failure record outside the transaction: the failed
+        // generation itself leaves no partial state behind.
+        try {
+          await db.insert(recurringRuns).values({
+            scheduleId: schedule.id,
+            entityId,
+            invoiceNumber,
+            amount: String(totalAmount),
+            status: "failed",
+            error: error instanceof Error ? error.message : String(error),
+          });
+        } catch (logErr) {
+          logger.error(
+            { scheduleId: schedule.id, logErr },
+            "Failed to record recurring run failure",
+          );
+        }
 
         logger.error(
           { scheduleId: schedule.id, error },

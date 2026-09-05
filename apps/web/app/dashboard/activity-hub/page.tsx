@@ -65,6 +65,11 @@ type DecisionItem = {
   sourceDoc?: string;
   /** Real document id when this item resolves to an ingestion document */
   documentId?: string;
+  /** Notification row type (e.g. "agent_escalation") when this item came
+   * from the notifications feed. */
+  notificationType?: string;
+  /** Parsed notification payload — carries the underlying escalation logId. */
+  notificationData?: Record<string, unknown>;
   amount?: string;
   createdAt?: string | Date;
   evidence?: Record<string, unknown>;
@@ -279,6 +284,8 @@ export default function DecisionsPage() {
           summary: n.body ?? "",
           createdAt: n.createdAt ?? undefined,
           documentId,
+          notificationType: typeKey,
+          notificationData,
           icon: activityMeta?.icon,
           tone: activityMeta?.tone,
           actionLabel:
@@ -370,6 +377,27 @@ export default function DecisionsPage() {
                 : "Rejected from Decisions"),
           });
         } else if (item.category === "notification") {
+          // An escalation notification is a copy of a real escalation in the
+          // routing logs. Approving/rejecting must resolve that underlying
+          // escalation (payload carries its logId), not just mark the
+          // notification read — otherwise the decision silently does
+          // nothing to the queue.
+          const logId =
+            typeof item.notificationData?.logId === "string"
+              ? item.notificationData.logId
+              : undefined;
+          if (item.notificationType === "agent_escalation" && logId) {
+            await resolveApproval.mutateAsync({
+              itemId: logId,
+              itemType: "agent_escalation",
+              action: action === "approve" ? "approved" : "rejected",
+              reason:
+                note.trim() ||
+                (action === "approve"
+                  ? "Approved from Activity Hub"
+                  : "Rejected from Activity Hub"),
+            });
+          }
           await markNotificationRead.mutateAsync({ id: item.id });
         } else if (item.category === "ingestion") {
           await rejectIngestion.mutateAsync({

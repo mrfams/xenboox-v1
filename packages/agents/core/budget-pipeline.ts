@@ -368,9 +368,12 @@ export async function runBudgetPipeline(
       with: { account: true },
     });
 
-    // Pull actuals from journal entry lines for the period
+    // Pull actuals from journal entry lines for the period. Compute the real
+    // month end — `${period}-31` was wrong for shorter months.
+    const [pYear, pMonth] = period.split("-").map(Number);
     const periodStart = `${period}-01`;
-    const periodEnd = `${period}-31`;
+    const lastDay = new Date(pYear, pMonth, 0).getDate();
+    const periodEnd = `${period}-${String(lastDay).padStart(2, "0")}`;
 
     const actuals = await db
       .select({
@@ -439,9 +442,11 @@ export async function runBudgetPipeline(
 
     const monthCol = getMonthColumn(period);
 
-    // Pull actuals again for calculations
+    // Pull actuals again for calculations. Compute real month end.
+    const [pYear, pMonth] = period.split("-").map(Number);
     const periodStart = `${period}-01`;
-    const periodEnd = `${period}-31`;
+    const lastDay = new Date(pYear, pMonth, 0).getDate();
+    const periodEnd = `${period}-${String(lastDay).padStart(2, "0")}`;
     const actuals = await db
       .select({
         accountId: journalEntryLines.accountId,
@@ -462,6 +467,7 @@ export async function runBudgetPipeline(
       )
       .groupBy(journalEntryLines.accountId);
 
+    // Actuals are magnitudes (budgets are stored as positive amounts).
     const actualsMap = new Map(
       actuals.map((a) => [a.accountId, Math.abs(parseFloat(a.total))]),
     );
@@ -599,6 +605,7 @@ export async function runBudgetPipeline(
           .set({ narrativeExplanation: v.narrative })
           .where(
             and(
+              eq(varianceRecords.entityId, entityId),
               eq(varianceRecords.budgetLineId, v.lineId),
               eq(varianceRecords.period, period),
             ),
@@ -1104,9 +1111,13 @@ export async function checkBudgetImpact(
   const lineData = line as typeof line & Record<string, string>;
   const monthlyBudget = parseFloat(lineData[monthCol] ?? "0");
 
-  // Get actuals for this account and period
+  // Get actuals for this account and period. Compute the real month end —
+  // the old `${period}-31` bound worked only by lexical luck (any next-month
+  // date sorts after "-31") but is fragile and reads as wrong.
+  const [pYear, pMonth] = period.split("-").map(Number);
   const periodStart = `${period}-01`;
-  const periodEnd = `${period}-31`;
+  const lastDay = new Date(pYear, pMonth, 0).getDate();
+  const periodEnd = `${period}-${String(lastDay).padStart(2, "0")}`;
   const actualsRows = await db
     .select({
       total: sql<string>`COALESCE(SUM(${journalEntryLines.debit}) - SUM(${journalEntryLines.credit}), 0)`,

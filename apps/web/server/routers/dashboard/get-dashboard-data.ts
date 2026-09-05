@@ -341,13 +341,20 @@ export const getDashboardData = rlsProtectedProcedure
     );
 
     // ── Cash Balance Sparkline (real data from bank transactions) ──────
+    // `amount` is stored as a POSITIVE magnitude with direction in `type`.
+    // Summing raw magnitudes (as before) conflated money in with money out
+    // and made the balance reconstruction meaningless. Now each month is
+    // net-signed: deposits add, withdrawals subtract (transfers excluded from
+    // the flow split but the balance reconstruction uses only deposit/
+    // withdrawal activity, matching what the synced ledger can prove).
     const cashFlowRows = await safeQuery(
       "monthlyCashFlows",
       () =>
         db
           .select({
             month: sql<string>`to_char(${bankTransactions.transactionDate}::date, 'YYYY-MM')`,
-            total: sum(bankTransactions.amount),
+            inflow: sql<string>`coalesce(sum(case when ${bankTransactions.type} = 'deposit' then ${bankTransactions.amount} else 0 end), 0)`,
+            outflow: sql<string>`coalesce(sum(case when ${bankTransactions.type} = 'withdrawal' then ${bankTransactions.amount} else 0 end), 0)`,
           })
           .from(bankTransactions)
           .where(
@@ -359,18 +366,39 @@ export const getDashboardData = rlsProtectedProcedure
           .groupBy(sql`1`),
       [],
     );
-    const monthlyCashFlows = fillMonthlyWindow(
-      cashFlowRows as Array<{ month: string | null; total: string | null }>,
+    const typedCashRows = cashFlowRows as Array<{
+      month: string | null;
+      inflow: string | null;
+      outflow: string | null;
+    }>;
+    const monthlyCashInflows = fillMonthlyWindow(
+      typedCashRows.map((r) => ({ month: r.month, total: r.inflow })),
+      SPARKLINE_MONTHS,
+      now,
+    );
+    const monthlyCashOutflows = fillMonthlyWindow(
+      typedCashRows.map((r) => ({ month: r.month, total: r.outflow })),
+      SPARKLINE_MONTHS,
+      now,
+    );
+    const monthlyCashNet = fillMonthlyWindow(
+      typedCashRows.map((r) => ({
+        month: r.month,
+        total: String(
+          (parseFloat(r.inflow ?? "0") || 0) -
+            (parseFloat(r.outflow ?? "0") || 0),
+        ),
+      })),
       SPARKLINE_MONTHS,
       now,
     );
 
-    // Build sparkline backwards from current balance
+    // Build sparkline backwards from current balance using SIGNED net change
     const cashSparkline: number[] = [];
     let runningBalance = totalCashBalance;
-    for (let i = monthlyCashFlows.length - 1; i >= 0; i--) {
+    for (let i = monthlyCashNet.length - 1; i >= 0; i--) {
       cashSparkline.unshift(runningBalance);
-      runningBalance -= monthlyCashFlows[i];
+      runningBalance -= monthlyCashNet[i];
     }
 
     // Cash change = this month vs last month balance
@@ -856,6 +884,8 @@ export const getDashboardData = rlsProtectedProcedure
         runwayMonths,
         monthlyBurn: Number(avgMonthlyBurn.toFixed(0)),
         cashSparkline,
+        cashInflowSparkline: monthlyCashInflows,
+        cashOutflowSparkline: monthlyCashOutflows,
         revenueSparkline: monthlyRevenues,
         expensesSparkline: monthlyExpenses,
         runwaySparkline,

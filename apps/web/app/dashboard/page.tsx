@@ -180,6 +180,28 @@ export default function MissionControlPage() {
     }
   }, [entityId]);
 
+  // ── "Ask AI" handoff ──────────────────────────────────────────────────
+  // Other surfaces (Financial Pulse, Activity Hub, help, the copilot
+  // button) navigate here with ?prompt=... Consume it once on mount, send
+  // it as a real chat message, then clean the URL so a refresh does not
+  // re-send it. Previously this parameter was silently dropped.
+  const promptConsumed = useRef(false);
+  useEffect(() => {
+    if (promptConsumed.current || !entityId) return;
+    const params = new URLSearchParams(window.location.search);
+    const prompt = params.get("prompt")?.trim();
+    if (!prompt) return;
+    promptConsumed.current = true;
+    params.delete("prompt");
+    const rest = params.toString();
+    window.history.replaceState(
+      null,
+      "",
+      `${window.location.pathname}${rest ? `?${rest}` : ""}`,
+    );
+    sendMessage(prompt);
+  }, [entityId, sendMessage]);
+
   return (
     <ErrorBoundary surface="mission-control">
       <div className="flex h-[calc(100dvh-56px)] min-h-0 overflow-hidden pb-16 md:pb-0 isolate md:h-[calc(100dvh-56px)]">

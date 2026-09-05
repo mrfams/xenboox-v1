@@ -43,6 +43,10 @@ import { DocumentDownloadButtons } from "@/components/documents/document-downloa
 import {
   buildPnlReport,
   buildCashFlowReport,
+  buildTrialBalanceReport,
+  buildTaxSummaryReport,
+  type TrialBalanceData,
+  type TaxSummaryData,
 } from "@/lib/documents/report-templates";
 
 // ─── Pulse v2 — AI-Native Financial Pulse (/financial-pulse/new) ──────────
@@ -108,6 +112,40 @@ export default function FinancialPulseV2Page() {
   const { data: pnlData } = trpc.reports.getPnlOverview.useQuery(undefined, {
     enabled: !!entityId,
   });
+  const { data: currentPeriod } = trpc.fiscal.getCurrent.useQuery(undefined, {
+    enabled: !!entityId,
+  });
+  const currentPeriodId = currentPeriod?.id;
+  const { data: cashFlowData } = trpc.reports.getCashFlow.useQuery(
+    { periodId: currentPeriodId ?? "" },
+    { enabled: !!entityId && !!currentPeriodId },
+  );
+  const reportPeriodLabel = currentPeriod
+    ? new Date(
+        currentPeriod.year,
+        currentPeriod.month - 1,
+        1,
+      ).toLocaleDateString("en-US", { month: "long", year: "numeric" })
+    : new Date().toLocaleDateString("en-US", {
+        month: "long",
+        year: "numeric",
+      });
+  const currentPeriodKey = currentPeriod
+    ? `${currentPeriod.year}-${String(currentPeriod.month).padStart(2, "0")}`
+    : "";
+  const { data: trialBalanceData } = trpc.reports.getTrialBalance.useQuery(
+    { periodId: currentPeriodId ?? undefined },
+    { enabled: !!entityId && !!currentPeriodId },
+  );
+  const { data: vatRows } = trpc.taxCompliance.listVatCalculations.useQuery(
+    { period: currentPeriodKey, limit: 100 },
+    { enabled: !!entityId && !!currentPeriodKey },
+  );
+  const { data: withholdingRows } =
+    trpc.taxCompliance.listWithholdingRecords.useQuery(
+      { period: currentPeriodKey, limit: 100 },
+      { enabled: !!entityId && !!currentPeriodKey },
+    );
   const { data: aiNarrative, isError: isNarrativeError } =
     trpc.dashboard.getAiNarrative.useQuery(undefined, {
       enabled: !!entityId,
@@ -117,6 +155,62 @@ export default function FinancialPulseV2Page() {
     undefined,
     { enabled: !!entityId, staleTime: 5 * 60 * 1000 },
   );
+
+  const trialBalanceDoc: TrialBalanceData | undefined = trialBalanceData
+    ? {
+        entityName: "Your Business",
+        currency: displayCurrency,
+        period: reportPeriodLabel,
+        accounts: trialBalanceData.accounts,
+        totalDebits: trialBalanceData.totalDebits,
+        totalCredits: trialBalanceData.totalCredits,
+        balanced: trialBalanceData.balanced,
+      }
+    : undefined;
+
+  const taxSummaryDoc: TaxSummaryData | undefined =
+    vatRows || withholdingRows
+      ? {
+          entityName: "Your Business",
+          currency: displayCurrency,
+          period: reportPeriodLabel,
+          vat: {
+            rows: (vatRows ?? []).map((r) => ({
+              period: r.period,
+              outputVat: Number(r.outputVat) || 0,
+              inputVat: Number(r.inputVat) || 0,
+              netPosition: Number(r.netPosition) || 0,
+              status: r.status,
+            })),
+            totalOutputVat: (vatRows ?? []).reduce(
+              (s, r) => s + (Number(r.outputVat) || 0),
+              0,
+            ),
+            totalInputVat: (vatRows ?? []).reduce(
+              (s, r) => s + (Number(r.inputVat) || 0),
+              0,
+            ),
+            totalNetPosition: (vatRows ?? []).reduce(
+              (s, r) => s + (Number(r.netPosition) || 0),
+              0,
+            ),
+          },
+          withholding: {
+            rows: (withholdingRows ?? []).map((r) => ({
+              payeeName: r.payeeName ?? "",
+              amount: Number(r.amount) || 0,
+              taxWithheld: Number(r.taxWithheld) || 0,
+              jurisdiction: r.jurisdiction,
+              filed: r.filed,
+            })),
+            totalWithheld: (withholdingRows ?? []).reduce(
+              (s, r) => s + (Number(r.taxWithheld) || 0),
+              0,
+            ),
+            totalFiled: (withholdingRows ?? []).filter((r) => r.filed).length,
+          },
+        }
+      : undefined;
 
   const overview = dashboardData
     ? {
@@ -130,7 +224,7 @@ export default function FinancialPulseV2Page() {
   const pnl = pnlData
     ? {
         revenue: pnlData.current.revenue,
-        expenses: pnlData.current.opExpenses,
+        expenses: pnlData.current.expenses, // total = COGS + operating
         netProfit: pnlData.current.netProfit,
         revenueChange: dashboardData?.businessHealth.revenueChange,
         expensesChange: dashboardData?.businessHealth.expensesChange,
@@ -282,6 +376,12 @@ export default function FinancialPulseV2Page() {
           <PerformancePanel
             revenueSparkline={revenueSparkline}
             expenseSparkline={expenseSparkline}
+            cashInflowSparkline={
+              dashboardData?.businessHealth.cashInflowSparkline ?? []
+            }
+            cashOutflowSparkline={
+              dashboardData?.businessHealth.cashOutflowSparkline ?? []
+            }
             expenseBreakdownData={expenseBreakdownData}
             displayCurrency={displayCurrency}
             ask={ask}
@@ -294,7 +394,11 @@ export default function FinancialPulseV2Page() {
           <ReportsPanel
             ask={ask}
             pnlData={pnlData}
+            cashFlowData={cashFlowData as CashFlowSummary | undefined}
+            trialBalanceData={trialBalanceDoc}
+            taxSummaryData={taxSummaryDoc}
             overview={overview}
+            periodLabel={reportPeriodLabel}
             displayCurrency={displayCurrency}
           />
         )}
@@ -555,12 +659,16 @@ function OverviewPanel({
 function PerformancePanel({
   revenueSparkline,
   expenseSparkline,
+  cashInflowSparkline,
+  cashOutflowSparkline,
   expenseBreakdownData,
   displayCurrency,
   ask,
 }: {
   revenueSparkline: number[];
   expenseSparkline: number[];
+  cashInflowSparkline: number[];
+  cashOutflowSparkline: number[];
   expenseBreakdownData: { category: string; amount: number }[];
   displayCurrency: string;
   ask: (prompt: string) => void;
@@ -583,10 +691,10 @@ function PerformancePanel({
         </div>
         <div className="relative overflow-hidden rounded-xl border border-border/50 bg-card">
           <CashFlowChart
-            data={revenueSparkline.map((v, i) => ({
-              month: getMonthLabel(i, revenueSparkline.length),
+            data={cashInflowSparkline.map((v, i) => ({
+              month: getMonthLabel(i, cashInflowSparkline.length),
               incoming: v,
-              outgoing: expenseSparkline[i] ?? 0,
+              outgoing: cashOutflowSparkline[i] ?? 0,
             }))}
             currency={displayCurrency}
             onAskAi={() =>
@@ -675,17 +783,42 @@ function PlanningPanel({
 
 // ─── Reports Panel ──────────────────────────────────────────────────────────
 
+type CashFlowSummary = {
+  openingCash: number;
+  closingCash: number;
+  operating: {
+    lines: Array<{ accountName: string; amount: number }>;
+    total: number;
+  };
+  investing: {
+    lines: Array<{ accountName: string; amount: number }>;
+    total: number;
+  };
+  financing: {
+    lines: Array<{ accountName: string; amount: number }>;
+    total: number;
+  };
+};
+
 function ReportsPanel({
   ask,
   pnlData,
+  cashFlowData,
+  trialBalanceData,
+  taxSummaryData,
   overview,
+  periodLabel,
   displayCurrency,
 }: {
   ask: (prompt: string) => void;
   pnlData: unknown;
+  cashFlowData: CashFlowSummary | undefined;
+  trialBalanceData: TrialBalanceData | undefined;
+  taxSummaryData: TaxSummaryData | undefined;
   overview:
     | { cashBalance: number; ar: number; ap: number; runway: number | null }
     | undefined;
+  periodLabel: string;
   displayCurrency: string;
 }) {
   return (
@@ -693,7 +826,11 @@ function ReportsPanel({
       <ReportLibrary
         ask={ask}
         pnlData={pnlData}
+        cashFlowData={cashFlowData}
+        trialBalanceData={trialBalanceData}
+        taxSummaryData={taxSummaryData}
         overview={overview}
+        periodLabel={periodLabel}
         displayCurrency={displayCurrency}
       />
 
@@ -939,14 +1076,22 @@ function ScenarioCard({ ask }: { ask: (prompt: string) => void }) {
 function ReportLibrary({
   ask,
   pnlData,
+  cashFlowData,
+  trialBalanceData,
+  taxSummaryData,
   overview,
+  periodLabel,
   displayCurrency,
 }: {
   ask: (prompt: string) => void;
   pnlData: unknown;
+  cashFlowData: CashFlowSummary | undefined;
+  trialBalanceData: TrialBalanceData | undefined;
+  taxSummaryData: TaxSummaryData | undefined;
   overview:
     | { cashBalance: number; ar: number; ap: number; runway: number | null }
     | undefined;
+  periodLabel: string;
   displayCurrency: string;
 }) {
   const reports = [
@@ -1012,10 +1157,7 @@ function ReportLibrary({
               ? buildPnlReport({
                   entityName: "Your Business",
                   currency: displayCurrency,
-                  period: new Date().toLocaleDateString("en-US", {
-                    month: "long",
-                    year: "numeric",
-                  }),
+                  period: periodLabel,
                   revenue: (
                     pnlData as {
                       current: {
@@ -1082,30 +1224,46 @@ function ReportLibrary({
                   netProfit: (pnlData as { current: { netProfit: number } })
                     .current.netProfit,
                 })
-              : report.id === "cash-flow" && overview
+              : report.id === "cash-flow" && cashFlowData
                 ? buildCashFlowReport({
                     entityName: "Your Business",
                     currency: displayCurrency,
-                    period: new Date().toLocaleDateString("en-US", {
-                      month: "long",
-                      year: "numeric",
-                    }),
-                    openingCash: overview.cashBalance,
+                    period: periodLabel,
+                    openingCash: cashFlowData.openingCash,
                     operating: {
-                      lines: [{ name: "Revenue", amount: 0 }],
-                      total: 0,
+                      lines: cashFlowData.operating.lines.map((l) => ({
+                        name: l.accountName,
+                        amount: l.amount,
+                      })),
+                      total: cashFlowData.operating.total,
                     },
-                    investing: { lines: [], total: 0 },
-                    financing: { lines: [], total: 0 },
-                    closingCash: overview.cashBalance,
+                    investing: {
+                      lines: cashFlowData.investing.lines.map((l) => ({
+                        name: l.accountName,
+                        amount: l.amount,
+                      })),
+                      total: cashFlowData.investing.total,
+                    },
+                    financing: {
+                      lines: cashFlowData.financing.lines.map((l) => ({
+                        name: l.accountName,
+                        amount: l.amount,
+                      })),
+                      total: cashFlowData.financing.total,
+                    },
+                    closingCash: cashFlowData.closingCash,
                   })
-                : {
-                    title: report.label,
-                    entityName: "Your Business",
-                    currency: displayCurrency,
-                    generatedAt: new Date(),
-                    sections: [],
-                  };
+                : report.id === "trial-balance" && trialBalanceData
+                  ? buildTrialBalanceReport(trialBalanceData)
+                  : report.id === "tax-summary" && taxSummaryData
+                    ? buildTaxSummaryReport(taxSummaryData)
+                    : {
+                        title: report.label,
+                        entityName: "Your Business",
+                        currency: displayCurrency,
+                        generatedAt: new Date(),
+                        sections: [],
+                      };
 
           return (
             <div

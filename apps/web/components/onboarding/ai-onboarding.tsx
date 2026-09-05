@@ -5,13 +5,13 @@ import { Button } from "@/components/ui";
 import { Input } from "@/components/ui";
 import { useEntity } from "@/lib/entity-context";
 import { trpc } from "@/lib/trpc/client";
-import { toast } from "sonner";
 import {
   Sparkles,
   Building2,
   BookOpen,
   Landmark,
   Check,
+  X,
   ArrowRight,
   Loader2,
   Send,
@@ -158,18 +158,22 @@ function TypingIndicator() {
 
 // ─── Setup Progress ─────────────────────────────────────────────────────────
 
-function SetupProgress({ step, total }: { step: number; total: number }) {
+type SetupStepState = "pending" | "running" | "done" | "failed";
+
+function SetupProgress({ states }: { states: SetupStepState[] }) {
   const steps = [
-    { label: "Chart of Accounts", icon: BookOpen },
-    { label: "Tax Configuration", icon: Landmark },
     { label: "Entity Setup", icon: Building2 },
+    { label: "Chart of Accounts & Periods", icon: BookOpen },
+    { label: "Tax Configuration", icon: Landmark },
   ];
 
   return (
     <div className="space-y-3 py-4">
       {steps.map((s, i) => {
-        const isDone = i < step;
-        const isCurrent = i === step;
+        const state = states[i] ?? "pending";
+        const isDone = state === "done";
+        const isCurrent = state === "running";
+        const isFailed = state === "failed";
         const Icon = s.icon;
 
         return (
@@ -179,13 +183,17 @@ function SetupProgress({ step, total }: { step: number; total: number }) {
                 "flex h-8 w-8 items-center justify-center rounded-full transition-all",
                 isDone
                   ? "bg-emerald-500 text-white"
-                  : isCurrent
-                    ? "bg-primary text-primary-foreground animate-pulse"
-                    : "bg-muted text-muted-foreground",
+                  : isFailed
+                    ? "bg-destructive text-white"
+                    : isCurrent
+                      ? "bg-primary text-primary-foreground animate-pulse"
+                      : "bg-muted text-muted-foreground",
               )}
             >
               {isDone ? (
                 <Check className="h-4 w-4" />
+              ) : isFailed ? (
+                <X className="h-4 w-4" />
               ) : (
                 <Icon className="h-4 w-4" />
               )}
@@ -195,9 +203,11 @@ function SetupProgress({ step, total }: { step: number; total: number }) {
                 "text-sm font-medium",
                 isDone
                   ? "text-emerald-600 dark:text-emerald-400"
-                  : isCurrent
-                    ? "text-foreground"
-                    : "text-muted-foreground",
+                  : isFailed
+                    ? "text-destructive"
+                    : isCurrent
+                      ? "text-foreground"
+                      : "text-muted-foreground",
               )}
             >
               {s.label}
@@ -208,6 +218,9 @@ function SetupProgress({ step, total }: { step: number; total: number }) {
             {isDone && (
               <Check className="h-3.5 w-3.5 text-emerald-500 ml-auto" />
             )}
+            {isFailed && (
+              <span className="text-xs text-destructive ml-auto">Failed</span>
+            )}
           </div>
         );
       })}
@@ -217,28 +230,59 @@ function SetupProgress({ step, total }: { step: number; total: number }) {
 
 // ─── Setup Result Cards ─────────────────────────────────────────────────────
 
-function SetupResultCards({ info }: { info: BusinessInfo }) {
+type SetupResults = {
+  accountCount: number;
+  periodCount: number;
+  taxInstalled: number;
+  taxTotal: number;
+};
+
+function SetupResultCards({
+  info,
+  states,
+  results,
+}: {
+  info: BusinessInfo;
+  states: SetupStepState[];
+  results: SetupResults;
+}) {
+  const [entityState, booksState, taxState] = states;
+
   const cards = [
     {
-      title: "Chart of Accounts",
-      description: `${info.industry}-optimized accounts with 47 accounts`,
+      title: "Entity",
+      description:
+        entityState === "done"
+          ? `${info.name} — created${info.industry ? ` (${info.industry})` : ""}`
+          : "Not created",
+      state: entityState,
+      icon: Building2,
+      color: "text-violet-500",
+      bg: "bg-violet-500/10",
+    },
+    {
+      title: "Chart of Accounts & Periods",
+      description:
+        booksState === "done"
+          ? `${results.accountCount} accounts · ${results.periodCount} fiscal periods`
+          : "Not completed — finish in Settings → Chart of Accounts",
+      state: booksState,
       icon: BookOpen,
       color: "text-blue-500",
       bg: "bg-blue-500/10",
     },
     {
       title: "Tax Rules",
-      description: "Auto-configured for your region",
+      description:
+        taxState === "done"
+          ? results.taxTotal > 0
+            ? `${results.taxInstalled} of ${results.taxTotal} presets installed`
+            : "No preset pack for this region yet — configure in Settings → Taxes"
+          : "Not completed — configure in Settings → Taxes",
+      state: taxState,
       icon: Landmark,
       color: "text-emerald-500",
       bg: "bg-emerald-500/10",
-    },
-    {
-      title: "Entity",
-      description: `${info.name} — ready to go`,
-      icon: Building2,
-      color: "text-violet-500",
-      bg: "bg-violet-500/10",
     },
   ];
 
@@ -261,7 +305,11 @@ function SetupResultCards({ info }: { info: BusinessInfo }) {
             <p className="text-sm font-medium">{card.title}</p>
             <p className="text-xs text-muted-foreground">{card.description}</p>
           </div>
-          <Check className="h-4 w-4 text-emerald-500 shrink-0" />
+          {card.state === "done" ? (
+            <Check className="h-4 w-4 text-emerald-500 shrink-0" />
+          ) : (
+            <X className="h-4 w-4 text-destructive shrink-0" />
+          )}
         </div>
       ))}
     </div>
@@ -279,17 +327,32 @@ export function AiOnboarding() {
     name: "",
     industry: "",
   });
-  const [setupStep, setSetupStep] = useState(-1);
+  const [stepStates, setStepStates] = useState<SetupStepState[]>([
+    "pending",
+    "pending",
+    "pending",
+  ]);
+  const [setupResults, setSetupResults] = useState<SetupResults>({
+    accountCount: 0,
+    periodCount: 0,
+    taxInstalled: 0,
+    taxTotal: 0,
+  });
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const { setEntityId } = useEntity();
   const createOrgMutation = trpc.organization.create.useMutation();
   const createEntityMutation = trpc.organization.createEntity.useMutation();
+  const finalizeSetupMutation = trpc.onboarding.finalizeAiSetup.useMutation();
+  const installTaxMutation = trpc.onboarding.installTaxPresets.useMutation();
   const listOrgsQuery = trpc.organization.list.useQuery(undefined, {
     enabled: false,
   });
   const completeOnboarding = trpc.onboarding.completeFlow.useMutation();
+
+  const setStep = (index: number, state: SetupStepState) =>
+    setStepStates((prev) => prev.map((s, i) => (i === index ? state : s)));
 
   // Auto-scroll to bottom
   useEffect(() => {
@@ -317,22 +380,17 @@ export function AiOnboarding() {
     }
   }, []);
 
-  // Run setup after collecting info
+  // Run setup after collecting info. Every step is a real server mutation —
+  // no timers, no simulated work, and the result cards show what actually
+  // landed in the database.
   const runSetup = useCallback(
     async (info: BusinessInfo) => {
       setPhase("setting-up");
       setIsTyping(true);
 
-      // Step 1: Chart of Accounts
-      setSetupStep(0);
-      await new Promise((r) => setTimeout(r, 1200));
-
-      // Step 2: Tax Configuration
-      setSetupStep(1);
-      await new Promise((r) => setTimeout(r, 1000));
-
-      // Step 3: Entity Setup
-      setSetupStep(2);
+      // Step 1: Entity Setup — real org + entity creation.
+      setStep(0, "running");
+      let entityCreatedId: string | null = null;
       try {
         let orgs = listOrgsQuery.data;
         if (orgs === undefined) {
@@ -362,31 +420,82 @@ export function AiOnboarding() {
           country: "GM",
         });
 
-        if (entity?.id) {
-          setEntityId(entity.id, "admin");
+        if (!entity?.id) {
+          throw new Error("Failed to create entity");
         }
+        entityCreatedId = entity.id;
+        setEntityId(entity.id, "admin");
+        setStep(0, "done");
       } catch {
-        toast.error(
-          "Setup had a hiccup, but you can continue from the dashboard.",
-        );
+        setStep(0, "failed");
+        setIsTyping(false);
+        setPhase("preview");
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: crypto.randomUUID(),
+            role: "ai",
+            content:
+              "I couldn't create your business — nothing was set up. Please try again or set up manually from the dashboard.",
+            timestamp: new Date(),
+          },
+        ]);
+        return;
       }
 
-      setSetupStep(3);
-      await new Promise((r) => setTimeout(r, 600));
+      // Step 2: Chart of Accounts & fiscal periods — the same idempotent
+      // backend pipeline the wizard flow runs, now awaited for real.
+      setStep(1, "running");
+      try {
+        const result = await finalizeSetupMutation.mutateAsync({
+          entityId: entityCreatedId,
+        });
+        setSetupResults((prev) => ({
+          ...prev,
+          accountCount: result.accountCount,
+          periodCount: result.periodCount,
+        }));
+        setStep(1, "done");
+      } catch {
+        setStep(1, "failed");
+      }
 
-      // Show result
+      // Step 3: Tax presets for the entity's country (matches the created
+      // entity's region). Zero presets installed is an honest outcome, not
+      // an error.
+      setStep(2, "running");
+      try {
+        const tax = await installTaxMutation.mutateAsync({ country: "GM" });
+        setSetupResults((prev) => ({
+          ...prev,
+          taxInstalled: tax.installed,
+          taxTotal: tax.total,
+        }));
+        setStep(2, "done");
+      } catch {
+        setStep(2, "failed");
+      }
+
       setIsTyping(false);
       setPhase("preview");
 
       const previewMsg: Message = {
         id: crypto.randomUUID(),
         role: "ai",
-        content: `All done! Here's what I set up for ${info.name}. Take a look, then head to your dashboard.`,
+        content:
+          "Setup finished. Here's exactly what was created — anything marked incomplete can be finished from Settings.",
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, previewMsg]);
     },
-    [listOrgsQuery, createOrgMutation, createEntityMutation, setEntityId],
+    [
+      listOrgsQuery,
+      createOrgMutation,
+      createEntityMutation,
+      finalizeSetupMutation,
+      installTaxMutation,
+      setEntityId,
+    ],
   );
 
   // Handle send
@@ -487,11 +596,17 @@ export function AiOnboarding() {
 
           {showSetup && (
             <div className="self-start ml-9.5">
-              <SetupProgress step={setupStep} total={3} />
+              <SetupProgress states={stepStates} />
             </div>
           )}
 
-          {showPreview && <SetupResultCards info={businessInfo} />}
+          {showPreview && (
+            <SetupResultCards
+              info={businessInfo}
+              states={stepStates}
+              results={setupResults}
+            />
+          )}
 
           <div ref={messagesEndRef} />
         </div>

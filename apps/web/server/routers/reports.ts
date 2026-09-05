@@ -12,6 +12,15 @@ import {
   journalEntryLines,
   fiscalPeriods,
 } from "@xenboox/db/schema/accounting";
+import {
+  aggregateReportRows,
+  derivePnl,
+  deriveBalanceSheet,
+  isDebitNormal,
+  type ReportLineLike,
+  type ReportAccountLike,
+  type ReportStatementLine,
+} from "@xenboox/db";
 import { reportSnapshots } from "@xenboox/db/schema/reporting";
 import { artifactRegistry } from "@xenboox/db/schema/artifacts";
 import { entities } from "@xenboox/db/schema/organization";
@@ -25,16 +34,7 @@ import {
   concurrencyLimitedProcedure,
 } from "@/lib/trpc/server";
 
-type AccountRow = {
-  accountId: string;
-  code: string;
-  name: string;
-  type: string;
-  subtype: string;
-  debit: number;
-  credit: number;
-  balance: number;
-};
+const round2 = (n: number) => Math.round(n * 100) / 100;
 
 export const reportsRouter = router({
   /**
@@ -49,8 +49,6 @@ export const reportsRouter = router({
     )
     .query(async ({ ctx, input }) => {
       const entityId = ctx.entityId!;
-      const currency =
-        (ctx as { entityCurrency?: string | null }).entityCurrency ?? "USD";
 
       // Default to current month
       const now = new Date();
@@ -104,90 +102,77 @@ export const reportsRouter = router({
             })
           : [];
 
-      // Get all accounts
+      // ── Canonical derivations (P9-A) ──────────────────────────────────────
+      // P&L = activity within the window; Balance Sheet = cumulative position
+      // as of the window end. No fabricated 0.65/0.35 ratios; equity folds
+      // current earnings so positions are real.
+
       const accounts = await db.query.chartOfAccounts.findMany({
         where: eq(chartOfAccounts.entityId, entityId),
       });
 
-      const accountMap = new Map(accounts.map((a) => [a.id, a]));
+      // P&L rows for current + previous windows (already-fetched lines).
+      const curRows = aggregateReportRows(
+        currentLines as ReportLineLike[],
+        accounts as ReportAccountLike[],
+      );
+      const prevRows = aggregateReportRows(
+        prevLines as ReportLineLike[],
+        accounts as ReportAccountLike[],
+      );
+      const curPnl = derivePnl(curRows);
+      const prevPnl = derivePnl(prevRows);
 
-      // Calculate totals by account type
-      const calculateTotals = (lines: typeof currentLines) => {
-        const revenue = { debit: 0, credit: 0 };
-        const expense = { debit: 0, credit: 0 };
-        const asset = { debit: 0, credit: 0 };
-        const liability = { debit: 0, credit: 0 };
-        const equity = { debit: 0, credit: 0 };
-
-        for (const line of lines) {
-          const account = accountMap.get(line.accountId);
-          if (!account) continue;
-
-          const debit = parseFloat(line.debit ?? "0");
-          const credit = parseFloat(line.credit ?? "0");
-
-          switch (account.type) {
-            case "revenue":
-              revenue.debit += debit;
-              revenue.credit += credit;
-              break;
-            case "expense":
-              expense.debit += debit;
-              expense.credit += credit;
-              break;
-            case "asset":
-              asset.debit += debit;
-              asset.credit += credit;
-              break;
-            case "liability":
-              liability.debit += debit;
-              liability.credit += credit;
-              break;
-            case "equity":
-              equity.debit += debit;
-              equity.credit += credit;
-              break;
-          }
-        }
-
-        return { revenue, expense, asset, liability, equity };
+      // Cumulative BS rows as of each window end (all posted entries <= date).
+      const loadBs = async (asOf: string) => {
+        const entries = await db.query.journalEntries.findMany({
+          where: and(
+            eq(journalEntries.entityId, entityId),
+            eq(journalEntries.status, "posted"),
+            sql`${journalEntries.date} <= ${asOf}`,
+          ),
+        });
+        const ids = entries.map((e) => e.id);
+        const bsLines =
+          ids.length > 0
+            ? await db.query.journalEntryLines.findMany({
+                where: inArray(journalEntryLines.journalEntryId, ids),
+              })
+            : [];
+        return deriveBalanceSheet(
+          aggregateReportRows(
+            bsLines as ReportLineLike[],
+            accounts as ReportAccountLike[],
+          ),
+        );
       };
+      const curBs = await loadBs(endDate);
+      const prevBs = await loadBs(prevEndDate);
 
-      const currentTotals = calculateTotals(currentLines);
-      const prevTotals = calculateTotals(prevLines);
+      const revenue = curPnl.totalRevenue;
+      const cogs = curPnl.totalCogs;
+      const grossProfit = curPnl.grossProfit;
+      const operatingExpenses = curPnl.totalOperatingExpenses;
+      const operatingProfit = curPnl.operatingProfit;
+      const netProfit = curPnl.netIncome;
 
-      // Calculate key metrics
-      const revenue =
-        currentTotals.revenue.credit - currentTotals.revenue.debit;
-      const prevRevenueForChange =
-        prevTotals.revenue.credit - prevTotals.revenue.debit;
-      const cogs = currentTotals.expense.debit * 0.65; // Approximate COGS
-      const grossProfit = revenue - cogs;
-      const operatingExpenses = currentTotals.expense.debit * 0.35;
-      const operatingProfit = grossProfit - operatingExpenses;
-      const netProfit = revenue - currentTotals.expense.debit;
+      const prevRevenue = prevPnl.totalRevenue;
+      const prevCogs = prevPnl.totalCogs;
+      const prevGrossProfit = prevPnl.grossProfit;
+      const prevOpExpenses = prevPnl.totalOperatingExpenses;
+      const prevOpProfit = prevPnl.operatingProfit;
+      const prevNetProfit = prevPnl.netIncome;
 
-      const prevNetProfit =
-        prevTotals.revenue.credit - prevTotals.expense.debit;
+      const totalAssets = curBs.totalAssets;
+      const totalLiabilities = curBs.totalLiabilities;
+      const totalEquity = curBs.totalEquityWithEarnings;
+      const prevTotalAssets = prevBs.totalAssets;
+      const prevTotalLiabilities = prevBs.totalLiabilities;
+      const prevTotalEquity = prevBs.totalEquityWithEarnings;
 
-      const totalAssets =
-        currentTotals.asset.debit - currentTotals.asset.credit;
-      const totalLiabilities =
-        currentTotals.liability.credit - currentTotals.liability.debit;
-      const totalEquity =
-        currentTotals.equity.credit - currentTotals.equity.debit;
+      const calcChange = (current: number, previous: number) =>
+        previous !== 0 ? ((current - previous) / Math.abs(previous)) * 100 : 0;
 
-      // Calculate changes
-      const revenueChange =
-        prevRevenueForChange > 0
-          ? ((revenue - prevRevenueForChange) / prevRevenueForChange) * 100
-          : 0;
-      const profitChange =
-        prevNetProfit > 0
-          ? ((netProfit - prevNetProfit) / prevNetProfit) * 100
-          : 0;
-
-      // Get account counts
       const assetCount = accounts.filter((a) => a.type === "asset").length;
       const liabilityCount = accounts.filter(
         (a) => a.type === "liability",
@@ -196,41 +181,13 @@ export const reportsRouter = router({
       const revenueCount = accounts.filter((a) => a.type === "revenue").length;
       const expenseCount = accounts.filter((a) => a.type === "expense").length;
 
-      // Calculate changes for assets, liabilities, equity
-      const prevTotalAssets = prevTotals.asset.debit - prevTotals.asset.credit;
-      const prevTotalLiabilities =
-        prevTotals.liability.credit - prevTotals.liability.debit;
-      const prevTotalEquity =
-        prevTotals.equity.credit - prevTotals.equity.debit;
-
-      const assetsChange =
-        prevTotalAssets > 0
-          ? ((totalAssets - prevTotalAssets) / prevTotalAssets) * 100
-          : 0;
-      const liabilitiesChange =
-        prevTotalLiabilities > 0
-          ? ((totalLiabilities - prevTotalLiabilities) / prevTotalLiabilities) *
-            100
-          : 0;
-      const equityChange =
-        prevTotalEquity > 0
-          ? ((totalEquity - prevTotalEquity) / prevTotalEquity) * 100
-          : 0;
-
-      // Calculate period-over-period changes for P&L items
-      const prevCogs = prevTotals.expense.debit * 0.65;
-      const prevGrossProfit = prevRevenueForChange - prevCogs;
-      const prevOpExpenses = prevTotals.expense.debit * 0.35;
-      const prevOpProfit = prevGrossProfit - prevOpExpenses;
-
-      const calcChange = (current: number, previous: number) =>
-        previous > 0 ? ((current - previous) / Math.abs(previous)) * 100 : 0;
-
       return {
         revenue,
-        revenueChange: Number(revenueChange.toFixed(1)),
+        revenueChange: Number(calcChange(revenue, prevRevenue).toFixed(1)),
         netProfit,
-        netProfitChange: Number(profitChange.toFixed(1)),
+        netProfitChange: Number(
+          calcChange(netProfit, prevNetProfit).toFixed(1),
+        ),
         totalAssets,
         totalLiabilities,
         totalEquity,
@@ -249,10 +206,16 @@ export const reportsRouter = router({
         operatingProfitChange: Number(
           calcChange(operatingProfit, prevOpProfit).toFixed(1),
         ),
-        // Balance sheet changes
-        assetsChange: Number(assetsChange.toFixed(1)),
-        liabilitiesChange: Number(liabilitiesChange.toFixed(1)),
-        equityChange: Number(equityChange.toFixed(1)),
+        // Balance sheet changes (position as-of vs prior position)
+        assetsChange: Number(
+          calcChange(totalAssets, prevTotalAssets).toFixed(1),
+        ),
+        liabilitiesChange: Number(
+          calcChange(totalLiabilities, prevTotalLiabilities).toFixed(1),
+        ),
+        equityChange: Number(
+          calcChange(totalEquity, prevTotalEquity).toFixed(1),
+        ),
         accountSummary: {
           total: accounts.length,
           assets: assetCount,
@@ -263,7 +226,6 @@ export const reportsRouter = router({
         },
       };
     }),
-
   /**
    * Get P&L overview for the bar chart comparison.
    */
@@ -301,78 +263,37 @@ export const reportsRouter = router({
       const accounts = await db.query.chartOfAccounts.findMany({
         where: eq(chartOfAccounts.entityId, entityId),
       });
-      const accountMap = new Map(accounts.map((a) => [a.id, a]));
 
-      let revenue = 0;
-      let expenses = 0;
-      const revenueByAccountMap = new Map<
-        string,
-        { accountName: string; accountCode: string; amount: number }
-      >();
-      const expensesByAccountMap = new Map<
-        string,
-        { accountName: string; accountCode: string; amount: number }
-      >();
-
-      for (const line of lines) {
-        const account = accountMap.get(line.accountId);
-        if (!account) continue;
-
-        const amount =
-          parseFloat(line.credit ?? "0") - parseFloat(line.debit ?? "0");
-        if (account.type === "revenue") {
-          const abs = Math.abs(amount);
-          revenue += abs;
-          const existing = revenueByAccountMap.get(account.id);
-          if (existing) {
-            existing.amount += abs;
-          } else {
-            revenueByAccountMap.set(account.id, {
-              accountName: account.name,
-              accountCode: account.code,
-              amount: abs,
-            });
-          }
-        }
-        if (account.type === "expense") {
-          const abs = Math.abs(amount);
-          expenses += abs;
-          const existing = expensesByAccountMap.get(account.id);
-          if (existing) {
-            existing.amount += abs;
-          } else {
-            expensesByAccountMap.set(account.id, {
-              accountName: account.name,
-              accountCode: account.code,
-              amount: abs,
-            });
-          }
-        }
-      }
-
-      const revenueByAccount = Array.from(revenueByAccountMap.values()).sort(
-        (a, b) => b.amount - a.amount,
+      // Canonical derivation — real COGS split by subtype, per-account
+      // netting, credit-normal revenue. NO fabricated 0.65/0.35 ratios.
+      const rows = aggregateReportRows(
+        lines as ReportLineLike[],
+        accounts as ReportAccountLike[],
       );
-      const expensesByAccount = Array.from(expensesByAccountMap.values()).sort(
-        (a, b) => b.amount - a.amount,
-      );
+      const pnl = derivePnl(rows);
 
-      const cogs = expenses * 0.65;
-      const grossProfit = revenue - cogs;
-      const opExpenses = expenses * 0.35;
-      const opProfit = grossProfit - opExpenses;
-      const netProfit = revenue - expenses;
+      const toBreakdown = (list: ReportStatementLine[]) =>
+        list
+          .map((l) => ({
+            accountName: l.name,
+            accountCode: l.code,
+            amount: Math.abs(l.amount),
+          }))
+          .sort((a, b) => b.amount - a.amount);
+
+      const revenue = pnl.totalRevenue;
+      const expenses = pnl.totalCogs + pnl.totalOperatingExpenses;
 
       return {
         revenue,
         expenses,
-        cogs,
-        grossProfit,
-        opExpenses,
-        opProfit,
-        netProfit,
-        revenueByAccount,
-        expensesByAccount,
+        cogs: pnl.totalCogs,
+        grossProfit: pnl.grossProfit,
+        opExpenses: pnl.totalOperatingExpenses,
+        opProfit: pnl.operatingProfit,
+        netProfit: pnl.netIncome,
+        revenueByAccount: toBreakdown(pnl.revenue),
+        expensesByAccount: toBreakdown([...pnl.cogs, ...pnl.operatingExpenses]),
       };
     };
 
@@ -571,23 +492,21 @@ export const reportsRouter = router({
         const accounts = await db.query.chartOfAccounts.findMany({
           where: eq(chartOfAccounts.entityId, entityId),
         });
-        const acctMap = new Map(accounts.map((a) => [a.id, a]));
-        let revenue = 0;
-        let cogs = 0;
-        let expenses = 0;
-        for (const l of lines) {
-          const acct = acctMap.get(l.accountId);
-          const amt =
-            (parseFloat(l.debit ?? "0") || 0) -
-            (parseFloat(l.credit ?? "0") || 0);
-          if (!acct) continue;
-          if (acct.type === "revenue") revenue += amt;
-          else if (acct.subtype === "cost_of_goods_sold") cogs += Math.abs(amt);
-          else if (acct.type === "expense") expenses += Math.abs(amt);
-        }
-        const grossProfit = revenue - cogs;
-        const netProfit = grossProfit - expenses;
-        return { revenue, cogs, expenses, grossProfit, netProfit };
+        // Canonical derivation — revenue is credit-normal so summing
+        // debit − credit (the old code) flipped its sign; COGS split on the
+        // real subtype; per-account netting, no fabricated ratios.
+        const rows = aggregateReportRows(
+          lines as ReportLineLike[],
+          accounts as ReportAccountLike[],
+        );
+        const pnl = derivePnl(rows);
+        return {
+          revenue: pnl.totalRevenue,
+          cogs: pnl.totalCogs,
+          expenses: pnl.totalCogs + pnl.totalOperatingExpenses,
+          grossProfit: pnl.grossProfit,
+          netProfit: pnl.netIncome,
+        };
       };
 
       const cur = await load(startDate, endDate);
@@ -769,12 +688,44 @@ export const reportsRouter = router({
     )
     .query(async ({ ctx, input }) => {
       try {
+        const entityId = ctx.entityId!;
+        // P&L is a PERIOD statement: activity within the window. Resolve the
+        // chosen period's dates (entity-scoped). No period → all posted
+        // activity to date.
+        let from: string | undefined;
+        let to: string | undefined;
+        if (input.periodId) {
+          const period = await db.query.fiscalPeriods.findFirst({
+            where: and(
+              eq(fiscalPeriods.id, input.periodId),
+              eq(fiscalPeriods.entityId, entityId),
+            ),
+          });
+          if (!period) {
+            return {
+              revenue: { label: "Revenue", accounts: [], total: 0 },
+              cogs: { label: "Cost of Goods Sold", accounts: [], total: 0 },
+              operatingExpenses: {
+                label: "Operating Expenses",
+                accounts: [],
+                total: 0,
+              },
+              grossProfit: 0,
+              operatingProfit: 0,
+              netIncome: 0,
+            };
+          }
+          from = period.startDate;
+          to = period.endDate;
+        }
+
         const conditions = [
-          eq(journalEntries.entityId, ctx.entityId!),
+          eq(journalEntries.entityId, entityId),
           eq(journalEntries.status, "posted"),
         ];
-        if (input.periodId) {
-          conditions.push(eq(journalEntries.periodId, input.periodId));
+        if (from && to) {
+          conditions.push(sql`${journalEntries.date} >= ${from}`);
+          conditions.push(sql`${journalEntries.date} <= ${to}`);
         }
 
         const entryIds = await db
@@ -790,84 +741,43 @@ export const reportsRouter = router({
               })
             : [];
 
-        const accountMap = new Map<
-          string,
-          {
-            accountId: string;
-            code: string;
-            name: string;
-            type: string;
-            subtype: string;
-            debit: number;
-            credit: number;
-          }
-        >();
-
-        for (const line of lines) {
-          const existing = accountMap.get(line.accountId) || {
-            accountId: line.accountId,
-            code: "",
-            name: "",
-            type: "",
-            subtype: "",
-            debit: 0,
-            credit: 0,
-          };
-          existing.debit += Number(line.debit);
-          existing.credit += Number(line.credit);
-          accountMap.set(line.accountId, existing);
-        }
-
         const accounts = await db.query.chartOfAccounts.findMany({
-          where: eq(chartOfAccounts.entityId, ctx.entityId!),
+          where: eq(chartOfAccounts.entityId, entityId),
           orderBy: [asc(chartOfAccounts.code)],
         });
 
-        for (const acc of accounts) {
-          const row = accountMap.get(acc.id);
-          if (row) {
-            row.code = acc.code;
-            row.name = acc.name;
-            row.type = acc.type;
-            row.subtype = acc.subtype;
-          }
-        }
-
-        const allRows: AccountRow[] = Array.from(accountMap.values()).map(
-          (r) => ({
-            ...r,
-            balance: r.debit - r.credit,
-          }),
+        const rows = aggregateReportRows(
+          lines as ReportLineLike[],
+          accounts as ReportAccountLike[],
         );
+        const pnl = derivePnl(rows);
 
-        const revenueAccounts = allRows.filter((a) => a.type === "revenue");
-        const expenseAccounts = allRows.filter((a) => a.type === "expense");
-
-        const revenue = revenueAccounts.map((a) => ({
-          ...a,
-          displayAmount: a.credit - a.debit,
-        }));
-        const expenses = expenseAccounts.map((a) => ({
-          ...a,
-          displayAmount: a.debit - a.credit,
-        }));
-
-        const totalRevenue = revenue.reduce((s, a) => s + a.displayAmount, 0);
-        const totalExpenses = expenses.reduce((s, a) => s + a.displayAmount, 0);
-        const netIncome = totalRevenue - totalExpenses;
+        const asAcct = (l: ReportStatementLine) => ({
+          accountId: l.accountId,
+          code: l.code,
+          name: l.name,
+          amount: l.amount,
+        });
 
         return {
           revenue: {
             label: "Revenue",
-            accounts: revenue,
-            total: totalRevenue,
+            accounts: pnl.revenue.map(asAcct),
+            total: pnl.totalRevenue,
           },
-          expenses: {
-            label: "Expenses",
-            accounts: expenses,
-            total: totalExpenses,
+          cogs: {
+            label: "Cost of Goods Sold",
+            accounts: pnl.cogs.map(asAcct),
+            total: pnl.totalCogs,
           },
-          netIncome,
+          operatingExpenses: {
+            label: "Operating Expenses",
+            accounts: pnl.operatingExpenses.map(asAcct),
+            total: pnl.totalOperatingExpenses,
+          },
+          grossProfit: pnl.grossProfit,
+          operatingProfit: pnl.operatingProfit,
+          netIncome: pnl.netIncome,
         };
       } catch (error) {
         handleMutationError(error, "Failed to generate P&L report");
@@ -882,12 +792,36 @@ export const reportsRouter = router({
     )
     .query(async ({ ctx, input }) => {
       try {
+        const entityId = ctx.entityId!;
+        // Balance sheet is a POINT-IN-TIME statement: ALL posted entries with
+        // date <= period end (cumulative), NOT just the activity in one month.
+        // Net income folds into equity so the sheet can actually balance.
+        let asOf: string | undefined;
+        if (input.periodId) {
+          const period = await db.query.fiscalPeriods.findFirst({
+            where: and(
+              eq(fiscalPeriods.id, input.periodId),
+              eq(fiscalPeriods.entityId, entityId),
+            ),
+          });
+          if (!period) {
+            return {
+              assets: { label: "Assets", accounts: [], total: 0 },
+              liabilities: { label: "Liabilities", accounts: [], total: 0 },
+              equity: { label: "Equity", accounts: [], total: 0 },
+              currentEarnings: 0,
+              isBalanced: true,
+            };
+          }
+          asOf = period.endDate;
+        }
+
         const conditions = [
-          eq(journalEntries.entityId, ctx.entityId!),
+          eq(journalEntries.entityId, entityId),
           eq(journalEntries.status, "posted"),
         ];
-        if (input.periodId) {
-          conditions.push(eq(journalEntries.periodId, input.periodId));
+        if (asOf) {
+          conditions.push(sql`${journalEntries.date} <= ${asOf}`);
         }
 
         const entryIds = await db
@@ -903,114 +837,165 @@ export const reportsRouter = router({
               })
             : [];
 
-        const accountMap = new Map<
-          string,
-          {
-            accountId: string;
-            code: string;
-            name: string;
-            type: string;
-            subtype: string;
-            debit: number;
-            credit: number;
-          }
-        >();
-
-        for (const line of lines) {
-          const existing = accountMap.get(line.accountId) || {
-            accountId: line.accountId,
-            code: "",
-            name: "",
-            type: "",
-            subtype: "",
-            debit: 0,
-            credit: 0,
-          };
-          existing.debit += Number(line.debit);
-          existing.credit += Number(line.credit);
-          accountMap.set(line.accountId, existing);
-        }
-
         const accounts = await db.query.chartOfAccounts.findMany({
-          where: eq(chartOfAccounts.entityId, ctx.entityId!),
+          where: eq(chartOfAccounts.entityId, entityId),
           orderBy: [asc(chartOfAccounts.code)],
         });
 
-        for (const acc of accounts) {
-          const row = accountMap.get(acc.id);
-          if (row) {
-            row.code = acc.code;
-            row.name = acc.name;
-            row.type = acc.type;
-            row.subtype = acc.subtype;
-          }
+        const rows = aggregateReportRows(
+          lines as ReportLineLike[],
+          accounts as ReportAccountLike[],
+        );
+        const bs = deriveBalanceSheet(rows);
+
+        const asAcct = (l: ReportStatementLine) => ({
+          accountId: l.accountId,
+          code: l.code,
+          name: l.name,
+          amount: l.amount,
+        });
+
+        const equityAccounts = bs.equity.map(asAcct);
+        if (Math.abs(bs.currentEarnings) >= 0.005) {
+          equityAccounts.push({
+            accountId: "current-earnings",
+            code: "",
+            name: "Current Earnings",
+            amount: bs.currentEarnings,
+          });
         }
-
-        const allRows: AccountRow[] = Array.from(accountMap.values()).map(
-          (r) => ({
-            ...r,
-            balance: r.debit - r.credit,
-          }),
-        );
-
-        const classifyNormal = (type: string): "debit" | "credit" => {
-          if (type === "asset" || type === "expense") return "debit";
-          return "credit";
-        };
-
-        const getBalance = (row: AccountRow): number => {
-          const normal = classifyNormal(row.type);
-          return normal === "debit"
-            ? row.debit - row.credit
-            : row.credit - row.debit;
-        };
-
-        const assetAccounts = allRows
-          .filter((a) => a.type === "asset")
-          .map((a) => ({ ...a, displayAmount: getBalance(a) }));
-
-        const liabilityAccounts = allRows
-          .filter((a) => a.type === "liability")
-          .map((a) => ({ ...a, displayAmount: getBalance(a) }));
-
-        const equityAccounts = allRows
-          .filter((a) => a.type === "equity")
-          .map((a) => ({ ...a, displayAmount: getBalance(a) }));
-
-        const totalAssets = assetAccounts.reduce(
-          (s, a) => s + a.displayAmount,
-          0,
-        );
-        const totalLiabilities = liabilityAccounts.reduce(
-          (s, a) => s + a.displayAmount,
-          0,
-        );
-        const totalEquity = equityAccounts.reduce(
-          (s, a) => s + a.displayAmount,
-          0,
-        );
 
         return {
           assets: {
             label: "Assets",
-            accounts: assetAccounts,
-            total: totalAssets,
+            accounts: bs.assets.map(asAcct),
+            total: bs.totalAssets,
           },
           liabilities: {
             label: "Liabilities",
-            accounts: liabilityAccounts,
-            total: totalLiabilities,
+            accounts: bs.liabilities.map(asAcct),
+            total: bs.totalLiabilities,
           },
           equity: {
             label: "Equity",
             accounts: equityAccounts,
-            total: totalEquity,
+            total: bs.totalEquityWithEarnings,
           },
-          isBalanced:
-            Math.abs(totalAssets - (totalLiabilities + totalEquity)) < 0.01,
+          currentEarnings: bs.currentEarnings,
+          isBalanced: bs.balanced,
         };
       } catch (error) {
         handleMutationError(error, "Failed to generate balance sheet");
+      }
+    }),
+  getTrialBalance: concurrencyLimitedProcedure(2)
+    .input(
+      z.object({
+        periodId: z.string().uuid().optional(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      try {
+        const entityId = ctx.entityId!;
+        // Trial balance is a POINT-IN-TIME verification: every posted entry
+        // with date <= period end (all-time when no period is given). Each
+        // account shows its balance on its NORMAL side (debit-normal accounts
+        // on the debit column, credit-normal on the credit column), so when
+        // the books are balanced totalDebits === totalCredits exactly.
+        let asOf: string | undefined;
+        if (input.periodId) {
+          const period = await db.query.fiscalPeriods.findFirst({
+            where: and(
+              eq(fiscalPeriods.id, input.periodId),
+              eq(fiscalPeriods.entityId, entityId),
+            ),
+          });
+          if (!period) {
+            return {
+              accounts: [],
+              totalDebits: 0,
+              totalCredits: 0,
+              balanced: true,
+            };
+          }
+          asOf = period.endDate;
+        }
+
+        const conditions = [
+          eq(journalEntries.entityId, entityId),
+          eq(journalEntries.status, "posted"),
+        ];
+        if (asOf) {
+          conditions.push(sql`${journalEntries.date} <= ${asOf}`);
+        }
+
+        const entryIds = await db
+          .select({ id: journalEntries.id })
+          .from(journalEntries)
+          .where(and(...conditions));
+        const ids = entryIds.map((e) => e.id);
+
+        const lines =
+          ids.length > 0
+            ? await db.query.journalEntryLines.findMany({
+                where: inArray(journalEntryLines.journalEntryId, ids),
+              })
+            : [];
+
+        const accounts = await db.query.chartOfAccounts.findMany({
+          where: eq(chartOfAccounts.entityId, entityId),
+          orderBy: [asc(chartOfAccounts.code)],
+        });
+
+        const rows = aggregateReportRows(
+          lines as ReportLineLike[],
+          accounts as ReportAccountLike[],
+        );
+
+        const tbAccounts: Array<{
+          code: string;
+          name: string;
+          type: string;
+          debitBalance: number;
+          creditBalance: number;
+        }> = [];
+        let totalDebits = 0;
+        let totalCredits = 0;
+
+        for (const r of rows) {
+          if (Math.abs(r.raw) < 0.005) continue; // no balance → not listed
+          const debitNormal = isDebitNormal(r.type);
+          const debitBalance =
+            r.raw > 0 && debitNormal
+              ? r.raw
+              : r.raw < 0 && !debitNormal
+                ? -r.raw
+                : 0;
+          const creditBalance =
+            r.raw > 0 && !debitNormal
+              ? r.raw
+              : r.raw < 0 && debitNormal
+                ? -r.raw
+                : 0;
+          totalDebits += debitBalance;
+          totalCredits += creditBalance;
+          tbAccounts.push({
+            code: r.code,
+            name: r.name,
+            type: r.type,
+            debitBalance: round2(debitBalance),
+            creditBalance: round2(creditBalance),
+          });
+        }
+
+        return {
+          accounts: tbAccounts,
+          totalDebits: round2(totalDebits),
+          totalCredits: round2(totalCredits),
+          balanced: Math.abs(totalDebits - totalCredits) < 0.005,
+        };
+      } catch (error) {
+        handleMutationError(error, "Failed to generate trial balance");
       }
     }),
 

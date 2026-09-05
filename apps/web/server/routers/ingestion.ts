@@ -8,7 +8,7 @@
 
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { eq, and, desc, inArray, sql } from "drizzle-orm";
+import { eq, and, desc, inArray, ne, sql } from "drizzle-orm";
 import {
   documents,
   documentLinks,
@@ -962,6 +962,10 @@ export const ingestionRouter = router({
             COALESCE(${agentActivity.confidence}::numeric, 0) < 0.8
             OR ${agentActivity.status} = 'review_needed'
           )`,
+          // Already-resolved approvals must leave the queue, otherwise they
+          // reappear even after a human decision (approvals.resolve sets
+          // status = "resolved").
+          ne(agentActivity.status, "resolved"),
         ),
         orderBy: [desc(agentActivity.createdAt)],
         limit,
@@ -973,6 +977,7 @@ export const ingestionRouter = router({
         where: and(
           eq(agentActivity.entityId, ctx.entityId!),
           inArray(agentActivity.action, reviewActions),
+          ne(agentActivity.status, "resolved"),
         ),
         orderBy: [desc(agentActivity.createdAt)],
         limit: 10,

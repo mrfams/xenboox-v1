@@ -7,7 +7,15 @@ import {
   chartOfAccounts,
   fiscalPeriods,
 } from "@xenboox/db/schema";
-import { eq, and, sql } from "drizzle-orm";
+import { eq, and, sql, inArray } from "drizzle-orm";
+import {
+  aggregateReportRows,
+  derivePnl,
+  deriveBalanceSheet,
+  type ReportLineLike,
+  type ReportAccountLike,
+  type ReportStatementLine,
+} from "@xenboox/db/lib";
 
 export const generateReport = task({
   id: "generate-report",
@@ -99,7 +107,6 @@ export const generateReport = task({
   },
 });
 
-type ReportRow = { accountCode: string; accountName: string; total: string };
 type TBRow = {
   accountCode: string;
   accountName: string;
@@ -112,133 +119,135 @@ export async function generateProfitLoss(
   startDate: string,
   endDate: string,
 ) {
-  const revenue = (await db
-    .select({
-      accountCode: chartOfAccounts.code,
-      accountName: chartOfAccounts.name,
-      total: sql<string>`COALESCE(SUM(${journalEntryLines.credit}) - SUM(${journalEntryLines.debit}), 0)`,
-    })
-    .from(journalEntryLines)
-    .innerJoin(
-      journalEntries,
-      eq(journalEntryLines.journalEntryId, journalEntries.id),
-    )
-    .innerJoin(
-      chartOfAccounts,
-      eq(journalEntryLines.accountId, chartOfAccounts.id),
-    )
-    .where(
-      and(
-        eq(journalEntries.entityId, entityId),
-        eq(journalEntries.status, "posted"),
-        eq(chartOfAccounts.type, "revenue"),
-        sql`${journalEntries.date} >= ${startDate}`,
-        sql`${journalEntries.date} <= ${endDate}`,
-      ),
-    )
-    .groupBy(
-      chartOfAccounts.code,
-      chartOfAccounts.name,
-    )) as unknown as ReportRow[];
+  // Canonical derivation (P9-A): posted entries in the window, per-account
+  // netting, COGS split on the real cost_of_goods_sold subtype. The previous
+  // SQL lumped COGS into "expenses" and produced no gross-profit split.
+  const { pnl, accounts } = await loadWindowPnl(entityId, startDate, endDate);
 
-  const expenses = (await db
-    .select({
-      accountCode: chartOfAccounts.code,
-      accountName: chartOfAccounts.name,
-      total: sql<string>`COALESCE(SUM(${journalEntryLines.debit}) - SUM(${journalEntryLines.credit}), 0)`,
-    })
-    .from(journalEntryLines)
-    .innerJoin(
-      journalEntries,
-      eq(journalEntryLines.journalEntryId, journalEntries.id),
-    )
-    .innerJoin(
-      chartOfAccounts,
-      eq(journalEntryLines.accountId, chartOfAccounts.id),
-    )
-    .where(
-      and(
-        eq(journalEntries.entityId, entityId),
-        eq(journalEntries.status, "posted"),
-        eq(chartOfAccounts.type, "expense"),
-        sql`${journalEntries.date} >= ${startDate}`,
-        sql`${journalEntries.date} <= ${endDate}`,
-      ),
-    )
-    .groupBy(
-      chartOfAccounts.code,
-      chartOfAccounts.name,
-    )) as unknown as ReportRow[];
+  const asItems = (list: ReportStatementLine[]) =>
+    list.map((l) => ({
+      accountCode: l.code,
+      accountName: l.name,
+      total: String(round2(l.amount)),
+    }));
 
-  const totalRevenue = revenue.reduce((sum, r) => sum + parseFloat(r.total), 0);
-  const totalExpenses = expenses.reduce(
-    (sum, e) => sum + parseFloat(e.total),
-    0,
-  );
+  const totalExpenses = pnl.totalCogs + pnl.totalOperatingExpenses;
 
   return {
     period: { startDate, endDate },
-    revenue: { items: revenue, total: totalRevenue },
-    expenses: { items: expenses, total: totalExpenses },
-    netIncome: totalRevenue - totalExpenses,
+    revenue: { items: asItems(pnl.revenue), total: pnl.totalRevenue },
+    cogs: { items: asItems(pnl.cogs), total: pnl.totalCogs },
+    operatingExpenses: {
+      items: asItems(pnl.operatingExpenses),
+      total: pnl.totalOperatingExpenses,
+    },
+    expenses: {
+      items: asItems([...pnl.cogs, ...pnl.operatingExpenses]),
+      total: totalExpenses,
+    },
+    grossProfit: pnl.grossProfit,
+    operatingProfit: pnl.operatingProfit,
+    netIncome: pnl.netIncome,
   };
 }
 
 export async function generateBalanceSheet(entityId: string, asOfDate: string) {
-  const accounts = (await db
-    .select({
-      accountCode: chartOfAccounts.code,
-      accountName: chartOfAccounts.name,
-      accountType: chartOfAccounts.type,
-      balance: sql<string>`COALESCE(SUM(${journalEntryLines.debit}) - SUM(${journalEntryLines.credit}), 0)`,
-    })
-    .from(journalEntryLines)
-    .innerJoin(
-      journalEntries,
-      eq(journalEntryLines.journalEntryId, journalEntries.id),
-    )
-    .innerJoin(
-      chartOfAccounts,
-      eq(journalEntryLines.accountId, chartOfAccounts.id),
-    )
-    .where(
-      and(
-        eq(journalEntries.entityId, entityId),
-        eq(journalEntries.status, "posted"),
-        sql`${journalEntries.date} <= ${asOfDate}`,
-      ),
-    )
-    .groupBy(
-      chartOfAccounts.code,
-      chartOfAccounts.name,
-      chartOfAccounts.type,
-    )) as unknown as Array<{
-    accountCode: string;
-    accountName: string;
-    accountType: string;
-    balance: string;
-  }>;
+  // Canonical derivation (P9-A): cumulative posted entries with
+  // date <= asOfDate, normal-balance display signs, and current earnings
+  // folded into equity so `balanced` is meaningful.
+  const { bs } = await loadAsOfBalanceSheet(entityId, asOfDate);
 
-  const assets = accounts.filter((a) => a.accountType === "asset");
-  const liabilities = accounts.filter((a) => a.accountType === "liability");
-  const equity = accounts.filter((a) => a.accountType === "equity");
+  const asItems = (list: ReportStatementLine[]) =>
+    list.map((l) => ({
+      accountCode: l.code,
+      accountName: l.name,
+      total: String(round2(l.amount)),
+    }));
 
-  const totalAssets = assets.reduce((sum, a) => sum + parseFloat(a.balance), 0);
-  const totalLiabilities = liabilities.reduce(
-    (sum, l) => sum + parseFloat(l.balance),
-    0,
-  );
-  const totalEquity = equity.reduce((sum, e) => sum + parseFloat(e.balance), 0);
+  const equityItems = asItems(bs.equity);
+  if (Math.abs(bs.currentEarnings) >= 0.005) {
+    equityItems.push({
+      accountCode: "",
+      accountName: "Current Earnings",
+      total: String(round2(bs.currentEarnings)),
+    });
+  }
 
   return {
     asOfDate,
-    assets: { items: assets, total: totalAssets },
-    liabilities: { items: liabilities, total: totalLiabilities },
-    equity: { items: equity, total: totalEquity },
-    balanced: Math.abs(totalAssets - (totalLiabilities + totalEquity)) < 0.01,
+    assets: { items: asItems(bs.assets), total: bs.totalAssets },
+    liabilities: { items: asItems(bs.liabilities), total: bs.totalLiabilities },
+    equity: { items: equityItems, total: bs.totalEquityWithEarnings },
+    currentEarnings: bs.currentEarnings,
+    balanced: bs.balanced,
   };
 }
 
+// ─── Shared loaders for the canonical builders ────────────────────────────
+
+function round2(n: number): number {
+  return Math.round(n * 100) / 100;
+}
+
+async function loadWindowPnl(
+  entityId: string,
+  startDate: string,
+  endDate: string,
+): Promise<{
+  pnl: ReturnType<typeof derivePnl>;
+  accounts: ReportAccountLike[];
+}> {
+  const entries = await db.query.journalEntries.findMany({
+    where: and(
+      eq(journalEntries.entityId, entityId),
+      eq(journalEntries.status, "posted"),
+      sql`${journalEntries.date} >= ${startDate}`,
+      sql`${journalEntries.date} <= ${endDate}`,
+    ),
+  });
+  const ids = entries.map((e) => e.id);
+  const lines =
+    ids.length > 0
+      ? await db.query.journalEntryLines.findMany({
+          where: inArray(journalEntryLines.journalEntryId, ids),
+        })
+      : [];
+  const accounts = (await db.query.chartOfAccounts.findMany({
+    where: eq(chartOfAccounts.entityId, entityId),
+  })) as unknown as ReportAccountLike[];
+  return {
+    pnl: derivePnl(aggregateReportRows(lines as ReportLineLike[], accounts)),
+    accounts,
+  };
+}
+
+async function loadAsOfBalanceSheet(
+  entityId: string,
+  asOfDate: string,
+): Promise<{ bs: ReturnType<typeof deriveBalanceSheet> }> {
+  const entries = await db.query.journalEntries.findMany({
+    where: and(
+      eq(journalEntries.entityId, entityId),
+      eq(journalEntries.status, "posted"),
+      sql`${journalEntries.date} <= ${asOfDate}`,
+    ),
+  });
+  const ids = entries.map((e) => e.id);
+  const lines =
+    ids.length > 0
+      ? await db.query.journalEntryLines.findMany({
+          where: inArray(journalEntryLines.journalEntryId, ids),
+        })
+      : [];
+  const accounts = (await db.query.chartOfAccounts.findMany({
+    where: eq(chartOfAccounts.entityId, entityId),
+  })) as unknown as ReportAccountLike[];
+  return {
+    bs: deriveBalanceSheet(
+      aggregateReportRows(lines as ReportLineLike[], accounts),
+    ),
+  };
+}
 export async function generateTrialBalance(
   entityId: string,
   startDate: string,

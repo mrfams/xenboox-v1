@@ -44,10 +44,19 @@ export default function AIComparisonPage() {
   const totalSpend =
     comparison?.reduce((sum, c) => sum + c.monthlySpend, 0) ?? 0;
   const ___comparisonLength = comparison?.length ?? 1;
+  const modelsWithUsage = comparison?.filter((c) => c.hasUsage) ?? [];
   const avgLatency =
-    comparison?.reduce((sum, c) => sum + c.avgLatencyMs, 0) ?? 0;
+    modelsWithUsage.length > 0
+      ? Math.round(
+          modelsWithUsage.reduce((sum, c) => sum + (c.avgLatencyMs ?? 0), 0) /
+            modelsWithUsage.length,
+        )
+      : null;
   const avgSuccessRate =
-    comparison?.reduce((sum, c) => sum + c.successRate, 0) ?? 0;
+    modelsWithUsage.length > 0
+      ? modelsWithUsage.reduce((sum, c) => sum + (c.successRate ?? 0), 0) /
+        modelsWithUsage.length
+      : null;
 
   return (
     <div className="space-y-6">
@@ -98,12 +107,16 @@ export default function AIComparisonPage() {
             </div>
             <div className="text-center p-4 bg-muted rounded-lg">
               <p className="text-xs text-muted-foreground">Avg Latency</p>
-              <p className="font-bold text-2xl">{avgLatency.toFixed(0)}ms</p>
+              <p className="font-bold text-2xl">
+                {avgLatency != null ? `${avgLatency}ms` : "—"}
+              </p>
             </div>
             <div className="text-center p-4 bg-muted rounded-lg">
               <p className="text-xs text-muted-foreground">Success Rate</p>
               <p className="font-bold text-2xl">
-                {(avgSuccessRate * 100).toFixed(0)}%
+                {avgSuccessRate != null
+                  ? `${(avgSuccessRate * 100).toFixed(0)}%`
+                  : "—"}
               </p>
             </div>
           </div>
@@ -333,13 +346,17 @@ export default function AIComparisonPage() {
                   <div className="flex justify-between">
                     <span className="text-sm">Avg Latency</span>
                     <span className="font-medium">
-                      {provider.avgLatencyMs}ms
+                      {provider.avgLatencyMs != null
+                        ? `${provider.avgLatencyMs}ms`
+                        : "No data"}
                     </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-sm">Success Rate</span>
                     <span className="font-medium">
-                      {(provider.successRate * 100).toFixed(0)}%
+                      {provider.successRate != null
+                        ? `${(provider.successRate * 100).toFixed(0)}%`
+                        : "No data"}
                     </span>
                   </div>
                 </div>

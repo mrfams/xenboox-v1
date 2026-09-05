@@ -3,6 +3,7 @@ import { TRPCError } from "@trpc/server";
 import { eq } from "drizzle-orm";
 import { organizations, entities } from "@xenboox/db/schema/organization";
 import { onboardingSessions } from "@xenboox/db/schema/onboarding";
+import { chartOfAccounts, fiscalPeriods } from "@xenboox/db/schema/accounting";
 import { getTaxPresetsForCountry } from "@xenboox/agents";
 import {
   createOnboardingSession,
@@ -372,8 +373,9 @@ export const onboardingRouter = router({
       };
     }
     try {
-      const { dataConnections, historicalPullJobs } =
-        await import("@xenboox/db/schema/onboarding");
+      const { dataConnections, historicalPullJobs } = await import(
+        "@xenboox/db/schema/onboarding"
+      );
       const { eq } = await import("drizzle-orm");
       const { db } = await import("@/lib/db");
 
@@ -571,6 +573,64 @@ export const onboardingRouter = router({
         installed,
         total: presets.length,
       };
+    }),
+
+  /**
+   * Finalize AI-chat onboarding for a freshly created entity: await the
+   * idempotent backend pipeline (chart of accounts + fiscal periods — the
+   * same one the wizard flow runs) and return what actually exists in the
+   * database, so the UI can state real numbers instead of fabricated ones.
+   * Ownership is verified against the caller's organization.
+   */
+  finalizeAiSetup: protectedProcedure
+    .input(z.object({ entityId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      try {
+        const orgId = await getUserOrgId(ctx.session!.user!.id!);
+        if (!orgId) {
+          throw new TRPCError({
+            code: "UNAUTHORIZED",
+            message: "No organization found for this account",
+          });
+        }
+
+        const entity = await db.query.entities.findFirst({
+          where: eq(entities.id, input.entityId),
+        });
+        if (!entity || entity.organizationId !== orgId) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Entity not found",
+          });
+        }
+
+        // Idempotent: re-runs skip already-seeded work.
+        const pipeline = await runOnboardingPipeline(
+          entity.id,
+          entity.name ?? "Organization",
+        );
+
+        // Real counts from the database — the source of truth for what the
+        // user actually got.
+        const accounts = await db.query.chartOfAccounts.findMany({
+          where: eq(chartOfAccounts.entityId, entity.id),
+          columns: { id: true },
+        });
+        const periods = await db.query.fiscalPeriods.findMany({
+          where: eq(fiscalPeriods.entityId, entity.id),
+          columns: { id: true },
+        });
+
+        return {
+          success: true,
+          entityId: entity.id,
+          accountCount: accounts.length,
+          periodCount: periods.length,
+          pipelineSteps: pipeline.steps?.length ?? 0,
+        };
+      } catch (error) {
+        handleMutationError(error, "Failed to finish setting up your books");
+      }
     }),
 });
 

@@ -1,8 +1,9 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { eq, and, desc, sql } from "drizzle-orm";
+import { eq, and, desc, ne, sql } from "drizzle-orm";
 import { journalEntries } from "@xenboox/db/schema/accounting";
 import { agentRoutingLogs } from "@xenboox/db/schema/agents";
+import { agentActivity } from "@xenboox/db/schema/documents";
 import { notifications } from "@xenboox/db/schema/notifications";
 import { createAuditEntry } from "@xenboox/agents/core/state";
 
@@ -151,59 +152,110 @@ export const approvalsRouter = router({
     .mutation(async ({ ctx, input }) => {
       try {
         if (input.itemType === "agent_escalation") {
+          const resolution = `[${input.action.toUpperCase()}] ${input.reason ?? "No reason provided"}`;
+
           // §20.2 — atomic resolve: only an unresolved escalation (humanResponse
           // still null) can be resolved. Concurrent double-resolution loses the
           // race and gets CONFLICT instead of a duplicate notification.
+          // The lookup is entity-scoped — escalation IDs from another entity
+          // must be indistinguishable from nonexistent ones.
           const log = await db.query.agentRoutingLogs.findFirst({
-            where: eq(agentRoutingLogs.id, input.itemId),
+            where: and(
+              eq(agentRoutingLogs.id, input.itemId),
+              eq(agentRoutingLogs.entityId, ctx.entityId!),
+            ),
           });
 
-          if (!log) {
-            throw new TRPCError({
-              code: "NOT_FOUND",
-              message: "Escalation item not found",
-            });
-          }
+          if (log) {
+            const [claimed] = await db
+              .update(agentRoutingLogs)
+              .set({ humanResponse: resolution })
+              .where(
+                and(
+                  eq(agentRoutingLogs.id, input.itemId),
+                  eq(agentRoutingLogs.entityId, ctx.entityId!),
+                  eq(agentRoutingLogs.decision, "escalated"),
+                  sql`${agentRoutingLogs.humanResponse} IS NULL`,
+                ),
+              )
+              .returning();
 
-          const resolution = `[${input.action.toUpperCase()}] ${input.reason ?? "No reason provided"}`;
+            if (!claimed) {
+              throw new TRPCError({
+                code: "CONFLICT",
+                message: "Escalation already resolved by another user",
+              });
+            }
 
-          const [claimed] = await db
-            .update(agentRoutingLogs)
-            .set({ humanResponse: resolution })
-            .where(
-              and(
-                eq(agentRoutingLogs.id, input.itemId),
-                eq(agentRoutingLogs.decision, "escalated"),
-                sql`${agentRoutingLogs.humanResponse} IS NULL`,
-              ),
-            )
-            .returning();
+            // For approved items, create a success notification
+            if (input.action === "approved") {
+              await db.insert(notifications).values({
+                userId: ctx.session!.user!.id!,
+                entityId: ctx.entityId,
+                type: "agent_escalation",
+                priority: "medium",
+                title: "Escalation Resolved: Approved",
+                body: `You approved: ${log.inputSummary}`,
+                data: JSON.stringify({
+                  logId: input.itemId,
+                  action: input.action,
+                  reason: input.reason,
+                }),
+                read: false,
+                status: "sent",
+                sentAt: new Date(),
+              });
+            }
+          } else {
+            // Activity Hub agent approvals surface agent_activity rows
+            // (ingestion.listAgentApprovals) — a different ID space than
+            // routing logs. Claim the activity row atomically: status
+            // flips to "resolved" and the decision is merged into output,
+            // so a second resolver affects 0 rows and gets CONFLICT.
+            const decision = {
+              humanResponse: resolution,
+              resolvedAction: input.action,
+              resolvedReason: input.reason ?? null,
+              resolvedAt: new Date().toISOString(),
+              resolvedBy: ctx.session!.user!.id!,
+            };
 
-          if (!claimed) {
-            throw new TRPCError({
-              code: "CONFLICT",
-              message: "Escalation already resolved by another user",
-            });
-          }
+            const [claimedActivity] = await db
+              .update(agentActivity)
+              .set({
+                status: "resolved",
+                output: sql`COALESCE(${agentActivity.output}, '{}'::jsonb) || ${JSON.stringify(decision)}::jsonb`,
+              })
+              .where(
+                and(
+                  eq(agentActivity.id, input.itemId),
+                  eq(agentActivity.entityId, ctx.entityId!),
+                  ne(agentActivity.status, "resolved"),
+                ),
+              )
+              .returning();
 
-          // For approved items, create a success notification
-          if (input.action === "approved") {
-            await db.insert(notifications).values({
-              userId: ctx.session!.user!.id!,
-              entityId: ctx.entityId,
-              type: "agent_escalation",
-              priority: "medium",
-              title: "Escalation Resolved: Approved",
-              body: `You approved: ${log.inputSummary}`,
-              data: JSON.stringify({
-                logId: input.itemId,
-                action: input.action,
-                reason: input.reason,
-              }),
-              read: false,
-              status: "sent",
-              sentAt: new Date(),
-            });
+            if (!claimedActivity) {
+              // Distinguish "already resolved" from "never existed" so the
+              // user gets an honest error either way.
+              const existing = await db.query.agentActivity.findFirst({
+                where: and(
+                  eq(agentActivity.id, input.itemId),
+                  eq(agentActivity.entityId, ctx.entityId!),
+                ),
+                columns: { id: true, status: true },
+              });
+              if (existing?.status === "resolved") {
+                throw new TRPCError({
+                  code: "CONFLICT",
+                  message: "Escalation already resolved by another user",
+                });
+              }
+              throw new TRPCError({
+                code: "NOT_FOUND",
+                message: "Escalation item not found",
+              });
+            }
           }
         }
 
