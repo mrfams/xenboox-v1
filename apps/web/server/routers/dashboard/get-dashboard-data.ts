@@ -505,7 +505,7 @@ export const getDashboardData = rlsProtectedProcedure
             ? `${avgDaysOverdue} day${avgDaysOverdue !== 1 ? "s" : ""} overdue on average`
             : "Payment overdue",
         statusLabel: "Follow up required",
-        href: "/dashboard/activity-hub",
+        href: "/dashboard/tasks",
         audience: ["decision", "operations"],
       });
     }
@@ -567,7 +567,7 @@ export const getDashboardData = rlsProtectedProcedure
         value: `${escalations} flagged`,
         detail: "AI-flagged transactions requiring review",
         statusLabel: "Review now",
-        href: "/dashboard/activity-hub",
+        href: "/dashboard/tasks",
         audience: ["decision", "operations"],
       });
     }
@@ -825,7 +825,7 @@ export const getDashboardData = rlsProtectedProcedure
         label: `Invoice ${invoice.invoiceNumber} due`,
         date: invoice.dueDate,
         urgency: "normal",
-        href: "/dashboard/activity-hub",
+        href: "/dashboard/tasks",
       });
     }
 

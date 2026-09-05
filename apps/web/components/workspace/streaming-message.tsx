@@ -3,7 +3,6 @@
 import { Bot, ThumbsUp, ThumbsDown, Copy } from "lucide-react";
 
 import { RichMessageRenderer } from "./rich-message-renderer";
-import { AgentActivityBlock } from "./agent-activity-block";
 import { ThinkingReveal } from "./thinking-reveal";
 import { DocumentCard, type ArtifactCardItem } from "./document-card";
 import { ApprovalPrompt } from "./approval-prompt";
@@ -29,6 +28,10 @@ interface CreationCard {
 interface StreamingMessageProps {
   content: string;
   isStreaming: boolean;
+  /**
+   * @deprecated — agent identity is internal (LangFuse + audit trail).
+   * Accepted for compatibility, never rendered.
+   */
   agentActivities?: Array<{
     agent: string;
     status: "started" | "completed" | "failed";
@@ -36,8 +39,9 @@ interface StreamingMessageProps {
     confidence?: number;
     durationMs?: number;
   }>;
-  /** Live pipeline reasoning lines (simulation-style thinking reveal). */
+  /** Live pipeline reasoning lines (user-safe Thought block). */
   thinkingEvents?: ThinkingEvent[];
+  /** @deprecated — delegations are internal. Accepted, never rendered. */
   delegations?: Array<{ from: string; to: string; reason: string }>;
   documents?: Array<{
     artifactId?: string;
@@ -50,8 +54,11 @@ interface StreamingMessageProps {
   }>;
   approvals?: Array<{ title: string; description: string; amount?: string }>;
   creationCards?: CreationCard[];
+  /** @deprecated — tool internals are internal. Accepted, never rendered. */
   toolCalls?: ToolTrace[];
+  /** @deprecated — confidence is internal. Accepted, never rendered. */
   confidence?: number;
+  /** @deprecated — timings are internal. Accepted, never rendered. */
   durationMs?: number;
   /** Opens a generated artifact in the inline document viewer. */
   onOpenDocument?: (doc: ArtifactCardItem) => void;
@@ -65,15 +72,10 @@ interface StreamingMessageProps {
 export function StreamingMessage({
   content,
   isStreaming,
-  agentActivities = [],
   thinkingEvents = [],
-  delegations = [],
   documents = [],
   approvals = [],
   creationCards = [],
-  toolCalls = [],
-  confidence,
-  durationMs,
   onOpenDocument,
   onApprove,
   onReject,
@@ -83,45 +85,26 @@ export function StreamingMessage({
 }: StreamingMessageProps) {
   return (
     <div className="flex flex-col gap-2 items-start">
-      {/* Agent header */}
+      {/* Assistant header — no agent name, no confidence, no timings. */}
       <div className="flex items-center gap-1.5 mb-1">
         <div className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/10">
           <Bot className="h-3 w-3 text-primary" />
         </div>
-        <span className="text-[10px] text-muted-foreground">Xenboox AI</span>
+        <span className="text-[10px] text-muted-foreground">Xenboox</span>
         {isStreaming && (
           <span className="flex items-center gap-1">
             <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
             <span className="text-[10px] text-primary">typing...</span>
           </span>
         )}
-        {!isStreaming && confidence !== undefined && (
-          <span className="text-[10px] text-muted-foreground">
-            {confidence}% confidence
-            {durationMs !== undefined &&
-              ` · ${(durationMs / 1000).toFixed(1)}s`}
-          </span>
-        )}
       </div>
 
-      {/* Thinking reveal — the pipeline's real reasoning, simulation-style */}
+      {/* Thought — user-safe first-person sentences, collapsed by default. */}
       {(thinkingEvents.length > 0 || (isStreaming && !content)) && (
         <ThinkingReveal
           events={thinkingEvents}
           isStreaming={isStreaming}
           hasContent={content.length > 0}
-        />
-      )}
-
-      {/* Detailed agent activity feed (rows, tools, delegations) */}
-      {(agentActivities.length > 0 ||
-        toolCalls.length > 0 ||
-        delegations.length > 0) && (
-        <AgentActivityBlock
-          activities={agentActivities}
-          delegations={delegations}
-          toolCalls={toolCalls}
-          isStreaming={isStreaming}
         />
       )}
 

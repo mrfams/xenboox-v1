@@ -1,5 +1,11 @@
 "use client";
 
+// ─── DEPRECATED (internal/debug only) ───────────────────────────────────────
+// Agent identity, tool traces, and delegation rows are internal concerns
+// (LangFuse + audit trail) and must NOT render in user-facing chat.
+// Retained for ops/debug surfaces only. User chat renders Thought +
+// answer + artifacts. See toAINative.md §5.
+
 import { useState, useEffect, useRef } from "react";
 import {
   ChevronDown,

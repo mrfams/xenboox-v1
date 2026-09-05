@@ -40,7 +40,7 @@ const navItems: BottomNavItem[] = [
   },
   {
     label: "Activity",
-    href: "/dashboard/activity-hub",
+    href: "/dashboard/tasks",
     icon: Inbox,
     attentionKey: "activity-hub",
   },

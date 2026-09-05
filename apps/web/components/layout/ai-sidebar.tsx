@@ -51,7 +51,7 @@ const primaryNavItems: NavItem[] = [
   },
   {
     label: "Activity Hub",
-    href: "/dashboard/activity-hub",
+    href: "/dashboard/tasks",
     icon: Inbox,
     countKey: "total",
   },

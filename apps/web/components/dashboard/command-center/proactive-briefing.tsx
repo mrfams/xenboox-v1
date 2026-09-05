@@ -247,7 +247,7 @@ export function ProactiveBriefing() {
         title: `${pendingApprovalsCount} item${pendingApprovalsCount > 1 ? "s" : ""} awaiting approval`,
         value: `${pendingApprovalsCount} pending`,
         detail: "Items awaiting your review or posting",
-        href: "/dashboard/activity-hub",
+        href: "/dashboard/tasks",
         actionLabel: "Review",
       });
     }
@@ -284,7 +284,7 @@ export function ProactiveBriefing() {
       title: `${ingestionStats.pendingReview} document${ingestionStats.pendingReview > 1 ? "s" : ""} need review`,
       value: `${ingestionStats.pendingReview} pending`,
       detail: "Documents processed by AI, awaiting your verification",
-      href: "/dashboard/activity-hub",
+      href: "/dashboard/tasks",
       actionLabel: "Review",
     });
   }

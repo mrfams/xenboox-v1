@@ -85,10 +85,10 @@ const KNOWLEDGE_BASE: HelpKnowledge[] = [
     keywords: ["reconcile", "match", "bank", "balance"],
   },
   {
-    topic: "Review agent work",
-    path: "/dashboard/activity-hub",
-    description: "Approve or reject what the Xenboox agent workforce produces.",
-    keywords: ["approve", "review", "activity", "pending", "queue", "agent"],
+    topic: "Review work",
+    path: "/dashboard/tasks",
+    description: "Approve or reject what Xenboox produces.",
+    keywords: ["approve", "review", "activity", "pending", "queue", "task"],
   },
   {
     topic: "Manage users & roles",
@@ -153,7 +153,7 @@ Rules:
 Known help topics you can point users to:
 ${catalog}
 
-You can also mention these surfaces: /dashboard/activity-hub (Activity Hub), /dashboard/financial-pulse (Financial Pulse), /dashboard/ledger (Ledger), /dashboard/operations (Operations), /docs/faq.`;
+You can also mention these surfaces: /dashboard/tasks (Tasks), /dashboard/financial-pulse (Financial Pulse), /dashboard/ledger (Ledger), /dashboard/operations (Operations), /docs/faq.`;
 }
 
 function sse(event: string, data?: Record<string, unknown>): string {

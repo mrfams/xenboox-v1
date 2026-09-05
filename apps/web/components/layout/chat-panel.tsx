@@ -324,7 +324,7 @@ export function ChatPanel({
               label: "View Financial Pulse",
               href: "/dashboard/financial-pulse",
             },
-            { label: "Check Approvals", href: "/dashboard/activity-hub" },
+            { label: "Check Approvals", href: "/dashboard/tasks" },
           ],
         },
       ],
@@ -421,7 +421,7 @@ export function ChatPanel({
         {
           type: "actions",
           buttons: [
-            { label: "Open Activity Hub", href: "/dashboard/activity-hub" },
+            { label: "Open Activity Hub", href: "/dashboard/tasks" },
           ],
         },
       ];

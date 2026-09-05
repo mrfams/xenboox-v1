@@ -6,14 +6,22 @@ import {
   opsLiveRunSteps,
   opsLiveRunEvents,
   dailyCloseRuns,
+  chatMessages,
+  agentRoutingLogs,
 } from "@xenboox/db/schema";
 
 import { db } from "@/lib/db";
 import { router, rlsProtectedProcedure } from "@/lib/trpc/server";
+import { parseChatArtifacts } from "@/lib/chat/artifact-types";
 
 // ─── Unified Task Type ─────────────────────────────────────────────────────
 // Aggregates close tasks, live agent runs, and daily close runs into a
 // single normalized shape for the AI-native tasks view.
+//
+// Task-as-session (§toAINative): every task carries the chat conversation it
+// belongs to, so clicking a task reloads its thread inline. Agent identity
+// (agentName/agentInitials/agentColor/confidence) is server truth kept for
+// observability — the user-facing UI must NOT render it.
 
 type UnifiedTask = {
   id: string;
@@ -29,10 +37,18 @@ type UnifiedTask = {
     | "blocked"
     | "skipped";
   progress: number; // 0-100
+  /** @deprecated — server truth only, never render in user UI. */
   agentName: string | null;
+  /** @deprecated — server truth only, never render in user UI. */
   agentInitials: string | null;
+  /** @deprecated — server truth only, never render in user UI. */
   agentColor: string | null;
+  /** @deprecated — server truth only, never render in user UI. */
   confidence: number | null;
+  /** Chat conversation this task belongs to. Null for pre-link rows. */
+  conversationId: string | null;
+  /** True when the task is blocked on a human (waiting/blocked/failed/error). */
+  needsDecision: boolean;
   startedAt: Date | null;
   completedAt: Date | null;
   durationMs: number | null;
@@ -41,6 +57,25 @@ type UnifiedTask = {
   metadata: Record<string, unknown> | null;
   createdAt: Date;
 };
+
+/**
+ * Read the task→conversation link. Prefers the `conversation_id` column
+ * (migration 0039) and falls back to `metadata.conversationId` so linking
+ * works even before the migration lands.
+ */
+function readConversationId(row: {
+  conversationId?: string | null;
+  metadata?: unknown;
+}): string | null {
+  if (typeof row.conversationId === "string" && row.conversationId.length > 0)
+    return row.conversationId;
+  const meta = row.metadata;
+  if (meta && typeof meta === "object") {
+    const cid = (meta as Record<string, unknown>).conversationId;
+    if (typeof cid === "string" && cid.length > 0) return cid;
+  }
+  return null;
+}
 
 function mapCloseTaskStatus(status: string): UnifiedTask["status"] {
   switch (status) {
@@ -140,6 +175,52 @@ function getTaskTitle(
 
 // ─── Tasks Router ──────────────────────────────────────────────────────────
 
+/**
+ * Thread extras for the task detail view: artifacts produced in the linked
+ * conversation plus any still-open escalations against it. Entity-scoped; a
+ * task without a linked conversation returns empties.
+ */
+async function getTaskThreadExtras(
+  entityId: string,
+  conversationId: string | null,
+): Promise<{
+  artifacts: Array<{
+    artifactId: string;
+    name: string;
+    docType: string;
+    mimeType?: string;
+    sizeBytes?: number;
+    url?: string;
+  }>;
+  openEscalations: number;
+}> {
+  if (!conversationId) return { artifacts: [], openEscalations: 0 };
+
+  const messages = await db.query.chatMessages.findMany({
+    where: eq(chatMessages.conversationId, conversationId),
+    orderBy: [desc(chatMessages.createdAt)],
+    limit: 200,
+  });
+  const artifacts = messages.flatMap((m) => parseChatArtifacts(m.metadata));
+
+  // Escalation rows carry conversation_id (uuid) — guard the shape since
+  // task conversation ids always come from the conversations table.
+  let openEscalations = 0;
+  if (/^[0-9a-f-]{36}$/i.test(conversationId)) {
+    const escalations = await db.query.agentRoutingLogs.findMany({
+      where: and(
+        eq(agentRoutingLogs.entityId, entityId),
+        eq(agentRoutingLogs.decision, "escalated"),
+        eq(agentRoutingLogs.conversationId, conversationId),
+      ),
+      limit: 20,
+    });
+    openEscalations = escalations.length;
+  }
+
+  return { artifacts, openEscalations };
+}
+
 export const tasksRouter = router({
   /**
    * List all tasks for the current entity — aggregated from close tasks,
@@ -206,6 +287,8 @@ export const tasksRouter = router({
             agentInitials: t.ownerInitials,
             agentColor: t.ownerColor,
             confidence: t.confidence ? Number(t.confidence) : null,
+            conversationId: readConversationId(t),
+            needsDecision: needsDecisionFor(taskStatus, t.blockedReason),
             startedAt: t.completedAt
               ? new Date(t.completedAt.getTime() - 45 * 60 * 1000)
               : null,
@@ -252,6 +335,11 @@ export const tasksRouter = router({
             agentInitials: r.agentName?.slice(0, 2).toUpperCase() ?? null,
             agentColor: null,
             confidence: null,
+            conversationId: readConversationId(r),
+            needsDecision: needsDecisionFor(
+              r.status as UnifiedTask["status"],
+              r.error,
+            ),
             startedAt: r.startedAt,
             completedAt: r.completedAt,
             durationMs: r.durationMs,
@@ -313,6 +401,11 @@ export const tasksRouter = router({
             confidence: d.overallConfidence
               ? Number(d.overallConfidence)
               : null,
+            conversationId: readConversationId(d),
+            needsDecision: needsDecisionFor(
+              taskStatus,
+              exceptionCount > 0 ? `${exceptionCount} exceptions` : null,
+            ),
             startedAt: d.startedAt,
             completedAt: d.completedAt,
             durationMs:
@@ -367,6 +460,7 @@ export const tasksRouter = router({
           failed: tasks.filter(
             (t) => t.status === "failed" || t.status === "blocked",
           ).length,
+          needsDecision: tasks.filter((t) => t.needsDecision).length,
         },
       };
     }),
@@ -459,19 +553,26 @@ export const tasksRouter = router({
           ),
         });
         if (!task) return null;
+        const taskStatus = mapCloseTaskStatus(task.status);
+        const conversationId = readConversationId(task);
+        const extras = await getTaskThreadExtras(entityId, conversationId);
         return {
           id: task.id,
           source: "close_task" as const,
           title: task.name,
           description: task.description,
-          status: mapCloseTaskStatus(task.status),
+          status: taskStatus,
           progress: task.status === "completed" ? 100 : 0,
           agentName: task.ownerAgent,
           agentInitials: task.ownerInitials,
           agentColor: task.ownerColor,
           confidence: task.confidence ? Number(task.confidence) : null,
+          conversationId,
+          needsDecision: needsDecisionFor(taskStatus, task.blockedReason),
           completedAt: task.completedAt,
           error: task.blockedReason,
+          artifacts: extras.artifacts,
+          openEscalations: extras.openEscalations,
           metadata: {
             phase: task.phase,
             phaseOrder: task.phaseOrder,
@@ -497,22 +598,29 @@ export const tasksRouter = router({
           orderBy: [opsLiveRunSteps.stepNumber],
         });
 
+        const runStatus = run.status as UnifiedTask["status"];
+        const runConversationId = readConversationId(run);
+        const runExtras = await getTaskThreadExtras(entityId, runConversationId);
         return {
           id: run.id,
           source: "live_run" as const,
           title: getTaskTitle(run.agentName, run.currentStep),
           description: run.currentStep ?? `Run ${run.runId}`,
-          status: run.status as UnifiedTask["status"],
+          status: runStatus,
           progress: run.progress,
           agentName: run.agentName,
           agentInitials: run.agentName?.slice(0, 2).toUpperCase() ?? null,
           agentColor: null,
           confidence: null,
+          conversationId: runConversationId,
+          needsDecision: needsDecisionFor(runStatus, run.error),
           startedAt: run.startedAt,
           completedAt: run.completedAt,
           durationMs: run.durationMs,
           currentStep: run.currentStep,
           error: run.error,
+          artifacts: runExtras.artifacts,
+          openEscalations: runExtras.openEscalations,
           metadata: {
             runId: run.runId,
             model: run.model,
@@ -543,6 +651,12 @@ export const tasksRouter = router({
         day: "numeric",
       });
       const exceptionCount = run.exceptions?.length ?? 0;
+      const dailyStatus = mapDailyCloseStatus(run.status);
+      const dailyConversationId = readConversationId(run);
+      const dailyExtras = await getTaskThreadExtras(
+        entityId,
+        dailyConversationId,
+      );
       return {
         id: run.id,
         source: "daily_close" as const,
@@ -551,7 +665,7 @@ export const tasksRouter = router({
           exceptionCount > 0
             ? `${exceptionCount} exception${exceptionCount > 1 ? "s" : ""} need review`
             : `Matched ${run.autoMatched ?? 0} of ${run.transactionsProcessed ?? 0} transactions`,
-        status: mapDailyCloseStatus(run.status),
+        status: dailyStatus,
         progress: run.status === "completed" ? 100 : 0,
         agentName: "daily-close-agent",
         agentInitials: "DC",
@@ -559,6 +673,13 @@ export const tasksRouter = router({
         confidence: run.overallConfidence
           ? Number(run.overallConfidence)
           : null,
+        conversationId: dailyConversationId,
+        needsDecision: needsDecisionFor(
+          dailyStatus,
+          exceptionCount > 0 ? `${exceptionCount} exceptions` : null,
+        ),
+        artifacts: dailyExtras.artifacts,
+        openEscalations: dailyExtras.openEscalations,
         startedAt: run.startedAt,
         completedAt: run.completedAt,
         error: run.exceptions?.length

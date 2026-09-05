@@ -122,7 +122,7 @@ export function notifyApprovalNeeded(data: {
     body: `${data.type.replace(/_/g, " ")} for ${data.recordType}${data.amount ? ` (${data.amount})` : ""} needs your approval.`,
     priority: "high",
     data,
-    actionUrl: "/dashboard/activity-hub",
+    actionUrl: "/dashboard/tasks",
   });
 }
 

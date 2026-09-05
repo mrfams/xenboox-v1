@@ -11,7 +11,7 @@ import { useRouter } from "next/navigation";
 
 const SURFACE_SHORTCUTS: Record<string, { href: string; label: string }> = {
   "1": { href: "/dashboard", label: "Command Center" },
-  "2": { href: "/dashboard/activity-hub", label: "Activity Hub" },
+  "2": { href: "/dashboard/tasks", label: "Tasks" },
   "3": { href: "/dashboard/financial-pulse", label: "Financial Pulse" },
   "4": { href: "/dashboard/ledger", label: "Ledger" },
   "5": { href: "/dashboard/operations", label: "Operations" },

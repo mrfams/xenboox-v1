@@ -57,7 +57,7 @@ const navigationItems: Omit<CommandItem, "id">[] = [
   },
   {
     label: "Activity Hub",
-    href: "/dashboard/activity-hub",
+    href: "/dashboard/tasks",
     icon: Activity,
     group: "Pages",
     keywords: ["activity", "approvals", "pending", "review"],

@@ -9,20 +9,11 @@ import {
   HandCoins,
   Landmark,
   Wallet,
-  Bot,
-  MessageSquare,
   X,
   Download,
   CheckCircle2,
-  Clock,
-  Loader2,
-  AlertTriangle,
-  Pause,
   Sparkles,
-  TrendingUp,
-  TrendingDown,
   ArrowUpRight,
-  FileText,
   Rocket,
   Check,
   ChevronRight,
@@ -37,7 +28,8 @@ import { useDashboardChat } from "@/lib/hooks/use-dashboard-chat";
 import { activationEvents } from "@/lib/analytics/feature-tracking";
 import { ErrorBoundary } from "@/components/shared/error-boundary";
 import { ConversationThread } from "@/components/dashboard/command-center";
-import { AgentStream } from "@/components/ai-native-v2/stream-feed";
+import { TasksRailPanel } from "@/components/dashboard/tasks-rail-panel";
+import { TaskDetailDrawer } from "@/components/dashboard/task-detail-drawer";
 import { CommandBar } from "@/components/ai-native-v2/command-bar";
 import { ConversationSidebar } from "@/components/chat/conversation-sidebar";
 import { getRoleConfig } from "@/lib/role-config";
@@ -88,22 +80,6 @@ const MISSIONS = [
   },
 ] as const;
 
-function timeAgo(d: string | Date | undefined): string {
-  if (!d) return "";
-  const mins = Math.floor((Date.now() - new Date(d).getTime()) / 60000);
-  if (mins < 1) return "now";
-  if (mins < 60) return `${mins}m`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h`;
-  const days = Math.floor(hrs / 24);
-  return days < 7
-    ? `${days}d`
-    : new Date(d).toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-      });
-}
-
 export default function MissionControlPage() {
   const { entityId } = useEntity();
   const { data: session } = useSession();
@@ -136,6 +112,40 @@ export default function MissionControlPage() {
     import("@/components/chat/chat-file-upload").UploadedFile[]
   >([]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // ── Tasks rail state ──────────────────────────────────────────────────
+  // One list, one source (tasks.list). Selecting a task loads its thread
+  // inline and opens the detail drawer — never navigates away.
+  const { data: tasksData } = trpc.tasks.list.useQuery(
+    { limit: 30 },
+    { enabled: !!entityId, refetchInterval: 10_000 },
+  );
+  const [selectedTask, setSelectedTask] = useState<{
+    id: string;
+    source: "close_task" | "live_run" | "daily_close";
+  } | null>(null);
+
+  // Tracks tasks whose thread is already loaded, so the resolver effect
+  // below doesn't double-load after a rail click.
+  const threadLoadedFor = useRef<string | null>(null);
+
+  const openTask = useCallback(
+    (task: {
+      id: string;
+      source: "close_task" | "live_run" | "daily_close";
+      conversationId: string | null;
+    }) => {
+      setSelectedTask({ id: task.id, source: task.source });
+      // Task-as-session: the thread IS the task. Load it inline.
+      if (task.conversationId) {
+        threadLoadedFor.current = task.id;
+        (loadConversation as (id: string) => void)(task.conversationId);
+      } else {
+        threadLoadedFor.current = null;
+      }
+    },
+    [loadConversation],
+  );
 
   // ── Context strip data ────────────────────────────────────────────────
   const { data: closeStatus } = trpc.fiscal.getCurrent.useQuery(undefined, {
@@ -181,7 +191,7 @@ export default function MissionControlPage() {
   }, [entityId]);
 
   // ── "Ask AI" handoff ──────────────────────────────────────────────────
-  // Other surfaces (Financial Pulse, Activity Hub, help, the copilot
+  // Other surfaces (Financial Pulse, Tasks, help, the copilot
   // button) navigate here with ?prompt=... Consume it once on mount, send
   // it as a real chat message, then clean the URL so a refresh does not
   // re-send it. Previously this parameter was silently dropped.
@@ -201,6 +211,41 @@ export default function MissionControlPage() {
     );
     sendMessage(prompt);
   }, [entityId, sendMessage]);
+
+  // ── Task deep link (?task=<id>&source=<source>) ────────────────────────
+  // The Tasks page hands off here. Consume once: open the drawer; the rail
+  // query populates the thread link as soon as tasks load.
+  const taskLinkConsumed = useRef(false);
+  useEffect(() => {
+    if (taskLinkConsumed.current || !entityId) return;
+    const params = new URLSearchParams(window.location.search);
+    const taskId = params.get("task")?.trim();
+    const source = params.get("source")?.trim();
+    if (!taskId) return;
+    if (source !== "close_task" && source !== "live_run" && source !== "daily_close")
+      return;
+    taskLinkConsumed.current = true;
+    params.delete("task");
+    params.delete("source");
+    const rest = params.toString();
+    window.history.replaceState(
+      null,
+      "",
+      `${window.location.pathname}${rest ? `?${rest}` : ""}`,
+    );
+    setSelectedTask({ id: taskId, source });
+  }, [entityId]);
+
+  // Once tasks arrive, resolve the selected task's conversation thread —
+  // unless openTask already loaded it (rail click with a known link).
+  useEffect(() => {
+    if (!selectedTask || threadLoadedFor.current === selectedTask.id) return;
+    const match = tasksData?.tasks?.find((t) => t.id === selectedTask.id);
+    if (match?.conversationId) {
+      threadLoadedFor.current = selectedTask.id;
+      (loadConversation as (id: string) => void)(match.conversationId);
+    }
+  }, [selectedTask, tasksData, loadConversation]);
 
   return (
     <ErrorBoundary surface="mission-control">
@@ -327,18 +372,27 @@ export default function MissionControlPage() {
           </div>
         </div>
 
-        {/* ── Workforce rail — separate component, full height, isolated scroll */}
+        {/* ── Tasks rail — one list, full height, isolated scroll */}
         <aside className="hidden h-full w-[340px] shrink-0 flex-col overflow-hidden border-l border-border/40 bg-card isolate sm:flex">
-          <AgentConversationsRail
-            entityId={entityId ?? ""}
-            currentConversationId={conversationId ?? null}
-            onSelectConversation={(id) => {
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              (loadConversation as any)?.(id);
-            }}
+          <TasksRailPanel
+            tasks={tasksData?.tasks ?? []}
+            counts={tasksData?.counts}
+            selectedTaskId={selectedTask?.id ?? null}
+            onSelectTask={openTask}
           />
         </aside>
       </div>
+
+      {/* Task detail drawer — what this task did, its artifacts, follow-ups */}
+      {selectedTask && (
+        <TaskDetailDrawer
+          key={selectedTask.id}
+          taskId={selectedTask.id}
+          source={selectedTask.source}
+          onClose={() => setSelectedTask(null)}
+          onSendFollowUp={(text) => sendMessage(text)}
+        />
+      )}
 
       {/* Conversation sidebar */}
       <ConversationSidebar
@@ -362,250 +416,6 @@ export default function MissionControlPage() {
   );
 }
 
-// ─── Agent / Conversations Rail ─────────────────────────────────────────
-//
-// Right rail with fixed tabs (Agents · Conversations). Tabs stay pinned,
-// contents scroll. Agents shows live runs; Conversations mirrors the
-// history from /dashboard for quick switching.
-
-function AgentConversationsRail({
-  entityId,
-  currentConversationId,
-  onSelectConversation,
-}: {
-  entityId: string;
-  currentConversationId: string | null;
-  onSelectConversation: (id: string) => void;
-}) {
-  const [active, setActive] = useState<"agents" | "conversations" | "tasks">(
-    "agents",
-  );
-
-  const { data: conversations } = trpc.chat.listConversations.useQuery(
-    undefined,
-    { enabled: active === "conversations" },
-  );
-
-  const { data: tasksData } = trpc.tasks.list.useQuery(
-    { limit: 30 },
-    { enabled: active === "tasks", refetchInterval: 10_000 },
-  );
-  const runningTasks =
-    tasksData?.tasks?.filter(
-      (t) =>
-        t.status === "in_progress" ||
-        t.status === "queued" ||
-        t.status === "waiting",
-    ) ?? [];
-  const failedTasks =
-    tasksData?.tasks?.filter(
-      (t) => t.status === "failed" || t.status === "blocked",
-    ) ?? [];
-  const totalConversations = conversations?.length ?? 0;
-
-  return (
-    <div className="flex h-full min-h-0 w-full flex-col bg-card">
-      {/* Tabs — fixed header, never scrolls, full bleed */}
-      <div
-        role="tablist"
-        aria-label="Agents, conversations, and tasks"
-        className="sticky top-0 z-10 flex w-full shrink-0 items-center justify-center gap-1 border-b border-border/30 bg-background px-2 py-2"
-      >
-        {(
-          [
-            {
-              key: "agents" as const,
-              label: "Agents",
-              icon: Bot,
-              activeCls: "bg-sky-500/10 text-sky-600 dark:text-sky-400",
-              iconCls: "bg-sky-500/15",
-              count: runningTasks.length,
-            },
-            {
-              key: "tasks" as const,
-              label: "Tasks",
-              icon: CheckCircle2,
-              activeCls:
-                "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
-              iconCls: "bg-emerald-500/15",
-              count: runningTasks.length,
-              extraBadge:
-                failedTasks.length > 0
-                  ? {
-                      n: failedTasks.length,
-                      cls: "bg-error-clay/15 text-error-clay",
-                    }
-                  : null,
-            },
-            {
-              key: "conversations" as const,
-              label: "Chat",
-              icon: MessageSquare,
-              activeCls:
-                "bg-violet-500/10 text-violet-600 dark:text-violet-400",
-              iconCls: "bg-violet-500/15",
-              count: totalConversations,
-            },
-          ] as const
-        ).map((tab) => (
-          <button
-            key={tab.key}
-            type="button"
-            role="tab"
-            aria-selected={active === tab.key}
-            onClick={() => setActive(tab.key)}
-            className={cn(
-              "group inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[11px] font-medium transition-all duration-200",
-              active === tab.key
-                ? tab.activeCls
-                : "text-muted-foreground hover:bg-muted/50 hover:text-foreground",
-            )}
-          >
-            <span
-              className={cn(
-                "inline-flex h-5 w-5 items-center justify-center rounded-md",
-                active === tab.key ? tab.iconCls : "bg-muted/50",
-              )}
-            >
-              <tab.icon className="h-3 w-3" />
-            </span>
-            {tab.label}
-            {tab.count > 0 && (
-              <span
-                className={cn(
-                  "inline-flex h-4 min-w-[16px] items-center justify-center rounded-full px-1 text-[9px] font-bold tabular-nums",
-                  active === tab.key
-                    ? "bg-current/15"
-                    : "bg-muted text-muted-foreground",
-                )}
-              >
-                {tab.count}
-              </span>
-            )}
-            {"extraBadge" in tab && tab.extraBadge && (
-              <span
-                className={cn(
-                  "inline-flex h-4 min-w-[16px] items-center justify-center rounded-full px-1 text-[9px] font-bold tabular-nums",
-                  tab.extraBadge.cls,
-                )}
-              >
-                {tab.extraBadge.n}
-              </span>
-            )}
-          </button>
-        ))}
-      </div>
-
-      {/* Content — each tab is its own scroll plane */}
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-card">
-        {active === "agents" && (
-          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-            <div className="h-0.5 w-full shrink-0 bg-gradient-to-r from-sky-500/40 via-sky-400/20 to-transparent" />
-            <div className="min-h-0 flex-1 overflow-hidden">
-              <AgentStream
-                entityId={entityId}
-                className="h-full w-full rounded-none border-0 bg-card"
-              />
-            </div>
-          </div>
-        )}
-
-        {active === "tasks" && (
-          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-            <div className="h-0.5 w-full shrink-0 bg-gradient-to-r from-emerald-500/40 via-emerald-400/20 to-transparent" />
-            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-              <TasksRail tasks={tasksData?.tasks ?? []} />
-            </div>
-          </div>
-        )}
-
-        {active === "conversations" && (
-          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-            <div className="h-0.5 w-full shrink-0 bg-gradient-to-r from-violet-500/40 via-violet-400/20 to-transparent" />
-            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-              {!conversations || conversations.length === 0 ? (
-                <div className="flex h-full min-h-[200px] flex-col items-center justify-center p-4 text-center">
-                  <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-violet-500/10">
-                    <MessageSquare className="h-5 w-5 text-violet-500/50" />
-                  </div>
-                  <p className="text-xs font-medium text-foreground">
-                    No conversations yet
-                  </p>
-                  <p className="mt-1 text-[11px] text-muted-foreground/60">
-                    Start a chat to begin
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-0.5 p-1">
-                  {conversations.slice(0, 30).map((c) => {
-                    const isActive = c.id === currentConversationId;
-                    const updatedAt = c.updatedAt
-                      ? new Date(c.updatedAt)
-                      : null;
-                    const timeLabel = updatedAt ? timeAgo(updatedAt) : null;
-                    return (
-                      <button
-                        key={c.id}
-                        type="button"
-                        onClick={() => onSelectConversation(c.id)}
-                        className={cn(
-                          "flex w-full items-start gap-2 rounded-lg px-2.5 py-2 text-left transition-colors",
-                          isActive
-                            ? "bg-violet-500/10 ring-1 ring-violet-500/20"
-                            : "hover:bg-violet-500/5",
-                        )}
-                      >
-                        <div
-                          className={cn(
-                            "mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md",
-                            isActive ? "bg-violet-500/20" : "bg-muted/60",
-                          )}
-                        >
-                          <MessageSquare
-                            className={cn(
-                              "h-3 w-3",
-                              isActive
-                                ? "text-violet-600 dark:text-violet-400"
-                                : "text-muted-foreground/50",
-                            )}
-                          />
-                        </div>
-                        <span className="min-w-0 flex-1">
-                          <div className="flex items-center justify-between gap-1">
-                            <span
-                              className={cn(
-                                "block truncate text-xs font-medium",
-                                isActive
-                                  ? "text-violet-600 dark:text-violet-400"
-                                  : "text-foreground",
-                              )}
-                            >
-                              {c.title || "Untitled"}
-                            </span>
-                            {timeLabel && (
-                              <span className="shrink-0 text-[9px] text-muted-foreground/50">
-                                {timeLabel}
-                              </span>
-                            )}
-                          </div>
-                          {c.summary && (
-                            <span className="block truncate text-[11px] text-muted-foreground/70">
-                              {c.summary}
-                            </span>
-                          )}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
 
 // ─── Missions Board ───────────────────────────────────────────────────────
 //
@@ -681,206 +491,6 @@ function MissionsBoard({
   );
 }
 
-// ─── Tasks Rail ────────────────────────────────────────────────────────────
-//
-// Compact task list for the right rail. Shows running tasks with progress,
-// completed tasks, and failed tasks. Clicking a task navigates to the
-// activity hub tasks tab.
-
-type TaskItem = {
-  id: string;
-  source: "close_task" | "live_run" | "daily_close";
-  title: string;
-  description: string | null;
-  status:
-    | "queued"
-    | "in_progress"
-    | "waiting"
-    | "completed"
-    | "failed"
-    | "blocked"
-    | "skipped";
-  progress: number;
-  agentName: string | null;
-  agentInitials: string | null;
-  agentColor: string | null;
-  confidence: number | null;
-  startedAt: Date | null;
-  completedAt: Date | null;
-  currentStep: string | null;
-  error: string | null;
-  createdAt: Date;
-};
-
-function TasksRail({ tasks }: { tasks: TaskItem[] }) {
-  const running = tasks.filter(
-    (t) =>
-      t.status === "in_progress" ||
-      t.status === "queued" ||
-      t.status === "waiting",
-  );
-  const completed = tasks.filter((t) => t.status === "completed");
-  const failed = tasks.filter(
-    (t) => t.status === "failed" || t.status === "blocked",
-  );
-
-  if (tasks.length === 0) {
-    return (
-      <div className="flex h-full min-h-[200px] flex-col items-center justify-center p-4 text-center">
-        <CheckCircle2 className="h-6 w-6 text-balanced-green/30 mb-2" />
-        <p className="text-xs text-muted-foreground">No tasks running</p>
-        <p className="text-[10px] text-muted-foreground/60 mt-1">
-          AI agents will start tasks automatically
-        </p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-3 p-2">
-      {/* Running */}
-      {running.length > 0 && (
-        <TaskGroup label="Running" count={running.length}>
-          {running.map((task) => (
-            <TaskRailItem key={task.id} task={task} />
-          ))}
-        </TaskGroup>
-      )}
-
-      {/* Failed */}
-      {failed.length > 0 && (
-        <TaskGroup label="Failed" count={failed.length} tone="error">
-          {failed.map((task) => (
-            <TaskRailItem key={task.id} task={task} />
-          ))}
-        </TaskGroup>
-      )}
-
-      {/* Completed (show last 5) */}
-      {completed.length > 0 && (
-        <TaskGroup label="Completed" count={completed.length} tone="success">
-          {completed.slice(0, 5).map((task) => (
-            <TaskRailItem key={task.id} task={task} />
-          ))}
-          {completed.length > 5 && (
-            <p className="text-[10px] text-muted-foreground/60 px-2 py-1">
-              +{completed.length - 5} more
-            </p>
-          )}
-        </TaskGroup>
-      )}
-    </div>
-  );
-}
-
-function TaskGroup({
-  label,
-  count,
-  tone = "default",
-  children,
-}: {
-  label: string;
-  count: number;
-  tone?: "default" | "error" | "success";
-  children: React.ReactNode;
-}) {
-  const dotColor = {
-    default: "bg-primary",
-    error: "bg-error-clay",
-    success: "bg-balanced-green",
-  }[tone];
-
-  return (
-    <div>
-      <div className="flex items-center gap-1.5 px-2 py-1">
-        <span
-          className={cn(
-            "h-1.5 w-1.5 rounded-full",
-            dotColor,
-            tone === "default" && "animate-pulse",
-          )}
-        />
-        <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-          {label}
-        </span>
-        <span className="text-[10px] font-mono tabular-nums text-muted-foreground/60">
-          {count}
-        </span>
-      </div>
-      <div className="space-y-0.5">{children}</div>
-    </div>
-  );
-}
-
-function TaskRailItem({ task }: { task: TaskItem }) {
-  const statusIcon = () => {
-    switch (task.status) {
-      case "in_progress":
-        return <Loader2 className="h-3 w-3 text-primary animate-spin" />;
-      case "queued":
-        return <Clock className="h-3 w-3 text-muted-foreground" />;
-      case "waiting":
-        return <Pause className="h-3 w-3 text-attention-amber" />;
-      case "completed":
-        return <CheckCircle2 className="h-3 w-3 text-balanced-green" />;
-      case "failed":
-      case "blocked":
-        return <AlertTriangle className="h-3 w-3 text-error-clay" />;
-      default:
-        return <Clock className="h-3 w-3 text-muted-foreground" />;
-    }
-  };
-
-  const sourceLabel = {
-    close_task: "Month-End",
-    live_run: "AI",
-    daily_close: "Daily",
-  }[task.source];
-
-  return (
-    <a
-      href="/dashboard/activity-hub"
-      className="flex items-start gap-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-accent/50 group"
-    >
-      <span className="mt-0.5 shrink-0">{statusIcon()}</span>
-      <span className="min-w-0 flex-1">
-        <span className="flex items-center gap-1">
-          <span className="block truncate text-[11px] font-medium text-foreground group-hover:text-primary">
-            {task.title}
-          </span>
-          <span className="shrink-0 rounded-full bg-muted/50 px-1 py-0.5 text-[7px] font-bold uppercase text-muted-foreground">
-            {sourceLabel}
-          </span>
-        </span>
-        {/* Progress bar for running tasks */}
-        {(task.status === "in_progress" || task.status === "queued") &&
-          task.progress > 0 && (
-            <div className="mt-1 flex items-center gap-1.5">
-              <div className="h-0.5 flex-1 overflow-hidden rounded-full bg-muted">
-                <div
-                  className="h-full rounded-full bg-primary transition-all duration-500"
-                  style={{ width: `${task.progress}%` }}
-                />
-              </div>
-              <span className="font-mono text-[8px] tabular-nums text-muted-foreground/60">
-                {task.progress}%
-              </span>
-            </div>
-          )}
-        {/* Source + time */}
-        <span className="mt-0.5 flex items-center gap-1 text-[9px] text-muted-foreground/60">
-          <span>{timeAgo(task.startedAt ?? task.createdAt)}</span>
-        </span>
-        {/* Error */}
-        {task.error && (
-          <span className="mt-0.5 block text-[9px] text-error-clay truncate">
-            {task.error}
-          </span>
-        )}
-      </span>
-    </a>
-  );
-}
 
 // ─── Keyboard Shortcuts ──────────────────────────────────────────────────
 
@@ -1059,7 +669,7 @@ function ProactiveBriefing({ entityId }: { entityId: string | null }) {
         type: "warning",
         title: `${pendingApprovalsCount} item${pendingApprovalsCount > 1 ? "s" : ""} awaiting approval`,
         value: "Review needed",
-        href: "/dashboard/activity-hub",
+        href: "/dashboard/tasks",
       });
     }
     if (businessHealth.cashBalance !== undefined) {
@@ -1083,9 +693,9 @@ function ProactiveBriefing({ entityId }: { entityId: string | null }) {
     items.push({
       id: "review",
       type: "warning",
-      title: `${ingestionStats.pendingReview} document${ingestionStats.pendingReview > 1 ? "s" : ""} need review`,
-      value: "Verify",
-      href: "/dashboard/activity-hub",
+        title: `${ingestionStats.pendingReview} document${ingestionStats.pendingReview > 1 ? "s" : ""} need review`,
+        value: "Verify",
+        href: "/dashboard/tasks",
     });
   }
 

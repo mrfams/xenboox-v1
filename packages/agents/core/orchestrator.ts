@@ -362,6 +362,8 @@ export interface OrchestrateParams {
   input: Record<string, unknown>;
   /** Optional — the user who triggered this agent run. Used for alert delivery. */
   userId?: string;
+  /** Optional — chat conversation this run belongs to (task-as-session link). */
+  conversationId?: string;
 }
 
 export async function orchestrate(
@@ -502,6 +504,7 @@ export async function orchestrate(
       durationMs: agentResult.duration,
       error:
         agentResult.errors.length > 0 ? agentResult.errors.join("; ") : null,
+      conversationId: params.conversationId,
       metadata: {
         taskType: params.taskType,
         confidence: agentResult.confidence,
@@ -556,6 +559,7 @@ export async function orchestrate(
       entityId: params.entityId,
       status: "failed",
       error: msg,
+      conversationId: params.conversationId,
       metadata: { taskType: params.taskType },
     });
 
@@ -620,6 +624,8 @@ export async function persistAgentRun(params: {
   durationMs?: number;
   error?: string | null;
   metadata?: Record<string, unknown>;
+  /** Chat conversation this run belongs to (task-as-session link). */
+  conversationId?: string;
 }): Promise<void> {
   try {
     await db.insert(opsLiveRuns).values({
@@ -628,6 +634,9 @@ export async function persistAgentRun(params: {
       agentDisplayName: params.agentDisplayName,
       agentCategory: params.agentId.split("_")[0] ?? params.agentId,
       entityId: params.entityId,
+      // Written to the column when migrated; mirrored into metadata so
+      // task→conversation linking works even before migration 0039 lands.
+      conversationId: params.conversationId ?? null,
       status: params.status,
       progress:
         params.progress ??
@@ -642,7 +651,12 @@ export async function persistAgentRun(params: {
           ? new Date()
           : undefined,
       error: params.error ?? null,
-      metadata: params.metadata ?? null,
+      metadata: {
+        ...(params.metadata ?? {}),
+        ...(params.conversationId
+          ? { conversationId: params.conversationId }
+          : {}),
+      },
     });
   } catch {
     // Best effort — observability must never break agent execution.

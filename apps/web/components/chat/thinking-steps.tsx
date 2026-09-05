@@ -8,50 +8,46 @@ import {
   ChevronDown,
   ChevronUp,
   Wrench,
-  Zap,
-  Clock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ThinkingEvent, ToolTrace } from "@/lib/hooks/use-streaming-chat";
 
-// ─── Thinking Steps ────────────────────────────────────────────────────────
+// ─── Thought ─────────────────────────────────────────────────────────────────
 //
-// Shows animated step-by-step progress when AI is processing.
-// Inspired by Devin, Cursor, and Claude's thinking visualization.
+// Claude/ChatGPT pattern: one collapsed line while streaming ("Thinking…"),
+// one collapsed line when done ("Thought"). Expanding reveals the model's
+// own first-person sentences — never step labels, timings, agent names, or
+// tool internals. Those stay in LangFuse + the audit trail.
 //
-// Maps pipeline step IDs to human-readable labels:
-//   intent_resolution → "Understanding your request"
-//   session_load → "Loading your financial context"
-//   confidence_gate → "Evaluating response confidence"
-//   etc.
+// Legacy events that carry only a label/step (pre-redesign turns) fall back
+// to a small generic map so old threads still read sensibly.
 
-const STEP_LABELS: Record<string, string> = {
+const LEGACY_LABELS: Record<string, string> = {
   intent_resolution: "Understanding your request",
-  session_load: "Loading your financial context",
-  entity_context: "Gathering entity data",
-  confidence_gate: "Evaluating confidence",
-  tool_selection: "Selecting the right tools",
-  response_generation: "Generating response",
-  approval_check: "Checking if approval is needed",
-  escalation_check: "Evaluating escalation needs",
-  knowledge_retrieval: "Searching knowledge base",
-  data_validation: "Validating financial data",
-  journal_entry: "Building journal entry",
-  invoice_creation: "Creating invoice",
-  payment_processing: "Processing payment",
-  reconciliation: "Running reconciliation",
-  report_generation: "Generating report",
-  default: "Processing...",
+  session_load: "Loading your context",
+  entity_context: "Gathering your data",
+  confidence_gate: "Double-checking before answering",
+  tool_selection: "Figuring out the best approach",
+  response_generation: "Writing your answer",
+  approval_check: "Checking whether you need to weigh in",
+  escalation_check: "Checking whether you need to weigh in",
+  knowledge_retrieval: "Looking through your records",
+  data_validation: "Checking the numbers",
+  journal_entry: "Preparing the entry",
+  invoice_creation: "Preparing the invoice",
+  payment_processing: "Working on the payment",
+  reconciliation: "Reconciling",
+  report_generation: "Putting the report together",
+  input_intake: "Reading your request",
+  memory_retrieval: "Recalling our earlier conversation",
 };
 
-function getStepLabel(event: ThinkingEvent): string {
-  if (event.label) return event.label;
-  if (event.step && STEP_LABELS[event.step]) return STEP_LABELS[event.step];
-  if (event.step)
-    return event.step
-      .replace(/_/g, " ")
-      .replace(/\b\w/g, (c) => c.toUpperCase());
-  return STEP_LABELS.default;
+function thoughtLine(event: ThinkingEvent): string {
+  if (event.text && event.text.trim().length > 0) return event.text.trim();
+  if (event.label && !/ms$|intake|scoping|dispatch|aggregation|gate|detection|synthesis|logging/i.test(event.label))
+    return event.label;
+  if (event.step && LEGACY_LABELS[event.step]) return LEGACY_LABELS[event.step];
+  return "Thinking it through";
 }
 
 export function ConversationThinkingSteps({
@@ -61,50 +57,28 @@ export function ConversationThinkingSteps({
   events: ThinkingEvent[];
   isStreaming: boolean;
 }) {
-  const [isExpanded, setIsExpanded] = useState(true);
-  const [elapsed, setElapsed] = useState(0);
-  const startRef = useRef<number>(Date.now());
-  const completedCount = events.filter(
-    (e) => e.durationMs !== undefined,
-  ).length;
+  // Collapsed by default once done — like Claude/ChatGPT. While streaming,
+  // expand so the user sees progress live, then settle shut.
+  const [isExpanded, setIsExpanded] = useState(isStreaming);
+  const doneRef = useRef(false);
 
-  // Track elapsed time while streaming
   useEffect(() => {
-    if (!isStreaming) return;
-    startRef.current = Date.now();
-    const interval = setInterval(() => {
-      setElapsed(Date.now() - startRef.current);
-    }, 100);
-    return () => clearInterval(interval);
-  }, [isStreaming]);
-
-  // Auto-collapse after streaming completes
-  useEffect(() => {
-    if (!isStreaming && events.length > 0) {
-      const timer = setTimeout(() => setIsExpanded(false), 2000);
-      return () => clearTimeout(timer);
+    if (!isStreaming && events.length > 0 && !doneRef.current) {
+      doneRef.current = true;
+      setIsExpanded(false);
+    }
+    if (isStreaming) {
+      doneRef.current = false;
+      setIsExpanded(true);
     }
   }, [isStreaming, events.length]);
 
   if (events.length === 0 && !isStreaming) return null;
 
-  // Deduplicate events by step ID (keep the latest)
-  const uniqueEvents = Array.from(
-    new Map(events.map((e) => [e.step || e.label, e])).values(),
-  );
-
-  const totalDuration = uniqueEvents.reduce(
-    (sum, e) => sum + (e.durationMs || 0),
-    0,
-  );
-
-  // Plain text style like ChatGPT/Claude — no card, no border, right above response
-  const totalSec =
-    totalDuration > 0
-      ? (totalDuration / 1000).toFixed(1)
-      : elapsed > 0
-        ? (elapsed / 1000).toFixed(1)
-        : null;
+  const lines = events
+    .map(thoughtLine)
+    .filter((line, i, all) => line.length > 0 && all.indexOf(line) === i)
+    .slice(0, 4);
 
   return (
     <div className="w-full py-1">
@@ -123,9 +97,7 @@ export function ConversationThinkingSteps({
             <span className="text-[11px] text-muted-foreground">Thinking…</span>
           </>
         ) : (
-          <span className="text-[11px] text-muted-foreground">
-            Thought for {totalSec ?? "—"}s
-          </span>
+          <span className="text-[11px] text-muted-foreground">Thought</span>
         )}
         {isExpanded ? (
           <ChevronUp
@@ -142,34 +114,25 @@ export function ConversationThinkingSteps({
 
       {isExpanded && (
         <div className="mt-1.5 space-y-1 pl-1">
-          {uniqueEvents.map((event, i) => {
-            const isComplete = event.durationMs !== undefined;
-            const label = getStepLabel(event);
-            return (
-              <div
-                key={`${event.step || i}`}
-                className="flex items-center gap-2 text-[11px]"
-              >
-                {isComplete ? (
-                  <CheckCircle2
-                    className="h-3 w-3 text-muted-foreground/50 shrink-0"
-                    aria-hidden="true"
-                  />
-                ) : (
-                  <Loader2
-                    className="h-3 w-3 text-muted-foreground animate-spin shrink-0"
-                    aria-hidden="true"
-                  />
-                )}
-                <span className="text-muted-foreground">{label}</span>
-                {event.durationMs !== undefined && (
-                  <span className="text-[10px] text-muted-foreground/40">
-                    {event.durationMs}ms
-                  </span>
-                )}
-              </div>
-            );
-          })}
+          {lines.map((line, i) => (
+            <div
+              key={`${i}`}
+              className="flex items-center gap-2 text-[11px]"
+            >
+              {!isStreaming || i < lines.length - 1 ? (
+                <CheckCircle2
+                  className="h-3 w-3 text-muted-foreground/50 shrink-0"
+                  aria-hidden="true"
+                />
+              ) : (
+                <Loader2
+                  className="h-3 w-3 text-muted-foreground animate-spin shrink-0"
+                  aria-hidden="true"
+                />
+              )}
+              <span className="text-muted-foreground">{line}</span>
+            </div>
+          ))}
         </div>
       )}
     </div>
@@ -210,32 +173,51 @@ function getToolLabel(toolName: string): string {
   return TOOL_LABELS[toolName] || TOOL_LABELS.default;
 }
 
+function formatAmount(value: unknown): string {
+  const n = Number(value);
+  if (value == null || value === "" || Number.isNaN(n)) return "";
+  return n.toLocaleString();
+}
+
 function getToolArgsSummary(
   toolName: string,
   args?: Record<string, unknown>,
 ): string {
   if (!args) return "";
 
-  // Build a human-readable summary based on the tool
+  // Human-readable summaries. Never hardcode a currency — amounts render
+  // bare; the surrounding answer carries the entity currency.
   switch (toolName) {
-    case "create_sales_invoice":
-      return `${args.customerName || "Unknown"} · ${args.amount ? `GMD ${Number(args.amount).toLocaleString()}` : "Amount pending"}`;
-    case "create_purchase_invoice":
-      return `${args.vendorName || "Unknown"} · ${args.amount ? `GMD ${Number(args.amount).toLocaleString()}` : "Amount pending"}`;
-    case "create_journal_entry":
-      return `${args.description || "Entry"} · ${args.lines ? `${args.lines.length} lines` : ""}`;
+    case "create_sales_invoice": {
+      const amount = formatAmount(args.amount);
+      return `${args.customerName || "Unknown"}${amount ? ` · ${amount}` : " · Amount pending"}`;
+    }
+    case "create_purchase_invoice": {
+      const amount = formatAmount(args.amount);
+      return `${args.vendorName || "Unknown"}${amount ? ` · ${amount}` : " · Amount pending"}`;
+    }
+    case "create_journal_entry": {
+      const lines = Array.isArray(args.lines) ? args.lines.length : 0;
+      return `${args.description || "Entry"}${lines ? ` · ${lines} lines` : ""}`;
+    }
     case "create_customer":
-      return args.name || "New customer";
+      return typeof args.name === "string" && args.name
+        ? args.name
+        : "New customer";
     case "create_supplier":
-      return args.name || "New supplier";
-    case "record_bank_transaction":
-      return `${args.description || "Transaction"} · ${args.amount ? `GMD ${Number(args.amount).toLocaleString()}` : ""}`;
-    case "record_expense":
-      return `${args.description || "Expense"} · ${args.amount ? `GMD ${Number(args.amount).toLocaleString()}` : ""}`;
+      return typeof args.name === "string" && args.name
+        ? args.name
+        : "New supplier";
+    case "record_bank_transaction": {
+      const amount = formatAmount(args.amount);
+      return `${args.description || "Transaction"}${amount ? ` · ${amount}` : ""}`;
+    }
+    case "record_expense": {
+      const amount = formatAmount(args.amount);
+      return `${args.description || "Expense"}${amount ? ` · ${amount}` : ""}`;
+    }
     default:
-      // Generic: show first few args
-      const entries = Object.entries(args).slice(0, 2);
-      return entries.map(([k, v]) => `${k}: ${v}`).join(", ");
+      return "";
   }
 }
 
@@ -296,30 +278,10 @@ export function ToolCallTraceCard({ trace }: { trace: ToolTrace }) {
           )}
         </button>
 
-        {/* Expanded details */}
+        {/* Expanded details — status only. Raw tool names, argument JSON,
+            and timings are internal trace data (LangFuse), never user UI. */}
         {isExpanded && (
           <div className="mt-2 space-y-2">
-            {/* Tool name */}
-            <div className="flex items-center gap-2 text-[10px]">
-              <span className="text-muted-foreground">Tool:</span>
-              <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-foreground">
-                {trace.toolName}
-              </code>
-            </div>
-
-            {/* Args */}
-            {trace.args && Object.keys(trace.args).length > 0 && (
-              <div>
-                <p className="text-[10px] text-muted-foreground mb-1">
-                  Arguments:
-                </p>
-                <pre className="text-[10px] text-muted-foreground whitespace-pre-wrap font-mono rounded bg-muted/50 p-2">
-                  {JSON.stringify(trace.args, null, 2)}
-                </pre>
-              </div>
-            )}
-
-            {/* Status */}
             <div className="flex items-center gap-2 text-[10px]">
               <span className="text-muted-foreground">Status:</span>
               <span
@@ -344,14 +306,6 @@ export function ToolCallTraceCard({ trace }: { trace: ToolTrace }) {
                 {trace.status}
               </span>
             </div>
-
-            {/* Duration */}
-            {trace.durationMs !== undefined && (
-              <div className="flex items-center gap-2 text-[10px]">
-                <span className="text-muted-foreground">Duration:</span>
-                <span className="text-foreground">{trace.durationMs}ms</span>
-              </div>
-            )}
           </div>
         )}
       </div>

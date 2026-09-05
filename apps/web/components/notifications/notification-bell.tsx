@@ -57,7 +57,7 @@ export function NotificationBell() {
         type: "approval_needed",
         title: "Approvals Needed",
         body: `${pendingCount} item${pendingCount !== 1 ? "s" : ""} awaiting your approval`,
-        actionUrl: "/dashboard/activity-hub",
+        actionUrl: "/dashboard/tasks",
         priority: "high",
         createdAt: new Date(),
       });
@@ -177,7 +177,7 @@ export function NotificationBell() {
               <button
                 type="button"
                 onClick={() => {
-                  window.location.href = "/dashboard/activity-hub";
+                  window.location.href = "/dashboard/tasks";
                   setIsOpen(false);
                 }}
                 className="w-full text-center text-xs font-medium text-primary hover:text-primary/80"

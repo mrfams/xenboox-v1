@@ -1,7 +1,7 @@
 export const MODULE_TABS = {
   overview: [
     { label: "Command Center", href: "/dashboard" },
-    { label: "Activity Hub", href: "/dashboard/activity-hub" },
+    { label: "Tasks", href: "/dashboard/tasks" },
     { label: "Financial Pulse", href: "/dashboard/financial-pulse" },
     { label: "Ledger", href: "/dashboard/ledger" },
     { label: "Operations", href: "/dashboard/operations" },

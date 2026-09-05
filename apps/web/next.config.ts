@@ -239,25 +239,30 @@ const baseConfig: NextConfig = {
         destination: "/dashboard",
         permanent: true,
       },
-      // Activity Hub absorbs: inbox, review-queue, notifications, work
+      // Tasks absorbs: inbox, review-queue, notifications, work, activity-hub
       {
         source: "/dashboard/inbox",
-        destination: "/dashboard/activity-hub",
+        destination: "/dashboard/tasks",
         permanent: true,
       },
       {
         source: "/dashboard/review-queue",
-        destination: "/dashboard/activity-hub",
+        destination: "/dashboard/tasks",
         permanent: true,
       },
       {
         source: "/dashboard/notifications",
-        destination: "/dashboard/activity-hub",
+        destination: "/dashboard/tasks",
         permanent: true,
       },
       {
         source: "/dashboard/work",
-        destination: "/dashboard/activity-hub",
+        destination: "/dashboard/tasks",
+        permanent: true,
+      },
+      {
+        source: "/dashboard/activity-hub",
+        destination: "/dashboard/tasks",
         permanent: true,
       },
       // Financial Pulse absorbs: reports, insights

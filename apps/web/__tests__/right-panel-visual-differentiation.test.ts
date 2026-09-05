@@ -1,152 +1,88 @@
 /**
- * Right Panel Visual Differentiation Tests
+ * Tasks Rail Panel Tests
  *
- * Verifies that the three tabs (Agents, Tasks, Chat) in the
- * AgentConversationsRail have distinct visual identities:
- * - Per-tab accent colors (sky, emerald, violet)
- * - Summary count badges per tab
- * - Themed empty states per tab
- * - Accent color stripe at top of each tab content area
+ * The right rail is ONE surface — Tasks — with grouped sections
+ * (Needs you / Running / Done). There are no Agents/Chat tabs, no
+ * per-tab accent colors, no conversation list. This locks in the
+ * unified contract: work grouped by state, never by source system.
  */
 import { readFileSync } from "fs";
 import { join } from "path";
 
+const PANEL_PATH = join(process.cwd(), "components/dashboard/tasks-rail-panel.tsx");
 const PAGE_PATH = join(process.cwd(), "app/dashboard/page.tsx");
+
+function readPanel(): string {
+  return readFileSync(PANEL_PATH, "utf-8");
+}
 
 function readPage(): string {
   return readFileSync(PAGE_PATH, "utf-8");
 }
 
-describe("Right Panel Visual Differentiation", () => {
+describe("Tasks Rail Panel — unified surface", () => {
+  let panel: string;
   let page: string;
 
   beforeAll(() => {
+    panel = readPanel();
     page = readPage();
   });
 
-  describe("Per-tab accent colors", () => {
-    it("Agents tab uses sky/blue accent color", () => {
-      expect(page).toContain("text-sky-600");
-      expect(page).toContain("bg-sky-500/10");
+  describe("Single surface, no tabs", () => {
+    it("panel header is Tasks with a View all link", () => {
+      expect(panel).toContain("Tasks");
+      expect(panel).toContain('href="/dashboard/tasks"');
     });
 
-    it("Tasks tab uses emerald/green accent color", () => {
-      expect(page).toContain("text-emerald-600");
-      expect(page).toContain("bg-emerald-500/10");
+    it("has no tab semantics and no Agents/Chat tabs", () => {
+      expect(panel).not.toContain("tablist");
+      expect(panel).not.toContain("Agents");
+      // History lives behind the History button, not a Chat tab.
+      expect(panel).not.toContain("Conversations");
     });
 
-    it("Chat tab uses violet/purple accent color", () => {
-      expect(page).toContain("text-violet-600");
-      expect(page).toContain("bg-violet-500/10");
-    });
-
-    it("each tab has a distinct icon background", () => {
-      expect(page).toContain("bg-sky-500/15");
-      expect(page).toContain("bg-emerald-500/15");
-      expect(page).toContain("bg-violet-500/15");
+    it("dashboard no longer mounts the 3-tab rail", () => {
+      expect(page).not.toContain("AgentConversationsRail");
+      expect(page).not.toContain("AgentStream");
     });
   });
 
-  describe("Count badges", () => {
-    it("Agents tab shows active count badge", () => {
-      expect(page).toContain("runningTasks.length");
+  describe("State grouping", () => {
+    it("groups Needs you first with an attention tone", () => {
+      expect(panel).toContain("Needs you");
+      expect(panel).toContain("bg-attention-amber");
     });
 
-    it("Tasks tab shows running count", () => {
-      expect(page).toContain("runningTasks.length");
+    it("groups Running with progress and Done capped", () => {
+      expect(panel).toContain("Running");
+      expect(panel).toContain("Done");
+      expect(panel).toContain("slice(0, 10)");
     });
 
-    it("Tasks tab shows failed count separately in red", () => {
-      expect(page).toContain("failedTasks.length");
-      expect(page).toContain("bg-error-clay/15");
-      expect(page).toContain("text-error-clay");
-    });
-
-    it("Chat tab shows total conversation count", () => {
-      expect(page).toContain("totalConversations");
+    it("running rows show progress bars, failed counts badge red", () => {
+      expect(panel).toContain("bg-primary");
+      expect(panel).toContain("text-error-clay");
     });
   });
 
-  describe("Accent color stripes at top of each tab", () => {
-    it("Agents tab has sky gradient stripe", () => {
-      expect(page).toContain("from-sky-500/40");
-      expect(page).toContain("via-sky-400/20");
-    });
-
-    it("Tasks tab has emerald gradient stripe", () => {
-      expect(page).toContain("from-emerald-500/40");
-      expect(page).toContain("via-emerald-400/20");
-    });
-
-    it("Chat tab has violet gradient stripe", () => {
-      expect(page).toContain("from-violet-500/40");
-      expect(page).toContain("via-violet-400/20");
-    });
-  });
-
-  describe("Themed empty states", () => {
-    it("Tasks empty state has themed icon container", () => {
-      const tasksStart = page.indexOf("function TasksRail");
-      const tasksEnd = page.indexOf("function TaskGroup", tasksStart);
-      const tasksSection = page.slice(tasksStart, tasksEnd);
-      // TasksRail has its own green-themed empty state
-      expect(tasksSection).toContain("text-balanced-green");
-    });
-
-    it("Chat empty state uses violet icon", () => {
-      expect(page).toContain("bg-violet-500/10");
-      expect(page).toContain("text-violet-500/50");
-    });
-
-    it("empty states include descriptive subtitle", () => {
-      expect(page).toContain("Start a chat to begin");
-      expect(page).toContain("AI agents will start tasks automatically");
-    });
-  });
-
-  describe("Chat conversation list styling", () => {
-    it("active conversation uses violet ring", () => {
-      expect(page).toContain("bg-violet-500/10 ring-1 ring-violet-500/20");
-    });
-
-    it("inactive conversations use subtle violet hover", () => {
-      expect(page).toContain("hover:bg-violet-500/5");
-    });
-
-    it("conversation icon has rounded container", () => {
-      expect(page).toContain("bg-violet-500/20");
-    });
-
-    it("conversation items show relative timestamps", () => {
-      expect(page).toContain("timeAgo(updatedAt)");
-    });
-  });
-
-  describe("Tab button styling", () => {
-    it("tabs use rounded-lg for modern look", () => {
-      expect(page).toContain("rounded-lg");
-    });
-
-    it("active tab has icon background", () => {
-      expect(page).toContain("tab.iconCls");
-    });
-
-    it("inactive tab has muted background on icon", () => {
-      expect(page).toContain("bg-muted/50");
+  describe("No agent internals", () => {
+    it("panel never references agent identity or confidence", () => {
+      expect(panel).not.toContain("agentName");
+      expect(panel).not.toContain("CFO Agent");
+      expect(panel).not.toContain("confidence");
+      expect(panel).not.toContain("durationMs");
     });
   });
 
   describe("Accessibility", () => {
-    it("tablist has aria-label", () => {
-      expect(page).toContain('aria-label="Agents, conversations, and tasks"');
+    it("selected task uses aria-current", () => {
+      expect(panel).toContain("aria-current={selected}");
     });
 
-    it("each tab has aria-selected", () => {
-      expect(page).toContain("aria-selected={active === tab.key}");
-    });
-
-    it("each tab has role=tab", () => {
-      expect(page).toContain('role="tab"');
+    it("rows are buttons with accessible labels", () => {
+      expect(panel).toContain("<button");
+      expect(panel).toContain("aria-hidden");
     });
   });
 });

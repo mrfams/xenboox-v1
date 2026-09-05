@@ -68,6 +68,9 @@ export const dailyCloseRuns = pgTable(
     // Confidence
     overallConfidence: numeric("overall_confidence"),
 
+    // Task-as-session (§toAINative): chat conversation this run belongs to.
+    conversationId: text("conversation_id"),
+
     // Timestamps
     startedAt: timestamp("started_at"),
     completedAt: timestamp("completed_at"),
@@ -78,6 +81,7 @@ export const dailyCloseRuns = pgTable(
     index("daily_close_entity_date").on(t.entityId, t.closeDate),
     index("daily_close_status").on(t.entityId, t.status),
     index("daily_close_date").on(t.closeDate),
+    index("daily_close_conversation").on(t.conversationId),
   ],
 );
 

@@ -105,36 +105,24 @@ describe("A11y — AI-native surfaces (§13.2)", () => {
     expect(src).toMatch(/role="status".*aria-live="polite"/s);
   });
 
-  it("Activity Hub completed section has aria-expanded", () => {
+  it("Activity Hub is a legacy redirect to the Tasks page", () => {
     const src = read("app/dashboard/activity-hub/page.tsx");
-    expect(src).toMatch(/aria-expanded=\{isOpen\}/);
-    expect(src).toMatch(/aria-controls="completed-section"/);
+    expect(src).toMatch(/redirect\("\/dashboard\/tasks"\)/);
   });
 
-  it("Activity Hub filter pills have keyboard navigation (role=tablist, ArrowLeft/Right, Home/End)", () => {
-    const src = read("app/dashboard/activity-hub/page.tsx");
-    // Must have role=tablist
+  it("Tasks page sections have tab semantics (role=tablist/tab, aria-selected)", () => {
+    const src = read("app/dashboard/tasks/page.tsx");
+    // Must have role=tablist for the Needs you / All tasks sections
     expect(src).toMatch(/role="tablist"/);
-    // Must have role=tab on each filter button
+    // Must have role=tab on each section button
     expect(src).toMatch(/role="tab"/);
     // Must have aria-selected
     expect(src).toMatch(/aria-selected/);
-    // Must have aria-controls pointing to panel
-    expect(src).toMatch(/aria-controls="activity-tab-panel"/);
-    // Must have tabIndex roving (-1 for inactive, 0 for active)
-    expect(src).toMatch(/tabIndex=\{isSelected \? 0 : -1\}/);
-    // Must handle ArrowRight
-    expect(src).toMatch(/case "ArrowRight"/);
-    // Must handle ArrowLeft
-    expect(src).toMatch(/case "ArrowLeft"/);
-    // Must handle Home
-    expect(src).toMatch(/case "Home"/);
-    // Must handle End
-    expect(src).toMatch(/case "End"/);
-    // Must have role=tabpanel
-    expect(src).toMatch(/role="tabpanel"/);
-    // Must have aria-label on tabpanel
-    expect(src).toMatch(/aria-label=\{`\$\{activeFilter\} activities`\}/);
+    // Must have aria-label on the tablist
+    expect(src).toMatch(/aria-label="Tasks sections"/);
+    // Must have role=listbox + role=option for the triage queue
+    expect(src).toMatch(/role="listbox"/);
+    expect(src).toMatch(/role="option"/);
   });
 
   it("Financial Pulse scenario input has associated label", () => {
@@ -435,7 +423,7 @@ describe("A11y — AI-native surfaces (§13.2)", () => {
     const src = read("lib/hooks/use-surface-shortcuts.ts");
     expect(src).toMatch(/SURFACE_SHORTCUTS/);
     expect(src).toMatch(/"\/dashboard"/);
-    expect(src).toMatch(/"\/dashboard\/activity-hub"/);
+    expect(src).toMatch(/"\/dashboard\/tasks"/);
     expect(src).toMatch(/"\/dashboard\/financial-pulse"/);
     expect(src).toMatch(/"\/dashboard\/ledger"/);
     expect(src).toMatch(/"\/dashboard\/operations"/);
@@ -445,93 +433,53 @@ describe("A11y — AI-native surfaces (§13.2)", () => {
     expect(src).toMatch(/metaKey|ctrlKey|altKey/);
   });
 
-  it("Activity Hub batch actions have undo functionality", () => {
-    const src = read("app/dashboard/activity-hub/page.tsx");
-    // Must have undoBatchAction handler
-    expect(src).toMatch(/undoBatchAction/);
-    // Must show undo button in toast
-    expect(src).toMatch(/label: "Undo"/);
-    // Must call undoBatchAction on undo click
-    expect(src).toMatch(/onClick: \(\) => undoBatchAction/);
-    // undoBatchAction must clear item states
-    expect(src).toMatch(/delete next\[id\]/);
-    // undoBatchAction must refetch
-    expect(src).toMatch(/refetchApprovals/);
-    // undoBatchAction must show info toast
-    expect(src).toMatch(/toast\.info.*Undone/s);
+  it("Tasks page has no batch-selection machinery (single-item triage only)", () => {
+    const src = read("app/dashboard/tasks/page.tsx");
+    // Batch approve/reject was removed with the old hub — one decision at a
+    // time, the same mutation chat uses.
+    expect(src).not.toMatch(/selectedIds/);
+    expect(src).not.toMatch(/toggleSelect/);
+    expect(src).not.toMatch(/confirmRejectOpen/);
   });
 
-  it("Activity Hub has keyboard shortcuts a/r for batch approve/reject", () => {
-    const src = read("app/dashboard/activity-hub/page.tsx");
-    // Must have keydown listener for batch shortcuts
-    expect(src).toMatch(/keydown.*handleKeyDown/s);
-    // Must handle 'a' for approve
-    expect(src).toMatch(/key === "a"/);
-    // Must handle 'r' for reject
-    expect(src).toMatch(/key === "r"/);
-    // Must show shortcut hints in batch bar
-    expect(src).toMatch(/Press.*A.*approve/s);
-    expect(src).toMatch(/R.*reject/s);
-    // Must check selectedIds.size before triggering
-    expect(src).toMatch(/selectedIds\.size === 0/);
-    // Must skip if confirm dialog is open
-    expect(src).toMatch(/confirmRejectOpen/);
+  it("Tasks page has keyboard triage (j/k move, a approve, r reject, 1/2 sections)", () => {
+    const src = read("app/dashboard/tasks/page.tsx");
+    expect(src).toMatch(/case "j"/);
+    expect(src).toMatch(/case "k"/);
+    expect(src).toMatch(/case "a"/);
+    expect(src).toMatch(/case "r"/);
+    expect(src).toMatch(/case "1"/);
+    expect(src).toMatch(/case "2"/);
+    // Must close the note/drawer on Escape
+    expect(src).toMatch(/case "Escape"/);
+    // Must skip form fields
+    expect(src).toMatch(/INPUT\|TEXTAREA\|SELECT/);
   });
 
-  it("Activity Hub has confirmation dialog for batch reject", () => {
-    const src = read("app/dashboard/activity-hub/page.tsx");
-    // Must have confirmRejectOpen state
-    expect(src).toMatch(/confirmRejectOpen/);
-    // Must have role=dialog with aria-modal
-    expect(src).toMatch(/role="dialog"/);
-    expect(src).toMatch(/aria-modal="true"/);
-    // Must have aria-label
-    expect(src).toMatch(/aria-label="Confirm batch reject"/);
-    // Must have cancel and confirm buttons
-    expect(src).toMatch(/Cancel/);
-    // Must close on Escape
-    expect(src).toMatch(/key === "Escape"/);
-    // Must close on backdrop click
-    expect(src).toMatch(/e\.target === e\.currentTarget/);
-    // Reject all button must open dialog, not directly reject
-    expect(src).toMatch(/setConfirmRejectOpen\(true\)/);
-  });
-
-  it("Activity Hub has batch approve/reject with selection checkboxes", () => {
-    const src = read("app/dashboard/activity-hub/page.tsx");
-    // Must have selectedIds state
-    expect(src).toMatch(/selectedIds/);
-    // Must have toggleSelect handler
-    expect(src).toMatch(/toggleSelect/);
-    // Must have handleBatchAction handler
-    expect(src).toMatch(/handleBatchAction/);
-    // Must have batch action toolbar
-    expect(src).toMatch(/role="toolbar"/);
-    expect(src).toMatch(/aria-label="Batch actions"/);
-    // Must have Approve all and Reject all buttons
-    expect(src).toMatch(/Approve all/);
-    expect(src).toMatch(/Reject all/);
-    // Must have selectAll and clearSelection
-    expect(src).toMatch(/selectAll/);
-    expect(src).toMatch(/clearSelection/);
-    // Must have checkbox on each card
-    expect(src).toMatch(/type="checkbox"/);
-  });
-
-  it("Activity Hub has optimistic state management for approve/reject", () => {
-    const src = read("app/dashboard/activity-hub/page.tsx");
-    // Must have itemStates for tracking optimistic updates
-    expect(src).toMatch(/itemStates/);
-    // Must have setItemStates for updating state
-    expect(src).toMatch(/setItemStates/);
-    // Must have handleAction callback
-    expect(src).toMatch(/handleAction/);
-    // Must pass itemState and onAction to ActivityItemCard
-    expect(src).toMatch(/itemState=\{itemStates/);
-    expect(src).toMatch(/onAction=\{handleAction\}/);
-    // Must show success state with CheckCircle2
-    expect(src).toMatch(/itemState === "success"/);
+  it("Tasks page brief has approve/reject with a teaching note and Ask Xenboox", () => {
+    const src = read("app/dashboard/tasks/page.tsx");
+    expect(src).toMatch(/Approve/);
+    expect(src).toMatch(/Confirm rejection/);
+    expect(src).toMatch(/What should have happened instead/);
+    expect(src).toMatch(/Ask Xenboox/);
+    expect(src).toMatch(/approvals\.resolve/);
+    // Must surface errors in plain English
+    expect(src).toMatch(/That didn't save\. Try again\./);
     // Must import toast from sonner
     expect(src).toMatch(/import.*toast.*from.*sonner/);
+  });
+
+  it("Tasks page renders no agent internals (names, confidence, timings)", () => {
+    const src = read("app/dashboard/tasks/page.tsx");
+    expect(src).not.toMatch(/agentName/);
+    expect(src).not.toMatch(/ProvenanceBadge/);
+    expect(src).not.toMatch(/confidence/);
+    expect(src).not.toMatch(/durationMs/);
+  });
+
+  it("Tasks page opens task detail without navigating away", () => {
+    const src = read("app/dashboard/tasks/page.tsx");
+    expect(src).toMatch(/TaskDetailDrawer/);
+    expect(src).toMatch(/onOpenDetail/);
   });
 });

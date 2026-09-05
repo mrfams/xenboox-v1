@@ -33,7 +33,8 @@ import { ErrorBoundary, SurfaceErrorBoundary } from "@/components/shared/error-b
 
 const PAGE_TITLES: Record<string, string> = {
   "/dashboard": "Command Center",
-  "/dashboard/activity-hub": "Activity Hub",
+  "/dashboard/tasks": "Tasks",
+  "/dashboard/activity-hub": "Tasks",
   "/dashboard/financial-pulse": "Financial Pulse",
   "/dashboard/ledger": "Ledger",
   "/dashboard/operations": "Operations",

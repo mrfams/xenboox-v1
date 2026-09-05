@@ -151,7 +151,7 @@ const TOPICS: HelpTopic[] = [
   {
     title: "Review agent work",
     description: "Approve or reject what the Xenboox agent workforce produces.",
-    href: "/dashboard/activity-hub",
+    href: "/dashboard/tasks",
     icon: Inbox,
     group: "In-app guides",
     keywords: ["approve", "review", "inbox", "pending", "queue", "agent"],

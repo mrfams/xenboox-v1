@@ -64,8 +64,8 @@ export function KeyboardShortcuts() {
                 { label: "Go to Ledger", href: "/dashboard/ledger" },
                 { label: "Go to Operations", href: "/dashboard/operations" },
                 {
-                  label: "Go to Activity Hub",
-                  href: "/dashboard/activity-hub",
+                  label: "Go to Tasks",
+                  href: "/dashboard/tasks",
                 },
                 {
                   label: "Go to Financial Pulse",

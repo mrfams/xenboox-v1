@@ -17,16 +17,20 @@ export interface AgentActivityEvent {
 }
 
 /**
- * Live "thinking" event — a real pipeline step revealed to the user, same
- * visual language as the simulation traces (shimmer → reasoning → settled).
+ * Live "thinking" event — a user-safe first-person sentence for the Thought
+ * block. Only `text` is guaranteed; agent/step/label/timings are legacy
+ * internal fields, never sent by the server anymore and never rendered.
  */
 export interface ThinkingEvent {
   type: "thinking";
-  agent: string;
-  /** Stable pipeline step id (e.g. "intent_resolution"). */
+  /** @deprecated — never sent, never rendered. */
+  agent?: string;
+  /** @deprecated — never sent, never rendered. */
   step?: string;
+  /** @deprecated — never sent, never rendered. */
   label?: string;
   text: string;
+  /** @deprecated — never sent, never rendered. */
   durationMs?: number;
 }
 

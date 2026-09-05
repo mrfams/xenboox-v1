@@ -32,11 +32,11 @@ vi.mock("@/lib/security/rate-limiter", () => ({
 vi.mock("@xenboox/agents", () => ({
   processChatInput: vi.fn(
     async (params?: { onStep?: (step: unknown) => void }) => {
-      // Simulate the real pipeline emitting a live progress step.
+      // Simulate the real pipeline emitting a user-safe Thought line.
       params?.onStep?.({
         step: "intent_resolution",
         label: "Intent & Context Resolution",
-        note: 'Classified as "query" at 90% confidence — routing to CFO Agent.',
+        note: "Got it — looking into your question…",
         durationMs: 12,
         status: "completed",
       });
@@ -204,20 +204,24 @@ describe("POST /api/chat/stream — conversation persistence", () => {
     });
   });
 
-  it("streams thinking events from the pipeline steps for the thinking reveal", async () => {
+  it("streams user-safe Thought lines with no agent internals", async () => {
     const res = await POST(makeRequest({ message: "Hello Xenboox" }));
     expect(res.status).toBe(200);
 
     const body = await res.text();
 
-    // The intake reasoning line is emitted before the pipeline runs…
+    // The pipeline's user-safe note streams as the Thought line.
     expect(body).toContain('"type":"thinking"');
-    expect(body).toContain(
-      "Reading your request and loading the entity context",
-    );
-    // …and the pipeline's real steps stream through the onStep callback.
-    expect(body).toContain("intent_resolution");
-    expect(body).toContain("routing to CFO Agent");
+    expect(body).toContain("Got it — looking into your question…");
+
+    // Agent identity never crosses the wire: no agent names, no step
+    // labels, no timings, no activity/delegation events.
+    expect(body).not.toContain("CFO Agent");
+    expect(body).not.toContain("intent_resolution");
+    expect(body).not.toContain("Intent & Context Resolution");
+    expect(body).not.toContain("durationMs");
+    expect(body).not.toContain('"type":"agent_activity"');
+    expect(body).not.toContain('"type":"delegation"');
   });
 
   it("strips filler from the first message when naming a new conversation", async () => {

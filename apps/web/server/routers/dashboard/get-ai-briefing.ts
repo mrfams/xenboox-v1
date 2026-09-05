@@ -96,7 +96,7 @@ If everything is good, say so briefly and mention one thing to watch.`;
       type: "ai" as const,
       actions: [
         pendingCount > 0
-          ? { label: "Review pending items", href: "/dashboard/activity-hub" }
+          ? { label: "Review pending items", href: "/dashboard/tasks" }
           : null,
         deadlines.length > 0
           ? { label: "Check deadlines", href: "/dashboard/operations" }

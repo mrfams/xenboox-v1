@@ -42,7 +42,7 @@ import { usePermission } from "@/lib/permissions";
 //
 // 5 surfaces. The AI absorbs navigation. Users talk, the AI acts.
 //   1. Command Center  — AI is your CFO. Talk, it acts.
-//   2. Activity Hub    — What needs YOUR attention right now.
+//   2. Tasks           — Things that need YOU, plus every job.
 //   3. Financial Pulse — AI-narrated financial health.
 //   4. Ledger          — The accounting records (when you need to look).
 //   5. Operations      — Money in, money out (AI handles, you approve).
@@ -74,11 +74,11 @@ const primaryNavItems: NavItem[] = [
     tourId: "command-center",
   },
   {
-    label: "Activity Hub",
-    href: "/dashboard/activity-hub",
+    label: "Tasks",
+    href: "/dashboard/tasks",
     icon: Inbox,
     attentionKey: "activity-hub",
-    match: ["/dashboard/activity-hub"],
+    match: ["/dashboard/tasks", "/dashboard/activity-hub"],
     shortcut: "2",
     tourId: "activity-hub",
   },
@@ -218,7 +218,7 @@ function WhiteLabelLogo() {
 
 // ─── Attention Strip ──────────────────────────────────────────────────────
 //
-// Bottom-of-sidebar summary: "N need your attention" → Activity Hub.
+// Bottom-of-sidebar summary: "N need your attention" → Tasks.
 // A quiet rail is the success state.
 
 function AttentionStrip({
@@ -233,7 +233,7 @@ function AttentionStrip({
   if (totals.action > 0) {
     return (
       <Link
-        href="/dashboard/activity-hub"
+        href="/dashboard/tasks"
         onClick={onClose}
         className="flex items-center gap-2 rounded-lg bg-destructive/10 px-3 py-2 transition-colors hover:bg-destructive/15"
       >
@@ -248,7 +248,7 @@ function AttentionStrip({
   if (totals.new > 0) {
     return (
       <Link
-        href="/dashboard/activity-hub"
+        href="/dashboard/tasks"
         onClick={onClose}
         className="flex items-center gap-2 rounded-lg bg-primary/10 px-3 py-2 transition-colors hover:bg-primary/15"
       >

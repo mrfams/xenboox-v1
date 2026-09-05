@@ -206,7 +206,7 @@ const ROLE_CONFIGS: Record<UserRole, RoleConfig> = {
     quickActions: [
       {
         label: "Review Approvals",
-        href: "/dashboard/activity-hub",
+        href: "/dashboard/tasks",
         icon: "check-circle",
         description: "Items awaiting your approval",
       },
@@ -458,13 +458,13 @@ const ROLE_CONFIGS: Record<UserRole, RoleConfig> = {
       ledger: "hidden",
       operations: "full",
     },
-    defaultLanding: "/dashboard/activity-hub",
+    defaultLanding: "/dashboard/tasks",
     welcomeHeadline: "Good morning. Here's what needs your attention.",
     welcomeSubtitle: "Approvals, expenses, and department budget.",
     quickActions: [
       {
         label: "Review Approvals",
-        href: "/dashboard/activity-hub",
+        href: "/dashboard/tasks",
         icon: "check-circle",
         description: "Pending approvals from your team",
       },
@@ -499,25 +499,25 @@ const ROLE_CONFIGS: Record<UserRole, RoleConfig> = {
       ledger: "hidden",
       operations: "hidden",
     },
-    defaultLanding: "/dashboard/activity-hub",
+    defaultLanding: "/dashboard/tasks",
     welcomeHeadline: "Hi. Here's your employee dashboard.",
     welcomeSubtitle: "Submit expenses, view payslips, manage documents.",
     quickActions: [
       {
         label: "Submit Expense",
-        href: "/dashboard/activity-hub",
+        href: "/dashboard/tasks",
         icon: "receipt",
         description: "Log an expense claim",
       },
       {
         label: "View Payslip",
-        href: "/dashboard/activity-hub",
+        href: "/dashboard/tasks",
         icon: "file-text",
         description: "Download your payslip",
       },
       {
         label: "Documents",
-        href: "/dashboard/activity-hub",
+        href: "/dashboard/tasks",
         icon: "folder",
         description: "Upload and view documents",
       },
@@ -623,7 +623,7 @@ export function getVisibleSurfaces(
   const config = getRoleConfig(role);
   const labels: Record<NavKey, string> = {
     "command-center": "Command Center",
-    "activity-hub": "Activity Hub",
+    "activity-hub": "Tasks",
     "financial-pulse": "Financial Pulse",
     ledger: "Ledger",
     operations: "Operations",

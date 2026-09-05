@@ -1131,36 +1131,16 @@ function recordFailedStep(
 export interface PipelineStepEvent {
   /** Stable step id (e.g. "intent_resolution"). */
   step: string;
-  /** Human label (e.g. "Intent & Context Resolution"). */
+  /** Internal label for telemetry/LangFuse (never sent to the client). */
   label: string;
-  /** Plain-English note describing what the step produced. */
+  /**
+   * User-safe first-person sentence streamed to the Thought block.
+   * Never contains agent names, confidence scores, timings, tool names,
+   * or pipeline internals — those stay in stepTelemetry/LangFuse.
+   */
   note: string;
   durationMs: number;
   status: StepTelemetry["status"];
-}
-
-/** Display names used in routing notes sent to streaming UIs. */
-const AGENT_DISPLAY_NAMES: Record<string, string> = {
-  cfo: "CFO Agent",
-  controller: "Controller Agent",
-  treasury: "Treasury Agent",
-  ar: "AR Agent",
-  ap: "AP Agent",
-  payroll: "Payroll Agent",
-  payroll_manager: "Payroll Manager",
-  ledger: "Ledger Agent",
-  reporting: "Reporting Agent",
-  document: "Document Agent",
-  cash: "Cash Agent",
-  compliance: "Compliance Agent",
-  reconciliation: "Reconciliation Agent",
-  budget: "Budget Agent",
-  analytics: "Analytics Agent",
-  mobile_money: "Mobile Money Agent",
-};
-
-function agentDisplayName(agentId: string): string {
-  return AGENT_DISPLAY_NAMES[agentId] ?? `${agentId} Agent`;
 }
 
 function emitStep(
@@ -1281,8 +1261,8 @@ export async function runCFOPipeline(
         onStep,
         sessionStep,
         session
-          ? "Loaded this conversation's context and prior turns."
-          : "Starting a fresh conversation thread.",
+          ? "Picking up where we left off…"
+          : "Starting fresh on this one…",
       );
 
       stepStart = Date.now();
@@ -1297,13 +1277,10 @@ export async function runCFOPipeline(
         "Intent & Context Resolution",
         stepStart,
       );
-      const targetNames = intent.targetAgents
-        .map((t) => agentDisplayName(t.agentId))
-        .join(", ");
       emitStep(
         onStep,
         intentStep,
-        `Classified as "${intent.type.replace(/_/g, " ")}" at ${(intent.confidence * 100).toFixed(0)}% confidence — routing to ${targetNames}.`,
+        `Got it — looking into ${intent.type.replace(/_/g, " ")}…`,
       );
 
       await trace.update({
@@ -1326,13 +1303,15 @@ export async function runCFOPipeline(
         "Permission & Entity Scoping",
         stepStart,
       );
-      emitStep(
-        onStep,
-        permissionStep,
-        permission.allowed
-          ? "Entity access verified — proceeding within scope."
-          : "Permission check failed — this request is outside your entity access.",
-      );
+      // Success is plumbing — the user never needs to hear about it.
+      // Failure surfaces as the rejection answer itself; one short line.
+      if (!permission.allowed) {
+        emitStep(
+          onStep,
+          permissionStep,
+          "That one's outside what I can access…",
+        );
+      }
 
       if (!permission.allowed) {
         const result = {
@@ -1376,6 +1355,11 @@ export async function runCFOPipeline(
                     entityName: task.entityName,
                     currency: task.currency,
                     input: task.params,
+                    userId: event.userId,
+                    // Task-as-session: link every dispatched run back to
+                    // the chat conversation so task clicks reload the
+                    // thread inline instead of navigating away.
+                    conversationId: event.conversationId as string | undefined,
                   }),
                 pipelineTimeout.maxAgentInvokeMs,
                 `orchestrate:${task.agentId}`,
@@ -1400,13 +1384,7 @@ export async function runCFOPipeline(
         "Route & Task Dispatch",
         stepStart,
       );
-      emitStep(
-        onStep,
-        dispatchStep,
-        `Dispatched ${tasks.length} task${tasks.length !== 1 ? "s" : ""} to ${tasks
-          .map((t) => agentDisplayName(t.agentId))
-          .join(", ")} — up to ${CONCURRENCY_LIMIT} running in parallel.`,
-      );
+      emitStep(onStep, dispatchStep, "Working through it now…");
 
       const results: DepartmentResult[] = tasks.map((task, i) => {
         const orchestrationResult = orchestrationResults[i];
@@ -1446,13 +1424,9 @@ export async function runCFOPipeline(
         "Summary Aggregation",
         stepStart,
       );
-      const cleanCount = results.filter((r) => r.confirmed).length;
-      const flaggedCount = results.length - cleanCount;
-      emitStep(
-        onStep,
-        aggregationStep,
-        `Collected ${results.length} agent result${results.length !== 1 ? "s" : ""} — ${cleanCount} clean, ${flaggedCount} flagged.`,
-      );
+      // Aggregation internals stay in telemetry — the answer itself is
+      // the summary. Silence here keeps Thought to a few human lines.
+      void aggregationStep;
 
       // ── Agent Disagreement Detection ─────────────────────────────────────
       // Enterprise: Check for conflicting outputs between agents
@@ -1488,13 +1462,14 @@ export async function runCFOPipeline(
         "Agent Disagreement Detection",
         stepStart,
       );
-      emitStep(
-        onStep,
-        conflictStep,
-        conflictCheck.hasConflict
-          ? `Flagged conflicting outputs between ${conflictCheck.conflictingAgents.join(", ")}.`
-          : "No conflicting outputs detected between agents.",
-      );
+      // Only speak up when something actually needs the user's eyes.
+      if (conflictCheck.hasConflict) {
+        emitStep(
+          onStep,
+          conflictStep,
+          "Found something that doesn't quite line up — flagging it for you…",
+        );
+      }
 
       // ── Step 7: Escalation Gate ────────────────────────────────────────
       stepStart = Date.now();
@@ -1505,15 +1480,17 @@ export async function runCFOPipeline(
         "Escalation & Confidence Gate",
         stepStart,
       );
-      emitStep(
-        onStep,
-        gateStep,
-        gateDecision.action === "proceed"
-          ? "Confidence gate passed — results meet the threshold, no escalations."
-          : gateDecision.action === "rejected"
-            ? "Request rejected by the confidence gate."
-            : `Confidence gate flagged ${(gateDecision.escalationItems ?? []).length} item${(gateDecision.escalationItems ?? []).length !== 1 ? "s" : ""} for your review.`,
-      );
+      // A passing gate is plumbing. Speak only when the user must decide.
+      if (gateDecision.action === "escalate_to_human") {
+        const n = (gateDecision.escalationItems ?? []).length;
+        emitStep(
+          onStep,
+          gateStep,
+          `Found ${n} thing${n !== 1 ? "s" : ""} I want your call on…`,
+        );
+      } else if (gateDecision.action === "rejected") {
+        emitStep(onStep, gateStep, "I can't safely do that one…");
+      }
 
       const agentsInvolved = [...new Set(results.map((r) => r.agentId))];
 
@@ -1530,13 +1507,9 @@ export async function runCFOPipeline(
         "Human-in-Loop Escalation",
         stepStart,
       );
-      if (gateDecision.action === "escalate_to_human") {
-        emitStep(
-          onStep,
-          escalationStep,
-          `Pushed ${gateDecision.escalationItems.length} item${gateDecision.escalationItems.length !== 1 ? "s" : ""} to the approval queue for your review.`,
-        );
-      }
+      // The gate line above already said this — the approval card in the
+      // answer carries the details. Stay silent to avoid repeating.
+      void escalationStep;
 
       // ── Step 9: Response Synthesis ──────────────────────────────────────
       stepStart = Date.now();
@@ -1552,11 +1525,9 @@ export async function runCFOPipeline(
         "Response Synthesis",
         stepStart,
       );
-      emitStep(
-        onStep,
-        synthesisStep,
-        "Synthesizing your answer from the gathered results…",
-      );
+      // The answer streams immediately after — narrating the narration
+      // is noise. Telemetry keeps the timing.
+      void synthesisStep;
 
       // ── Step 10: Audit Trail Logging (with PII Redaction) ──────────────
       stepStart = Date.now();
@@ -1590,11 +1561,8 @@ export async function runCFOPipeline(
         "Audit Trail Logging (PII Redacted)",
         stepStart,
       );
-      emitStep(
-        onStep,
-        auditStep,
-        "Audit trail recorded — every step chained onto the tamper-evident log.",
-      );
+      // Audit is a promise of the platform, not a thought. Never shown.
+      void auditStep;
 
       // ── Step 11: Session/Context State ──────────────────────────────────
       stepStart = Date.now();

@@ -14,7 +14,7 @@ export const NAV_PAGES: NavPage[] = [
   },
   {
     label: "Activity Hub",
-    href: "/dashboard/activity-hub",
+    href: "/dashboard/tasks",
     group: "Surfaces",
     keywords: ["approvals", "notifications", "alerts", "queue", "pending"],
   },

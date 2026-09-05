@@ -473,48 +473,15 @@ export async function POST(req: NextRequest) {
           title: conversationTitle,
         });
 
-        // Emit thinking indicator
-        enqueue({
-          type: "agent_activity",
-          agent: "CFO Agent",
-          status: "started",
-          action: "Processing your request",
-        });
-
-        // Thinking reveal — the first reasoning line lands immediately, then
-        // the real pipeline steps stream in as they complete.
-        enqueue({
-          type: "thinking",
-          agent: "CFO Agent",
-          step: "input_intake",
-          label: "Input Intake",
-          text: "Reading your request and loading the entity context…",
-        });
-
-        // Retrieve cross-conversation memory for context from past conversations.
-        enqueue({
-          type: "thinking",
-          agent: "CFO Agent",
-          step: "memory_retrieval",
-          label: "Memory Retrieval",
-          text: "Searching past conversations for relevant context…",
-        });
-
+        // Thought lines come only from the pipeline's user-safe notes
+        // (first-person sentences, no agent names, no timings). Nothing is
+        // emitted here — memory/context retrieval is plumbing, and the
+        // client shows its own "Thinking…" shimmer until lines arrive.
         const memoryContextBlock = await buildMemoryContextBlock(
           entityId,
           message,
           convId,
         );
-
-        if (memoryContextBlock) {
-          enqueue({
-            type: "thinking",
-            agent: "CFO Agent",
-            step: "memory_retrieval",
-            label: "Memory Retrieval",
-            text: "Found relevant context from past conversations.",
-          });
-        }
 
         // Invoke the real CFO pipeline — page context rides the same seam as
         // file context, so the agent knows what the user is looking at.
@@ -659,18 +626,18 @@ export async function POST(req: NextRequest) {
               void publishSseEvent(entityId, dataChangedEvent);
             }
           },
-          // Thinking reveal — every real pipeline step (intent classification,
-          // dispatch, confidence gate, …) streams as a reasoning line.
-          onStep: (step: PipelineStepEvent) => {
-            enqueue({
-              type: "thinking",
-              agent: "CFO Agent",
-              step: step.step,
-              label: step.label,
-              text: step.note,
-              durationMs: step.durationMs,
-            });
-          },
+          // Thought reveal — pipeline notes are already user-safe
+          // first-person sentences. Only the text crosses the wire: no
+          // agent names, no step labels, no timings. Capped so Thought
+          // stays a few lines, never a telemetry dump.
+          onStep: (() => {
+            let sent = 0;
+            return (step: PipelineStepEvent) => {
+              if (sent >= 4) return;
+              sent += 1;
+              enqueue({ type: "thinking", text: step.note });
+            };
+          })(),
         });
 
         // If the user asked for a document/file, generate it from real ledger
@@ -689,25 +656,9 @@ export async function POST(req: NextRequest) {
                 message,
               });
 
-        // Emit agent activity event
-        enqueue({
-          type: "agent_activity",
-          agent: "CFO Agent",
-          status: "completed",
-          action: "Response generated",
-          confidence: Math.round(pipelineResult.confidence * 100),
-          durationMs: pipelineResult.durationMs,
-        });
-
-        // Emit delegation events if agents were involved
-        if (pipelineResult.agentId && pipelineResult.agentId !== "cfo") {
-          enqueue({
-            type: "delegation",
-            from: "CFO Agent",
-            to: pipelineResult.agentId,
-            reason: `Delegated to ${pipelineResult.agentId} for specialized processing`,
-          });
-        }
+        // No agent_activity / delegation events: agent identity is an
+        // internal concern (LangFuse + audit trail). The client renders
+        // the answer and its artifacts — never the org chart.
 
         // Emit approval needed if escalation
         if (

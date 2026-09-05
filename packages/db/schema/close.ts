@@ -303,6 +303,8 @@ export const closeTasks = pgTable(
     completedByUserId: text("completed_by_user_id"),
     completedAt: timestamp("completed_at"),
     blockedReason: text("blocked_reason"),
+    // Task-as-session (§toAINative): chat conversation this task belongs to.
+    conversationId: text("conversation_id"),
     resultDetails: jsonb("result_details")
       .default({})
       .$type<Record<string, unknown>>(),
@@ -318,6 +320,7 @@ export const closeTasks = pgTable(
     index("close_tasks_status").on(t.entityId, t.period, t.status),
     index("close_tasks_session").on(t.closeSessionId),
     index("close_tasks_phase").on(t.entityId, t.period, t.phase),
+    index("close_tasks_conversation").on(t.conversationId),
   ],
 );
 

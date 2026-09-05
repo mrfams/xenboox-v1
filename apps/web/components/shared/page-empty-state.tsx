@@ -572,7 +572,7 @@ export const PAGE_EMPTY_STATES = {
     actions: [
       {
         label: "View Agent Activity",
-        href: "/dashboard/activity-hub",
+        href: "/dashboard/tasks",
         variant: "secondary" as const,
       },
     ],

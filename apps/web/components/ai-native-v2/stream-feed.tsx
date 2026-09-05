@@ -13,12 +13,12 @@ import {
 import { trpc } from "@/lib/trpc/client";
 import { cn } from "@/lib/utils";
 
-// ─── AgentStream ──────────────────────────────────────────────────────────
+// ─── AgentStream (DEPRECATED — ops/debug only) ─────────────────────────────
 //
-// The live feed of YOUR entity's agent runs — running now, then recently
-// finished. This is the tenant-facing pulse of the agent workforce: real
-// rows from ops_live_runs, entity-scoped at the router, polled as a
-// backstop to the SSE channel.
+// Agent identity is an internal concern (LangFuse + audit trail) and must
+// NOT render in user-facing surfaces. The dashboard rail and Tasks page
+// read tasks.list (work, not agents). Retained for ops/debug screens only.
+// See toAINative.md §3b.
 
 type RunStatus =
   | "queued"

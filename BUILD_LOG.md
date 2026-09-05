@@ -4,6 +4,50 @@
 
 ---
 
+## 2026-09-05 — AI-NATIVE UX: unified Tasks + invisible agents + human Thought
+
+**Scope:** toAINative.md spec — merge Agents/Tasks/Chat rail into one Tasks
+surface, task-as-session (click loads thread inline), Activity Hub → Tasks
+review queue at /dashboard/tasks, pipeline thinking becomes human sentences.
+
+### What shipped
+
+| Layer      | Change                                                                                       |
+| ---------- | -------------------------------------------------------------------------------------------- |
+| **Schema** | `conversation_id` + index on `ops_live_runs`, `close_tasks`, `daily_close_runs` (mig 0039)  |
+| **Agents** | `orchestrate()` threads `conversationId` into `persistAgentRun` (column + metadata fallback) |
+| **Agents** | Pipeline `emitStep` notes rewritten to user-safe first-person sentences; telemetry untouched |
+| **API**    | Stream route forwards only `thinking.text` (cap 4); no agent/activity/delegation events      |
+| **Tasks**  | `UnifiedTask` gains `conversationId` + `needsDecision`; `get` returns artifacts + escalations |
+| **Chat**   | Thought collapsed by default, sentences not labels, zero timings; tool cards hide raw JSON   |
+| **Chat**   | `StreamingMessage` drops agent block + confidence readout; GMD hardcode removed from summaries |
+| **Dashboard** | 3-tab rail → one `TasksRailPanel` (Needs you/Running/Done); click loads thread + drawer   |
+| **Tasks**  | New `/dashboard/tasks` page (Needs you + All tasks); `/dashboard/activity-hub` redirects    |
+| **Nav**    | Sidebar, mobile nav, shortcuts, notifications, help-assist all point at `/dashboard/tasks`   |
+| **Tests**  | New `unified-tasks-ux.test.tsx`; thinking/a11y/stream/rail tests updated to new contract     |
+
+### Design decisions
+
+- Agent identity fields kept in API (deprecated) for observability compat; UI never renders them.
+- Internal `activity-hub` attention/surface keys unchanged — redirect + badge keep working.
+- Fake features removed, not fixed: snooze, batch approve, undo toast, raw activity feed.
+- `AgentStream`/`AgentActivityBlock` retained for ops/debug, unrendered in user paths.
+
+### Verification
+
+- Static contract checks: no agent names/labels/timings cross the wire or render (see unified-tasks-ux tests).
+- Deliberately skipped per user request: `typecheck`, `lint`, `vitest` (slow PC) — CI must run them on the PR.
+- Manual pass still required: 3-message chat check, rail click-through, hub triage (see toAINative.md §8).
+
+### Next
+
+1. CI green on this PR (typecheck + tests).
+2. Authenticated visual pass of /dashboard + /dashboard/tasks.
+3. `pnpm db:migrate` to land 0039 (metadata fallback covers pre-migration rows).
+4. Remove deprecated StreamingMessage props + hook plumbing once callers are clean.
+
+---
+
 ## 2026-09-02 — PRODUCTION READINESS CHECKLIST UPDATED
 
 **Scope:** Mark completed P0 items and identify remaining work to reach 100/100.

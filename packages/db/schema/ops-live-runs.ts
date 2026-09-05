@@ -57,6 +57,10 @@ export const opsLiveRuns = pgTable(
     // Required for per-entity execution history + cost tracking; the
     // organization columns above are denormalized display fields.
     entityId: uuid("entity_id").notNull(),
+    // Task-as-session (§toAINative): the chat conversation this run belongs
+    // to. Nullable so pre-link rows and non-chat runs keep working; new chat
+    // turns always write it so a task click can reload its thread inline.
+    conversationId: text("conversation_id"),
     status: liveRunStatusEnum("status").notNull().default("queued"),
     progress: integer("progress").notNull().default(0), // 0-100
     currentStep: text("current_step"),
@@ -82,6 +86,7 @@ export const opsLiveRuns = pgTable(
     index("ops_live_runs_started").on(t.startedAt),
     index("ops_live_runs_org").on(t.organizationId),
     index("ops_live_runs_entity").on(t.entityId),
+    index("ops_live_runs_conversation").on(t.conversationId),
   ],
 );
 
