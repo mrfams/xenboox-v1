@@ -34,12 +34,11 @@ import { ErrorBoundary, SurfaceErrorBoundary } from "@/components/shared/error-b
 const PAGE_TITLES: Record<string, string> = {
   "/dashboard": "Command Center",
   "/dashboard/tasks": "Tasks",
-  "/dashboard/activity-hub": "Tasks",
+  "/dashboard/ingestion": "Documents",
   "/dashboard/financial-pulse": "Financial Pulse",
   "/dashboard/ledger": "Ledger",
   "/dashboard/operations": "Operations",
   "/dashboard/settings": "Settings",
-  "/dashboard/help": "Help & Support",
 };
 
 function getPageTitle(pathname: string): string {
@@ -169,10 +168,7 @@ export default function DashboardLayout({
   const [bannerHeight, setBannerHeight] = useState(0);
 
   // Routes that need full-width padding (no card container)
-  const PAGE_PADDING_ROUTES = new Set([
-    "/dashboard/settings",
-    "/dashboard/help",
-  ]);
+  const PAGE_PADDING_ROUTES = new Set(["/dashboard/settings"]);
 
   const isPaddedPage = pathname ? PAGE_PADDING_ROUTES.has(pathname) : false;
   const ____isDashboardHome = pathname === "/dashboard";

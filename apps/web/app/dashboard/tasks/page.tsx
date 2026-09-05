@@ -657,10 +657,21 @@ function BriefPane({
         <button
           type="button"
           onClick={() => onAskAi(`Explain this: "${item.title}". ${item.summary}`)}
-          className="ml-auto inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium text-primary transition-colors hover:bg-primary/5"
+          className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium text-primary transition-colors hover:bg-primary/5"
         >
           <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
           Ask Xenboox
+        </button>
+        <button
+          type="button"
+          onClick={() =>
+            onAskAi(
+              `Make approvals like this automatic going forward: "${item.title}". ${item.summary} Analyze my approval history and suggest an auto-approve rule for this kind of item.`,
+            )
+          }
+          className="ml-auto rounded-lg px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent/50 hover:text-foreground"
+        >
+          Make automatic
         </button>
       </footer>
     </article>

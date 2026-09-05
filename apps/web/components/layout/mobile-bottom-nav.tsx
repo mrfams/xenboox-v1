@@ -9,7 +9,6 @@ import {
   Activity,
   BookOpen,
   ArrowLeftRight,
-  Users,
   type LucideIcon,
 } from "lucide-react";
 
@@ -61,12 +60,6 @@ const navItems: BottomNavItem[] = [
     href: "/dashboard/operations",
     icon: ArrowLeftRight,
     attentionKey: "operations",
-  },
-  {
-    label: "People",
-    href: "/dashboard/people",
-    icon: Users,
-    attentionKey: "people",
   },
 ];
 

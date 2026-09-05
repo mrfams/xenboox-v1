@@ -21,6 +21,7 @@ import {
   RefreshCw,
   Database,
   Sparkles,
+  Gift,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -180,6 +181,13 @@ const SECTION_COMPONENTS: Record<string, React.ComponentType> = {
       ),
     { ssr: false },
   ),
+  referrals: dynamic(
+    () =>
+      import("@/components/dashboard/referral-dashboard").then(
+        (m) => m.ReferralDashboard,
+      ),
+    { ssr: false },
+  ),
 };
 
 interface TabGroup {
@@ -220,6 +228,12 @@ const TAB_GROUPS: TabGroup[] = [
         label: "Appearance",
         icon: Palette,
         description: "Theme and language preferences",
+      },
+      {
+        id: "referrals",
+        label: "Referrals",
+        icon: Gift,
+        description: "Invite friends and earn rewards",
       },
     ],
   },
@@ -375,6 +389,7 @@ const TAB_PERMISSIONS: Record<
   "conflict-resolution": { module: "settings_entities", action: "configure" },
   sync: { module: "settings_entities", action: "configure" },
   "ai-data": { module: "settings_entities", action: "configure" },
+  referrals: null, // everyone sees referrals
 };
 
 export default function SettingsPage() {

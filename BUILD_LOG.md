@@ -4,6 +4,47 @@
 
 ---
 
+## 2026-09-05 — PHASE C: absorb/delete 7 routes
+
+**Scope:** Phase C of the remaining-surfaces rethink. Seven routes deleted,
+each job preserved where it now lives. Sidebar ends at 5 surfaces.
+
+### What shipped
+
+| Deleted route       | Where its job lives now                                              |
+| ------------------- | -------------------------------------------------------------------- |
+| `auto-approve`      | Chat (existing engine) + Make-automatic button on every Tasks brief  |
+| `knowledge`         | Command Center attach + ask (citations already inline)               |
+| `help`              | Chat + `/docs` (all nav, palette, shortcuts, assistant point there)  |
+| `qbr`               | Financial Pulse artifact via chat (report cards already inline)      |
+| `donor-reporting`   | Financial Pulse artifact via chat; grant-tracking future logged      |
+| `people`            | Operations (money work); payroll/inventory/asset/budget views removed |
+| `referrals`         | Settings → Referrals tab (same ReferralDashboard, lazy chunk)        |
+
+Also: `knowledge-graph` kept but unlinked from nav (ops/debug only, hidden
+inspector notes it); donor sub-nav removed; mobile bottom nav back to 5;
+surface shortcuts 1-5; page-context/route-focus/title maps updated; e2e
+route lists updated; `next.config.ts` redirects for all 7 (old bookmarks keep
+working); orphaned components deleted (qbr-report, auto-approve-rules,
+knowledge-search, document-processor, 4 people views).
+
+### Verification
+
+- New `phase-c-absorb-delete.test.ts`: routes gone, orphans gone, redirects
+  present, zero user-facing links to deleted routes, jobs preserved.
+- Deliberately skipped per user request: `typecheck`, `lint`, `vitest` —
+  CI must run them.
+- Manual pass still required: old bookmarks redirect, palette/shortcuts,
+  settings Referrals tab, Make-automatic handoff.
+
+### Next
+
+1. CI green on this PR.
+2. Authenticated visual pass across all three phase PRs.
+3. Future (logged in toAINative.md): grant/project spend tracking.
+
+---
+
 ## 2026-09-05 — PHASE B: Operations + Ingestion revamp
 
 **Scope:** Phase B of the remaining-surfaces rethink. Operations drops the

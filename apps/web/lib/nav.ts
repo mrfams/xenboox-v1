@@ -13,7 +13,7 @@ export const NAV_PAGES: NavPage[] = [
     keywords: ["ai", "assistant", "chat", "cfo", "home", "overview"],
   },
   {
-    label: "Activity Hub",
+    label: "Tasks",
     href: "/dashboard/tasks",
     group: "Surfaces",
     keywords: ["approvals", "notifications", "alerts", "queue", "pending"],
@@ -50,7 +50,7 @@ export const NAV_PAGES: NavPage[] = [
   },
   {
     label: "Help & Support",
-    href: "/dashboard/help",
+    href: "/docs",
     group: "Settings",
     keywords: ["help", "support", "faq", "guide", "documentation"],
   },

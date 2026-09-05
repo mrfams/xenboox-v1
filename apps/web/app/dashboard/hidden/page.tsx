@@ -7,13 +7,8 @@ import {
   Eye,
   ExternalLink,
   Shield,
-  FileText,
   Inbox,
-  Brain,
   Network,
-  BarChart3,
-  Gift,
-  Settings2,
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -33,46 +28,16 @@ const ROUTES: HiddenRoute[] = [
     icon: Shield,
   },
   {
-    href: "/dashboard/auto-approve",
-    title: "Auto-Approve",
-    purpose: "Auto-approve rules — thresholds + confidence gates",
-    icon: Settings2,
-  },
-  {
-    href: "/dashboard/donor-reporting",
-    title: "Donor Reporting",
-    purpose: "Donor/grant reports — budget vs actual by project",
-    icon: FileText,
-  },
-  {
     href: "/dashboard/ingestion",
-    title: "Ingestion",
-    purpose: "Document inbox — upload → AI extraction queue",
+    title: "Documents",
+    purpose: "Document inbox — upload → review queue",
     icon: Inbox,
   },
   {
-    href: "/dashboard/knowledge",
-    title: "Knowledge",
-    purpose: "AI knowledge base — Q&A over your books",
-    icon: Brain,
-  },
-  {
     href: "/dashboard/knowledge-graph",
-    title: "Knowledge Graph",
-    purpose: "Knowledge graph — entities, accounts, links",
+    title: "Knowledge Graph (debug)",
+    purpose: "Ops/debug only — entities, accounts, links. Unlinked from nav.",
     icon: Network,
-  },
-  {
-    href: "/dashboard/qbr",
-    title: "QBR",
-    purpose: "Quarterly Business Review pack — board-ready",
-    icon: BarChart3,
-  },
-  {
-    href: "/dashboard/referrals",
-    title: "Referrals",
-    purpose: "Referral program — invites + rewards",
-    icon: Gift,
   },
 ];
 

@@ -13,13 +13,13 @@ const TEST_PASSWORD = process.env.TEST_PASSWORD || "demo1234";
 
 const pipelinePages = [
   "/dashboard",
-  "/dashboard/activity-hub",
+  "/dashboard/tasks",
   "/dashboard/financial-pulse",
   "/dashboard/ledger",
   "/dashboard/operations",
+  "/dashboard/ingestion",
   "/dashboard/audit-trail",
   "/dashboard/settings",
-  "/dashboard/help",
 ];
 
 test.describe("W.F07 Pipeline Pages", () => {

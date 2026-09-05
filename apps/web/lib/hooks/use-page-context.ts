@@ -24,10 +24,15 @@ const SURFACE_CONFIG: Record<
     notes:
       "Primary AI chat interface. User can ask anything about their accounting.",
   },
-  "/dashboard/activity-hub": {
-    page: "Activity Hub",
+  "/dashboard/tasks": {
+    page: "Tasks",
     module: "approvals",
-    notes: "Human-in-the-loop queue. Items requiring approval or review.",
+    notes: "Review queue. Items requiring approval or review, plus every job.",
+  },
+  "/dashboard/ingestion": {
+    page: "Documents",
+    module: "documents",
+    notes: "Document upload and review inbox.",
   },
   "/dashboard/financial-pulse": {
     page: "Financial Pulse",
@@ -49,11 +54,6 @@ const SURFACE_CONFIG: Record<
     page: "Settings",
     module: "settings",
     notes: "User and entity settings.",
-  },
-  "/dashboard/help": {
-    page: "Help & Support",
-    module: "help",
-    notes: "Help documentation and support.",
   },
 };
 

@@ -13,13 +13,13 @@ const TEST_PASSWORD = process.env.TEST_PASSWORD || "demo1234";
 
 const modulePages = [
   { path: "/dashboard", label: "Command Center" },
-  { path: "/dashboard/activity-hub", label: "Activity Hub" },
+  { path: "/dashboard/tasks", label: "Tasks" },
   { path: "/dashboard/financial-pulse", label: "Financial Pulse" },
   { path: "/dashboard/ledger", label: "Ledger" },
   { path: "/dashboard/operations", label: "Operations" },
+  { path: "/dashboard/ingestion", label: "Documents" },
   { path: "/dashboard/audit-trail", label: "Audit Trail" },
   { path: "/dashboard/settings", label: "Settings" },
-  { path: "/dashboard/help", label: "Help" },
 ];
 
 test.describe("W.F03 Module Pages — Render & Load", () => {

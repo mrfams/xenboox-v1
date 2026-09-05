@@ -8,6 +8,6 @@ export const MODULE_TABS = {
   ],
   settings: [
     { label: "Settings", href: "/dashboard/settings" },
-    { label: "Help & Support", href: "/dashboard/help" },
+    { label: "Help & Support", href: "/docs" },
   ],
 } as const;

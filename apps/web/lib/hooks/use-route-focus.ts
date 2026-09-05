@@ -11,13 +11,13 @@ import { usePathname } from "next/navigation";
 
 const PAGE_TITLES: Record<string, string> = {
   "/dashboard": "Command Center",
-  "/dashboard/activity-hub": "Activity Hub",
+  "/dashboard/tasks": "Tasks",
   "/dashboard/financial-pulse": "Financial Pulse",
   "/dashboard/ledger": "Ledger",
   "/dashboard/operations": "Operations",
+  "/dashboard/ingestion": "Documents",
   "/dashboard/audit-trail": "Audit Trail",
   "/dashboard/settings": "Settings",
-  "/dashboard/help": "Help & Support",
 };
 
 function getPageTitle(pathname: string): string {

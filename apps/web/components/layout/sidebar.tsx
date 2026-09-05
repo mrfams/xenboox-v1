@@ -17,7 +17,6 @@ import {
   Users,
   FileText,
   CreditCard,
-  HandCoins,
   type LucideIcon,
 } from "lucide-react";
 
@@ -135,13 +134,6 @@ const operationsSubNavItems: NavItem[] = [
     icon: CreditCard,
     match: ["/dashboard/operations/vendors"],
     permission: { module: "accounts_payable", action: "view" },
-  },
-  {
-    label: "Donor Reporting",
-    href: "/dashboard/donor-reporting",
-    icon: HandCoins,
-    match: ["/dashboard/donor-reporting"],
-    permission: { module: "donor_grant", action: "view" },
   },
 ];
 
@@ -451,9 +443,9 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         {/* Help & Support */}
         <div className="border-t border-white/[0.06] p-3">
           <Link
-            href="/dashboard/help"
+            href="/docs"
             prefetch={true}
-            onMouseEnter={() => prefetchRoute("/dashboard/help")}
+            onMouseEnter={() => prefetchRoute("/docs")}
             className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-[hsl(var(--sidebar-text-dim))] hover:bg-white/[0.06] hover:text-[hsl(var(--sidebar-text))] transition-colors lg:justify-center lg:group-hover:justify-start"
           >
             <HelpCircle className="h-4 w-4 shrink-0" />

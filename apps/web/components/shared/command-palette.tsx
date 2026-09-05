@@ -56,11 +56,11 @@ const navigationItems: Omit<CommandItem, "id">[] = [
     keywords: ["chat", "ai", "assistant", "ask", "command"],
   },
   {
-    label: "Activity Hub",
+    label: "Tasks",
     href: "/dashboard/tasks",
     icon: Activity,
     group: "Pages",
-    keywords: ["activity", "approvals", "pending", "review"],
+    keywords: ["activity", "approvals", "pending", "review", "tasks"],
   },
   {
     label: "Financial Pulse",
@@ -92,7 +92,7 @@ const navigationItems: Omit<CommandItem, "id">[] = [
   },
   {
     label: "Help Center",
-    href: "/dashboard/help",
+    href: "/docs",
     icon: HelpCircle,
     group: "Pages",
     keywords: ["help", "support", "faq", "guide", "docs", "contact"],

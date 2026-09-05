@@ -335,7 +335,7 @@ export const PAGES: PageEntry[] = [
     group: "Administration",
   },
   {
-    href: "/dashboard/help",
+    href: "/docs",
     title: "Help Center",
     description:
       "Guides, documentation, and support — search topics or ask the AI.",

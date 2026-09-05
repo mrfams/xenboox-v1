@@ -13,7 +13,6 @@ import {
   Settings,
   HelpCircle,
   History,
-  Users,
   type LucideIcon,
 } from "lucide-react";
 
@@ -69,11 +68,6 @@ const primaryNavItems: NavItem[] = [
     label: "Operations",
     href: "/dashboard/operations",
     icon: ArrowLeftRight,
-  },
-  {
-    label: "People & Assets",
-    href: "/dashboard/people",
-    icon: Users,
   },
 ];
 
@@ -584,7 +578,7 @@ export function AISidebar({ isOpen, onClose }: SidebarProps) {
             </Link>
           )}
           <Link
-            href="/dashboard/help"
+            href="/docs"
             title="Help & Support"
             onClick={() => setIsHovered(false)}
             className={cn(

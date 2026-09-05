@@ -648,8 +648,8 @@ export const AI_UX_ENTRIES: AiUxEntry[] = [
       "The three-tier explainer: watch a month-end task travel from the CFO through the department heads down to the Ledger Agent.",
     status: "shipped",
     traceId: "ai-workforce-demo",
-    href: "/dashboard/help",
-    source: "Help-center product tours",
+    href: "/dashboard",
+    source: "Command Center product tours",
   },
   {
     id: "command-center-demo",

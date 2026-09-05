@@ -11,9 +11,8 @@ export const runtime = "nodejs";
 export const maxDuration = 60;
 
 // ─── Help knowledge base ───────────────────────────────────────────────────
-// Mirrors the topic catalog on the Help Center page so the assistant can
-// point users at the right module/docs instead of answering from thin air.
-// Keep in sync with apps/web/app/dashboard/help/page.tsx TOPICS.
+// Standalone topic catalog for the Help Assistant (the Help Center page was
+// absorbed — help now lives in chat + /docs).
 
 interface HelpKnowledge {
   topic: string;

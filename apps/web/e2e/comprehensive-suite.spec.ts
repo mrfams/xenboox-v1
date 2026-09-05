@@ -226,13 +226,13 @@ test.describe("W.03 Protected Routes — Unauthenticated Redirect", () => {
 
 test.describe("W.04 Dashboard Module Routes — Redirect to Login", () => {
   const moduleRoutes = [
-    "/dashboard/activity-hub",
+    "/dashboard/tasks",
     "/dashboard/financial-pulse",
     "/dashboard/ledger",
     "/dashboard/operations",
     "/dashboard/audit-trail",
     "/dashboard/settings",
-    "/dashboard/help",
+    "/dashboard/ingestion",
   ];
 
   for (const route of moduleRoutes) {

@@ -265,6 +265,43 @@ const baseConfig: NextConfig = {
         destination: "/dashboard/tasks",
         permanent: true,
       },
+      // Phase C: absorbed routes — approvals live in Tasks, knowledge and
+      // reports live in chat/Pulse, referrals live in Settings.
+      {
+        source: "/dashboard/auto-approve",
+        destination: "/dashboard/tasks",
+        permanent: true,
+      },
+      {
+        source: "/dashboard/knowledge",
+        destination: "/dashboard",
+        permanent: true,
+      },
+      {
+        source: "/dashboard/help",
+        destination: "/docs",
+        permanent: true,
+      },
+      {
+        source: "/dashboard/qbr",
+        destination: "/dashboard/financial-pulse",
+        permanent: true,
+      },
+      {
+        source: "/dashboard/donor-reporting",
+        destination: "/dashboard/financial-pulse",
+        permanent: true,
+      },
+      {
+        source: "/dashboard/people",
+        destination: "/dashboard/operations",
+        permanent: true,
+      },
+      {
+        source: "/dashboard/referrals",
+        destination: "/dashboard/settings",
+        permanent: true,
+      },
       // Financial Pulse absorbs: reports, insights
       {
         source: "/dashboard/reports",
