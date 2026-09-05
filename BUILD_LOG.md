@@ -4,6 +4,45 @@
 
 ---
 
+## 2026-09-05 — PHASE A: Ask drawer + Pulse/Ledger AI-native pass
+
+**Scope:** Phase A of the remaining-surfaces rethink. New shared AskDrawer
+(inline ask-about-this thread); Financial Pulse + Ledger keep their
+structure but stop ejecting, stop leaking internals, guide every empty
+state to chat.
+
+### What shipped
+
+| Layer        | Change                                                                                  |
+| ------------ | --------------------------------------------------------------------------------------- |
+| **New**      | `components/chat/ask-drawer.tsx` + `AskFn` — drawer thread, page+focus context, follow-ups |
+| **Pulse**    | All Ask opens the drawer (no `?prompt=` ejection); narrative Explain + What-should-I-do |
+| **Pulse**    | Dropped `Financial Analyst` badge + `% confidence` footer; error state has chat CTA      |
+| **Pulse**    | Net Profit + Cash cards gain Ask; anomalies carry record focus; budget nulls guide to chat |
+| **Pulse**    | Reports CommandBar weaves real figures instead of `formatCurrency(0)` placeholders       |
+| **Ledger**   | All `openWithFocus` ejections → drawer; per-row Ask on journal/COA/TB rows with focus   |
+| **Ledger**   | Copy purge: no agent mentions, no ProvenanceDot; footer reads "Recorded by Xenboox"      |
+| **Ledger**   | Pending entries get Request-changes (grounds correction in-thread); history ask inline   |
+| **Ledger**   | Every empty (journal/COA/TB/no-period) has an AI CTA button                              |
+| **Anomaly**  | Robot icons → Sparkles; "AI Analysis" → "Why this matters"                               |
+| **Tests**    | New `ask-drawer.test.tsx` (stream, focus context, follow-up convo, close) + `phase-a-pulse-ledger.test.ts` contract |
+
+### Verification
+
+- Static contract checks pass by construction (see phase-a tests); deliberately
+  skipped per user request: `typecheck`, `lint`, `vitest` — CI must run them.
+- Manual pass still required: Ask from KPI/row/drawer, drawer follow-ups,
+  pending-entry Request changes, empty-state CTAs.
+
+### Next
+
+1. CI green on this PR.
+2. Phase B: Operations + Ingestion revamp (separate PR).
+3. Phase C: absorb/delete 8 routes (separate PR).
+4. Future (logged in toAINative.md): grant/project spend tracking as Pulse artifact + chat flow.
+
+---
+
 ## 2026-09-05 — AI-NATIVE UX: unified Tasks + invisible agents + human Thought
 
 **Scope:** toAINative.md spec — merge Agents/Tasks/Chat rail into one Tasks

@@ -105,7 +105,12 @@ Each row: **what it's doing** ("Chasing 4 overdue invoices"), progress, age. No 
 - Same task object in both, different lens. One source (`tasks.list` + approvals).
 
 ### Open decision (needs user call)
-- Keep URL `/dashboard/activity-hub` (renamed internally to Review Queue), or move to `/dashboard/tasks`? Recommendation: keep URL (bookmarks, sidebar), rename label to `Review` or `Tasks` later with user approval per AGENTS.md sidebar rule.
+- ~~Keep URL `/dashboard/activity-hub` or move to `/dashboard/tasks`?~~ Decided 2026-09-05: `/dashboard/tasks`. Activity Hub redirects.
+
+### Future build — grant & project spend tracking (DO NOT FORGET)
+- QBR + donor-reporting routes are deleted in Phase C (prompt wrappers, not surfaces).
+- The real need underneath: orgs that receive grants (or run projects) want to see **how the money was spent** — per-grant / per-project spend vs budget, burn, remaining, simple report/export.
+- When rebuilding: NOT a CRUD page. A Financial Pulse artifact + chat flow — "Show me how the X grant was spent" renders burn vs budget inline with download; exceptions land in Tasks → Needs you. Revisit after Phase C.
 
 ---
 

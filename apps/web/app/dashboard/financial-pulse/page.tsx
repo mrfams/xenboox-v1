@@ -1,8 +1,7 @@
 "use client";
 // a11y: htmlFor="scenario-input" id="scenario-input" role="img" aria-label="Trend sparkline"
 
-import { Suspense, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useCallback, useEffect, useState } from "react";
 import {
   Activity,
   AlertTriangle,
@@ -25,11 +24,12 @@ import {
 
 import { useEntity } from "@/lib/entity-context";
 import { trpc } from "@/lib/trpc/client";
-import { cn, formatCurrency } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import { useSurfaceSync } from "@/lib/hooks/use-surface-sync";
 import { useFormatCurrency } from "@/lib/hooks/use-currency";
-import { ProvenanceBadge } from "@/components/ai-native-v2/provenance";
 import { MetricNarrative } from "@/components/ai-native-v2/metric-narrative";
+import { AskDrawer, type AskFn } from "@/components/chat/ask-drawer";
+import type { PageFocus } from "@/lib/chat/page-context";
 import { CommandBar } from "@/components/ai-native-v2/command-bar";
 import {
   RevenueTrendChart,
@@ -95,7 +95,6 @@ function getMonthLabel(index: number, totalBars: number): string {
 
 export default function FinancialPulseV2Page() {
   const { entityId, entityCurrency } = useEntity();
-  const router = useRouter();
   const displayCurrency = entityCurrency || "USD";
   const [tab, setTab] = useState<Tab>("overview");
 
@@ -244,8 +243,25 @@ export default function FinancialPulseV2Page() {
       amount: Math.abs(a.amount),
     })) ?? [];
 
-  const ask = (prompt: string) =>
-    router.push(`/dashboard?prompt=${encodeURIComponent(prompt)}`);
+  // ── Inline Ask ────────────────────────────────────────────────────
+  // Every Ask on this page opens the thread drawer in place — answers
+  // never eject to Command Center. The drawer's page context carries the
+  // active tab + key figures so follow-ups stay grounded.
+  const [askState, setAskState] = useState<{
+    prompt: string;
+    title: string;
+    subject?: string;
+    focus?: PageFocus;
+  } | null>(null);
+
+  const ask: AskFn = useCallback((prompt, focus) => {
+    setAskState({
+      prompt,
+      title: "Ask about Financial Pulse",
+      subject: focus?.name,
+      focus,
+    });
+  }, []);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -403,6 +419,40 @@ export default function FinancialPulseV2Page() {
           />
         )}
       </div>
+
+      {/* Inline Ask thread — answers here, never in Command Center */}
+      {askState && (
+        <AskDrawer
+          key={`${askState.prompt}-${askState.focus?.name ?? "page"}`}
+          entityId={entityId ?? ""}
+          title={askState.title}
+          subject={askState.subject}
+          initialPrompt={askState.prompt}
+          pageContext={{
+            page: "Financial Pulse",
+            view: tab,
+            summary: [
+              ...(pnl
+                ? [
+                    { label: "Revenue", value: String(pnl.revenue) },
+                    { label: "Expenses", value: String(pnl.expenses) },
+                    { label: "Net profit", value: String(pnl.netProfit) },
+                  ]
+                : []),
+              ...(overview
+                ? [
+                    { label: "Cash", value: String(overview.cashBalance) },
+                    ...(overview.runway != null
+                      ? [{ label: "Runway (mo)", value: String(overview.runway) }]
+                      : []),
+                  ]
+                : []),
+            ],
+            focus: askState.focus,
+          }}
+          onClose={() => setAskState(null)}
+        />
+      )}
     </div>
   );
 }
@@ -442,7 +492,7 @@ function OverviewPanel({
   anomalyData:
     | { anomalies: Array<{ message: string; aiInsight?: string }> }
     | undefined;
-  ask: (prompt: string) => void;
+  ask: AskFn;
 }) {
   const { format } = useFormatCurrency();
   return (
@@ -462,23 +512,51 @@ function OverviewPanel({
                 className="h-3.5 w-3.5 text-primary"
                 aria-hidden="true"
               />
-              The AI&apos;s take
+              The takeaway
             </h2>
-            {aiNarrative && (
-              <ProvenanceBadge
-                actor="agent"
-                actorName="Financial Analyst"
-                confidence={aiNarrative.confidence}
-              />
+            {aiNarrative?.text && (
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() =>
+                    ask("Explain this financial summary in plain language.")
+                  }
+                  className="rounded-lg px-2 py-1 text-[11px] font-medium text-primary transition-colors hover:bg-primary/10"
+                >
+                  Explain this
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    ask(
+                      "Based on my current financial position, what should I do next? Give me concrete actions.",
+                    )
+                  }
+                  className="rounded-lg px-2 py-1 text-[11px] font-medium text-primary transition-colors hover:bg-primary/10"
+                >
+                  What should I do?
+                </button>
+              </div>
             )}
           </div>
         </div>
 
         <div className="px-5 py-4">
           {isNarrativeError && !aiNarrative ? (
-            <p className="text-sm leading-relaxed text-muted-foreground">
-              AI narrative unavailable. Key figures are shown below.
-            </p>
+            <div className="space-y-2">
+              <p className="text-sm leading-relaxed text-muted-foreground">
+                Couldn&apos;t generate the summary. Key figures are shown below.
+              </p>
+              <button
+                type="button"
+                onClick={() =>
+                  ask("Explain my current financial position from the key figures.")
+                }
+                className="text-xs font-medium text-primary hover:text-primary/80"
+              >
+                Ask about the figures instead →
+              </button>
+            </div>
           ) : !aiNarrative && !overview ? (
             <p className="animate-pulse text-sm text-muted-foreground">
               Generating your financial narrative…
@@ -510,10 +588,6 @@ function OverviewPanel({
                   ))}
                 </div>
               )}
-              <p className="mt-3 font-mono text-[10px] tabular-nums text-muted-foreground/60">
-                {Math.round(aiNarrative.confidence * 100)}% confidence ·{" "}
-                {new Date(aiNarrative.generatedAt).toLocaleTimeString()}
-              </p>
             </>
           ) : (
             <p className="text-sm leading-relaxed text-foreground/85">
@@ -618,6 +692,22 @@ function OverviewPanel({
               {(pnl.netProfit ?? 0) >= 0 ? "Profitable" : "Loss"}
             </span>
           )}
+          <button
+            type="button"
+            onClick={() =>
+              ask("Explain my net profit and margin. Is the business healthy?", {
+                kind: "Metric",
+                name: "Net profit",
+                fields: [
+                  { label: "Net profit", value: format(pnl?.netProfit ?? 0) },
+                  { label: "Revenue", value: format(pnl?.revenue ?? 0) },
+                ],
+              })
+            }
+            className="mt-2 block text-[11px] font-medium text-primary hover:text-primary/80"
+          >
+            Ask why →
+          </button>
         </div>
         <div className="rounded-xl border border-border/50 bg-card p-4">
           <MetricNarrative
@@ -632,6 +722,28 @@ function OverviewPanel({
             }
             size="sm"
           />
+          <button
+            type="button"
+            onClick={() =>
+              ask("Explain my cash position and runway. Should I be worried?", {
+                kind: "Metric",
+                name: "Cash & runway",
+                fields: [
+                  { label: "Cash", value: format(overview?.cashBalance ?? 0) },
+                  {
+                    label: "Runway",
+                    value:
+                      overview?.runway != null
+                        ? `${overview.runway.toFixed(1)} months`
+                        : "unknown",
+                  },
+                ],
+              })
+            }
+            className="mt-2 block text-[11px] font-medium text-primary hover:text-primary/80"
+          >
+            Ask why →
+          </button>
         </div>
       </section>
 
@@ -646,7 +758,11 @@ function OverviewPanel({
         <AnomalyAlerts
           anomalies={anomalyData.anomalies}
           onInvestigate={(a) =>
-            ask(`Investigate this anomaly: ${a.message}. ${a.aiInsight ?? ""}`)
+            ask(`Investigate this anomaly: ${a.message}. ${a.aiInsight ?? ""}`, {
+              kind: "Anomaly",
+              name: a.message,
+              fields: a.aiInsight ? [{ label: "Detail", value: a.aiInsight }] : [],
+            })
           }
         />
       )}
@@ -671,7 +787,7 @@ function PerformancePanel({
   cashOutflowSparkline: number[];
   expenseBreakdownData: { category: string; amount: number }[];
   displayCurrency: string;
-  ask: (prompt: string) => void;
+  ask: AskFn;
 }) {
   return (
     <div className="space-y-4">
@@ -741,7 +857,7 @@ function PlanningPanel({
   ask,
 }: {
   entityId: string;
-  ask: (prompt: string) => void;
+  ask: AskFn;
 }) {
   return (
     <div className="space-y-5">
@@ -810,7 +926,7 @@ function ReportsPanel({
   periodLabel,
   displayCurrency,
 }: {
-  ask: (prompt: string) => void;
+  ask: AskFn;
   pnlData: unknown;
   cashFlowData: CashFlowSummary | undefined;
   trialBalanceData: TrialBalanceData | undefined;
@@ -846,7 +962,21 @@ function ReportsPanel({
         <CommandBar
           onSubmit={(v) =>
             ask(
-              `About Financial Pulse: ${v}. Context — revenue ${formatCurrency(0)}, expenses ${formatCurrency(0)}, cash ${formatCurrency(0)}.`,
+              `About Financial Pulse (${periodLabel}): ${v}`,
+              pnlData
+                ? {
+                    kind: "Report",
+                    name: `Financial Pulse — ${periodLabel}`,
+                    fields: [
+                      {
+                        label: "Overview",
+                        value: overview
+                          ? `cash ${overview.cashBalance}, AR ${overview.ar}, AP ${overview.ap}`
+                          : "unavailable",
+                      },
+                    ],
+                  }
+                : undefined,
             )
           }
           placeholder="e.g. Why did margin dip last month? Model a 10% cut in ops spend…"
@@ -863,7 +993,7 @@ function BudgetVsActualCard({
   ask,
 }: {
   entityId: string;
-  ask: (prompt: string) => void;
+  ask: AskFn;
 }) {
   const { format } = useFormatCurrency();
   const { data: currentPeriod } = trpc.fiscal.getCurrent.useQuery(undefined, {
@@ -883,7 +1013,30 @@ function BudgetVsActualCard({
     );
   }
 
-  if (!budgetData) return null;
+  if (!budgetData) {
+    return (
+      <section
+        aria-label="Budget vs actual"
+        className="rounded-xl border border-dashed border-border/60 bg-muted/10 p-4"
+      >
+        <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          Budget vs Actual
+        </h2>
+        <p className="mt-1.5 text-xs text-muted-foreground">
+          No budget set for this period — set one to track variances here.
+        </p>
+        <button
+          type="button"
+          onClick={() =>
+            ask("Help me set a budget for this period based on my recent spending.")
+          }
+          className="mt-2 text-[11px] font-medium text-primary hover:text-primary/80"
+        >
+          Set one with AI →
+        </button>
+      </section>
+    );
+  }
 
   const items = (budgetData.lines ?? []).map(
     (line: {
@@ -903,7 +1056,30 @@ function BudgetVsActualCard({
     }),
   );
 
-  if (items.length === 0) return null;
+  if (items.length === 0) {
+    return (
+      <section
+        aria-label="Budget vs actual"
+        className="rounded-xl border border-dashed border-border/60 bg-muted/10 p-4"
+      >
+        <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          Budget vs Actual
+        </h2>
+        <p className="mt-1.5 text-xs text-muted-foreground">
+          This budget has no lines yet.
+        </p>
+        <button
+          type="button"
+          onClick={() =>
+            ask("My budget has no lines. What categories should I budget for?")
+          }
+          className="mt-2 text-[11px] font-medium text-primary hover:text-primary/80"
+        >
+          Ask what to add →
+        </button>
+      </section>
+    );
+  }
 
   const overBudget = items.filter((i) => i.variance > 0).length;
   const underBudget = items.filter((i) => i.variance < 0).length;
@@ -1015,7 +1191,7 @@ function BudgetVsActualCard({
 
 // ─── Scenario Planner Card ─────────────────────────────────────────────────
 
-function ScenarioCard({ ask }: { ask: (prompt: string) => void }) {
+function ScenarioCard({ ask }: { ask: AskFn }) {
   const scenarios = [
     {
       label: "Revenue drops 20%",
@@ -1083,7 +1259,7 @@ function ReportLibrary({
   periodLabel,
   displayCurrency,
 }: {
-  ask: (prompt: string) => void;
+  ask: AskFn;
   pnlData: unknown;
   cashFlowData: CashFlowSummary | undefined;
   trialBalanceData: TrialBalanceData | undefined;
@@ -1357,12 +1533,30 @@ function ExchangeRatesStrip() {
 // ─── Daily Close Status Strip ────────────────────────────────────────────
 // AI-narrated status of today's reconciliation.
 
-function DailyCloseStrip({ ask }: { ask: (q: string) => void }) {
+function DailyCloseStrip({ ask }: { ask: AskFn }) {
   const { data: closeStatus } = trpc.dailyClose.getStatus.useQuery(undefined, {
     staleTime: 60_000,
   });
 
-  if (!closeStatus) return null;
+  if (!closeStatus) {
+    return (
+      <div className="rounded-xl border border-dashed border-border/60 bg-muted/10 px-4 py-3">
+        <span className="text-[11px] font-medium text-muted-foreground">
+          Daily close
+        </span>
+        <p className="mt-1 text-xs text-muted-foreground">
+          No reconciliation run yet today.
+        </p>
+        <button
+          type="button"
+          onClick={() => ask("Run today's reconciliation and show me the result.")}
+          className="mt-1.5 text-[11px] font-medium text-primary hover:text-primary/80"
+        >
+          Run it now →
+        </button>
+      </div>
+    );
+  }
 
   const status = closeStatus.status ?? "unknown";
   const isComplete = status === "completed";

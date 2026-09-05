@@ -24,8 +24,8 @@ import {
 import { useEntity } from "@/lib/entity-context";
 import { trpc } from "@/lib/trpc/client";
 import { cn, formatCurrency } from "@/lib/utils";
-import { ProvenanceDot } from "@/components/ai-native-v2/provenance";
-import { useModuleAi } from "@/components/module/module-ai-context";
+import { AskDrawer, type AskFn } from "@/components/chat/ask-drawer";
+import type { PageFocus } from "@/lib/chat/page-context";
 import { usePermission } from "@/lib/permissions";
 import { CreateJournalEntryForm } from "@/components/ledger/create-journal-entry-form";
 import { CoaImportWizard } from "@/components/ledger/coa-import-wizard";
@@ -87,7 +87,25 @@ export default function TheBookPage() {
   const [showJournalForm, setShowJournalForm] = useState(false);
   const listRef = useRef<HTMLUListElement>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const { openWithFocus } = useModuleAi();
+
+  // ── Inline Ask ────────────────────────────────────────────────────
+  // Row and drawer questions open the thread drawer in place — answers
+  // never eject to Command Center.
+  const [askState, setAskState] = useState<{
+    prompt: string;
+    title: string;
+    subject?: string;
+    focus?: PageFocus;
+  } | null>(null);
+
+  const ask: AskFn = useCallback((prompt, focus) => {
+    setAskState({
+      prompt,
+      title: "Ask about the books",
+      subject: focus?.name,
+      focus,
+    });
+  }, []);
 
   const canCreateEntry = usePermission("ledger.journal.create");
   const canImportCoa = usePermission("ledger.coa.import");
@@ -273,6 +291,7 @@ export default function TheBookPage() {
             cursor={cursor}
             setCursor={setCursor}
             onOpenEntry={(id) => setDrawerEntryId(id)}
+            ask={ask}
           />
         )}
         {tab === "coa" && (
@@ -285,6 +304,7 @@ export default function TheBookPage() {
               setDrawerAccountId(id);
               setDrawerAccountName(name);
             }}
+            ask={ask}
           />
         )}
         {tab === "trial-balance" && (
@@ -296,6 +316,7 @@ export default function TheBookPage() {
               setDrawerAccountId(id);
               setDrawerAccountName(name);
             }}
+            ask={ask}
           />
         )}
       </div>
@@ -306,6 +327,7 @@ export default function TheBookPage() {
           <EntryDetailDrawer
             entryId={drawerEntryId}
             onClose={() => setDrawerEntryId(null)}
+            ask={ask}
           />,
           document.body,
         )}
@@ -318,9 +340,27 @@ export default function TheBookPage() {
               setDrawerAccountId(null);
               setDrawerAccountName(null);
             }}
+            ask={ask}
           />,
           document.body,
         )}
+
+      {/* Inline Ask thread — answers here, never in Command Center */}
+      {askState && (
+        <AskDrawer
+          key={`${askState.prompt}-${askState.focus?.name ?? "page"}`}
+          entityId={entityId ?? ""}
+          title={askState.title}
+          subject={askState.subject}
+          initialPrompt={askState.prompt}
+          pageContext={{
+            page: "Ledger",
+            view: tab,
+            focus: askState.focus,
+          }}
+          onClose={() => setAskState(null)}
+        />
+      )}
     </div>
   );
 }
@@ -333,12 +373,14 @@ function JournalPanel({
   cursor,
   setCursor,
   onOpenEntry,
+  ask,
 }: {
   listRef: React.RefObject<HTMLUListElement | null>;
   query: string;
   cursor: number;
   setCursor: (n: number) => void;
   onOpenEntry: (id: string) => void;
+  ask: AskFn;
 }) {
   const { entityId } = useEntity();
 
@@ -441,9 +483,21 @@ function JournalPanel({
             </p>
             <p className="max-w-xs text-xs text-muted-foreground">
               {query
-                ? "Try different words — agent descriptions are searchable too."
-                : "As agents post entries, every one lands here with its full history."}
+                ? "Try different words, or ask about what you're looking for."
+                : "Every posted entry lands here with its full history."}
             </p>
+            {!query && (
+              <button
+                type="button"
+                onClick={() =>
+                  ask("What should my first journal entries be? Walk me through recording one.")
+                }
+                className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/5 px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/10 transition-colors"
+              >
+                <Sparkles className="h-3.5 w-3.5" />
+                Record one with AI
+              </button>
+            )}
           </div>
         ) : (
           <ul ref={listRef} className="divide-y divide-border/30">
@@ -453,6 +507,23 @@ function JournalPanel({
                 entry={e}
                 isFocused={idx === cursor}
                 onOpen={() => onOpenEntry(e.id)}
+                onAsk={() =>
+                  ask(
+                    `Explain this journal entry: ${e.description ?? `JE-${String(e.entryNumber ?? 0).padStart(4, "0")}`}. Is it correct?`,
+                    {
+                      kind: "Journal Entry",
+                      name:
+                        e.description ??
+                        `JE-${String(e.entryNumber ?? 0).padStart(4, "0")}`,
+                      id: e.id,
+                      fields: [
+                        { label: "Date", value: e.date ?? "—" },
+                        { label: "Status", value: e.status ?? "" },
+                        { label: "Amount", value: formatCurrency(e.debit) },
+                      ],
+                    },
+                  )
+                }
               />
             ))}
           </ul>
@@ -470,15 +541,16 @@ function COAPanel({
   cursor,
   setCursor,
   onOpenAccount,
+  ask,
 }: {
   listRef: React.RefObject<HTMLUListElement | null>;
   query: string;
   cursor: number;
   setCursor: (n: number) => void;
   onOpenAccount: (id: string, name: string) => void;
+  ask: AskFn;
 }) {
   const { entityId } = useEntity();
-  const { openWithFocus } = useModuleAi();
 
   const { data: accounts, isLoading } = trpc.coa.listHierarchy.useQuery(
     undefined,
@@ -581,10 +653,10 @@ function COAPanel({
               <button
                 type="button"
                 onClick={() =>
-                  openWithFocus(
-                    { kind: "Chart of Accounts", name: "All Accounts" },
-                    "Help me set up my chart of accounts",
-                  )
+                  ask("Help me set up my chart of accounts.", {
+                    kind: "Chart of Accounts",
+                    name: "All Accounts",
+                  })
                 }
                 className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/5 px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/10 transition-colors"
               >
@@ -615,33 +687,60 @@ function COAPanel({
                       const globalIdx = runningIndex + i;
                       return (
                         <li key={account.id} data-row>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              onOpenAccount(account.id, account.name)
-                            }
+                          <div
                             className={cn(
-                              "flex w-full items-center justify-between px-4 py-2.5 text-left transition-colors",
+                              "group flex items-center gap-1 px-4 py-2.5 transition-colors",
                               globalIdx === cursor
                                 ? "bg-accent/60"
                                 : "hover:bg-accent/40",
                             )}
                           >
-                            <div className="flex items-center gap-3">
-                              <span className="w-12 shrink-0 font-mono text-[11px] text-muted-foreground/60">
-                                {account.code}
-                              </span>
-                              <span className="text-sm text-foreground">
-                                {account.name}
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <span className="text-[10px] text-muted-foreground/60">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                onOpenAccount(account.id, account.name)
+                              }
+                              className="flex min-w-0 flex-1 items-center justify-between text-left"
+                            >
+                              <div className="flex min-w-0 items-center gap-3">
+                                <span className="w-12 shrink-0 font-mono text-[11px] text-muted-foreground/60">
+                                  {account.code}
+                                </span>
+                                <span className="truncate text-sm text-foreground">
+                                  {account.name}
+                                </span>
+                              </div>
+                              <span className="shrink-0 text-[10px] text-muted-foreground/60">
                                 {account.subtype?.replace(/_/g, " ") ?? ""}
                               </span>
-                              <Sparkles className="h-3 w-3 text-primary/0 transition-colors group-hover:text-primary/50" />
-                            </div>
-                          </button>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                ask(
+                                  `Explain this account: ${account.name}. What's the balance and recent activity?`,
+                                  {
+                                    kind: "Account",
+                                    name: account.name,
+                                    id: account.id,
+                                    fields: [
+                                      { label: "Code", value: account.code ?? "—" },
+                                      {
+                                        label: "Type",
+                                        value:
+                                          account.subtype?.replace(/_/g, " ") ?? "—",
+                                      },
+                                    ],
+                                  },
+                                )
+                              }
+                              aria-label={`Ask about ${account.name}`}
+                              title="Ask about this account"
+                              className="shrink-0 rounded-md p-1.5 text-muted-foreground/0 transition-all hover:bg-primary/10 hover:text-primary focus-visible:text-primary group-hover:text-muted-foreground/60"
+                            >
+                              <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+                            </button>
+                          </div>
                         </li>
                       );
                     })}
@@ -663,15 +762,16 @@ function TrialBalancePanel({
   cursor,
   setCursor,
   onOpenAccount,
+  ask,
 }: {
   listRef: React.RefObject<HTMLUListElement | null>;
   cursor: number;
   setCursor: (n: number) => void;
   onOpenAccount: (id: string, name: string) => void;
+  ask: AskFn;
 }) {
   const { format } = useFormatCurrency();
   const { entityId } = useEntity();
-  const { openWithFocus } = useModuleAi();
 
   const { data: currentPeriod, isSuccess: periodLoaded } =
     trpc.fiscal.getCurrent.useQuery(undefined, { enabled: !!entityId });
@@ -722,8 +822,18 @@ function TrialBalancePanel({
           No accounting period is open
         </p>
         <p className="mt-1 max-w-sm text-xs text-muted-foreground">
-          Ask the AI to open a fiscal period, or set your calendar in Settings.
+          Open a fiscal period to see balances, or set your calendar in Settings.
         </p>
+        <button
+          type="button"
+          onClick={() =>
+            ask("Open a fiscal period for me and explain what that sets up.")
+          }
+          className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/5 px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/10 transition-colors"
+        >
+          <Sparkles className="h-3.5 w-3.5" />
+          Open one with AI
+        </button>
       </div>
     );
   }
@@ -766,7 +876,8 @@ function TrialBalancePanel({
           <button
             type="button"
             onClick={() =>
-              openWithFocus(
+              ask(
+                "Explain my trial balance. Are there any accounts that look unusual?",
                 {
                   kind: "Trial Balance",
                   name: "Current Period",
@@ -785,7 +896,6 @@ function TrialBalancePanel({
                     },
                   ],
                 },
-                "Explain my trial balance. Are there any accounts that look unusual?",
               )
             }
             className="inline-flex items-center gap-1.5 rounded-lg border border-primary/20 bg-primary/5 px-2.5 py-1.5 text-[11px] font-medium text-primary hover:bg-primary/10 transition-colors"
@@ -819,9 +929,19 @@ function TrialBalancePanel({
             <p className="text-sm font-medium text-foreground">
               No accounts yet
             </p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Accounts will appear as agents post entries.
+            <p className="mt-1 max-w-xs text-xs text-muted-foreground">
+              Post your first entry and accounts will appear here.
             </p>
+            <button
+              type="button"
+              onClick={() =>
+                ask("Help me record my first transaction so my accounts show up here.")
+              }
+              className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/5 px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/10 transition-colors"
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              Record one with AI
+            </button>
           </div>
         ) : (
           <>
@@ -847,29 +967,58 @@ function TrialBalancePanel({
                   const balance = Number(account.balance ?? 0);
                   return (
                     <li key={account.id} data-row>
-                      <button
-                        type="button"
-                        onClick={() => onOpenAccount(account.id, account.name)}
+                      <div
                         className={cn(
-                          "grid w-full grid-cols-[80px_1fr_100px_100px] items-center px-4 py-2.5 text-left transition-colors",
+                          "group flex items-center gap-1 px-4 py-2.5 transition-colors",
                           idx === cursor
                             ? "bg-accent/60"
                             : "hover:bg-accent/40",
                         )}
                       >
-                        <span className="font-mono text-[11px] text-muted-foreground/60">
-                          {account.code}
-                        </span>
-                        <span className="text-sm text-foreground truncate">
-                          {account.name}
-                        </span>
-                        <span className="text-right font-mono text-xs tabular-nums text-foreground/70">
-                          {balance > 0 ? format(balance) : ""}
-                        </span>
-                        <span className="text-right font-mono text-xs tabular-nums text-foreground/70">
-                          {balance < 0 ? format(Math.abs(balance)) : ""}
-                        </span>
-                      </button>
+                        <button
+                          type="button"
+                          onClick={() => onOpenAccount(account.id, account.name)}
+                          className="grid min-w-0 flex-1 grid-cols-[80px_1fr_100px_100px] items-center text-left"
+                        >
+                          <span className="font-mono text-[11px] text-muted-foreground/60">
+                            {account.code}
+                          </span>
+                          <span className="text-sm text-foreground truncate">
+                            {account.name}
+                          </span>
+                          <span className="text-right font-mono text-xs tabular-nums text-foreground/70">
+                            {balance > 0 ? format(balance) : ""}
+                          </span>
+                          <span className="text-right font-mono text-xs tabular-nums text-foreground/70">
+                            {balance < 0 ? format(Math.abs(balance)) : ""}
+                          </span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            ask(
+                              `Explain this account: ${account.name}. What's driving its balance?`,
+                              {
+                                kind: "Account",
+                                name: account.name,
+                                id: account.id,
+                                fields: [
+                                  { label: "Code", value: account.code },
+                                  {
+                                    label: "Balance",
+                                    value: format(Math.abs(balance)),
+                                  },
+                                ],
+                              },
+                            )
+                          }
+                          aria-label={`Ask about ${account.name}`}
+                          title="Ask about this account"
+                          className="shrink-0 rounded-md p-1.5 text-muted-foreground/0 transition-all hover:bg-primary/10 hover:text-primary focus-visible:text-primary group-hover:text-muted-foreground/60"
+                        >
+                          <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+                        </button>
+                      </div>
                     </li>
                   );
                 },
@@ -896,10 +1045,12 @@ function RegisterRow({
   entry,
   isFocused,
   onOpen,
+  onAsk,
 }: {
   entry: Entry;
   isFocused: boolean;
   onOpen: () => void;
+  onAsk: () => void;
 }) {
   const { format } = useFormatCurrency();
   const statusTone =
@@ -915,42 +1066,54 @@ function RegisterRow({
 
   return (
     <li data-row>
-      <button
-        type="button"
-        onClick={onOpen}
+      <div
         className={cn(
-          "flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors",
+          "group flex items-center gap-1 px-4 py-2.5 transition-colors",
           isFocused ? "bg-accent/60" : "hover:bg-accent/40",
         )}
       >
-        <ProvenanceDot actor={entry.isAiGenerated ? "agent" : "human"} />
-        <span
-          className={cn("h-1.5 w-1.5 shrink-0 rounded-full", statusTone)}
-          title={entry.status}
-          aria-label={`Status: ${entry.status}`}
-        />
-        <span className="w-14 shrink-0 font-mono text-[11px] tabular-nums text-muted-foreground/60">
-          #{String(entry.entryNumber ?? 0).padStart(4, "0")}
-        </span>
-        <span className="min-w-0 flex-1 truncate text-xs text-foreground">
-          {entry.description ?? "Untitled entry"}
-        </span>
-        <span className="hidden shrink-0 font-mono text-[10px] tabular-nums text-muted-foreground/60 sm:block">
-          {entry.date
-            ? new Date(entry.date).toLocaleDateString("en-US", {
-                month: "short",
-                day: "numeric",
-              })
-            : ""}
-        </span>
-        <span className="w-24 shrink-0 text-right text-xs font-semibold tabular-nums text-foreground">
-          {format(entry.debit)}
-        </span>
-        <ChevronRight
-          className="h-3.5 w-3.5 shrink-0 text-muted-foreground/40"
-          aria-hidden="true"
-        />
-      </button>
+        <button
+          type="button"
+          onClick={onOpen}
+          className="flex min-w-0 flex-1 items-center gap-3 text-left"
+        >
+          <span
+            className={cn("h-1.5 w-1.5 shrink-0 rounded-full", statusTone)}
+            title={entry.status}
+            aria-label={`Status: ${entry.status}`}
+          />
+          <span className="w-14 shrink-0 font-mono text-[11px] tabular-nums text-muted-foreground/60">
+            #{String(entry.entryNumber ?? 0).padStart(4, "0")}
+          </span>
+          <span className="min-w-0 flex-1 truncate text-xs text-foreground">
+            {entry.description ?? "Untitled entry"}
+          </span>
+          <span className="hidden shrink-0 font-mono text-[10px] tabular-nums text-muted-foreground/60 sm:block">
+            {entry.date
+              ? new Date(entry.date).toLocaleDateString("en-US", {
+                  month: "short",
+                  day: "numeric",
+                })
+              : ""}
+          </span>
+          <span className="w-24 shrink-0 text-right text-xs font-semibold tabular-nums text-foreground">
+            {format(entry.debit)}
+          </span>
+          <ChevronRight
+            className="h-3.5 w-3.5 shrink-0 text-muted-foreground/40"
+            aria-hidden="true"
+          />
+        </button>
+        <button
+          type="button"
+          onClick={onAsk}
+          aria-label={`Ask about ${entry.description ?? "this entry"}`}
+          title="Ask about this entry"
+          className="shrink-0 rounded-md p-1.5 text-muted-foreground/0 transition-all hover:bg-primary/10 hover:text-primary focus-visible:text-primary group-hover:text-muted-foreground/60"
+        >
+          <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+        </button>
+      </div>
     </li>
   );
 }
@@ -960,13 +1123,14 @@ function RegisterRow({
 function EntryDetailDrawer({
   entryId,
   onClose,
+  ask,
 }: {
   entryId: string;
   onClose: () => void;
+  ask: AskFn;
 }) {
   const { format } = useFormatCurrency();
   const { entityId } = useEntity();
-  const { openWithFocus } = useModuleAi();
   const { data: entry, isLoading } = trpc.journal.getById.useQuery(
     { id: entryId },
     { enabled: !!entityId && !!entryId },
@@ -1194,14 +1358,15 @@ function EntryDetailDrawer({
               </div>
 
               {/* Actions: Post / Reverse for pending/posted entries */}
-              <EntryActions entry={entry} onClose={onClose} />
+              <EntryActions entry={entry} onClose={onClose} ask={ask} />
 
               {/* AI Actions */}
               <div className="space-y-2">
                 <button
                   type="button"
                   onClick={() =>
-                    openWithFocus(
+                    ask(
+                      "Explain this journal entry. Why was it created, what accounts are affected, and is it correct?",
                       {
                         kind: "Journal Entry",
                         name: entry.entryNumber
@@ -1218,7 +1383,6 @@ function EntryDetailDrawer({
                           { label: "Source", value: entry.source ?? "—" },
                         ],
                       },
-                      "Explain this journal entry. Why was it created, what accounts are affected, and is it correct?",
                     )
                   }
                   className="flex w-full items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-xs font-medium text-primary hover:bg-primary/10 transition-colors"
@@ -1226,24 +1390,36 @@ function EntryDetailDrawer({
                   <Sparkles className="h-3.5 w-3.5" />
                   Explain this entry
                 </button>
-                <a
-                  href="/dashboard/audit-trail"
+                <button
+                  type="button"
+                  onClick={() =>
+                    ask(
+                      `Show me the full history of this journal entry — who touched it and when.`,
+                      {
+                        kind: "Journal Entry",
+                        name: entry.entryNumber
+                          ? `JE-${String(entry.entryNumber).padStart(4, "0")}`
+                          : "this entry",
+                        id: entry.id,
+                      },
+                    )
+                  }
                   className="flex w-full items-center gap-2 rounded-lg border border-border/50 bg-background px-3 py-2 text-xs font-medium text-foreground hover:bg-accent transition-colors"
                 >
                   <BookOpen className="h-3.5 w-3.5 text-muted-foreground" />
-                  Show audit trail
-                </a>
+                  Show history
+                </button>
               </div>
 
-              {/* Provenance footer */}
+              {/* Origin footer */}
               <p className="flex items-center gap-1.5 text-[10px] text-muted-foreground/70">
                 {entry.isAiGenerated
-                  ? "Posted by an agent"
+                  ? "Recorded by Xenboox"
                   : entry.createdBy
-                    ? `Posted by ${entry.createdBy}`
-                    : "Posted manually"}
+                    ? `Recorded by ${entry.createdBy}`
+                    : "Recorded manually"}
                 {entry.source && entry.source !== "Manual" && (
-                  <> · source: {entry.source}</>
+                  <> · via {entry.source.replace(/_/g, " ")}</>
                 )}
               </p>
             </div>
@@ -1260,13 +1436,14 @@ function AccountDetailDrawer({
   accountId,
   accountName,
   onClose,
+  ask,
 }: {
   accountId: string;
   accountName: string;
   onClose: () => void;
+  ask: AskFn;
 }) {
   const { entityId } = useEntity();
-  const { openWithFocus } = useModuleAi();
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -1328,13 +1505,13 @@ function AccountDetailDrawer({
             <button
               type="button"
               onClick={() =>
-                openWithFocus(
+                ask(
+                  `Explain this account: ${accountName}. What's the balance and recent activity?`,
                   {
                     kind: "Account",
                     name: accountName,
                     id: accountId,
                   },
-                  `Explain this account: ${accountName}. What's the balance and recent activity?`,
                 )
               }
               className="flex w-full items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2.5 text-xs font-medium text-primary hover:bg-primary/10 transition-colors"
@@ -1354,6 +1531,7 @@ function AccountDetailDrawer({
 function EntryActions({
   entry,
   onClose,
+  ask,
 }: {
   entry: {
     id: string;
@@ -1362,6 +1540,7 @@ function EntryActions({
     entryNumber?: number | null;
   };
   onClose: () => void;
+  ask: AskFn;
 }) {
   const { format } = useFormatCurrency();
   const utils = trpc.useUtils();
@@ -1415,6 +1594,29 @@ function EntryActions({
             <CheckCircle2 className="h-3.5 w-3.5" />
           )}
           {isPending ? "Approve & Post" : "Post Entry"}
+        </button>
+      )}
+
+      {/* Pending entries proposed by Xenboox can be sent back with a note —
+          the reply continues in the thread so the correction is grounded. */}
+      {isPending && (
+        <button
+          type="button"
+          onClick={() =>
+            ask(
+              `I want changes on ${entry.entryNumber ? `JE-${String(entry.entryNumber).padStart(4, "0")}` : "this entry"}${entry.description ? ` (${entry.description})` : ""}. Review it and tell me what looks off, then I'll say what to fix.`,
+              {
+                kind: "Journal Entry",
+                name: entry.entryNumber
+                  ? `JE-${String(entry.entryNumber).padStart(4, "0")}`
+                  : "this entry",
+                id: entry.id,
+              },
+            )
+          }
+          className="flex w-full items-center justify-center gap-2 rounded-lg border border-attention-amber/30 bg-attention-amber/5 px-3 py-2 text-xs font-medium text-attention-amber hover:bg-attention-amber/10 transition-colors"
+        >
+          Request changes
         </button>
       )}
 

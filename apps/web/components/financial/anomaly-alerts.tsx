@@ -6,7 +6,7 @@ import {
   TrendingUp,
   TrendingDown,
   X,
-  Bot,
+  Sparkles,
   ChevronDown,
   ChevronUp,
   Shield,
@@ -153,8 +153,8 @@ function AnomalyCard({
             className="mt-2 flex items-center gap-1.5 text-[10px] text-primary hover:text-primary/80 transition-colors"
             aria-expanded={isExpanded}
           >
-            <Bot className="h-3 w-3" aria-hidden="true" />
-            <span>AI Analysis</span>
+            <Sparkles className="h-3 w-3" aria-hidden="true" />
+            <span>Why this matters</span>
             {isExpanded ? (
               <ChevronUp className="h-3 w-3" />
             ) : (
@@ -176,8 +176,8 @@ function AnomalyCard({
             onClick={() => onInvestigate(anomaly)}
             className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-primary/20 bg-primary/5 px-3 py-1.5 text-[10px] font-medium text-primary hover:bg-primary/10 transition-colors"
           >
-            <Bot className="h-3 w-3" />
-            Investigate with AI
+            <Sparkles className="h-3 w-3" />
+            Investigate
           </button>
         </div>
       </div>
