@@ -4,6 +4,42 @@
 
 ---
 
+## 2026-09-05 — PHASE B: Operations + Ingestion revamp
+
+**Scope:** Phase B of the remaining-surfaces rethink. Operations drops the
+7-tab CRUD shell for cash hero + decisions + expandable records. Ingestion
+drops batch tracking for upload + review inbox.
+
+### What shipped
+
+| Layer          | Change                                                                                |
+| -------------- | ------------------------------------------------------------------------------------- |
+| **Operations** | 7 tabs → cash hero + Money-needing-you + lazy expandable record sections              |
+| **Operations** | Expense claims approve/reject-with-note/reimburse inline (real `decideClaim` mutations) |
+| **Operations** | Overdue bills → Draft-a-payment-plan drawer; invoices → per-row Send reminder + Chase-all |
+| **Operations** | Unreconciled bank lines → Review-in-Banking (expands section, no ejection)            |
+| **Operations** | Dead "Ask the AI…" text is a working button; "Agents are watching" copy purged        |
+| **Operations** | Legacy `?tab=` links open the matching section; record views mount only when opened   |
+| **Ingestion**  | Page is now Documents: upload → live progress → decisions land in Tasks               |
+| **Ingestion**  | Needs-review inbox from `listPendingReviews` + stripped review panel                  |
+| **Ingestion**  | Panel: no confidence header/badges, no robot icon, teaching reject note               |
+| **Ingestion**  | BatchProgress: no stages/seconds/pipeline viz — counts + status only                  |
+| **Tests**      | New `phase-b-operations-ingestion.test.ts` contract                                   |
+
+### Verification
+
+- Static contract checks pass by construction; deliberately skipped per user
+  request: `typecheck`, `lint`, `vitest` — CI must run them.
+- Manual pass still required: expense approve/reject, reminder send, plan
+  drafting, upload → progress → Tasks decision, section deep links.
+
+### Next
+
+1. CI green on this PR.
+2. Phase C: absorb/delete 8 routes (separate PR).
+
+---
+
 ## 2026-09-05 — PHASE A: Ask drawer + Pulse/Ledger AI-native pass
 
 **Scope:** Phase A of the remaining-surfaces rethink. New shared AskDrawer

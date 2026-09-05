@@ -1,12 +1,9 @@
 /**
- * Batch Progress — Devin-style visual progress for batch document ingestion.
+ * Batch Progress — live progress for document processing.
  *
- * Features:
- * - Real-time progress with step-by-step status
- * - Animated pipeline visualization
- * - Per-document status cards
- * - Error handling with retry
- * - Duration and timing display
+ * Shows what users need: how many documents are done, which failed (with
+ * retry), and per-file status. No pipeline stages, timings, or internals —
+ * those stay server-side. When work finishes, decisions surface in Tasks.
  */
 
 "use client";
@@ -40,11 +37,6 @@ interface DocumentProgress {
   documentId: string;
   fileName: string;
   status: BatchStatus;
-  currentStage: string;
-  stageNumber: number;
-  startedAt?: Date;
-  completedAt?: Date;
-  durationMs?: number;
   error?: string;
 }
 
@@ -54,9 +46,6 @@ interface BatchProgressData {
   totalDocuments: number;
   completedDocuments: number;
   failedDocuments: number;
-  startedAt: Date;
-  completedAt?: Date;
-  totalDurationMs?: number;
   documents: DocumentProgress[];
 }
 
@@ -134,7 +123,7 @@ export function BatchProgress({
           <div className="flex items-center justify-between">
             <CardTitle className="text-lg font-medium flex items-center gap-2">
               <Zap className="h-5 w-5 text-primary" />
-              Batch Processing
+              Processing documents
             </CardTitle>
             <div className="flex items-center gap-2">
               {progress.status === "processing" && (
@@ -199,9 +188,11 @@ export function BatchProgress({
               <div className="flex items-center gap-1">
                 <Clock className="h-3 w-3" />
                 <span>
-                  {progress.totalDurationMs
-                    ? `${(progress.totalDurationMs / 1000).toFixed(1)}s`
-                    : "In progress..."}
+                  {progress.status === "completed"
+                    ? "Done"
+                    : progress.status === "failed"
+                      ? "Needs attention"
+                      : "Working…"}
                 </span>
               </div>
             </div>
@@ -247,28 +238,23 @@ function DocumentProgressCard({ document }: { document: DocumentProgress }) {
               <p className="font-medium truncate">{document.fileName}</p>
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <StatusIcon status={document.status} />
-                <span className="truncate">{document.currentStage}</span>
-                {document.durationMs && (
-                  <span className="text-xs">
-                    ({(document.durationMs / 1000).toFixed(1)}s)
-                  </span>
-                )}
+                <span className="truncate">
+                  {document.status === "completed"
+                    ? "Done"
+                    : document.status === "failed"
+                      ? "Failed"
+                      : document.status === "cancelled"
+                        ? "Cancelled"
+                        : "Working…"}
+                </span>
               </div>
             </div>
           </div>
 
-          {/* Stage Indicator */}
+          {/* Status indicator */}
           <div className="flex-shrink-0">
             {document.status === "processing" && (
-              <div className="flex items-center gap-2">
-                <div className="text-right">
-                  <p className="text-xs text-muted-foreground">Stage</p>
-                  <p className="text-sm font-medium">
-                    {document.stageNumber}/14
-                  </p>
-                </div>
-                <Loader2 className="h-5 w-5 text-primary animate-spin" />
-              </div>
+              <Loader2 className="h-5 w-5 text-primary animate-spin" />
             )}
             {document.status === "completed" && (
               <CheckCircle className="h-6 w-6 text-green-500" />
@@ -289,66 +275,8 @@ function DocumentProgressCard({ document }: { document: DocumentProgress }) {
           </div>
         )}
 
-        {/* Mini Pipeline Visualization */}
-        {document.status === "processing" && (
-          <div className="mt-3">
-            <MiniPipeline currentStage={document.stageNumber} />
-          </div>
-        )}
       </CardContent>
     </Card>
-  );
-}
-
-// ─── Mini Pipeline Visualization ──────────────────────────────────────────
-
-function MiniPipeline({ currentStage }: { currentStage: number }) {
-  const stages = [
-    { label: "Detect", number: 1 },
-    { label: "Extract", number: 3 },
-    { label: "Classify", number: 7 },
-    { label: "Map", number: 8 },
-    { label: "Journal", number: 10 },
-    { label: "Post", number: 13 },
-  ];
-
-  return (
-    <div className="flex items-center gap-1">
-      {stages.map((stage, index) => {
-        const isCompleted = currentStage > stage.number;
-        const isCurrent = currentStage === stage.number;
-        const isPending = currentStage < stage.number;
-
-        return (
-          <div key={stage.number} className="flex items-center">
-            <div
-              className={`
-                flex items-center justify-center w-6 h-6 rounded-full text-xs font-medium
-                ${isCompleted ? "bg-green-100 text-green-700" : ""}
-                ${isCurrent ? "bg-primary text-primary-foreground animate-pulse" : ""}
-                ${isPending ? "bg-muted text-muted-foreground" : ""}
-              `}
-            >
-              {isCompleted ? (
-                <CheckCircle className="h-3 w-3" />
-              ) : isCurrent ? (
-                <Loader2 className="h-3 w-3 animate-spin" />
-              ) : (
-                stage.number
-              )}
-            </div>
-            {index < stages.length - 1 && (
-              <div
-                className={`
-                  w-4 h-0.5 mx-0.5
-                  ${isCompleted ? "bg-green-300" : "bg-muted"}
-                `}
-              />
-            )}
-          </div>
-        );
-      })}
-    </div>
   );
 }
 

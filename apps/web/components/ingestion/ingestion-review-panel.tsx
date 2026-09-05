@@ -12,7 +12,6 @@ import {
   Loader2,
   Pencil,
   Trash2,
-  Bot,
   Eye,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -220,8 +219,10 @@ export function IngestionReviewPanel({
                 {detail?.name ?? "Document Review"}
               </h2>
               <p className="text-[11px] text-muted-foreground">
-                {detail?.classification?.category ?? "Processing"} • Confidence{" "}
-                {((detail?.review?.confidence ?? 0) * 100).toFixed(0)}%
+                {detail?.classification?.category ?? "Processing"}
+                {detail?.createdAt
+                  ? ` · ${new Date(detail.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}`
+                  : ""}
               </p>
             </div>
           </div>
@@ -311,7 +312,6 @@ export function IngestionReviewPanel({
                       const label = String(
                         itemData.label ?? itemData.field ?? "field",
                       );
-                      const confidence = Number(itemData.confidence ?? 0);
                       const expected =
                         itemData.expected ?? itemData.suggestedValue;
                       const actual = itemData.actual ?? itemData.extractedValue;
@@ -335,7 +335,9 @@ export function IngestionReviewPanel({
                               </span>
                             </p>
                           </div>
-                          <ConfidenceBadge confidence={confidence} />
+                          <span className="shrink-0 rounded-full bg-attention-amber/15 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-attention-amber">
+                            Check
+                          </span>
                         </div>
                       );
                     })}
@@ -346,34 +348,26 @@ export function IngestionReviewPanel({
               {/* ── Extraction Data ───────────────────────────────── */}
               <Section
                 title="Extracted Data"
-                icon={<Bot className="h-3.5 w-3.5" />}
+                icon={<FileText className="h-3.5 w-3.5" />}
                 defaultOpen
               >
                 <div className="space-y-2">
                   {Object.entries(detail.extraction.data).map(
-                    ([key, value]) => {
-                      const conf = detail.extraction.fieldConfidence?.[key];
-                      return (
-                        <div
-                          key={key}
-                          className="flex items-center justify-between rounded-lg bg-background/60 px-3 py-2"
-                        >
-                          <span className="text-xs text-muted-foreground capitalize">
-                            {key.replace(/([A-Z])/g, " $1").trim()}
-                          </span>
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs font-medium text-foreground">
-                              {typeof value === "object"
-                                ? JSON.stringify(value)
-                                : String(value ?? "—")}
-                            </span>
-                            {conf !== undefined && (
-                              <ConfidenceBadge confidence={conf} />
-                            )}
-                          </div>
-                        </div>
-                      );
-                    },
+                    ([key, value]) => (
+                      <div
+                        key={key}
+                        className="flex items-center justify-between rounded-lg bg-background/60 px-3 py-2"
+                      >
+                        <span className="text-xs text-muted-foreground capitalize">
+                          {key.replace(/([A-Z])/g, " $1").trim()}
+                        </span>
+                        <span className="text-xs font-medium text-foreground">
+                          {typeof value === "object"
+                            ? JSON.stringify(value)
+                            : String(value ?? "—")}
+                        </span>
+                      </div>
+                    ),
                   )}
                 </div>
               </Section>
@@ -578,9 +572,9 @@ export function IngestionReviewPanel({
                 </Section>
               )}
 
-              {/* ── Raw Metadata ──────────────────────────────────── */}
+              {/* ── Technical details (collapsed) ───────────────────── */}
               <Section
-                title="Raw Metadata"
+                title="Technical details"
                 icon={<Eye className="h-3.5 w-3.5" />}
                 defaultOpen={false}
                 onToggle={() => setShowRawData(!showRawData)}
@@ -604,7 +598,7 @@ export function IngestionReviewPanel({
                     type="text"
                     value={rejectReason}
                     onChange={(e) => setRejectReason(e.target.value)}
-                    placeholder="Why are you rejecting?"
+                    placeholder="What should have happened instead…"
                     className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500"
                     autoFocus
                     aria-label="Rejection reason"
@@ -757,23 +751,4 @@ function formatValue(value: unknown): string {
   return String(value);
 }
 
-function ConfidenceBadge({ confidence }: { confidence: number }) {
-  const pct = Math.round(confidence * 100);
-  const tone =
-    confidence >= 0.85
-      ? "bg-balanced-green/10 text-balanced-green"
-      : confidence >= 0.7
-        ? "bg-attention-amber/10 text-attention-amber"
-        : "bg-error-clay/10 text-error-clay";
 
-  return (
-    <span
-      className={cn(
-        "inline-flex items-center rounded-full px-1.5 py-0.5 text-[9px] font-bold tabular-nums",
-        tone,
-      )}
-    >
-      {pct}%
-    </span>
-  );
-}

@@ -1,10 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
+// ─── Money Flows ────────────────────────────────────────────────────────────
+//
+// Cash hero up top, Money-needing-you decisions next, record tables last as
+// expandable sections (mounted only when opened). Work happens through Ask
+// and inline decisions — never tab-hopping. Legacy ?tab= links open the
+// matching records section.
+
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ArrowDownLeft,
   ArrowUpRight,
+  Building2,
   CheckCircle2,
+  ChevronDown,
   CircleDashed,
   CreditCard,
   FileText,
@@ -14,7 +23,6 @@ import {
   TrendingDown,
   TrendingUp,
   Users,
-  Building2,
   type LucideIcon,
 } from "lucide-react";
 
@@ -22,9 +30,12 @@ import { useSearchParams } from "next/navigation";
 
 import { useEntity } from "@/lib/entity-context";
 import { trpc } from "@/lib/trpc/client";
-import { cn, formatCurrency } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import { useSurfaceSync } from "@/lib/hooks/use-surface-sync";
 import { MetricNarrative } from "@/components/ai-native-v2/metric-narrative";
+import { AskDrawer, type AskFn } from "@/components/chat/ask-drawer";
+import type { PageFocus } from "@/lib/chat/page-context";
+import { MoneyNeedsYou } from "@/components/operations/money-needs-you";
 import { InvoicesView } from "@/components/operations/invoices-view";
 import { BillsView } from "@/components/finance/bills-view";
 import { CustomersView } from "@/components/operations/customers-view";
@@ -33,21 +44,7 @@ import { BankingView } from "@/components/operations/banking-view";
 import { ExpensesView } from "@/components/operations/expenses-view";
 import { useFormatCurrency } from "@/lib/hooks/use-currency";
 
-// ─── Money Flows — AI-Native Operations (/operations/new) ─────────────────
-//
-// Tabs absorb navigation:
-//   1. Cash Position — runway hero + inflow/outflow streams
-//   2. Invoices — invoice management
-//   3. Bills — bill management
-//   4. Expenses — expense tracking + approval
-//   5. Customers — customer management
-//   6. Vendors — vendor management
-//   7. Banking — bank accounts + reconciliation
-//
-// Keyboard: 1-7 switch tabs, j/k navigate, Enter open detail
-
-type Tab =
-  | "cash"
+type SectionKey =
   | "invoices"
   | "bills"
   | "expenses"
@@ -55,8 +52,7 @@ type Tab =
   | "vendors"
   | "banking";
 
-const TABS: { key: Tab; label: string; icon: LucideIcon }[] = [
-  { key: "cash", label: "Cash Position", icon: TrendingUp },
+const SECTIONS: { key: SectionKey; label: string; icon: LucideIcon }[] = [
   { key: "invoices", label: "Invoices", icon: FileText },
   { key: "bills", label: "Bills", icon: CreditCard },
   { key: "expenses", label: "Expenses", icon: ReceiptText },
@@ -66,124 +62,160 @@ const TABS: { key: Tab; label: string; icon: LucideIcon }[] = [
 ];
 
 export default function MoneyFlowsPage() {
-  const { format } = useFormatCurrency();
   const { entityId } = useEntity();
   const searchParams = useSearchParams();
-  const [tab, setTab] = useState<Tab>("cash");
+  const [openSections, setOpenSections] = useState<Set<SectionKey>>(new Set());
+  const sectionRefs = useRef<Partial<Record<SectionKey, HTMLDivElement | null>>>(
+    {},
+  );
 
   useSurfaceSync({ entityId, surfaces: ["operations"] });
 
-  // Deep-link ?tab= support for 301 wrappers (/operations/customers → ?tab=customers)
-  useEffect(() => {
-    const t = searchParams.get("tab") as Tab | null;
-    if (t && (TABS as { key: string }[]).some((x) => x.key === t) && t !== tab) {
-      setTab(t);
-    }
-  }, [searchParams, tab]);
+  // ── Inline Ask ────────────────────────────────────────────────────
+  const [askState, setAskState] = useState<{
+    prompt: string;
+    title: string;
+    subject?: string;
+    focus?: PageFocus;
+  } | null>(null);
 
-  // Keyboard shortcuts
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      const tag = (e.target as HTMLElement)?.tagName;
-      if (tag?.match(/INPUT|TEXTAREA|SELECT/)) return;
-      if (e.metaKey || e.ctrlKey || e.altKey) return;
-
-      switch (e.key) {
-        case "1":
-          e.preventDefault();
-          setTab("cash");
-          break;
-        case "2":
-          e.preventDefault();
-          setTab("invoices");
-          break;
-        case "3":
-          e.preventDefault();
-          setTab("bills");
-          break;
-        case "4":
-          e.preventDefault();
-          setTab("expenses");
-          break;
-        case "5":
-          e.preventDefault();
-          setTab("customers");
-          break;
-        case "6":
-          e.preventDefault();
-          setTab("vendors");
-          break;
-        case "7":
-          e.preventDefault();
-          setTab("banking");
-          break;
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+  const ask: AskFn = useCallback((prompt, focus) => {
+    setAskState({
+      prompt,
+      title: "Ask about money flows",
+      subject: focus?.name,
+      focus,
+    });
   }, []);
+
+  const openSection = useCallback((key: SectionKey) => {
+    setOpenSections((prev) => new Set(prev).add(key));
+    // Scroll after the section mounts.
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        sectionRefs.current[key]?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      }, 60);
+    });
+  }, []);
+
+  // Legacy ?tab= links (sub-route redirects) open the matching section.
+  const tabConsumed = useRef(false);
+  useEffect(() => {
+    if (tabConsumed.current) return;
+    const t = searchParams.get("tab") as SectionKey | null;
+    if (t && SECTIONS.some((s) => s.key === t)) {
+      tabConsumed.current = true;
+      openSection(t);
+    }
+  }, [searchParams, openSection]);
+
+  function toggleSection(key: SectionKey) {
+    setOpenSections((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }
 
   return (
     <div className="flex h-full flex-col p-4 pb-6 sm:p-6">
-      {/* ── Header + Tabs ─────────────────────────────────────────── */}
-      <header className="mb-3">
+      <header className="mb-4 flex items-center justify-between gap-2">
         <h1 className="flex items-center gap-2 text-sm font-semibold tracking-tight text-foreground">
           <TrendingUp className="h-4 w-4 text-primary" aria-hidden="true" />
           Money Flows
         </h1>
+        <button
+          type="button"
+          onClick={() =>
+            ask("Where did the cash go this month? Biggest inflows, biggest outflows, and what changed vs last month.")
+          }
+          className="inline-flex items-center gap-1.5 rounded-lg border border-primary/20 bg-primary/5 px-2.5 py-1.5 text-[11px] font-medium text-primary hover:bg-primary/10 transition-colors"
+        >
+          <Sparkles className="h-3 w-3" />
+          Where did the cash go?
+        </button>
+      </header>
 
-        <div className="mt-3 flex items-center justify-between">
-          <div
-            className="flex items-center gap-1"
-            role="tablist"
-            aria-label="Operations views"
-          >
-            {TABS.map((t) => {
-              const Icon = t.icon;
-              const active = tab === t.key;
+      <div className="min-h-0 flex-1 space-y-5 overflow-y-auto">
+        <CashPositionPanel ask={ask} />
+
+        <MoneyNeedsYou ask={ask} onOpenSection={openSection} />
+
+        {/* ── Records: expandable, mounted on open ─────────────────── */}
+        <section aria-label="Records">
+          <h2 className="mb-2 px-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            Records
+          </h2>
+          <div className="space-y-2">
+            {SECTIONS.map((section) => {
+              const open = openSections.has(section.key);
+              const Icon = section.icon;
               return (
-                <button
-                  key={t.key}
-                  type="button"
-                  role="tab"
-                  aria-selected={active}
-                  onClick={() => setTab(t.key)}
-                  className={cn(
-                    "flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-all",
-                    active
-                      ? "bg-primary/10 text-primary"
-                      : "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
-                  )}
+                <div
+                  key={section.key}
+                  ref={(el) => {
+                    sectionRefs.current[section.key] = el;
+                  }}
+                  className="overflow-hidden rounded-xl border border-border/50 bg-card"
                 >
-                  <Icon className="h-3.5 w-3.5" aria-hidden="true" />
-                  {t.label}
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => toggleSection(section.key)}
+                    aria-expanded={open}
+                    className="flex w-full items-center gap-2.5 px-4 py-3 text-left transition-colors hover:bg-accent/40"
+                  >
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-muted/60">
+                      <Icon className="h-3.5 w-3.5 text-muted-foreground" />
+                    </span>
+                    <span className="flex-1 text-sm font-medium text-foreground">
+                      {section.label}
+                    </span>
+                    <ChevronDown
+                      className={cn(
+                        "h-4 w-4 text-muted-foreground transition-transform",
+                        open && "rotate-180",
+                      )}
+                    />
+                  </button>
+                  {open && (
+                    <div className="border-t border-border/30 p-3 sm:p-4">
+                      {section.key === "invoices" && <InvoicesView />}
+                      {section.key === "bills" && <BillsView />}
+                      {section.key === "expenses" && <ExpensesView />}
+                      {section.key === "customers" && <CustomersView />}
+                      {section.key === "vendors" && <VendorsView />}
+                      {section.key === "banking" && <BankingView />}
+                    </div>
+                  )}
+                </div>
               );
             })}
           </div>
-          <span className="hidden text-[10px] text-muted-foreground/50 sm:inline">
-            1-7 switch tabs
-          </span>
-        </div>
-      </header>
-
-      {/* ── Tab Panels ──────────────────────────────────────────────── */}
-      <div className="flex-1 min-h-0 overflow-y-auto">
-        {tab === "cash" && <CashPositionPanel />}
-        {tab === "invoices" && <InvoicesView />}
-        {tab === "bills" && <BillsView />}
-        {tab === "expenses" && <ExpensesView />}
-        {tab === "customers" && <CustomersView />}
-        {tab === "vendors" && <VendorsView />}
-        {tab === "banking" && <BankingView />}
+        </section>
       </div>
+
+      {askState && (
+        <AskDrawer
+          key={`${askState.prompt}-${askState.focus?.name ?? "page"}`}
+          entityId={entityId ?? ""}
+          title={askState.title}
+          subject={askState.subject}
+          initialPrompt={askState.prompt}
+          pageContext={{ page: "Operations", focus: askState.focus }}
+          onClose={() => setAskState(null)}
+        />
+      )}
     </div>
   );
 }
 
 // ─── Cash Position Panel ────────────────────────────────────────────────────
 
-function CashPositionPanel() {
+function CashPositionPanel({ ask }: { ask: AskFn }) {
   const { format } = useFormatCurrency();
   const { entityId } = useEntity();
   const { data: dash, isLoading: dashLoading } =
@@ -266,16 +298,32 @@ function CashPositionPanel() {
             }
             narrative={
               health?.runwayMonths != null && health.runwayMonths < 6
-                ? "Tight. Agents are watching spend."
+                ? "Tight — watching spend."
                 : "Comfortable at current burn."
             }
             size="sm"
           />
-          <MetricNarrative
-            label="This month, net"
-            value={format(netChange)}
-            size="sm"
-          />
+          <button
+            type="button"
+            onClick={() =>
+              ask("Explain this month's net change. What's driving it?", {
+                kind: "Metric",
+                name: "Monthly net",
+                fields: [
+                  { label: "Net", value: format(netChange) },
+                  { label: "Cash", value: format(health?.cashBalance ?? 0) },
+                ],
+              })
+            }
+            className="text-left"
+            aria-label="Ask about this month's net change"
+          >
+            <MetricNarrative
+              label="This month, net"
+              value={format(netChange)}
+              size="sm"
+            />
+          </button>
           <div className="min-w-0">
             <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/70">
               Bills past due
@@ -285,9 +333,17 @@ function CashPositionPanel() {
                 <p className="mt-0.5 text-lg font-semibold tabular-nums text-error-clay">
                   {overdueBills}
                 </p>
-                <p className="mt-0.5 text-[11px] text-muted-foreground">
-                  Ask the AI to draft a payment plan.
-                </p>
+                <button
+                  type="button"
+                  onClick={() =>
+                    ask(
+                      "Draft a payment plan for my overdue bills: who gets paid first, how much, and when.",
+                    )
+                  }
+                  className="mt-0.5 text-left text-[11px] font-medium text-primary hover:text-primary/80"
+                >
+                  Draft a payment plan →
+                </button>
               </>
             ) : (
               <>
@@ -320,6 +376,11 @@ function CashPositionPanel() {
           icon={TrendingUp}
           tone="emerald"
           emptyLabel="No income recorded yet."
+          emptyCta={{
+            label: "Record income with AI",
+            prompt: "Help me record income I received.",
+          }}
+          ask={ask}
           loading={txLoading}
           rows={inflows.map((t) => ({
             id: t.id,
@@ -341,6 +402,11 @@ function CashPositionPanel() {
           icon={TrendingDown}
           tone="red"
           emptyLabel="No spending recorded yet."
+          emptyCta={{
+            label: "Record spending with AI",
+            prompt: "Help me record money we spent.",
+          }}
+          ask={ask}
           loading={txLoading}
           rows={outflows.map((t) => ({
             id: t.id,
@@ -357,29 +423,6 @@ function CashPositionPanel() {
               : { label: "unreconciled", tone: "warn" as const },
           }))}
         />
-      </div>
-    </div>
-  );
-}
-
-// ─── People Panel (Customers + Vendors side by side) ───────────────────────
-
-function PeoplePanel() {
-  return (
-    <div className="grid gap-6 lg:grid-cols-2">
-      <div>
-        <h2 className="mb-3 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground/60">
-          <Users className="h-3.5 w-3.5" aria-hidden="true" />
-          Customers
-        </h2>
-        <CustomersView />
-      </div>
-      <div>
-        <h2 className="mb-3 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground/60">
-          <Building2 className="h-3.5 w-3.5" aria-hidden="true" />
-          Vendors
-        </h2>
-        <VendorsView />
       </div>
     </div>
   );
@@ -402,6 +445,8 @@ function FlowStream({
   rows,
   loading,
   emptyLabel,
+  emptyCta,
+  ask,
 }: {
   title: string;
   icon: typeof TrendingUp;
@@ -409,6 +454,8 @@ function FlowStream({
   rows: FlowRow[];
   loading?: boolean;
   emptyLabel: string;
+  emptyCta: { label: string; prompt: string };
+  ask: AskFn;
 }) {
   return (
     <section
@@ -443,9 +490,16 @@ function FlowStream({
           ))}
         </div>
       ) : rows.length === 0 ? (
-        <p className="p-6 text-center text-xs text-muted-foreground">
-          {emptyLabel}
-        </p>
+        <div className="p-6 text-center">
+          <p className="text-xs text-muted-foreground">{emptyLabel}</p>
+          <button
+            type="button"
+            onClick={() => ask(emptyCta.prompt)}
+            className="mt-2 text-[11px] font-medium text-primary hover:text-primary/80"
+          >
+            {emptyCta.label} →
+          </button>
+        </div>
       ) : (
         <ul className="divide-y divide-border/30">
           {rows.map((r) => (
