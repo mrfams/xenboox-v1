@@ -1503,6 +1503,28 @@ describe("Pipeline 2: Autonomous Close Pipeline", () => {
         expect(result.recoveryPath).toContain("Simple correction");
       });
 
+      it("should refuse foreign closeSessionId before any write (P8-D ownership gate)", async () => {
+        // Foreign session — NOT owned by this entity
+        db.query.closeSessions.findFirst.mockResolvedValue(null);
+        db.insert.mockClear();
+        db.update.mockClear();
+
+        const { reopenPeriodWithRecovery } = await import("../close-pipeline");
+        await expect(
+          reopenPeriodWithRecovery({
+            closeSessionId: "foreign-session",
+            entityId: "entity-1",
+            raisedByUserId: "user-1",
+            raisedVia: "dashboard",
+            description: "attempted cross-tenant reopen",
+          }),
+        ).rejects.toThrow(/not found for this entity/i);
+
+        // No reopenRequest insert, no session flip, no period flip attempted
+        expect(db.insert).not.toHaveBeenCalled();
+        expect(db.update).not.toHaveBeenCalled();
+      });
+
       it("should create reopen request for cascading error", async () => {
         db.query.closeSessions.findFirst.mockResolvedValue({
           id: "session-1",

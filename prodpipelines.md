@@ -71,7 +71,7 @@ Status legend: ✅ done · 🔄 in progress · ⬜ not started · ⚠️ needs f
 | 5   | Bank Reconciliation          | ✅     | A–E + verification loop committed                                                                        |
 | 6   | Expense Recording → Approval | ✅     | A ✅ · B ✅ · C ✅ · D ✅ · E ✅ (EXP- partition, superRefine tree fix, GMD sweep, tax-install layering) |
 | 7   | Journal Entries              | 🔄     | Deep-audit: A ✅ (record layer) · B ⬜ · C ⬜ · D ⬜                                                     |
-| 8   | Month-End Close              | 🔄     | Deep-audit: A ✅ · B ✅ (close job) · C ⬜ · D ⬜                                                        |
+| 8   | Month-End Close              | ✅     | Deep-audit: A ✅ · B ✅ · C ✅ · D ✅ (reopen ownership gate + cron verified)                            |
 | 9   | Financial Reporting          | ✅     | P&L, Balance Sheet, Cash Flow, Budget vs Actual                                                          |
 | 10  | AI Chat / Agent Routing      | ✅     | Message validation, conversation management                                                              |
 | 11  | Recurring Transactions       | ✅     | Batch party-name enrichment, full lifecycle                                                              |

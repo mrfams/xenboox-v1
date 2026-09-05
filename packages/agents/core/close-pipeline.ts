@@ -1673,7 +1673,25 @@ export async function reopenPeriodWithRecovery(params: {
   reopenRequestId: string;
   recoveryPath: string;
 }> {
-  // Create reopen request
+  // ── Ownership gate FIRST ──────────────────────────────────────────────
+  // The reopen_requests table has no entityId column — ownership flows
+  // through the close session. A caller passing a foreign closeSessionId
+  // must not be able to (a) write a reopen row onto another tenant's
+  // session or (b) reopen another tenant's period. Resolve + verify the
+  // session before any write.
+  const session = await db.query.closeSessions.findFirst({
+    where: and(
+      eq(closeSessions.id, params.closeSessionId),
+      eq(closeSessions.entityId, params.entityId),
+    ),
+  });
+  if (!session) {
+    throw new Error(
+      "Close session not found for this entity. Reopen request refused.",
+    );
+  }
+
+  // Create reopen request (session already verified owned by this entity)
   const [request] = await db
     .insert(reopenRequests)
     .values({
@@ -1697,16 +1715,16 @@ export async function reopenPeriodWithRecovery(params: {
       ),
     );
 
-  // Also reopen the fiscal period
-  const session = await db.query.closeSessions.findFirst({
-    where: eq(closeSessions.id, params.closeSessionId),
-  });
-  if (session) {
-    await db
-      .update(fiscalPeriods)
-      .set({ status: "open", closedBy: null, closedAt: null })
-      .where(eq(fiscalPeriods.id, session.fiscalPeriodId));
-  }
+  // Reopen the fiscal period for the verified session
+  await db
+    .update(fiscalPeriods)
+    .set({ status: "open", closedBy: null, closedAt: null })
+    .where(
+      and(
+        eq(fiscalPeriods.id, session.fiscalPeriodId),
+        eq(fiscalPeriods.entityId, params.entityId),
+      ),
+    );
 
   // Determine recovery path based on classification
   let recoveryPath: string;
