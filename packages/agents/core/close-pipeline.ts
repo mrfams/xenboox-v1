@@ -15,6 +15,7 @@
 //   9. Audit Trail           — Log all close actions to audit trail
 
 import { db } from "@xenboox/db";
+import { postToLedger, majorToMinor } from "@xenboox/ledger";
 import { eq, and, desc, sql, inArray } from "drizzle-orm";
 import {
   fiscalPeriods,
@@ -22,6 +23,7 @@ import {
   journalEntryLines,
   trialBalanceSnapshots,
 } from "@xenboox/db/schema/accounting";
+import { entities } from "@xenboox/db/schema/organization";
 import { bankTransactions } from "@xenboox/db/schema/treasury";
 import {
   fixedAssets,
@@ -1117,6 +1119,15 @@ async function runAutomatedAdjustments(
     });
     if (!period) return { success: false, depreciationCount, adjustments };
 
+    // N28 — engine currency resolution (once per run)
+    const [entityRow] = await db.query.entities.findMany({
+      where: eq(entities.id, entityId),
+      columns: { currency: true },
+      limit: 1,
+    });
+    const engineCurrency = entityRow?.currency ?? "USD";
+    const enginePrimary = process.env.LEDGER_PRIMARY_CLOSE === "true";
+
     const schedules = await db
       .select({
         assetId: depreciationSchedule.fixedAssetId,
@@ -1179,6 +1190,117 @@ async function runAutomatedAdjustments(
         continue;
       }
 
+      // ── N28 — engine-primary behind LEDGER_PRIMARY_CLOSE ──────────────
+      // The inline legacy posting becomes the derived mirror when the flag
+      // is on; the engine owns the event, the idempotency key, and the
+      // balance projections. Engine refusal (closed period, unbalanced) is
+      // an adjustment failure — the close goes awaiting_human per the
+      // pipeline's existing error mapping.
+      if (process.env.LEDGER_PRIMARY_CLOSE === "true") {
+        try {
+          await postToLedger(db, {
+            entityId,
+            actorType: "system",
+            actorId: "close-pipeline",
+            source: "automatic_close_adjustment",
+            effectiveDate: period.endDate,
+            currency: engineCurrency,
+            idempotencyKey: reference,
+            lines: [
+              {
+                accountId: schedule.expenseAccountId,
+                accountCode: "",
+                debitMinor: majorToMinor(amount.toFixed(2)),
+                creditMinor: 0,
+                description: `Depreciation expense - ${schedule.assetName}`,
+              },
+              {
+                accountId: schedule.accumulatedAccountId,
+                accountCode: "",
+                debitMinor: 0,
+                creditMinor: majorToMinor(amount.toFixed(2)),
+                description: `Accumulated depreciation - ${schedule.assetName}`,
+              },
+            ],
+            metadata: { assetId: schedule.assetId },
+          });
+        } catch (engineErr) {
+          return { success: false, depreciationCount, adjustments };
+        }
+
+        // Legacy mirror (derived) — legacy readers + schedule link. A mirror
+        // failure leaves the engine event standing; the parity verifier
+        // reconciles the legacy gap.
+        try {
+          await db.transaction(async (tx) => {
+            const [last] = await tx
+              .select({ entryNumber: journalEntries.entryNumber })
+              .from(journalEntries)
+              .where(eq(journalEntries.entityId, entityId))
+              .orderBy(desc(journalEntries.entryNumber))
+              .limit(1);
+            const [created] = await tx
+              .insert(journalEntries)
+              .values({
+                entityId,
+                entryNumber: (last?.entryNumber ?? 0) + 1,
+                description: `Depreciation - ${schedule.assetName}`,
+                reference,
+                date: period.endDate,
+                periodId,
+                status: "posted",
+                postedBy: "system",
+                postedAt: new Date(),
+                source: "automatic_close_adjustment",
+              })
+              .returning({ id: journalEntries.id });
+            if (!created)
+              throw new Error("Failed to create depreciation journal entry");
+            await tx.insert(journalEntryLines).values([
+              {
+                journalEntryId: created.id,
+                accountId: schedule.expenseAccountId,
+                debit: String(amount.toFixed(2)),
+                credit: "0",
+                description: `Depreciation expense - ${schedule.assetName}`,
+              },
+              {
+                journalEntryId: created.id,
+                accountId: schedule.accumulatedAccountId,
+                debit: "0",
+                credit: String(amount.toFixed(2)),
+                description: `Accumulated depreciation - ${schedule.assetName}`,
+              },
+            ]);
+            await tx
+              .update(depreciationSchedule)
+              .set({
+                journalEntryId: created.id,
+                calculatedBy: "close-pipeline",
+              })
+              .where(
+                and(
+                  eq(depreciationSchedule.entityId, entityId),
+                  eq(depreciationSchedule.fixedAssetId, schedule.assetId),
+                  eq(depreciationSchedule.periodId, periodId),
+                ),
+              );
+          });
+        } catch (mirrorErr) {
+          adjustments.push(
+            `Depreciation mirrored to engine but legacy write failed for ${schedule.assetName} — parity verifier will reconcile`,
+          );
+          void mirrorErr;
+        }
+
+        depreciationCount += 1;
+        adjustments.push(
+          `Depreciation for ${schedule.assetName}: ${amount.toFixed(2)}`,
+        );
+        continue;
+      }
+
+      // Legacy-primary path (default until cut-over completes).
       const [entry] = await db.transaction(async (tx) => {
         const [last] = await tx
           .select({ entryNumber: journalEntries.entryNumber })

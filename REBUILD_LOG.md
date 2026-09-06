@@ -412,3 +412,28 @@ Same pattern for AP bill + payments cut-overs (mechanical, same shape as N37); t
 ### Next loop pass
 
 Expenses posting cut-over + close-pipeline depreciation routing (N28 closes) → G4 complete → legacy freeze.
+
+---
+
+## Session 014 — 2026-09-06 — G4: EXPENSES CUT-OVER (N39) + CLOSE DEPRECIATION ROUTING (N28 CLOSES)
+
+### Graph delta
+
+| Node | Status | Evidence |
+|---|---|---|
+| N39 expenses cut-over | **passed (Run Phase)** | `expenses.ts` reimbursement posting branches on `LEDGER_PRIMARY_EXPENSES=true` — engine-first (idempotencyKey `exp-claim-<id>`, claim currency), legacy mirror after the engine commit, both paths sharing the deterministic line-footing check (claim lines must total the claim before anything posts — pre-existing, preserved) |
+| N28 close depreciation routing | **passed (Run Phase)** — **CLOSES** | `close-pipeline.ts` `runAutomatedAdjustments` branches on `LEDGER_PRIMARY_CLOSE=true`: engine posts with the deterministic `depreciation:{entity}:{period}:{asset}` idempotency key, system actor, period-end effective date, entity-resolved currency, minor-unit lines via `majorToMinor`. Engine refusal = adjustment failure (the close goes `awaiting_human` per the existing error mapping — exactly the KILLPLAN's "required adjustment failure blocks close" rule). Legacy mirror after the engine commit keeps legacy readers consistent; mirror failure surfaces as an adjustment note for the parity verifier. Legacy-primary remains the default |
+
+### Run Phase (executed this session)
+
+- **90/90 dashboard suite tests passing** (13 suites; new: `epoch0-batch3-n28-close-depreciation.test.ts`, 5 cases) + **19/19 ledger package tests**, ledger tsc clean
+- Two codemod anchor corrections en route (buildApInvoiceLines name, N26-era refactored block shape) — all-or-nothing writes prevented partial application
+
+### Residual risks
+
+- AR payment + expense claims + payroll postings remain legacy-primary with shadow hooks — each flips with the same one-flag pattern as parity evidence accumulates
+- All four module flags default OFF — cut-over is an explicit, staged, reversible operations decision per environment
+
+### G4 remaining
+
+Payroll posting cut-over + any remaining posting sites → legacy freeze → **G4 COMPLETE**.

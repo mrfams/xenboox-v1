@@ -29,6 +29,7 @@ import {
   reverseApBillJournal,
 } from "../ap-posting";
 import { createPostedJournal, ensureAccount } from "../journal-posting-core";
+import { postToLedger, toLedgerLines } from "@xenboox/ledger";
 import { resolvePaymentReceiptAccount } from "@xenboox/db";
 
 import {
@@ -1335,16 +1336,55 @@ export const expensesRouter = router({
         description: `Reimbursement ${claim.claimNumber} — ${claim.claimantName ?? claim.claimantId}`,
       });
 
-      const jeId = await createPostedJournal({
-        entityId: ctx.entityId!,
-        userId: ctx.session!.user!.id!,
-        date: new Date().toISOString().slice(0, 10),
-        description: `Expense claim ${claim.claimNumber} reimbursement`,
-        reference: `exp-claim-${claim.id}`,
-        source: "expense_claim_reimbursement",
-        lines: built,
-        logPrefix: "[expense-reimburse]",
-      });
+      const legacyPost = () =>
+        createPostedJournal({
+          entityId: ctx.entityId!,
+          userId: ctx.session!.user!.id!,
+          date: new Date().toISOString().slice(0, 10),
+          description: `Expense claim ${claim.claimNumber} reimbursement`,
+          reference: `exp-claim-${claim.id}`,
+          source: "expense_claim_reimbursement",
+          lines: built,
+          logPrefix: "[expense-reimburse]",
+        });
+      const enginePost = () =>
+        postToLedger(db, {
+          entityId: ctx.entityId!,
+          actorType: "user",
+          actorId: ctx.session!.user!.id!,
+          source: "expense_claim_reimbursement",
+          effectiveDate: new Date().toISOString().slice(0, 10),
+          currency: claim.currency ?? "USD",
+          idempotencyKey: `exp-claim-${claim.id}`,
+          lines: toLedgerLines(built),
+          metadata: { claimNumber: claim.claimNumber },
+        });
+
+      let jeId: string | null = null;
+      // ── N39 cut-over flag — engine authoritative when enabled ──────────
+      if (process.env.LEDGER_PRIMARY_EXPENSES === "true") {
+        try {
+          const engine = await enginePost();
+          try {
+            jeId = (await legacyPost()) ?? null;
+          } catch (mirrorErr) {
+            console.error(
+              "[expense-reimburse] legacy mirror failed after engine commit — parity verifier will reconcile",
+              mirrorErr,
+            );
+            jeId = engine.eventId;
+          }
+        } catch (engineErr) {
+          throw new Error(
+            engineErr instanceof Error && engineErr.message.startsWith("Reimbursement")
+              ? engineErr.message
+              : `Reimbursement could not be posted — ${engineErr instanceof Error ? engineErr.message : "engine validation failed"}`,
+          );
+        }
+      } else {
+        // Legacy-primary path (default until cut-over completes).
+        jeId = (await legacyPost()) ?? null;
+      }
       if (!jeId) {
         throw new Error(
           "Reimbursement could not be posted — today's accounting period is closed. Reopen it and try again.",

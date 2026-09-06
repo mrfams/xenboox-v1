@@ -94,6 +94,8 @@ Every money/auth/concurrency node ships stress-case designs even when not execut
 | N36 | Shadow dual-write (mirror hook + majorToMinor/toLedgerLines/shadowMirror) + parity verifier + nightly cron | packages/ledger/src/shadow.ts, parity.ts, apps/web/server/journal-posting-core.ts, app/api/cron/ledger-parity | N34 | passed (Run Phase) |
 | N37 | AR invoice cut-over behind LEDGER_PRIMARY_AR — engine authoritative, legacy mirror derived, asymmetric failure semantics | apps/web/server/ar-posting.ts | N36 | passed (Run Phase) |
 | N38 | AP bill + payment cut-overs behind LEDGER_PRIMARY_AP (engine first, mirror derived, shared link helpers) | apps/web/server/ap-posting.ts | N37 | passed (Run Phase) |
+| N39 | Expense claim reimbursement cut-over behind LEDGER_PRIMARY_EXPENSES | apps/web/server/routers/expenses.ts | N38 | passed (Run Phase) |
+| N28 | Close depreciation routes through the ledger engine (LEDGER_PRIMARY_CLOSE) — CLOSES | packages/agents/core/close-pipeline.ts | N34 | passed (Run Phase) |
 | N15 | Converge month-end job onto pipeline semantics | packages/jobs/month-end-close.ts | Batch 1 | closed-deferred |
 | N14 | Wire durable closeSessions into executing close + DB idempotency | packages/agents/core/close-pipeline.ts | N15 | closed-deferred |
 
