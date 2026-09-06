@@ -715,6 +715,25 @@ export const bankingRouter = router({
           });
         }
 
+        // ── Manual connections have no live feed — say so, honestly. ──
+        // Batch 2 N17: this branch previously generated 15–20 random
+        // transactions into `bankTransactions` and returned synced:true.
+        // Fabricated money in a real feed is a correctness hazard; manual
+        // connections get statement-upload flows instead. Returned BEFORE the
+        // throttle — there is no sync to throttle.
+        if (conn.provider === "manual") {
+          return {
+            synced: false,
+            manual: true,
+            added: 0,
+            modified: 0,
+            removed: 0,
+            nextCursor: null,
+            message:
+              "This is a manual connection — there is no live feed to sync. Upload a statement or connect a provider.",
+          };
+        }
+
         // ── Real provider sync: dispatch to the shared job ────────────
         // The job owns cursor state (metadata.plaidCursor), dedup, retries and
         // DLQ. This router previously re-implemented the whole Plaid sync
@@ -745,9 +764,8 @@ export const bankingRouter = router({
           return { synced: true, triggered: true };
         }
 
-        // ── Demo connections (provider=manual, no live feed): generate ──
-        // sample transactions so the banking surface is explorable. A Mono or
-        // Stitch connection missing its token is a real error, not a demo.
+        // A Mono or Stitch connection missing its token is a real error, not a
+        // demo surface.
         if (conn.provider === "mono" || conn.provider === "stitch") {
           throw new TRPCError({
             code: "INTERNAL_SERVER_ERROR",
@@ -755,56 +773,10 @@ export const bankingRouter = router({
           });
         }
 
-        // Find (or create) the linked bank account for the demo account.
-        let bankAccount = await db.query.bankAccounts.findFirst({
-          where: and(
-            eq(bankAccounts.entityId, entityId),
-            eq(bankAccounts.bankName, conn.institutionName),
-          ),
+        throw new TRPCError({
+          code: "NOT_IMPLEMENTED",
+          message: `Sync is not available for provider "${conn.provider ?? "unknown"}" yet`,
         });
-
-        if (!bankAccount) {
-          [bankAccount] = await db
-            .insert(bankAccounts)
-            .values({
-              entityId,
-              name: conn.accountName ?? conn.institutionName,
-              bankName: conn.institutionName,
-              accountNumber: conn.accountNumber ?? "00000000",
-              currency: conn.currency ?? "USD",
-              isActive: true,
-            })
-            .returning();
-        }
-
-        const sampleTransactions = generateDemoTransactions(
-          entityId,
-          bankAccount.id,
-        );
-
-        // Only insert if no transactions exist for this account yet
-        const existingCount = await db
-          .select({ count: count() })
-          .from(bankTransactions)
-          .where(eq(bankTransactions.bankAccountId, bankAccount.id));
-
-        if ((existingCount[0]?.count ?? 0) === 0) {
-          await db.insert(bankTransactions).values(sampleTransactions);
-        }
-
-        // Update sync time
-        await db
-          .update(bankConnections)
-          .set({ lastSyncedAt: new Date(), syncError: null })
-          .where(eq(bankConnections.id, conn.id));
-
-        return {
-          synced: true,
-          added: existingCount[0]?.count === 0 ? sampleTransactions.length : 0,
-          modified: 0,
-          removed: 0,
-          nextCursor: null,
-        };
       } catch (error) {
         // Record the sync error
         const errorMessage =
@@ -2042,178 +2014,4 @@ function categorizeTransaction(
   }
 
   return null;
-}
-
-// ─── Demo Transaction Generator ────────────────────────────────────────────
-
-/**
- * Generate realistic demo transactions for first-time users.
- * Creates a mix of deposits, withdrawals, and transfers over the last 30 days.
- */
-function generateDemoTransactions(
-  entityId: string,
-  bankAccountId: string,
-): Array<{
-  entityId: string;
-  bankAccountId: string;
-  transactionDate: string;
-  type: "deposit" | "withdrawal" | "transfer" | "fee";
-  amount: string;
-  description: string;
-  reference: string | null;
-  source: string;
-  category: string;
-  metadata: Record<string, unknown>;
-}> {
-  const now = new Date();
-  const transactions: Array<{
-    entityId: string;
-    bankAccountId: string;
-    transactionDate: string;
-    type: "deposit" | "withdrawal" | "transfer" | "fee";
-    amount: string;
-    description: string;
-    reference: string | null;
-    source: string;
-    category: string;
-    metadata: Record<string, unknown>;
-  }> = [];
-
-  const templates = [
-    {
-      desc: "SALARY PAYMENT",
-      type: "deposit" as const,
-      min: 3000,
-      max: 8000,
-      category: "Revenue",
-    },
-    {
-      desc: "CLIENT PAYMENT - ACME CORP",
-      type: "deposit" as const,
-      min: 1000,
-      max: 15000,
-      category: "Revenue",
-    },
-    {
-      desc: "OFFICE RENT",
-      type: "withdrawal" as const,
-      min: 800,
-      max: 2000,
-      category: "Rent & Lease",
-    },
-    {
-      desc: "ELECTRIC COMPANY",
-      type: "withdrawal" as const,
-      min: 50,
-      max: 300,
-      category: "Utilities",
-    },
-    {
-      desc: "SAFARICOM MOBILE MONEY",
-      type: "withdrawal" as const,
-      min: 100,
-      max: 500,
-      category: "Mobile Money",
-    },
-    {
-      desc: "STARK INDUSTRIES - SOFTWARE",
-      type: "withdrawal" as const,
-      min: 50,
-      max: 200,
-      category: "Software & Subscriptions",
-    },
-    {
-      desc: "UBER TRIP",
-      type: "withdrawal" as const,
-      min: 5,
-      max: 50,
-      category: "Travel & Transport",
-    },
-    {
-      desc: "RESTAURANT PAYMENT",
-      type: "withdrawal" as const,
-      min: 20,
-      max: 100,
-      category: "Meals & Entertainment",
-    },
-    {
-      desc: "BANK FEE",
-      type: "fee" as const,
-      min: 5,
-      max: 25,
-      category: "Bank Fees",
-    },
-    {
-      desc: "TRANSFER TO SAVINGS",
-      type: "transfer" as const,
-      min: 200,
-      max: 2000,
-      category: "Transfer",
-    },
-    {
-      desc: "CLIENT PAYMENT - BETA LLC",
-      type: "deposit" as const,
-      min: 2000,
-      max: 20000,
-      category: "Revenue",
-    },
-    {
-      desc: "GOOGLE ADS",
-      type: "withdrawal" as const,
-      min: 100,
-      max: 1000,
-      category: "Marketing",
-    },
-    {
-      desc: "SALARY PAYROLL",
-      type: "withdrawal" as const,
-      min: 2000,
-      max: 6000,
-      category: "Payroll",
-    },
-    {
-      desc: "INSURANCE PREMIUM",
-      type: "withdrawal" as const,
-      min: 100,
-      max: 500,
-      category: "Insurance",
-    },
-    {
-      desc: "CLIENT PAYMENT - GAMTEL",
-      type: "deposit" as const,
-      min: 500,
-      max: 5000,
-      category: "Revenue",
-    },
-  ];
-
-  // Generate 15-20 transactions over the last 30 days
-  const count = 15 + Math.floor(Math.random() * 6);
-  for (let i = 0; i < count; i++) {
-    const template = templates[i % templates.length];
-    const daysAgo = Math.floor(Math.random() * 30);
-    const date = new Date(now);
-    date.setDate(date.getDate() - daysAgo);
-    const dateStr = date.toISOString().slice(0, 10);
-
-    const amount = template.min + Math.random() * (template.max - template.min);
-
-    transactions.push({
-      entityId,
-      bankAccountId,
-      transactionDate: dateStr,
-      type: template.type,
-      amount: amount.toFixed(2),
-      description: template.desc,
-      reference: `DEMO-${Date.now()}-${i}`,
-      source: "demo_sync",
-      category: template.category,
-      metadata: {
-        demo: true,
-        generatedAt: new Date().toISOString(),
-      },
-    });
-  }
-
-  return transactions;
 }

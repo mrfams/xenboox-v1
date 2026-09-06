@@ -59,3 +59,49 @@
 ### Next loop pass
 
 Batch 2 / G1 "LEDGER TRUTH": approvals re-validation (balance + open-period), durable approval audit rows, close sessions wired, close implementations converged, `withTimeout` cancellation, banking demo-money removal.
+
+---
+
+## Session 002 — 2026-09-06 — Batch 2 / G1 "LEDGER TRUTH" (partial: N12, N13, N16, N17)
+
+**Branch:** `feat/epoch0-safety`
+
+### Graph delta
+
+| Node | Status | Evidence |
+|---|---|---|
+| N17 banking honesty | **closed-deferred** | `banking.ts`: demo-sync branch removed — manual connections return `{ synced: false, manual: true, message }` BEFORE the throttle (no fake lastSyncedAt stamp); 167-line `generateDemoTransactions` (random money into `bankTransactions`) deleted; unknown providers now get honest NOT_IMPLEMENTED. prodway P1-C4 closed. File brace-verified after surgery |
+| N12 approval re-validation | **closed-deferred** | `approvals.ts` approved-branch: loads the entry's fiscal period — **closed period → BAD_REQUEST** (plain English); loads lines and runs `validateJournalEntry` (TrustGuard) — **failure → BAD_REQUEST "does not balance or is invalid"**; only then the atomic draft→posted flip. The post-into-closed-period hole (prodway P1-C2) is closed |
+| N13 durable approval audit | **closed-deferred** | `approvals.resolve` now writes a durable `auditLog` row (entityId, user, action `approval_{type}_{action}`, entityRef, reason) for EVERY decision — the 0025 DB trigger computes the tamper-evident chain fields (seq/prevHash/eventHash). The in-memory `createAuditEntry` theater removed from the return shape (no UI consumers — verified) |
+| N16 cancellation-correct timeouts | **closed-deferred** | `retry.ts withTimeout` gains `onTimeout` (fires before reject); `close-pipeline.ts` holds a shared abort flag; **5 step-boundary checks** (validation/adjustments/trial-balance/period-close/verify) halt the close as `awaiting_human` before further writes; the outer pipeline timeout flips the same flag. A timed-out close can no longer keep posting depreciation in the background (prodway P1-C5 closed) |
+| N14/N15 close sessions + convergence | **backlog → next pass** | Deliberately deferred to a focused pass: wiring `closeSessions` into the executing path requires converging the two close implementations first (design-heavy, 2,300 lines combined) |
+
+### Tests authored (added to Deferred Test Registry)
+
+`apps/web/__tests__/epoch0-batch2-ledger-truth.test.ts` — 9 cases:
+- N17: no `generateDemoTransactions`/`demo_sync`/`Math.random` in banking source; manual response contract present in source (2)
+- N12: TrustGuard + fiscalPeriods + "open" check present in the journal branch; validation precedes the status flip; plain-English closed/balance errors (2)
+- N13: `db.insert(auditLog)` with entityRef; `createAuditEntry` gone (1)
+- N16: onTimeout fires before TimeoutError; silent on success; pipeline checks abort before adjustments/period-close and wires the outer timeout to the flag (3)
+
+### Stress cases designed
+
+- N12: approve racing period-close (close wins → approval rejected); concurrent double-approve (second gets CONFLICT, unchanged); approve with lines edited between read and validate (re-read inside validation path)
+- N16: timeout mid-adjustments → pipeline stops before TB/close steps; timeout mid-period-close → awaiting_human, no further writes; onTimeout observer throwing must not mask TimeoutError (test)
+- N17: manual sync at 100 clicks/min (no throttle needed — pure read-only response); sync response consumed by old UI builds (tolerant — verified bank-connection-dialog.tsx:287,335)
+
+### REVIEW notes
+
+- `validateJournalEntry` signature requires `description: string` — fixed during review (`?? "Journal entry approval"`); `date` is schema `text` — string pass-through correct
+- banking.ts surgery verified by brace-balance (depth 0) + residual grep (0 random/demo refs) + full read of the repaired categorize helper
+- Chain fields on `auditLog` are computed by the 0025 DB trigger — insert supplies payload columns only (matches ar.ts pattern)
+
+### Residual risks
+
+- All nodes `closed-deferred` — no runtime verification yet (Run Phase N10)
+- The `closeState.errors` push uses string messages (schema `string[]`) — consistent
+- Month-end job (`packages/jobs/month-end-close.ts`) still diverges — that IS N15, next pass
+
+### Next loop pass
+
+**N15 then N14:** converge `packages/jobs/month-end-close.ts` onto `close-pipeline.ts` semantics (period-end JE dates, TrustGuard, TB snapshot), then wire `openCloseSession`/durable sessions into the executing close; DB-backed idempotency keys replace the in-memory maps.

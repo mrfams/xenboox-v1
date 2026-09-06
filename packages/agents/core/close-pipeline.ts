@@ -314,6 +314,21 @@ export async function executeClosePipeline(params: {
       auditTrail: [],
     };
 
+    // Batch 2 / N16 — cooperative cancellation: every timeout flips this
+    // flag; each step boundary checks it BEFORE the next financial write so a
+    // timed-out close halts safely (awaiting_human) instead of continuing to
+    // post in the background while the caller sees a failure.
+    const abort = { aborted: false };
+    const abortIfTimedOut = (stage: string) => {
+      if (!abort.aborted) return null;
+      closeState.status = "awaiting_human";
+      closeState.completedAt = new Date().toISOString();
+      closeState.errors.push(
+        "Timeout at " + stage + " — close halted safely; resume or approve manually",
+      );
+      return { closeState, stepTelemetry, durationMs: Date.now() - startTime };
+    };
+
     const trace = await langfuse.trace({
       name: "autonomous-close-pipeline",
       metadata: {
@@ -345,6 +360,8 @@ export async function executeClosePipeline(params: {
         pipelineTimeout.maxStepExecutionMs,
         "pre-close-validation",
       );
+      const abortedNowvalidation = abortIfTimedOut("validation");
+      if (abortedNowvalidation) return abortedNowvalidation;
 
       if (!validation.passed && !params.force) {
         closeState.steps = updateStep(closeState.steps, "validation", {
@@ -479,6 +496,8 @@ export async function executeClosePipeline(params: {
         pipelineTimeout.maxStepExecutionMs,
         "automated-adjustments",
       );
+      const abortedNowadjustments = abortIfTimedOut("adjustments");
+      if (abortedNowadjustments) return abortedNowadjustments;
 
       closeState.steps = updateStep(closeState.steps, "adjustments", {
         status: adjustmentResult.success ? "completed" : "failed",
@@ -527,6 +546,8 @@ export async function executeClosePipeline(params: {
         pipelineTimeout.maxStepExecutionMs,
         "trial-balance-verify",
       );
+      const abortedNowtrialbalance = abortIfTimedOut("trial-balance");
+      if (abortedNowtrialbalance) return abortedNowtrialbalance;
 
       closeState.steps = updateStep(closeState.steps, "trial_balance", {
         status: tbResult.balanced ? "completed" : "failed",
@@ -588,6 +609,8 @@ export async function executeClosePipeline(params: {
         pipelineTimeout.maxStepExecutionMs,
         "period-close-execute",
       );
+      const abortedNowperiodclose = abortIfTimedOut("period-close");
+      if (abortedNowperiodclose) return abortedNowperiodclose;
 
       closeState.steps = updateStep(closeState.steps, "period_close", {
         status: closeResult.success ? "completed" : "failed",
@@ -639,6 +662,8 @@ export async function executeClosePipeline(params: {
         pipelineTimeout.maxStepExecutionMs,
         "post-close-verify",
       );
+      const abortedNowverify = abortIfTimedOut("verify");
+      if (abortedNowverify) return abortedNowverify;
 
       closeState.steps = updateStep(closeState.steps, "post_verify", {
         status: verifyResult.passed ? "completed" : "failed",
@@ -743,6 +768,7 @@ export async function executeClosePipeline(params: {
     () => pipelinePromise,
     pipelineTimeout.maxExecutionMs,
     "close-pipeline",
+    { onTimeout: () => { abort.aborted = true; } },
   );
 }
 

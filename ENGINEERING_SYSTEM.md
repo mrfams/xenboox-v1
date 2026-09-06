@@ -66,6 +66,18 @@ Every money/auth/concurrency node ships stress-case designs even when not execut
 | N7 | Remove/gate admin seed UI buttons (9 pages) | app/admin/*/page.tsx | N3, N4 | closed-deferred |
 | N8 | Batch log: prodway + BUILD_LOG + graph closure | prodway.md, BUILD_LOG.md | N1–N7 | backlog |
 
+
+### Batch 2 / G1 nodes
+
+| ID | Node | Files | Depends on | Status |
+|---|---|---|---|---|
+| N12 | Approval re-validation (TrustGuard + open-period) | server/routers/approvals.ts | Batch 1 | closed-deferred |
+| N13 | Durable approval audit rows (chain-backed) | server/routers/approvals.ts | N12 | closed-deferred |
+| N16 | Cancellation-correct timeouts (onTimeout + 5 boundary checks) | packages/agents/core/retry.ts, close-pipeline.ts | Batch 1 | closed-deferred |
+| N17 | Banking demo-money removal, honest manual sync | server/routers/banking.ts | Batch 1 | closed-deferred |
+| N15 | Converge month-end job onto pipeline semantics | packages/jobs/month-end-close.ts | Batch 1 | backlog |
+| N14 | Wire durable closeSessions into executing close + DB idempotency | packages/agents/core/close-pipeline.ts, retry.ts | N15 | backlog |
+
 ### Upcoming batches (already graphed, not started)
 
 - **Batch 2 / G1:** approvals re-validation (balance+period) · durable approval audit rows · close sessions wired · close implementations converged · withTimeout cancellation · banking demo-money removal.

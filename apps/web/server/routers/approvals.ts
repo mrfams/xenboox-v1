@@ -1,11 +1,19 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { eq, and, desc, ne, sql } from "drizzle-orm";
-import { journalEntries } from "@xenboox/db/schema/accounting";
+import {
+  journalEntries,
+  journalEntryLines,
+  fiscalPeriods,
+} from "@xenboox/db/schema/accounting";
 import { agentRoutingLogs } from "@xenboox/db/schema/agents";
 import { agentActivity } from "@xenboox/db/schema/documents";
+import { auditLog } from "@xenboox/db/schema/documents";
 import { notifications } from "@xenboox/db/schema/notifications";
-import { createAuditEntry } from "@xenboox/agents/core/state";
+import {
+  validateJournalEntry,
+  trustGuardToError,
+} from "@xenboox/agents";
 
 import { db } from "@/lib/db";
 import {
@@ -280,6 +288,49 @@ export const approvalsRouter = router({
           // approve-after-reject) affects 0 rows and gets CONFLICT instead of
           // silently double-posting or flipping an already-decided entry.
           if (input.action === "approved") {
+            // Batch 2 N12 — re-validate at approval time. The draft may have
+            // drifted since creation: its fiscal period may have closed, or
+            // the lines may not balance. Approval posts money, so it must
+            // pass the same gate as the canonical posting path.
+            const period = entry.periodId
+              ? await db.query.fiscalPeriods.findFirst({
+                  where: eq(fiscalPeriods.id, entry.periodId),
+                  columns: { id: true, status: true },
+                })
+              : null;
+
+            if (!period || period.status !== "open") {
+              throw new TRPCError({
+                code: "BAD_REQUEST",
+                message:
+                  "This entry's fiscal period is closed — reopen the period or approve in the current one",
+              });
+            }
+
+            const lines = await db.query.journalEntryLines.findMany({
+              where: eq(journalEntryLines.journalEntryId, entry.id),
+              columns: { accountId: true, debit: true, credit: true },
+            });
+
+            const trustResult = await validateJournalEntry({
+              entityId: ctx.entityId!,
+              periodId: period.id,
+              date: entry.date,
+              lines: lines.map((l) => ({
+                accountId: l.accountId,
+                debit: l.debit,
+                credit: l.credit,
+              })),
+              description: entry.description ?? "Journal entry approval",
+            });
+
+            if (!trustResult.passed) {
+              throw new TRPCError({
+                code: "BAD_REQUEST",
+                message: `Journal entry does not balance or is invalid: ${trustGuardToError(trustResult)}`,
+              });
+            }
+
             const [updated] = await db
               .update(journalEntries)
               .set({
@@ -327,23 +378,26 @@ export const approvalsRouter = router({
           }
         }
 
-        // Audit trail
-        const auditEntry = createAuditEntry({
-          agentId: "approvals-router",
-          action: `approval_${input.action}`,
-          details: {
-            itemId: input.itemId,
-            itemType: input.itemType,
-            reason: input.reason,
-            userId: ctx.session!.user!.id!,
+        // Audit trail — DURABLE (Batch 2 N13). The 0025 trigger computes the
+        // tamper-evident chain fields (seq/prevHash/eventHash) on insert.
+        // The previous in-memory-only object returned to the client was never
+        // persisted and did not survive a refresh.
+        await db.insert(auditLog).values({
+          entityId: ctx.entityId!,
+          userId: ctx.session!.user!.id!,
+          action: `approval_${input.itemType}_${input.action}`,
+          entityType: input.itemType,
+          entityIdRef: input.itemId,
+          newValues: {
+            action: input.action,
+            reason: input.reason ?? null,
           },
-          confidence: 1,
+          reason: input.reason ?? null,
         });
 
         return {
           success: true,
           action: input.action,
-          auditEntry,
         };
       } catch (error) {
         handleMutationError(error, "Failed to resolve approval item");

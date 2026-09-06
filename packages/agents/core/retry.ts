@@ -231,14 +231,26 @@ export async function withRetry<T>(
 /**
  * Execute an async function with a timeout.
  * Throws TimeoutError if the function doesn't complete within the limit.
+ *
+ * Batch 2 / N16 — `onTimeout` fires when the limit trips, BEFORE the reject.
+ * A timed-out async fn cannot be force-killed in JS, so long-running work
+ * (the close pipeline) observes a shared abort flag via this callback and
+ * stops at its next step boundary instead of continuing to post financial
+ * entries in the background while the caller reports failure.
  */
 export async function withTimeout<T>(
   fn: () => Promise<T>,
   timeoutMs: number,
   operationName: string,
+  opts?: { onTimeout?: () => void },
 ): Promise<T> {
   return new Promise<T>((resolve, reject) => {
     const timer = setTimeout(() => {
+      try {
+        opts?.onTimeout?.();
+      } catch {
+        // an observer throwing must not mask the TimeoutError
+      }
       reject(
         new TimeoutError(
           `Operation "${operationName}" timed out after ${timeoutMs}ms`,
