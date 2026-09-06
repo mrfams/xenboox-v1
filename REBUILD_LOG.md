@@ -105,3 +105,30 @@ Batch 2 / G1 "LEDGER TRUTH": approvals re-validation (balance + open-period), du
 ### Next loop pass
 
 **N15 then N14:** converge `packages/jobs/month-end-close.ts` onto `close-pipeline.ts` semantics (period-end JE dates, TrustGuard, TB snapshot), then wire `openCloseSession`/durable sessions into the executing close; DB-backed idempotency keys replace the in-memory maps.
+
+---
+
+## Session 003 — 2026-09-06 — Batch 3 / G2 "TRUTHFUL UI" (partial: N18)
+
+### Graph delta
+
+| Node | Status | Evidence |
+|---|---|---|
+| N18 SSE truth + tenant isolation | **closed-deferred** | `agent-events/route.ts`: runs query scoped by `entityId` (the writer-set column) — `organizationId=entityId as any` predicate that matched NOTHING removed, so real agent runs are now visible to the Tasks rail (prodway B8/P1 closed). `opsLiveRunEvents` query scoped through `entityRunIds` subquery — the previously UNFILTERED events feed (cross-tenant step-message leak) is closed. `orchestrator.ts` runId now uses the full taskId — the 6-char prefix collided on the UNIQUE runId column, silently failing inserts inside the observability catch (double bug: invisible runs + failed writes) |
+
+### Tests authored (registry)
+
+`apps/web/__tests__/epoch0-batch3-sse-truth.test.ts` — 4 cases (scoping, subquery, runId format, schema-unique rationale).
+
+### Stress cases designed
+
+- N18: two tenants connected simultaneously — each stream receives ONLY its entity's run events; 6-char-prefix collision repro (two taskIds sharing a prefix → one insert fails under old code, both succeed under new); SSE reconnect loop with 20-run lookback (bounded, no leak).
+
+### Residual risks
+
+- `as any` remains on `event.metadata` (line ~236) — benign typed-metadata access, cleanup candidate.
+- Notifications stitching on the Tasks page (prodway Part 4 #10) + batch approve + loading gates → next Batch 3 nodes (N19+).
+
+### Next loop pass
+
+N19: server-side unified Needs-you queue (end client stitching of listAgentApprovals + notifications.list + tasks.list); N20: batch approve; N21: loading/error gates on Financial Pulse numerics.

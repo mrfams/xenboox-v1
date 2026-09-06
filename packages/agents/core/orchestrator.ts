@@ -629,7 +629,7 @@ export async function persistAgentRun(params: {
 }): Promise<void> {
   try {
     await db.insert(opsLiveRuns).values({
-      runId: `RUN-${params.taskId.slice(0, 6).toUpperCase()}`,
+      runId: `RUN-${params.taskId.toUpperCase()}`,
       agentName: params.agentId,
       agentDisplayName: params.agentDisplayName,
       agentCategory: params.agentId.split("_")[0] ?? params.agentId,

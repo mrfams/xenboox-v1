@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { eq, and, desc, gte, gt, asc } from "drizzle-orm";
+import { eq, and, desc, gte, gt, asc, inArray } from "drizzle-orm";
 import {
   opsLiveRuns,
   opsLiveRunEvents,
@@ -150,9 +150,13 @@ async function getEntityEvents(
   const events: AgentEvent[] = [];
 
   // Get recent live runs for this entity's organization
+  // Batch 3 N18: scope by entityId — the writer (orchestrator.persistAgentRun)
+  // sets entityId; organizationId is a denormalized display column it never
+  // fills, so the old organizationId=entityId predicate matched NOTHING (every
+  // real run was invisible) and the "as any" hid the type error.
   const recentRuns = await db.query.opsLiveRuns.findMany({
     where: and(
-      eq(opsLiveRuns.organizationId, entityId) as any,
+      eq(opsLiveRuns.entityId, entityId),
       gte(opsLiveRuns.startedAt, since),
     ),
     orderBy: [desc(opsLiveRuns.startedAt)],
@@ -208,8 +212,18 @@ async function getEntityEvents(
   }
 
   // Get recent run events
+  // Batch 3 N18: the events table has no entity column — scope through the
+  // run's entity via subquery. Previously UNFILTERED: any entity's step
+  // messages were broadcast to every connected tenant (cross-tenant leak).
+  const entityRunIds = db
+    .select({ runId: opsLiveRuns.runId })
+    .from(opsLiveRuns)
+    .where(eq(opsLiveRuns.entityId, entityId));
   const recentRunEvents = await db.query.opsLiveRunEvents.findMany({
-    where: gte(opsLiveRunEvents.createdAt, since),
+    where: and(
+      gte(opsLiveRunEvents.createdAt, since),
+      inArray(opsLiveRunEvents.runId, entityRunIds),
+    ),
     orderBy: [desc(opsLiveRunEvents.createdAt)],
     limit: 50,
   });
