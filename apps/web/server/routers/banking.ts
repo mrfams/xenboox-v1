@@ -48,6 +48,7 @@ import {
   requirePermission,
 } from "@/lib/trpc/server";
 import { db } from "@/lib/db";
+import { postToLedger, toLedgerLines } from "@xenboox/ledger";
 import { removePlaidItem } from "@/lib/plaid-api";
 import { tenantJobOptions, triggerClient } from "@/lib/trigger";
 
@@ -1789,6 +1790,51 @@ export const bankingRouter = router({
             continue;
           }
 
+          // ── N43 cut-over flag — engine authoritative when enabled ─────
+          // Engine failure → skipped (per-tx semantics preserved). The legacy
+          // block below ALWAYS runs as the mirror (TrustGuard + reference
+          // idempotency intact) so legacy readers stay consistent; a mirror
+          // failure is recorded and the parity verifier reconciles it.
+          const ledgerEnginePrimary =
+            process.env.LEDGER_PRIMARY_BANKING === "true";
+          let engineEventId: string | null = null;
+          if (ledgerEnginePrimary) {
+            const bankCurrency =
+              bankAccountsRows.find((ba) => ba.id === tx.bankAccountId)
+                ?.currency ?? "USD";
+            try {
+              const engine = await postToLedger(db, {
+                entityId,
+                actorType: "user",
+                actorId: ctx.session?.user?.id ?? "system",
+                source: "bank_feed",
+                effectiveDate: tx.transactionDate,
+                currency: bankCurrency,
+                idempotencyKey: `bank-tx-${tx.id}`,
+                lines: toLedgerLines(
+                  buildBankJournalLines(
+                    {
+                      amount: tx.amount,
+                      type: tx.type,
+                      description: tx.description,
+                    },
+                    bankGl,
+                    categoryGl,
+                  ),
+                ),
+                metadata: { bankTransactionId: tx.id },
+              });
+              engineEventId = engine.eventId;
+            } catch (engineErr) {
+              results.push({
+                transactionId: tx.id,
+                status: "skipped",
+                reason: `engine:${engineErr instanceof Error ? engineErr.message : "failed"}`,
+              });
+              continue;
+            }
+          }
+
           // Build + TrustGuard-validate the balanced entry.
           const lines = buildBankJournalLines(
             {
@@ -1915,6 +1961,27 @@ export const bankingRouter = router({
             },
           });
 
+          if (ledgerEnginePrimary) {
+            postedCount++;
+            if (!jeResult) {
+              // Mirror failed after the engine commit — the event stands in
+              // the v2 journal; the parity verifier reconciles the gap.
+              results.push({
+                transactionId: tx.id,
+                status: "posted",
+                journalEntryId: engineEventId,
+                note: "engine posted; legacy mirror pending parity reconciliation",
+              });
+              continue;
+            }
+            results.push({
+              transactionId: tx.id,
+              status: "posted",
+              journalEntryId: jeResult,
+              engineEventId,
+            });
+            continue;
+          }
           postedCount++;
           results.push({
             transactionId: tx.id,

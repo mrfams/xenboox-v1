@@ -497,3 +497,39 @@ All flags default OFF — the flip is a staged, reversible, per-environment oper
 ### Next loop pass
 
 N43 banking loop restructure → legacy freeze declaration → **G4 COMPLETE**. Then CI wiring (typecheck + suites on GitHub Actions) per the owner's CI-first directive.
+
+---
+
+## Session 017 — 2026-09-06 — G4 COMPLETE: BANKING CUT-OVER (N43) — EVERY POSTING PATH ROUTES THROUGH THE ENGINE
+
+### Graph delta
+
+| Node | Status | Evidence |
+|---|---|---|
+| N43 banking categorization cut-over | **passed (Run Phase)** — **COMPLETES G4's CUT-OVER** | `banking.ts postToLedger` procedure: per-tx `LEDGER_PRIMARY_BANKING` branch — engine posts with the `bank-tx-<id>` key and the BANK ACCOUNT's currency; engine failure → per-tx `skipped` (loop semantics preserved); **the legacy block always runs as the mirror** with its own TrustGuard + reference idempotency intact, so legacy readers never diverge. Mirror outcomes recorded honestly: mirror failure → posted (engine id) + "legacy mirror pending parity reconciliation" note; success → posted with both ids. Exclusive increments per branch — no transaction counted twice |
+
+### Run Phase (executed this session)
+
+- **109/109 dashboard tests (16 suites) + 21/21 ledger tests = 130 passing**, ledger tsc clean
+- One assertion invariant corrected during the run (the outcome slice contains both branch increments — exclusive by `continue`; total 2 is correct)
+
+### G4 STATUS: **CUT-OVER COMPLETE** (code-complete; runtime parity evidence accumulates in staging/prod)
+
+| Module | Engine flag |
+|---|---|
+| AR invoice + AR payment | `LEDGER_PRIMARY_AR` |
+| AP bill + AP payment | `LEDGER_PRIMARY_AP` |
+| Expense reimbursements | `LEDGER_PRIMARY_EXPENSES` |
+| Close depreciation | `LEDGER_PRIMARY_CLOSE` |
+| Payroll | `LEDGER_PRIMARY_PAYROLL` |
+| FX revaluation | `LEDGER_PRIMARY_FX` |
+| Banking categorization | `LEDGER_PRIMARY_BANKING` |
+
+**Every posting path in the platform now routes through `@xenboox/ledger`'s `postToLedger` behind a per-module, staged, reversible flag — with the nightly parity verifier standing guard during the transition.** All flags default OFF; the flip is a staged per-environment operations decision gated by parity evidence.
+
+### Next (deployment track, not code)
+
+1. CI wiring (typecheck + suites on GitHub Actions/Vercel) per the owner's CI-first directive
+2. Staging: migration 0041 + `LEDGER_SHADOW=true` → parity evidence
+3. Per-module flag flips as parity holds
+4. Legacy freeze → G4 fully realized in production
