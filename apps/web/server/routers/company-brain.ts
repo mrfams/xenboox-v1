@@ -13,6 +13,7 @@ import {
 import { db } from "@xenboox/db";
 
 import { router, adminProtectedProcedure } from "@/lib/trpc/server";
+import { devOnly } from "@/server/lib/dev-only";
 
 export const companyBrainRouter = router({
   // Get dashboard overview with KPIs
@@ -189,6 +190,7 @@ export const companyBrainRouter = router({
 
   // Seed demo data
   seedDemoData: adminProtectedProcedure.mutation(async () => {
+    devOnly("seedDemoData");
     // Clear existing data
     await db.delete(knowledgeTopTopics);
     await db.delete(knowledgeActivity);

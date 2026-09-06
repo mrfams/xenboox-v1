@@ -11,6 +11,7 @@ import {
 
 import { router, adminProtectedProcedure } from "@/lib/trpc/server";
 import { db } from "@/lib/db";
+import { devOnly } from "@/server/lib/dev-only";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -352,6 +353,7 @@ export const tokenUsageRouter = router({
   // ── Seed demo data ────────────────────────────────────────────────────
 
   seedTokenUsageData: adminProtectedProcedure.mutation(async () => {
+    devOnly("seedTokenUsageData");
     const existing = await db
       .select({ count: count() })
       .from(opsTokenDaily)

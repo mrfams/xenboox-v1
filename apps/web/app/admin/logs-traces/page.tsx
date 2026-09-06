@@ -425,13 +425,6 @@ export default function LogsTracesPage() {
     { enabled: !!firstTraceId },
   );
 
-  // Seed demo data mutation
-  const seedMutation = trpc.logsTraces.seedDemoData.useMutation({
-    onSuccess: () => {
-      window.location.reload();
-    },
-  });
-
   const formatNumber = (num: number) => {
     if (num >= 1000000) return `${(num / 1000000).toFixed(2)}M`;
     if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
@@ -507,14 +500,7 @@ export default function LogsTracesPage() {
                 <Download className="h-4 w-4 mr-1" />
                 Export
               </Button>
-              <Button
-                onClick={() => seedMutation.mutate()}
-                variant="outline"
-                size="sm"
-              >
-                Seed Data
-              </Button>
-            </div>
+                          </div>
           </div>
         </div>
 

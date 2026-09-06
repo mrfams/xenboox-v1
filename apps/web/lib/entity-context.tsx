@@ -10,8 +10,10 @@ import {
   type ReactNode,
 } from "react";
 import { useSession } from "next-auth/react";
+import { useQueryClient } from "@tanstack/react-query";
 
 import { trpc } from "@/lib/trpc/client";
+import { resetEntityCaches } from "@/lib/entity-cache";
 
 type EntityContextValue = {
   entityId: string | null;
@@ -91,6 +93,7 @@ export function useEntity() {
 }
 
 export function EntityProvider({ children }: { children: ReactNode }) {
+  const queryClient = useQueryClient();
   // OPTIMISTIC: read localStorage synchronously on first render so the
   // entity name appears instantly (no loading flash).  Validation against
   // the server list happens async below — if the stored id is stale the
@@ -237,13 +240,29 @@ export function EntityProvider({ children }: { children: ReactNode }) {
       // Persist to server for cross-device sync
       setLastUsedEntityMutation.mutate({ entityId: id });
 
-      // Auto-dismiss overlay after data refetches
-      setTimeout(() => {
-        setIsSwitching(false);
-        setSwitchingToName(null);
-      }, 1200);
+      // Cache isolation (Epoch 0 / N6): tRPC keys queries by path+input, NOT
+      // by entity — the entity rides the x-entity-id header per request.
+      // Without removing cached queries, mounted surfaces keep rendering the
+      // PREVIOUS entity's financials for the new one. Remove everything and
+      // refetch what's mounted; the overlay clears when refetches settle.
+      void resetEntityCaches(queryClient)
+        .then(() => {
+          setIsSwitching(false);
+          setSwitchingToName(null);
+        })
+        .catch(() => {
+          // Never trap the user behind the overlay on a refetch error —
+          // surfaces render their own error states.
+          setIsSwitching(false);
+          setSwitchingToName(null);
+        });
     },
-    [setLastUsedEntityMutation, listEntitiesQuery.data, entityId],
+    [
+      setLastUsedEntityMutation,
+      listEntitiesQuery.data,
+      entityId,
+      queryClient,
+    ],
   );
 
   const clearEntityId = useCallback(() => {

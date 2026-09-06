@@ -545,12 +545,6 @@ export default function FeatureFlagsPage() {
     });
 
   // Seed demo data mutation
-  const seedMutation = trpc.featureFlags.seedDemoData.useMutation({
-    onSuccess: () => {
-      window.location.reload();
-    },
-  });
-
   if (overviewLoading) {
     return (
       <div className="space-y-6">
@@ -618,14 +612,7 @@ export default function FeatureFlagsPage() {
                 <Plus className="h-4 w-4 mr-1" />
                 Create Flag
               </Button>
-              <Button
-                onClick={() => seedMutation.mutate()}
-                variant="outline"
-                size="sm"
-              >
-                Seed Data
-              </Button>
-            </div>
+                          </div>
           </div>
         </div>
 

@@ -9,6 +9,7 @@ import {
 
 import { router, adminProtectedProcedure } from "@/lib/trpc/server";
 import { db } from "@/lib/db";
+import { devOnly } from "@/server/lib/dev-only";
 
 /** Bump a semver string: 2.3.1 → 2.3.2, 2.3 → 2.3.1, 2 → 2.1. */
 function bumpSemver(v: string): string {
@@ -380,6 +381,7 @@ export const promptLibraryRouter = router({
   // ── Seed demo data ────────────────────────────────────────────────────
 
   seedPromptLibraryData: adminProtectedProcedure.mutation(async () => {
+    devOnly("seedPromptLibraryData");
     const existing = await db
       .select({ count: count() })
       .from(opsPrompts)

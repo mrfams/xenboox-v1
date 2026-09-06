@@ -12,6 +12,7 @@ import {
 import { db } from "@xenboox/db";
 
 import { router, adminProtectedProcedure } from "@/lib/trpc/server";
+import { devOnly } from "@/server/lib/dev-only";
 
 export const customerDiagnosticsRouter = router({
   // Get dashboard overview with KPIs and all data
@@ -227,6 +228,7 @@ export const customerDiagnosticsRouter = router({
 
   // Seed demo data
   seedDemoData: adminProtectedProcedure.mutation(async () => {
+    devOnly("seedDemoData");
     // Clear existing data
     await db.delete(diagnosticsInsights);
     await db.delete(topImpactedWorkflows);

@@ -61,20 +61,28 @@ export const aiWorkspaceRouter = router({
       type: string;
     }> = [];
 
-    // Bank reconciliation tasks
+    // Bank reconciliation tasks — progress from REAL reconciliation state
     for (const account of bankAccountsData) {
-      const txCount = await db
-        .select({ count: count() })
+      const [totals] = await db
+        .select({
+          total: count(),
+          reconciled:
+            sql<number>`count(*) filter (where ${bankTransactions.isReconciled})::int`,
+        })
         .from(bankTransactions)
         .where(eq(bankTransactions.bankAccountId, account.id));
+
+      const total = totals?.total ?? 0;
+      const done = totals?.reconciled ?? 0;
+      const progress = total === 0 ? 0 : Math.round((done / total) * 100);
 
       tasks.push({
         id: `recon-${account.id}`,
         title: "Bank Reconciliation",
         subtitle: `${account.bankName} - ${account.accountNumber}`,
-        progress: Math.min(72, Math.floor(Math.random() * 40 + 50)),
+        progress,
         status: "active",
-        eta: "ETA 3 min",
+        eta: `${total - done} of ${total} to reconcile`,
         type: "reconciliation",
       });
     }
@@ -95,9 +103,9 @@ export const aiWorkspaceRouter = router({
         id: "invoice-processing",
         title: "Invoice Processing",
         subtitle: "Pending invoices",
-        progress: 48,
+        progress: 0,
         status: "review",
-        eta: "ETA 5 min",
+        eta: "Awaiting review",
         type: "invoice",
       });
     }
@@ -108,9 +116,9 @@ export const aiWorkspaceRouter = router({
         id: "journal-review",
         title: "Journal Entry Review",
         subtitle: `${pendingJournals.length} entries pending`,
-        progress: 60,
+        progress: 0,
         status: "review",
-        eta: "ETA 2 min",
+        eta: "Awaiting review",
         type: "journal",
       });
     }

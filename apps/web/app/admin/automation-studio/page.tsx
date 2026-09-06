@@ -22,7 +22,6 @@ import {
   Users,
   Bot,
   X,
-  RefreshCw,
   MessageSquare,
   Lightbulb,
   HelpCircle,
@@ -290,13 +289,6 @@ export default function AutomationStudioPage() {
   const { data: timeSavings } =
     trpc.automationStudio.getTopTimeSavings.useQuery();
 
-  // Seed demo data mutation
-  const seedMutation = trpc.automationStudio.seedDemoData.useMutation({
-    onSuccess: () => {
-      window.location.reload();
-    },
-  });
-
   const perfSegments = useMemo(() => {
     if (!performance) return [];
     return [
@@ -394,13 +386,6 @@ export default function AutomationStudioPage() {
               <button className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-2">
                 <Download className="h-4 w-4" />
                 Import
-              </button>
-              <button
-                onClick={() => seedMutation.mutate()}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-2"
-              >
-                <RefreshCw className="h-4 w-4" />
-                Seed Data
               </button>
             </div>
           </div>

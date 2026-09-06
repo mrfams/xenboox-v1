@@ -13,6 +13,7 @@ import { users } from "@xenboox/db/schema/auth";
 
 import { db } from "@/lib/db";
 import { router, adminProtectedProcedure } from "@/lib/trpc/server";
+import { devOnly } from "@/server/lib/dev-only";
 
 // ─── Helper: compute date range strings ─────────────────────────────────────
 
@@ -436,6 +437,7 @@ export const opsConsoleRouter = router({
   // ── Seed demo data (development only) ────────────────────────────────
 
   seedDemoData: adminProtectedProcedure.mutation(async () => {
+    devOnly("seedDemoData");
     // Only seed if tables are empty
     const existingHealth = await db
       .select({ count: count() })

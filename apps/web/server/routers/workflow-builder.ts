@@ -12,6 +12,7 @@ import { db } from "@xenboox/db";
 
 import { router, adminProtectedProcedure } from "@/lib/trpc/server";
 import { logger } from "@/lib/logger";
+import { devOnly } from "@/server/lib/dev-only";
 
 // ─── Validation ─────────────────────────────────────────────────────────────
 // Shared zod schemas so every mutation validates the same shape the canvas
@@ -533,6 +534,7 @@ export const workflowBuilderRouter = router({
 
   // Seed demo data
   seedDemoData: adminProtectedProcedure.mutation(async () => {
+    devOnly("seedDemoData");
     // Clear existing data
     await db.delete(workflowEdges);
     await db.delete(workflowNodes);

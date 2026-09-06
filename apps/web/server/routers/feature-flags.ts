@@ -8,6 +8,7 @@ import {
 import { db } from "@xenboox/db";
 
 import { router, adminProtectedProcedure } from "@/lib/trpc/server";
+import { devOnly } from "@/server/lib/dev-only";
 
 export const featureFlagsRouter = router({
   // Get dashboard overview with KPIs
@@ -235,6 +236,7 @@ export const featureFlagsRouter = router({
 
   // Seed demo data
   seedDemoData: adminProtectedProcedure.mutation(async () => {
+    devOnly("seedDemoData");
     // Clear existing data
     await db.delete(featureFlagRolloutHistory);
     await db.delete(featureFlagAuditLog);

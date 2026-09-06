@@ -4,51 +4,72 @@ import { drizzle as drizzlePool } from "drizzle-orm/neon-serverless";
 import ws from "ws";
 import * as schema from "./schema";
 
-// ─── DB driver — Pool when USE_RLS=true (WebSocket, DB-layer RLS active), else neon-http (app-layer primary) ──
-// See ADR-RLS-POOL.md and DATABASE.md §0006. Default is neon-http for backwards compat and edge caching;
-// set USE_RLS=true + Neon WebSocket access to activate FORCE RLS at the DB layer.
+// ─── DB driver policy (Epoch 0 / N1 — KILLPLAN §4, prodway P0-C1) ───────────
 //
-// NOTE: the client is typed with the FULL schema (instantiation expression on
-// the generic `drizzle` factory) so `db.query.<table>` is available to every
-// consumer. An un-instantiated `ReturnType<typeof drizzle>` would resolve the
-// default `Record<string, never>` schema and type `.query` as `{}`.
+// The transactional Pool driver (WebSocket, node-postgres-compatible) is the
+// DEFAULT. `db.transaction()` is a REAL transaction on this path — rollback on
+// failure, and per-request SET LOCAL RLS GUCs behave correctly. This is the
+// driver every posting path runs on.
+//
+// The neon-http driver is an explicit opt-out (`DB_DRIVER=http`) for edge or
+// read-only contexts. It has NO transactions: the fallback shim below keeps
+// old call sites from 500ing but is NOT atomic, and this file warns loudly
+// whenever it is used. Posting paths must never run on it.
+//
+// Env:
+//   DB_DRIVER   "pool" (default) | "http" (explicit non-transactional opt-out)
+//   DATABASE_URL connection string. On serverless, use Neon's pooled endpoint.
+//   USE_RLS     legacy flag: when "true", historically switched to Pool. The
+//               driver now defaults to Pool regardless; USE_RLS=true additionally
+//               enables the DB-layer RLS wiring in lib/trpc (see ADR-RLS-POOL).
+
 type DbClient =
   | ReturnType<typeof drizzleHttp<typeof schema>>
   | ReturnType<typeof drizzlePool<typeof schema>>;
 
+export type DbDriver = "pool" | "http";
+
+function resolveDriver(): DbDriver {
+  const raw = (process.env.DB_DRIVER ?? "").toLowerCase();
+  if (raw === "http") return "http";
+  if (raw === "pool") return "pool";
+  // Legacy: USE_RLS=true was the old way to request the Pool driver.
+  if (process.env.USE_RLS === "true") return "pool";
+  return "pool"; // default — transactions must be real
+}
+
+export const dbDriver: DbDriver = resolveDriver();
+
 let _db: DbClient;
-if (process.env.USE_RLS === "true") {
+if (dbDriver === "pool") {
   neonConfig.webSocketConstructor = ws as unknown as typeof WebSocket;
-  const pool = new Pool({ connectionString: process.env.DATABASE_URL! });
+  const pool = new Pool({
+    connectionString: process.env.DATABASE_URL!,
+    max: Number(process.env.DB_POOL_MAX ?? 10),
+  });
   _db = drizzlePool(pool, { schema });
-  // eslint-disable-next-line no-console -- operational log, not per-request
-  console.info(
-    "[db] Pool RLS enabled (WebSocket) — DB-layer enforcement active",
-  );
+  if (process.env.NODE_ENV !== "production") {
+    console.info("[db] Pool driver (transactional) — DB-layer RLS eligible");
+  }
 } else {
   const sql = neon(process.env.DATABASE_URL!);
   _db = drizzleHttp(sql, { schema });
-  if (process.env.NODE_ENV !== "test") {
-    // eslint-disable-next-line no-console -- operational log
-    console.warn(
-      "[db] RLS app-layer only (neon-http) — set USE_RLS=true for DB-layer enforcement (see ADR-RLS-POOL)",
-    );
-  }
+  console.warn(
+    "[db] neon-http driver selected (DB_DRIVER=http) — transactions are NOT atomic on this path; posting must not run here",
+  );
 }
 
 /**
- * Transaction shim for neon-http driver.
- * The neon-http driver throws "No transactions support" — every router that
- * uses db.transaction would 500. We fall back to executing the callback
- * without a real DB transaction (still sequential, just not atomic). Callers
- * that need atomicity should clean up manually on failure inside the callback.
- * If the driver ever gains real transaction support (e.g. switch to Pool),
- * the native path is used.
+ * Non-atomicity guard for the explicit http opt-out. The neon-http driver
+ * throws "No transactions support"; this shim executes the callback
+ * sequentially WITHOUT rollback so legacy call sites keep functioning, but it
+ * is loudly logged and must never wrap financial writes. Production should
+ * never select this driver.
  */
 const anyDb = _db as unknown as {
   transaction?: (cb: (tx: typeof _db) => Promise<unknown>) => Promise<unknown>;
 };
-if (typeof anyDb.transaction === "function") {
+if (dbDriver === "http" && typeof anyDb.transaction === "function") {
   const orig = anyDb.transaction.bind(anyDb);
   anyDb.transaction = async (cb: (tx: typeof _db) => Promise<unknown>) => {
     try {
@@ -59,9 +80,8 @@ if (typeof anyDb.transaction === "function") {
         msg.includes("No transactions support") ||
         msg.includes("transactions support")
       ) {
-        // eslint-disable-next-line no-console -- fallback is expected on neon-http
-        console.warn(
-          "[db] neon-http transaction fallback — executing without real transaction",
+        console.error(
+          "[db] NON-ATOMIC transaction fallback on neon-http — financial writes are unsafe here. Switch DB_DRIVER=pool.",
         );
         return await cb(_db);
       }

@@ -21,7 +21,7 @@ A Goal is a user-observable end state with acceptance criteria. Batches exist on
 ## 2. The Graph (dependency-graph engineering)
 
 - **Every unit of work is a node** with: id, goal, files, depends-on (edges), tests-authored, stress-cases, status.
-- **Status vocabulary (strict):** `backlog → spec'd → red (tests authored) → green (implemented) → reviewed (self-critique vs spec) → stress-designed → closed-deferred (verified by inspection; tests pending Run Phase)`.
+- **Status vocabulary (strict):** `closed-deferred → spec'd → red (tests authored) → green (implemented) → reviewed (self-critique vs spec) → stress-designed → closed-deferred (verified by inspection; tests pending Run Phase)`.
 - A node may only move one status per loop pass, and **each transition is stated in the session log** — that is the "nothing escapes" mechanism.
 - Any discovered work that is not yet a node **becomes a node before any code is written for it**. No ad-hoc edits, ever — including "one-line fixes."
 - The graph lives in this file (§6) and is updated on every node transition. `BUILD_LOG.md` carries the narrative.
@@ -56,14 +56,14 @@ Every money/auth/concurrency node ships stress-case designs even when not execut
 
 | ID | Node | Files | Depends on | Status |
 |---|---|---|---|---|
-| N0 | Restore .agents/.semgrep/.opencode + commit pending remediation | git worktree | — | backlog |
-| N1 | Driver decision: Pool default, real transactions | packages/db/client.ts | N0 | backlog |
-| N2 | RLS context correct on pooled connections | apps/web/lib/trpc/server.ts | N1 | backlog |
-| N3 | Remove review-queue global-delete seed | routers/review-queue.ts + admin page | N0 | backlog |
-| N4 | Dev-gate all seedDemoData + remove Math.random read paths (11 routers) | routers/{ops-console,logs-traces,live-runs,agent-monitor,cost-analytics,ai-workspace,customer-diagnostics,company-brain,feature-flags,infrastructure,prompt-library}.ts | N0 | backlog |
-| N5 | seed-demo route production guard | app/api/seed-demo/route.ts | N0 | backlog |
-| N6 | Entity-switch cache invalidation + honest switch UX | lib/entity-context.tsx, components/layout/entity-switcher.tsx | N0 | backlog |
-| N7 | Remove/gate admin seed UI buttons (9 pages) | app/admin/*/page.tsx | N3, N4 | backlog |
+| N0 | Restore .agents/.semgrep/.opencode + commit pending remediation | git worktree | — | closed-deferred |
+| N1 | Driver decision: Pool default, real transactions | packages/db/client.ts | N0 | closed-deferred |
+| N2 | RLS context correct on pooled connections (withRlsTransaction) | apps/web/lib/trpc/rls.ts (new) | N1 | closed-deferred |
+| N3 | Remove review-queue global-delete seed | routers/review-queue.ts + admin page | N0 | closed-deferred |
+| N4 | Dev-gate all seedDemoData + remove Math.random read paths (11 routers) | routers/{ops-console,logs-traces,live-runs,agent-monitor,cost-analytics,ai-workspace,customer-diagnostics,company-brain,feature-flags,infrastructure,prompt-library}.ts | N0 | closed-deferred |
+| N5 | seed-demo route production guard | app/api/seed-demo/route.ts | N0 | closed-deferred |
+| N6 | Entity-switch cache invalidation + honest switch UX | lib/entity-context.tsx, components/layout/entity-switcher.tsx | N0 | closed-deferred |
+| N7 | Remove/gate admin seed UI buttons (9 pages) | app/admin/*/page.tsx | N3, N4 | closed-deferred |
 | N8 | Batch log: prodway + BUILD_LOG + graph closure | prodway.md, BUILD_LOG.md | N1–N7 | backlog |
 
 ### Upcoming batches (already graphed, not started)

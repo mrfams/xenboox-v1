@@ -350,13 +350,6 @@ export default function CustomerDiagnosticsPage() {
       days: timeRange,
     });
 
-  // Seed demo data mutation
-  const seedMutation = trpc.customerDiagnostics.seedDemoData.useMutation({
-    onSuccess: () => {
-      window.location.reload();
-    },
-  });
-
   const categorySegments = useMemo(() => {
     if (!overview?.issuesByCategory) return [];
     const colors = [
@@ -496,14 +489,7 @@ export default function CustomerDiagnosticsPage() {
             <Download className="h-4 w-4 mr-1" />
             Export
           </Button>
-          <Button
-            onClick={() => seedMutation.mutate()}
-            variant="outline"
-            size="sm"
-          >
-            Seed Data
-          </Button>
-        </div>
+                  </div>
       </div>
 
       {/* KPI Cards */}

@@ -10,6 +10,12 @@ import { logger } from "@/lib/logger";
 export const maxDuration = 300;
 
 export async function POST(request: Request) {
+  // Epoch 0 / N5 — this route hardcodes an entity into whatever database it
+  // hits. In production it is disabled outright, regardless of tokens.
+  if (process.env.NODE_ENV === "production") {
+    return new NextResponse(null, { status: 404 });
+  }
+
   try {
     const body = await request.json().catch(() => ({}));
     const token = (body as { token?: string }).token;

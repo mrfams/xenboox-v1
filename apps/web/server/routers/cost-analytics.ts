@@ -10,6 +10,7 @@ import {
 
 import { router, adminProtectedProcedure } from "@/lib/trpc/server";
 import { db } from "@/lib/db";
+import { devOnly } from "@/server/lib/dev-only";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -324,6 +325,7 @@ export const costAnalyticsRouter = router({
   // ── Seed demo data ────────────────────────────────────────────────────
 
   seedCostAnalyticsData: adminProtectedProcedure.mutation(async () => {
+    devOnly("seedCostAnalyticsData");
     const existing = await db
       .select({ count: count() })
       .from(opsCostDaily)

@@ -24,17 +24,29 @@ export const referralsRouter = router({
     });
 
     if (!existing) {
-      // Generate a unique code: first 8 chars of random hex
-      const code = `XBX-${Math.random().toString(16).slice(2, 10).toUpperCase()}`;
-      const [created] = await db
-        .insert(referralCodes)
-        .values({
-          userId,
-          entityId,
-          code,
-        })
-        .returning();
-      existing = created;
+      // Generate a unique code: 8 hex chars. `code` is UNIQUE in the schema —
+      // retry on the (rare) collision instead of 500ing the first query.
+      for (let attempt = 0; attempt < 5; attempt++) {
+        const code = `XBX-${Math.random().toString(16).slice(2, 10).toUpperCase()}`;
+        const [created] = await db
+          .insert(referralCodes)
+          .values({
+            userId,
+            entityId,
+            code,
+          })
+          .onConflictDoNothing({ target: referralCodes.code })
+          .returning();
+        if (created) {
+          existing = created;
+          break;
+        }
+      }
+      if (!existing) {
+        existing = await db.query.referralCodes.findFirst({
+          where: eq(referralCodes.userId, userId),
+        });
+      }
     }
 
     return existing;

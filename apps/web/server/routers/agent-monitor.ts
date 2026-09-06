@@ -11,6 +11,7 @@ import {
 
 import { router, adminProtectedProcedure } from "@/lib/trpc/server";
 import { db } from "@/lib/db";
+import { devOnly } from "@/server/lib/dev-only";
 
 // ─── Helper: compute hour range strings ─────────────────────────────────────
 
@@ -410,6 +411,7 @@ export const agentMonitorRouter = router({
   // ── Seed demo data for AI Agent Monitor ──────────────────────────────
 
   seedAgentMonitorData: adminProtectedProcedure.mutation(async () => {
+    devOnly("seedAgentMonitorData");
     // Only seed if tables are empty
     const existing = await db
       .select({ count: count() })

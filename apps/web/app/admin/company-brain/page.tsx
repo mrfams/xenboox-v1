@@ -372,13 +372,6 @@ export default function CompanyBrainPage() {
   const { data: graphNodes } = trpc.companyBrain.getGraphNodes.useQuery();
   const { data: graphEdges } = trpc.companyBrain.getGraphEdges.useQuery();
 
-  // Seed demo data mutation
-  const seedMutation = trpc.companyBrain.seedDemoData.useMutation({
-    onSuccess: () => {
-      window.location.reload();
-    },
-  });
-
   const confidenceSegments = useMemo(() => {
     const high = overview?.kpis?.avgConfidence
       ? Math.round(overview.kpis.avgConfidence * 34.2)
@@ -481,14 +474,7 @@ export default function CompanyBrainPage() {
             <Download className="h-4 w-4 mr-1" />
             Export
           </Button>
-          <Button
-            onClick={() => seedMutation.mutate()}
-            variant="outline"
-            size="sm"
-          >
-            Seed Data
-          </Button>
-        </div>
+                  </div>
       </div>
 
       {/* KPI Cards */}

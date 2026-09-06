@@ -431,13 +431,6 @@ export default function InfrastructureHealthPage() {
     days: timeRange,
   });
 
-  // Seed demo data mutation
-  const seedMutation = trpc.infrastructure.seedDemoData.useMutation({
-    onSuccess: () => {
-      window.location.reload();
-    },
-  });
-
   // Filter services
   const filteredServices = useMemo(() => {
     if (!overview?.services) return [];
@@ -616,15 +609,7 @@ export default function InfrastructureHealthPage() {
             <Download className="h-4 w-4 mr-1" />
             Export
           </Button>
-          <Button
-            onClick={() => seedMutation.mutate()}
-            variant="outline"
-            size="sm"
-            className="transition-all duration-300 hover:shadow-md active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2"
-          >
-            Seed Data
-          </Button>
-        </div>
+                  </div>
       </div>
 
       {/* Integration Health Widget */}

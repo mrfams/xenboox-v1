@@ -12,6 +12,7 @@ import {
   rlsProtectedProcedure,
 } from "@/lib/trpc/server";
 import { db } from "@/lib/db";
+import { devOnly } from "@/server/lib/dev-only";
 
 // ─── Live Runs Router ───────────────────────────────────────────────────────
 
@@ -481,6 +482,7 @@ export const liveRunsRouter = router({
   // ── Seed demo data ────────────────────────────────────────────────────
 
   seedLiveRunsData: adminProtectedProcedure.mutation(async () => {
+    devOnly("seedLiveRunsData");
     const existing = await db
       .select({ count: count() })
       .from(opsLiveRuns)

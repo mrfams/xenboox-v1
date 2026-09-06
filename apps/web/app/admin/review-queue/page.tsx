@@ -549,13 +549,6 @@ export default function ReviewQueuePage() {
     pageSize: 10,
   });
 
-  // Seed demo data mutation
-  const seedMutation = trpc.reviewQueue.seedDemoData.useMutation({
-    onSuccess: () => {
-      window.location.reload();
-    },
-  });
-
   const handleTabChange = (tab: string) => {
     setActiveTab(tab);
     setPage(1);
@@ -617,13 +610,6 @@ export default function ReviewQueuePage() {
               <Button variant="outline">
                 <Download className="h-4 w-4 mr-2" />
                 Export
-              </Button>
-              <Button
-                onClick={() => seedMutation.mutate()}
-                variant="outline"
-                size="sm"
-              >
-                Seed Data
               </Button>
             </div>
           </div>
@@ -772,13 +758,6 @@ export default function ReviewQueuePage() {
           ) : overview?.items?.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
               <p>No review items found.</p>
-              <Button
-                onClick={() => seedMutation.mutate()}
-                variant="link"
-                className="mt-2"
-              >
-                Seed demo data
-              </Button>
             </div>
           ) : (
             <table className="w-full">
