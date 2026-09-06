@@ -643,3 +643,23 @@ Continue surface migrations (Tasks rail amounts, Operations money blocks, Operat
 ### Next loop pass
 
 money-needs-you amounts → Money with signed tones; Tasks rail; then DataGrid primitive. CI (PR #31) remains the typecheck authority.
+
+---
+
+## Session 023 — 2026-09-06 — N51: TABULAR PASS + SCOPE DISCIPLINE
+
+### Graph delta
+
+| Node | Status | Evidence |
+|---|---|---|
+| N51 tabular pass | **passed (Run Phase)** | money-needs-you money spans get `tabular-nums` (claim totals, overdue balances). Tasks rail verified already tabular (counts/progress, no money amounts). Component swap for inline-text amounts correctly deferred — they're entity-correct via the hook already; churn adds risk, not honesty |
+
+### Honest scope call
+
+The remaining §6.1 work (DataGrid primitive, per-surface full build-out) is substantive fresh-context work — deliberately NOT crammed into the tail of a long session. Session 024+ picks it up.
+
+### Next loop pass
+
+1. DataGrid primitive (virtualized, sticky headers, bulk actions, saved views)
+2. Per-surface §6.3 build-out with the primitives
+3. PR #31 CI verdict → merge → staging deploy per DEPLOYMENT.md

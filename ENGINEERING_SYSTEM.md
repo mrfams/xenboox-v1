@@ -106,6 +106,7 @@ Every money/auth/concurrency node ships stress-case designs even when not execut
 | N48 | Design-system primitives: Money (entity-correct, tabular, skeleton-vs-zero) + AsyncBlock (honest async states) | apps/web/components/ui/ledger-primitives.tsx | — | passed (Run Phase) |
 | N49 | Surface migration exemplar: MetricNarrative money mode + Pulse KPIs on the primitives | apps/web/components/ai-native-v2/metric-narrative.tsx, financial-pulse/page.tsx | N48 | passed (Run Phase) |
 | N50 | Operations honesty: MetricNarrative error state, cash hero + net change on money mode, undefined-honest netChange | apps/web/app/dashboard/operations/page.tsx, metric-narrative.tsx | N49 | passed (Run Phase) |
+| N51 | Tabular pass on money-needs-you; component swap deferred (churn ≠ honesty) | apps/web/components/operations/money-needs-you.tsx | N50 | passed (Run Phase) |
 | N15 | Converge month-end job onto pipeline semantics | packages/jobs/month-end-close.ts | Batch 1 | closed-deferred |
 | N14 | Wire durable closeSessions into executing close + DB idempotency | packages/agents/core/close-pipeline.ts | N15 | closed-deferred |
 

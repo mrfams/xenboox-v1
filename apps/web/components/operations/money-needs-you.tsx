@@ -165,7 +165,7 @@ export function MoneyNeedsYou({
                 className="rounded-xl border border-border/50 bg-card px-4 py-3"
               >
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                  <p className="text-sm font-medium text-foreground">
+                  <p className="text-sm font-medium tabular-nums text-foreground">
                     {claim.claimantName || "Claim"} ·{" "}
                     {format(Number(claim.totalAmount ?? 0))}
                   </p>
@@ -253,7 +253,7 @@ export function MoneyNeedsYou({
                   className="flex items-center gap-3 px-4 py-2.5"
                 >
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-xs font-medium text-foreground">
+                    <span className="block truncate text-xs font-medium tabular-nums text-foreground">
                       {bill.supplierName ?? bill.invoiceNumber} ·{" "}
                       {format(bill.balance)}
                     </span>
