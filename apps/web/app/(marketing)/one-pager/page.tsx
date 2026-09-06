@@ -29,29 +29,29 @@ export const metadata: Metadata = {
 };
 
 const features = [
-  "AI agents handling invoicing, payroll, compliance, and close",
-  "Multi-currency support for 50+ currencies",
+  "Invoicing, payroll, compliance, and close — handled",
+  "Multi-currency and mobile-money support",
   "Unlimited users and entities on all paid plans",
-  "Append-only audit trail with confidence scoring",
+  "Append-only audit trail on every posting",
   "Month-end close automation",
   "Real-time bank feed synchronization",
   "Client portal for external stakeholders",
-  "SOC 2 compliant infrastructure",
+  "Audit-ready exports",
 ];
 
 const stats = [
-  { value: "20+", label: "AI Agents" },
-  { value: "50+", label: "Currencies" },
-  { value: "4 days", label: "Avg. Month-End Close" },
+  { value: "100%", label: "Postings audit-trailed" },
+  { value: "0", label: "Data entry required" },
+  { value: "1", label: "Queue for every decision" },
   { value: "99.9%", label: "Uptime SLA" },
 ];
 
-const customerLogos = [
-  { name: "Seagull Logistics" },
-  { name: "SunuFresh Foods" },
-  { name: "Atlantic Traders" },
-  { name: "Kaira Clinics" },
-  { name: "LS Consulting" },
+const earlySectors = [
+  { name: "Logistics & freight" },
+  { name: "Food distribution" },
+  { name: "Clinics & healthcare" },
+  { name: "Import & export" },
+  { name: "Professional services" },
 ];
 
 export default function OnePagerPage() {
@@ -122,12 +122,12 @@ export default function OnePagerPage() {
         </div>
       </section>
 
-      {/* Social Proof */}
+      {/* Who it's for */}
       <section className="border-y border-border bg-paper-2/60 py-8">
         <div className="mx-auto max-w-4xl px-4">
           <LogoCloud
-            title="Trusted by finance teams across industries"
-            logos={customerLogos}
+            title="Built for teams like yours"
+            logos={earlySectors}
           />
         </div>
       </section>
@@ -143,10 +143,9 @@ export default function OnePagerPage() {
               <p className="text-muted-foreground leading-relaxed mb-6">
                 Xenboox is an AI-native accounting platform built for businesses
                 in The Gambia and emerging markets. Instead of giving you forms
-                to fill out, specialized AI agents handle the accounting work —
-                from invoicing and payroll to compliance and month-end close.
-                Every decision is confidence-scored. Below 70%, it asks you.
-                Below 40%, it escalates.
+                to fill out, it handles the accounting work — from invoicing
+                and payroll to compliance and month-end close. Uncertain work
+                escalates to you with its evidence attached.
               </p>
               <div className="grid gap-4 sm:grid-cols-2">
                 {features.map((feature) => (

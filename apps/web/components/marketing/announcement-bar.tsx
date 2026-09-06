@@ -13,13 +13,12 @@ export function AnnouncementBar() {
       <div className="mx-auto flex max-w-7xl items-center justify-center gap-2 px-4 py-2 text-xs sm:text-sm font-medium">
         <Sparkles className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
         <span>
-          Month-end close now fully automated — agents handle it while you
-          sleep.{" "}
+          Now onboarding early teams — white-glove migration included.{" "}
           <a
-            href="/blog"
+            href="/register"
             className="underline underline-offset-2 hover:no-underline font-semibold"
           >
-            Learn more →
+            Get early access →
           </a>
         </span>
         <button

@@ -1,9 +1,14 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Xenboox for Accountants — AI-Powered Practice Management",
+  title: "For Accountants — Every Client's Close in One Queue | Xenboox",
   description:
-    "Manage multiple clients with AI agents. Automated bookkeeping, payroll, and compliance for accounting firms. Free tier available.",
+    "Multi-entity by design. Run every client's close from one queue with evidence on every posting and an audit trail reviewers love.",
+  openGraph: {
+    title: "Xenboox for Accountants",
+    description:
+      "One queue for every client's close. Evidence on every posting. Audit-ready, multi-entity, multi-currency.",
+  },
 };
 
 export default function ForAccountantsLayout({
@@ -11,5 +16,5 @@ export default function ForAccountantsLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return <>{children}</>;
+  return children;
 }

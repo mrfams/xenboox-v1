@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, Bot, Check, X, Star } from "lucide-react";
+import { ArrowRight, Check, X } from "lucide-react";
 import { FadeInUp } from "@/components/marketing/reveal";
 import { BreadcrumbJsonLd } from "@/components/marketing/json-ld";
 import {
@@ -58,7 +58,7 @@ const featureMatrix: ComparisonCategory[] = [
     name: "AI & Automation",
     features: [
       {
-        name: "AI agents that do the work",
+        name: "Books that run themselves",
         values: [true, false, false, false],
       },
       {
@@ -66,7 +66,7 @@ const featureMatrix: ComparisonCategory[] = [
         values: [true, false, false, false],
       },
       {
-        name: "Confidence-scored approvals",
+        name: "Approvals with evidence",
         values: [true, false, false, false],
       },
       { name: "Anomaly detection", values: [true, "Add-on", false, false] },
@@ -110,22 +110,19 @@ const featureMatrix: ComparisonCategory[] = [
   },
 ];
 
-const switchedFrom = [
+const switchReasons = [
   {
-    name: "Seagull Logistics",
     from: "QuickBooks",
-    quote: "We closed our first month in 4 days instead of 3 weeks.",
+    reason:
+      "Close automation and approvals with evidence — not another reconcile-by-hand month.",
   },
   {
-    name: "Atlantic Traders",
     from: "Xero",
-    quote:
-      "Multi-currency reconciliation that used to take hours now takes minutes.",
+    reason: "Multi-currency and mobile money from day one, not as add-ons.",
   },
   {
-    name: "SunuFresh Foods",
     from: "Wave",
-    quote: "The AI agents do in 10 minutes what our bookkeeper did all week.",
+    reason: "Books that run themselves, with a human approving what matters.",
   },
 ];
 
@@ -221,41 +218,26 @@ export default function CompareIndexPage() {
       <section className="py-16 bg-paper-2/60 border-t border-border">
         <div className="mx-auto max-w-5xl px-4 sm:px-6">
           <FadeInUp>
-            <div className="mb-10 text-center">
-              <h2 className="text-3xl font-semibold tracking-tight text-foreground">
-                Companies that switched to Xenboox
-              </h2>
-              <p className="mt-3 text-muted-foreground">
-                They left traditional software behind. Here&apos;s what they
-                found.
-              </p>
-            </div>
-          </FadeInUp>
+          <div className="mb-10 text-center">
+            <h2 className="text-3xl font-semibold tracking-tight text-foreground">
+              Why teams switch to Xenboox
+            </h2>
+            <p className="mt-3 text-muted-foreground">
+              The reasons teams leave traditional software behind.
+            </p>
+          </div>
+        </FadeInUp>
 
           <div className="grid gap-6 md:grid-cols-3">
-            {switchedFrom.map((item, i) => (
-              <FadeInUp key={item.name} delay={i * 0.1}>
+            {switchReasons.map((item, i) => (
+              <FadeInUp key={item.from} delay={i * 0.1}>
                 <div className="rounded-2xl border border-border/60 bg-card p-6 transition-all duration-300 hover:shadow-lg hover:-translate-y-1">
-                  <div className="flex items-center gap-1 mb-4">
-                    {Array.from({ length: 5 }).map((_, j) => (
-                      <Star
-                        key={j}
-                        className="h-4 w-4 fill-attention-amber text-attention-amber"
-                        aria-hidden="true"
-                      />
-                    ))}
-                  </div>
-                  <blockquote className="text-sm leading-relaxed text-foreground">
-                    &ldquo;{item.quote}&rdquo;
-                  </blockquote>
-                  <div className="mt-4 pt-4 border-t border-border/40">
-                    <p className="text-sm font-semibold text-foreground">
-                      {item.name}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      Switched from {item.from}
-                    </p>
-                  </div>
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                    From {item.from}
+                  </p>
+                  <p className="mt-2 text-sm leading-relaxed text-foreground">
+                    {item.reason}
+                  </p>
                 </div>
               </FadeInUp>
             ))}
@@ -271,7 +253,7 @@ export default function CompareIndexPage() {
               Ready to switch?
             </h2>
             <p className="mt-4 text-lg text-muted-foreground">
-              Start free with 1 AI agent. Most teams migrate in under 48 hours.
+              Start free. White-glove migration from QuickBooks, Xero, or Wave included.
             </p>
             <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
               <Link

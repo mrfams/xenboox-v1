@@ -1,16 +1,13 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Pricing — AI-Native Accounting for SMEs | Xenboox",
+  title: "Pricing — Plans for Every Stage | Xenboox",
   description:
-    "Start free with 1 AI agent. Upgrade to unlock all AI agents, multi-currency, payroll, and treasury. Cancel anytime. 30-day money-back guarantee.",
+    "Start free. Paid plans from $29/mo with unlimited journal entries, full close automation, payroll, and multi-entity support. No credit card required.",
   openGraph: {
-    title: "Pricing — AI-Native Accounting for SMEs | Xenboox",
+    title: "Xenboox Pricing — Start Free",
     description:
-      "Start free with 1 AI agent. Upgrade to unlock all AI agents, multi-currency, payroll, and treasury.",
-    url: "https://xenboox.com/pricing",
-    siteName: "Xenboox",
-    type: "website",
+      "Free tier for getting started, paid plans from $29/mo. Unlimited entries, full automation, human support.",
   },
 };
 
@@ -19,5 +16,5 @@ export default function PricingLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return <>{children}</>;
+  return children;
 }

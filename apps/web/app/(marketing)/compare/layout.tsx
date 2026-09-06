@@ -1,16 +1,13 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Compare Xenboox vs QuickBooks vs Xero | AI Accounting",
+  title: "Compare — Xenboox vs QuickBooks vs Xero",
   description:
-    "See how Xenboox compares to QuickBooks, Xero, Wave, and FreshBooks. AI-native automation with specialized agents vs traditional manual accounting software.",
+    "How Xenboox compares to QuickBooks and Xero: books that run themselves, approvals with evidence, multi-currency and mobile money from day one.",
   openGraph: {
-    title: "Compare Xenboox vs QuickBooks vs Xero | AI Accounting",
+    title: "Xenboox vs QuickBooks vs Xero",
     description:
-      "AI-native automation with specialized agents vs traditional manual accounting software.",
-    url: "https://xenboox.com/compare",
-    siteName: "Xenboox",
-    type: "website",
+      "Feature-by-feature comparison: automation, approvals, multi-currency, pricing. See why teams switch.",
   },
 };
 
@@ -19,5 +16,5 @@ export default function CompareLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return <>{children}</>;
+  return children;
 }

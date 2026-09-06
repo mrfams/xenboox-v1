@@ -23,10 +23,6 @@ import {
 import { FadeInUp } from "@/components/marketing/reveal";
 import { trpc } from "@/lib/trpc/client";
 import {
-  TestimonialCard,
-  type Testimonial,
-} from "@/components/marketing/testimonial-card";
-import {
   HowItWorks,
   type HowItWorksStep,
 } from "@/components/marketing/how-it-works";
@@ -59,7 +55,7 @@ const valueProps = [
     icon: Rocket,
     title: "Ship Fast, Ship Safely",
     description:
-      "We move quickly but never at the expense of correctness. Every feature ships with audit trails and confidence scoring.",
+      "We move quickly but never at the expense of correctness. Every feature ships with audit trails and human approval where it matters.",
   },
   {
     icon: Users,
@@ -104,24 +100,21 @@ const benefits = [
   "Parental leave",
 ];
 
-const employeeTestimonials: Testimonial[] = [
+const workingPrinciples = [
   {
-    quote:
-      "I joined Xenboox because I wanted to build AI that actually does accounting — not just suggests what to do. Six months in, our agents close months autonomously. It's the most impactful work I've done.",
-    name: "Senior Engineer",
-    role: "Engineering · Joined 2024",
+    title: "Build AI that does the work",
+    description:
+      "Not suggestions, not copilots that watch — systems that post, reconcile, and close, with humans deciding. That's the bar for everything we ship.",
   },
   {
-    quote:
-      "The pace here is real. We ship weekly, talk to users daily, and see our work in production the same week. No other startup moves this fast while keeping quality this high.",
-    name: "Product Designer",
-    role: "Product & Design · Joined 2024",
+    title: "Ship weekly, talk to users daily",
+    description:
+      "Small teams, fast loops. Work reaches production the same week it's written, and user feedback lands in the next sprint.",
   },
   {
-    quote:
-      "What surprised me most is how much ownership you get from day one. I run our compliance module like my own company — strategy, execution, results. That's rare at any stage.",
-    name: "AI Engineer",
-    role: "AI & Agents · Joined 2025",
+    title: "Ownership from day one",
+    description:
+      "You run your area like your own company — strategy, execution, results. No permission layers between you and the customer.",
   },
 ];
 
@@ -314,27 +307,31 @@ export default function CareersPage() {
         </div>
       </section>
 
-      {/* Employee Testimonials */}
+      {/* How we work */}
       <section className="py-12 sm:py-16 bg-paper-2/60 border-y border-border">
         <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
           <FadeInUp>
             <div className="text-center mb-12">
               <h2 className="text-3xl font-semibold tracking-tight text-foreground">
-                Why people join Xenboox
+                How we work
               </h2>
               <p className="mt-4 text-lg text-muted-foreground">
-                Hear from the team building the future of AI-native accounting.
+                The operating principles behind the team building AI-native
+                accounting.
               </p>
             </div>
           </FadeInUp>
           <div className="grid gap-6 md:grid-cols-3">
-            {employeeTestimonials.map((t, i) => (
-              <FadeInUp key={t.name} delay={i * 0.1}>
-                <TestimonialCard
-                  testimonial={t}
-                  showRating={false}
-                  showPlan={false}
-                />
+            {workingPrinciples.map((principle, i) => (
+              <FadeInUp key={principle.title} delay={i * 0.1}>
+                <div className="h-full rounded-2xl border border-border/50 bg-card p-6">
+                  <h3 className="font-semibold text-foreground">
+                    {principle.title}
+                  </h3>
+                  <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                    {principle.description}
+                  </p>
+                </div>
               </FadeInUp>
             ))}
           </div>

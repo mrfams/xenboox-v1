@@ -5,7 +5,6 @@ import Link from "next/link";
 import {
   ArrowRight,
   BarChart3,
-  Bot,
   BookOpen,
   Check,
   CheckCircle2,
@@ -30,7 +29,7 @@ import { Button } from "@/components/ui";
 
 // ─── Surface Definitions ─────────────────────────────────────────────────────
 
-type Surface = "command" | "activity" | "pulse" | "ledger" | "operations";
+type Surface = "command" | "tasks" | "pulse" | "ledger" | "operations";
 
 const surfaces: {
   id: Surface;
@@ -45,8 +44,8 @@ const surfaces: {
     color: "signal-indigo",
   },
   {
-    id: "activity",
-    label: "Activity Hub",
+    id: "tasks",
+    label: "Tasks",
     icon: Inbox,
     color: "attention-amber",
   },
@@ -492,8 +491,8 @@ export function Hero() {
             className="max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg"
             style={{ willChange: "transform, opacity, filter" }}
           >
-            AI agents handle invoicing, payroll, compliance, and month-end
-            close. Every decision confidence-scored, every action audit-trailed.
+            AI handles invoicing, payroll, compliance, and month-end
+            close — with a full audit trail on every action.
             You approve what matters.
           </motion.p>
 
@@ -619,7 +618,7 @@ function InteractiveDemo() {
     if (!isAutoPlaying) return;
     const order: Surface[] = [
       "command",
-      "activity",
+      "tasks",
       "pulse",
       "ledger",
       "operations",
@@ -794,8 +793,8 @@ function InteractiveDemo() {
             <SurfacePanel isActive={activeSurface === "command"}>
               <CommandCenter />
             </SurfacePanel>
-            <SurfacePanel isActive={activeSurface === "activity"}>
-              <ActivityHub />
+            <SurfacePanel isActive={activeSurface === "tasks"}>
+              <TasksPanel />
             </SurfacePanel>
             <SurfacePanel isActive={activeSurface === "pulse"}>
               <FinancialPulse />
@@ -834,37 +833,20 @@ function InteractiveDemo() {
   );
 }
 
-// ─── Agent Activity Bar ──────────────────────────────────────────────────────
+// ─── Work Activity Bar ───────────────────────────────────────────────────────
+//
+// What Xenboox is doing right now — work, never the org chart. Mirrors the
+// product: users see jobs getting done, not agent names.
 
 function AgentActivityBar() {
   const [activityIndex, setActivityIndex] = React.useState(0);
 
   const activities = [
-    {
-      agent: "CFO Agent",
-      action: "Reviewing monthly close",
-      color: "text-primary",
-    },
-    {
-      agent: "Invoice Agent",
-      action: "Processing INV-1043",
-      color: "text-balanced-green",
-    },
-    {
-      agent: "Payroll Agent",
-      action: "Calculating deductions",
-      color: "text-attention-amber",
-    },
-    {
-      agent: "Compliance Agent",
-      action: "Checking VAT filing",
-      color: "text-primary",
-    },
-    {
-      agent: "Treasury Agent",
-      action: "Monitoring cash flow",
-      color: "text-balanced-green",
-    },
+    { action: "Chasing 4 overdue invoices", color: "text-primary" },
+    { action: "Reconciling the bank feed", color: "text-balanced-green" },
+    { action: "Drafting this month's payroll", color: "text-attention-amber" },
+    { action: "Reviewing the VAT filing", color: "text-primary" },
+    { action: "Watching cash flow", color: "text-balanced-green" },
   ];
 
   React.useEffect(() => {
@@ -879,12 +861,7 @@ function AgentActivityBar() {
   return (
     <div className="ml-3 hidden items-center gap-1.5 md:flex">
       <Sparkles className={`h-3 w-3 ${current.color}`} aria-hidden="true" />
-      <span className="text-[10px] text-muted-foreground">
-        <span className={`font-semibold ${current.color}`}>
-          {current.agent}
-        </span>{" "}
-        {current.action}
-      </span>
+      <span className="text-[10px] text-muted-foreground">{current.action}</span>
       <span className="typing-dots ml-1 inline-flex gap-0.5">
         <span className="h-1 w-1 rounded-full bg-muted-foreground/40" />
         <span className="h-1 w-1 rounded-full bg-muted-foreground/40" />
@@ -960,14 +937,18 @@ function CommandCenter() {
       text: "Record invoice for Seafood Solutions — GMD 486,000",
     },
     {
-      role: "agent" as const,
-      text: "Done. Invoice #INV-1042 posted.\n• Revenue: GMD 413,100\n• VAT (15%): GMD 72,900\n• Accounts Receivable: GMD 486,000\nConfidence: 98%",
-      agent: "Invoice Agent",
+      role: "assistant" as const,
+      thought: "Looking into it…",
+      text: "Done. Invoice #INV-1042 posted.\n• Revenue: GMD 413,100\n• VAT (15%): GMD 72,900\n• Accounts Receivable: GMD 486,000",
     },
     {
-      role: "agent" as const,
-      text: "Bank reconciliation ready — 12 transactions totaling GMD 2.1M flagged for your review.",
-      agent: "CFO Agent",
+      role: "assistant" as const,
+      thought: "Checking the bank feed…",
+      text: "Bank reconciliation ready — 12 transactions totaling GMD 2.1M. Anything unusual is flagged below.",
+      approval: {
+        title: "Post 12 reconciled transactions?",
+        detail: "All matched above 95% · 1 needs your eyes",
+      },
     },
   ];
 
@@ -982,25 +963,43 @@ function CommandCenter() {
 
       <div className="flex-1 space-y-3">
         {messages.slice(0, visibleMessages).map((msg, i) => (
-          <div
-            key={i}
-            className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"} slide-up`}
-          >
+          <div key={i} className="space-y-1.5 slide-up">
             <div
-              className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
-                msg.role === "user"
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-muted text-foreground"
-              }`}
+              className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
             >
-              {msg.role === "agent" && (
-                <span className="mb-1 flex items-center gap-1 text-[10px] font-semibold text-primary">
-                  <Bot className="h-3 w-3" aria-hidden="true" />
-                  {msg.agent}
-                </span>
-              )}
-              <p className="whitespace-pre-line">{msg.text}</p>
+              <div
+                className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
+                  msg.role === "user"
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-muted text-foreground"
+                }`}
+              >
+                <p className="whitespace-pre-line">{msg.text}</p>
+              </div>
             </div>
+            {msg.role === "assistant" && "thought" in msg && (
+              <p className="pl-1 text-[11px] text-muted-foreground">
+                Thought · {msg.thought}
+              </p>
+            )}
+            {msg.role === "assistant" && "approval" in msg && msg.approval && (
+              <div className="max-w-[80%] rounded-xl border border-attention-amber/30 bg-attention-amber/[0.06] px-3 py-2">
+                <p className="text-xs font-medium text-foreground">
+                  {msg.approval.title}
+                </p>
+                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                  {msg.approval.detail}
+                </p>
+                <div className="mt-2 flex gap-1.5">
+                  <span className="rounded-md bg-balanced-green px-2.5 py-1 text-[11px] font-medium text-white">
+                    Approve
+                  </span>
+                  <span className="rounded-md border border-border px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
+                    Review
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
         ))}
 
@@ -1008,7 +1007,7 @@ function CommandCenter() {
         {isTyping && (
           <div className="flex justify-start slide-up">
             <div className="flex items-center gap-2 rounded-2xl bg-muted px-4 py-3">
-              <Bot className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
+              <Sparkles className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
               <span className="typing-dots inline-flex gap-1">
                 <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/50" />
                 <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/50" />
@@ -1042,9 +1041,12 @@ function CommandCenter() {
   );
 }
 
-// ─── Surface: Activity Hub ───────────────────────────────────────────────────
+// ─── Surface: Tasks ────────────────────────────────────────────────────────────
+//
+// Mirrors the shipped product: one list grouped Needs you / Running / Done.
+// Decisions render inline — never the org chart.
 
-function ActivityHub() {
+function TasksPanel() {
   const [visibleCards, setVisibleCards] = React.useState(0);
 
   React.useEffect(() => {
@@ -1060,19 +1062,22 @@ function ActivityHub() {
       icon: CreditCard,
       title: "Approve VAT payment",
       detail: "GMD 84,500 · Due Monday",
-      tone: "attention-amber",
+      badge: "Needs you",
+      progress: null as number | null,
     },
     {
       icon: FileText,
-      title: "Payroll ready to run",
-      detail: "34 staff · GMD 1.92M net",
-      tone: "primary",
+      title: "Chasing 4 overdue invoices",
+      detail: "Drafting reminders…",
+      badge: null,
+      progress: 55,
     },
     {
       icon: CheckCircle2,
       title: "Bank reconciliation",
-      detail: "12 transactions · GMD 2.1M",
-      tone: "balanced-green",
+      detail: "12 transactions · matched",
+      badge: null,
+      progress: null,
     },
   ];
 
@@ -1082,11 +1087,11 @@ function ActivityHub() {
         <div className="flex items-center gap-2">
           <Inbox className="h-4 w-4 text-primary" aria-hidden="true" />
           <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Activity Hub
+            Tasks
           </span>
         </div>
         <span className="rounded-full bg-attention-amber/10 px-2 py-0.5 text-[10px] font-semibold text-attention-amber">
-          3 need decision
+          1 needs you
         </span>
       </div>
 
@@ -1099,26 +1104,39 @@ function ActivityHub() {
               className="rounded-xl border border-border bg-card p-4 transition-all duration-200 hover:shadow-md hover:border-border/80 slide-up"
             >
               <div className="flex items-start gap-3">
-                <span
-                  className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-${card.tone}/10 text-${card.tone}`}
-                >
-                  <Icon className="h-4.5 w-4.5" aria-hidden="true" />
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted">
+                  <Icon className="h-4.5 w-4.5 text-muted-foreground" aria-hidden="true" />
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold text-foreground">
+                  <p className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
                     {card.title}
+                    {card.badge && (
+                      <span className="rounded-full bg-attention-amber/15 px-1.5 py-px text-[9px] font-bold uppercase text-attention-amber">
+                        {card.badge}
+                      </span>
+                    )}
                   </p>
                   <p className="text-xs text-muted-foreground">{card.detail}</p>
+                  {card.progress !== null && (
+                    <div className="mt-2 h-1 overflow-hidden rounded-full bg-muted">
+                      <div
+                        className="h-full rounded-full bg-primary"
+                        style={{ width: `${card.progress}%` }}
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
-              <div className="mt-3 flex gap-2">
-                <button className="inline-flex h-8 items-center justify-center rounded-md bg-primary px-3 text-xs font-medium text-primary-foreground transition-all hover:bg-primary/90 active:scale-[0.97]">
-                  Approve
-                </button>
-                <button className="inline-flex h-8 items-center justify-center rounded-md border border-border bg-card px-3 text-xs font-medium text-foreground transition-all hover:bg-muted active:scale-[0.97]">
-                  Review
-                </button>
-              </div>
+              {card.badge && (
+                <div className="mt-3 flex gap-2">
+                  <button className="inline-flex h-8 items-center justify-center rounded-md bg-primary px-3 text-xs font-medium text-primary-foreground transition-all hover:bg-primary/90 active:scale-[0.97]">
+                    Approve
+                  </button>
+                  <button className="inline-flex h-8 items-center justify-center rounded-md border border-border bg-card px-3 text-xs font-medium text-foreground transition-all hover:bg-muted active:scale-[0.97]">
+                    Review
+                  </button>
+                </div>
+              )}
             </div>
           );
         })}
@@ -1190,15 +1208,15 @@ function FinancialPulse() {
         ))}
       </div>
 
-      {/* AI Insight */}
+      {/* Takeaway */}
       <div className="mb-4 rounded-xl border border-primary/20 bg-primary/5 p-3 slide-up">
         <div className="flex items-start gap-2">
-          <Bot
+          <Sparkles
             className="mt-0.5 h-4 w-4 shrink-0 text-primary"
             aria-hidden="true"
           />
           <div>
-            <p className="text-xs font-semibold text-primary">AI Insight</p>
+            <p className="text-xs font-semibold text-primary">Takeaway</p>
             <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
               Revenue is up 12% driven by Seafood Solutions and Atlantic Foods.
               Expenses decreased 3% — payroll optimization saved GMD 42,000 this

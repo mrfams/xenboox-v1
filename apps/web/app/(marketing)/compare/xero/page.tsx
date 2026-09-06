@@ -21,7 +21,7 @@ const features = [
   { feature: "Multi-entity consolidation", xenboox: true, xero: "Add-on ($)" },
   { feature: "Month-end close automation", xenboox: true, xero: false },
   { feature: "AI-generated financial reports", xenboox: true, xero: false },
-  { feature: "Confidence-scored decisions", xenboox: true, xero: false },
+  { feature: "Approvals with evidence", xenboox: true, xero: false },
   { feature: "Human-in-the-loop approvals", xenboox: true, xero: false },
   { feature: "Inventory management", xenboox: true, xero: "Standard+" },
   {
@@ -83,12 +83,12 @@ export default function CompareXeroPage() {
               {
                 icon: Globe,
                 title: "Built for Every Market",
-                desc: "Xero focuses on AU/NZ/UK/US. Xenboox supports 50+ currencies and multi-jurisdiction tax from day one.",
+                desc: "Xero focuses on AU/NZ/UK/US. Xenboox supports multi-currency and multi-jurisdiction tax from day one.",
               },
               {
                 icon: Shield,
                 title: "Trust by Design",
-                desc: "Every AI decision is confidence-scored and auditable. You approve what matters. Xero has no AI decision-making.",
+                desc: "Every recommendation carries its evidence and audit trail. You approve what matters. Xero has no AI decision-making.",
               },
             ].map((item) => (
               <FadeInUp key={item.title}>

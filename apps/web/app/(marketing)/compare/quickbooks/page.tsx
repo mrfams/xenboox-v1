@@ -29,7 +29,7 @@ const features = [
     xenboox: true,
     quickbooks: false,
   },
-  { feature: "Confidence-scored decisions", xenboox: true, quickbooks: false },
+  { feature: "Approvals with evidence", xenboox: true, quickbooks: false },
   { feature: "Human-in-the-loop approvals", xenboox: true, quickbooks: false },
   { feature: "Audit trail (append-only)", xenboox: true, quickbooks: true },
   { feature: "Unlimited users", xenboox: true, quickbooks: "Per-seat pricing" },
@@ -92,7 +92,7 @@ export default function CompareQuickBooksPage() {
               {
                 icon: Shield,
                 title: "AI You Can Trust",
-                desc: "Every AI decision is confidence-scored. Below 70%? It asks you. Below 40%? It escalates. QuickBooks has no AI.",
+                desc: "Uncertain work escalates to you with its evidence attached. QuickBooks has no AI.",
               },
             ].map((item) => (
               <FadeInUp key={item.title}>

@@ -45,7 +45,7 @@ const values = [
     icon: Eye,
     title: "AI that explains itself",
     description:
-      "Every AI decision comes with a confidence score and plain-English explanation. No black boxes. If the AI isn't sure, it asks you. You're always in control.",
+      "Every answer carries its reasoning in plain English. No black boxes. If Xenboox isn't sure, it asks you. You're always in control.",
   },
   {
     icon: Heart,
@@ -127,23 +127,23 @@ const timeline = [
   {
     year: "2024",
     quarter: "Q3",
-    title: "First AI agents ship",
+    title: "First automation ships",
     description:
-      "The CFO Agent, Accounts Payable Agent, and Bank Reconciliation Agent go live. Early users report 60% reduction in manual data entry. The three-tier hierarchy takes shape.",
+      "Invoicing, bank reconciliation, and the guided month-end close go live. Early teams start closing with Xenboox.",
   },
   {
     year: "2024",
     quarter: "Q4",
     title: "Multi-currency and mobile money",
     description:
-      "Support for 50+ currencies and mobile money integrations (M-Pesa, Airtel Money, Wave). Businesses in Africa and Southeast Asia can now use Xenboox natively.",
+      "Multi-currency support and mobile money integrations (M-Pesa, Airtel Money, Wave). Businesses in Africa and Southeast Asia can now use Xenboox natively.",
   },
   {
     year: "2025",
     quarter: "Q1",
-    title: "Full agent roster",
+    title: "Tasks and Thought",
     description:
-      "Full agent roster complete — a three-tier AI hierarchy with a CFO Agent that talks to you, department heads that manage the work, and worker agents that execute. Every agent logs its reasoning.",
+      "One queue for every decision, and every answer explains its reasoning. The AI-native experience comes together.",
   },
   {
     year: "2025",
@@ -201,39 +201,23 @@ const team = [
     name: "Security & Compliance",
     role: "Protecting your financial data",
     description:
-      "Dedicated to SOC 2 compliance, data protection, and ensuring every transaction is secure and auditable.",
+      "Dedicated to security, data protection, and ensuring every transaction is secure and auditable.",
     icon: Lock,
     count: "Embedded",
   },
 ];
 
-// ─── Investors (placeholder — update with real logos when available) ──────────
+// ─── Who we're built for ────────────────────────────────────────────────────
+//
+// Sector proof, not fake logos. Investor and press logos ship when real.
 
-const investors = [
-  { name: "Angel Investor", placeholder: "AI" },
-  { name: "Seed Fund", placeholder: "SF" },
-  { name: "Venture Partner", placeholder: "VP" },
-];
-
-// ─── Press (placeholder — update with real logos when available) ──────────────
-
-const press = [
-  { name: "TechCrunch", placeholder: "TC" },
-  { name: "Forbes", placeholder: "FB" },
-  { name: "Bloomberg", placeholder: "BL" },
-  { name: "The Information", placeholder: "TI" },
-  { name: "VentureBeat", placeholder: "VB" },
-];
-
-// ─── Customer Logos ──────────────────────────────────────────────────────────
-
-const customers = [
-  "Seagull Logistics",
-  "SunuFresh Foods",
-  "Atlantic Traders",
-  "Kaira Clinics",
-  "LS Consulting",
-  "Gampetroleum Services",
+const sectors = [
+  "Logistics & freight",
+  "Food distribution",
+  "Clinics & healthcare",
+  "Import & export",
+  "Professional services",
+  "NGOs & grant teams",
 ];
 
 // ─── Page ────────────────────────────────────────────────────────────────────
@@ -304,13 +288,6 @@ export default function AboutPage() {
               </div>
             </FadeInUp>
           </div>
-        </div>
-      </section>
-
-      {/* ── Press Mentions ("As Seen In") ─────────────────────────────── */}
-      <section className="border-y border-border bg-paper-2/60 py-8">
-        <div className="mx-auto max-w-5xl px-4 sm:px-6">
-          <LogoCloud title="As featured in" logos={press} variant="press" />
         </div>
       </section>
 
@@ -446,8 +423,7 @@ export default function AboutPage() {
                   What if AI didn&apos;t just suggest what to do — but actually
                   did the work? Categorized every transaction. Reconciled every
                   account. Closed the month in minutes, not days. And explained
-                  every decision it made, in plain English, with a confidence
-                  score you could trust.
+                  every decision it made, in plain English you could verify.
                 </p>
                 <p>
                   That&apos;s why we built Xenboox. Not another SaaS tool with
@@ -614,33 +590,12 @@ export default function AboutPage() {
         </div>
       </Section>
 
-      {/* ── Investors & Backers ───────────────────────────────────────── */}
-      <Section className="bg-paper">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <FadeInUp>
-            <div className="mx-auto max-w-2xl text-center mb-10">
-              <h2 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
-                Backed by believers
-              </h2>
-              <p className="mt-3 text-muted-foreground">
-                We&apos;re funded by investors who share our vision for
-                AI-native accounting.
-              </p>
-            </div>
-          </FadeInUp>
-
-          <FadeInUp delay={0.1}>
-            <LogoCloud logos={investors} variant="investor" />
-          </FadeInUp>
-        </div>
-      </Section>
-
-      {/* ── Customer Trust Logos ──────────────────────────────────────── */}
+      {/* ── Who we're built for ───────────────────────────────────────── */}
       <section className="border-y border-border bg-paper-2/60 py-10">
         <div className="mx-auto max-w-5xl px-4 sm:px-6">
           <LogoCloud
-            title="Trusted by finance teams across industries"
-            logos={customers.map((name) => ({ name }))}
+            title="Built for teams like yours"
+            logos={sectors.map((name) => ({ name }))}
           />
         </div>
       </section>

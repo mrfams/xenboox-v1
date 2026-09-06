@@ -30,10 +30,11 @@ const footerLinks = {
   ],
   company: [
     { label: "About", href: "/about" },
+    { label: "Customers", href: "/case-studies" },
     { label: "Blog", href: "/blog" },
     { label: "Careers", href: "/careers" },
     { label: "Contact", href: "/contact" },
-    { label: "Press Kit", href: "/about" },
+    { label: "Press Kit", href: "/press" },
   ],
   legal: [
     { label: "Privacy", href: "/privacy" },

@@ -46,7 +46,7 @@ const steps: Step[] = [
     bullets: [
       "Invoicing → reconciliation → payroll",
       "Compliance & month-end close",
-      "Confidence-scored · 99.7% auto-post",
+      "Routine work posts itself · you approve the rest",
     ],
   },
   {
@@ -171,7 +171,7 @@ export function HowItWorks() {
                           {i === 0
                             ? "avg 2 min"
                             : i === 1
-                              ? "99.7% auto"
+                              ? "auto-posts"
                               : "reversible"}
                         </span>
                         <span
@@ -182,7 +182,7 @@ export function HowItWorks() {
                           {i === 0
                             ? "No CSV wrangling"
                             : i === 1
-                              ? "Confidence > 0.7"
+                              ? "You approve the rest"
                               : "Entity-scoped"}
                         </span>
                       </div>

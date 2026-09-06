@@ -4,7 +4,8 @@ import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import {
   ArrowRight,
-  Bot,
+  Sparkles,
+  Zap,
   CreditCard,
   FileText,
   Globe,
@@ -162,7 +163,7 @@ function WindowChrome({ title }: { title: string }) {
       <span className="h-2.5 w-2.5 rounded-full bg-attention-amber/70" />
       <span className="h-2.5 w-2.5 rounded-full bg-balanced-green/70" />
       <span className="ml-3 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-        <Bot className="h-3.5 w-3.5 text-primary" />
+        <Sparkles className="h-3.5 w-3.5 text-primary" />
         {title}
       </span>
     </div>
@@ -173,8 +174,8 @@ function WindowChrome({ title }: { title: string }) {
 
 const automationTabs = [
   { id: "command", label: "Command Center", icon: MessageSquare },
-  { id: "activity", label: "Activity Hub", icon: Inbox },
-  { id: "agents", label: "Agent Monitor", icon: Bot },
+  { id: "activity", label: "Tasks", icon: Inbox },
+  { id: "agents", label: "Thought", icon: Sparkles },
 ];
 
 function AutomationVisual() {
@@ -198,14 +199,18 @@ function AutomationVisual() {
       text: "Record invoice for Seafood Solutions — GMD 486,000",
     },
     {
-      role: "agent" as const,
-      text: "Done. Invoice #INV-1042 posted.\n• Revenue: GMD 413,100\n• VAT (15%): GMD 72,900\n• Accounts Receivable: GMD 486,000\nConfidence: 98%",
-      agent: "Invoice Agent",
+      role: "assistant" as const,
+      thought: "Looking into it…",
+      text: "Done. Invoice #INV-1042 posted.\n• Revenue: GMD 413,100\n• VAT (15%): GMD 72,900\n• Accounts Receivable: GMD 486,000",
     },
     {
-      role: "agent" as const,
-      text: "Bank reconciliation ready — 12 transactions totaling GMD 2.1M flagged for your review.",
-      agent: "CFO Agent",
+      role: "assistant" as const,
+      thought: "Checking the bank feed…",
+      text: "Bank reconciliation ready — 12 transactions totaling GMD 2.1M. Anything unusual is flagged below.",
+      approval: {
+        title: "Post 12 reconciled transactions?",
+        detail: "All matched above 95% · 1 needs your eyes",
+      },
     },
   ];
 
@@ -227,44 +232,6 @@ function AutomationVisual() {
       title: "Bank reconciliation",
       detail: "12 transactions · GMD 2.1M",
       tone: "balanced-green",
-    },
-  ];
-
-  const agentRows = [
-    {
-      name: "Invoice Agent",
-      status: "Processing",
-      task: "INV-1043",
-      color: "text-balanced-green",
-      dot: "bg-balanced-green",
-    },
-    {
-      name: "Payroll Agent",
-      status: "Calculating",
-      task: "Batch #142",
-      color: "text-primary",
-      dot: "bg-primary",
-    },
-    {
-      name: "Compliance Agent",
-      status: "Filing",
-      task: "VAT GRA-08",
-      color: "text-attention-amber",
-      dot: "bg-attention-amber",
-    },
-    {
-      name: "Treasury Agent",
-      status: "Monitoring",
-      task: "Cash flow",
-      color: "text-balanced-green",
-      dot: "bg-balanced-green",
-    },
-    {
-      name: "CFO Agent",
-      status: "Reviewing",
-      task: "Monthly close",
-      color: "text-primary",
-      dot: "bg-primary",
     },
   ];
 
@@ -302,12 +269,6 @@ function AutomationVisual() {
                         : "bg-muted text-foreground"
                     }`}
                   >
-                    {msg.role === "agent" && (
-                      <span className="mb-1 flex items-center gap-1 text-[10px] font-semibold text-primary">
-                        <Bot className="h-3 w-3" />
-                        {msg.agent}
-                      </span>
-                    )}
                     <p className="whitespace-pre-line">{msg.text}</p>
                   </div>
                 </div>
@@ -315,7 +276,7 @@ function AutomationVisual() {
               {visible < 3 && visible > 0 && (
                 <div className="flex justify-start">
                   <div className="flex items-center gap-2 rounded-2xl bg-muted px-4 py-3">
-                    <Bot className="h-3.5 w-3.5 text-primary" />
+                    <Sparkles className="h-3.5 w-3.5 text-primary" />
                     <span className="inline-flex gap-1">
                       <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-foreground/50 [animation-delay:0ms]" />
                       <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-foreground/50 [animation-delay:150ms]" />
@@ -334,12 +295,12 @@ function AutomationVisual() {
           </div>
         </SurfacePanel>
 
-        {/* Activity Hub */}
+        {/* Tasks */}
         <SurfacePanel isActive={activeTab === "activity"}>
           <div className="flex h-full flex-col p-4 sm:p-5">
             <div className="mb-3 flex items-center justify-between">
               <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Activity Hub
+                Tasks
               </span>
               <span className="rounded-full bg-attention-amber/10 px-2 py-0.5 text-[10px] font-semibold text-attention-amber">
                 3 need decision
@@ -387,63 +348,42 @@ function AutomationVisual() {
           </div>
         </SurfacePanel>
 
-        {/* Agent Monitor */}
+        {/* Thought — every answer explains itself */}
         <SurfacePanel isActive={activeTab === "agents"}>
           <div className="flex h-full flex-col p-4 sm:p-5">
             <div className="mb-3 flex items-center justify-between">
               <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Agent Monitor
+                Thought
               </span>
               <span className="inline-flex items-center gap-1.5 rounded-full bg-balanced-green/10 px-2 py-0.5 text-[10px] font-semibold text-balanced-green">
                 <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-balanced-green" />
-                5 active
+                Explainable
               </span>
             </div>
-            <div className="flex-1 overflow-hidden rounded-xl border border-border">
-              <table className="w-full text-left">
-                <thead>
-                  <tr className="border-b border-border bg-muted/40 text-[10px] uppercase tracking-wider text-muted-foreground">
-                    <th className="px-3 py-2.5 font-semibold">Agent</th>
-                    <th className="px-3 py-2.5 font-semibold">Status</th>
-                    <th className="px-3 py-2.5 font-semibold">Task</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {agentRows.map((row, i) => (
-                    <tr
-                      key={i}
-                      className="border-b border-border/60 last:border-0"
-                      style={{
-                        opacity: 0,
-                        animation: `slide-up 0.3s cubic-bezier(0.32, 0.72, 0, 1) ${i * 0.08}s forwards`,
-                      }}
-                    >
-                      <td className="px-3 py-2.5">
-                        <div className="flex items-center gap-2">
-                          <span className={`h-2 w-2 rounded-full ${row.dot}`} />
-                          <span className="text-xs font-medium text-foreground">
-                            {row.name}
-                          </span>
-                        </div>
-                      </td>
-                      <td
-                        className={`px-3 py-2.5 text-xs font-medium ${row.color}`}
-                      >
-                        {row.status}
-                      </td>
-                      <td className="px-3 py-2.5 text-xs text-muted-foreground">
-                        {row.task}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="flex-1 space-y-2 overflow-hidden">
+              {[
+                "Checking which invoices are overdue…",
+                "Found 4 totalling GMD 18,200…",
+                "Drafting a reminder for each customer…",
+              ].map((line, i) => (
+                <div
+                  key={line}
+                  className="flex items-center gap-2 rounded-lg border border-border/60 bg-muted/30 px-3 py-2.5"
+                  style={{
+                    opacity: 0,
+                    animation: `slide-up 0.3s cubic-bezier(0.32, 0.72, 0, 1) ${i * 0.12}s forwards`,
+                  }}
+                >
+                  <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-balanced-green" />
+                  <span className="text-xs text-foreground">{line}</span>
+                </div>
+              ))}
             </div>
             <div className="mt-3 rounded-xl border border-primary/20 bg-primary/5 px-4 py-2.5">
               <div className="flex items-center gap-2">
-                <Bot className="h-3.5 w-3.5 text-primary" />
+                <Sparkles className="h-3.5 w-3.5 text-primary" />
                 <span className="text-xs text-primary">
-                  All agents operating within normal parameters
+                  Collapsed by default. Expand any answer to see its reasoning.
                 </span>
               </div>
             </div>
@@ -564,10 +504,10 @@ function ReportingVisual() {
             </div>
             <div className="mb-4 rounded-xl border border-primary/20 bg-primary/5 p-3">
               <div className="flex items-start gap-2">
-                <Bot className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
                 <div>
                   <p className="text-xs font-semibold text-primary">
-                    AI Insight
+                    Takeaway
                   </p>
                   <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
                     Revenue is up 12% driven by Seafood Solutions and Atlantic
@@ -730,7 +670,7 @@ function ReportingVisual() {
             </div>
             <div className="mt-3 rounded-xl border border-border bg-muted/30 px-4 py-2.5">
               <div className="flex items-center gap-2">
-                <Bot className="h-3.5 w-3.5 text-primary" />
+                <Sparkles className="h-3.5 w-3.5 text-primary" />
                 <span className="text-xs text-muted-foreground">
                   All reports generated on demand — no scheduled runs needed
                 </span>
@@ -1068,37 +1008,30 @@ function SecurityVisual() {
   const auditRows = [
     {
       time: "14:32:08",
-      actor: "CFO Agent",
+      actor: "Xenboox",
       action: "Posted journal #JE-2847",
-      hash: "a3f8\u2026c12",
+      hash: "a3f8…c12",
       color: "text-balanced-green",
     },
     {
       time: "14:31:55",
-      actor: "Invoice Agent",
+      actor: "Xenboox",
       action: "Created INV-1042",
-      hash: "7b2e\u2026d49",
+      hash: "7b2e…d49",
       color: "text-primary",
     },
     {
-      time: "14:30:22",
-      actor: "You",
-      action: "Approved payroll batch",
-      hash: "e91a\u2026f37",
-      color: "text-foreground",
-    },
-    {
       time: "14:29:10",
-      actor: "Compliance Agent",
+      actor: "Xenboox",
       action: "Filed VAT return GRA-2026-08",
-      hash: "4d6c\u2026a83",
+      hash: "4d6c…a83",
       color: "text-primary",
     },
     {
       time: "14:28:03",
-      actor: "Treasury Agent",
+      actor: "Xenboox",
       action: "Reconciled 12 transactions",
-      hash: "f07b\u2026e51",
+      hash: "f07b…e51",
       color: "text-balanced-green",
     },
   ];
@@ -1401,9 +1334,9 @@ const featureSections = [
 
 const stats = [
   { value: 99.9, suffix: "%", label: "Uptime SLA" },
-  { value: 50, suffix: "+", label: "Currencies" },
   { value: 256, suffix: "-bit", label: "Encryption" },
-  { value: 24, suffix: "/7", label: "Support" },
+  { value: 100, suffix: "%", label: "Postings audit-trailed" },
+  { value: 0, suffix: "", label: "Data entry required" },
 ];
 
 const howItWorksSteps: HowItWorksStep[] = [
@@ -1416,16 +1349,16 @@ const howItWorksSteps: HowItWorksStep[] = [
   },
   {
     step: "2",
-    title: "AI does the work",
+    title: "The work gets done",
     description:
-      "AI agents categorize transactions, reconcile accounts, process payroll, and close your month — all automatically.",
-    icon: Bot,
+      "Transactions categorized, accounts reconciled, payroll processed, month closed — automatically, with evidence attached.",
+    icon: Zap,
   },
   {
     step: "3",
     title: "You approve decisions",
     description:
-      "Review confidence-scored recommendations in the Activity Hub. Approve, reject, or ask questions. You're always in control.",
+      "Review every recommendation with its evidence in Tasks. Approve, reject, or ask questions. You're always in control.",
     icon: CheckCircle2,
   },
 ];
@@ -1434,9 +1367,9 @@ const featuresComparisonCategories: ComparisonCategory[] = [
   {
     name: "Core",
     features: [
-      { name: "AI agents that do the work", values: [true, false, false] },
+      { name: "Books that run themselves", values: [true, false, false] },
       { name: "Month-end close automation", values: [true, false, false] },
-      { name: "Confidence-scored approvals", values: [true, false, false] },
+      { name: "Approvals with evidence", values: [true, false, false] },
       { name: "Free tier", values: [true, false, false] },
     ],
   },

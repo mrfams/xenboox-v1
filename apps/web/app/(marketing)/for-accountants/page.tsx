@@ -18,7 +18,6 @@ import {
   FeatureComparison,
   type ComparisonCategory,
 } from "@/components/marketing/feature-comparison";
-import { TestimonialCard } from "@/components/marketing/testimonial-card";
 
 const benefits = [
   {
@@ -39,7 +38,7 @@ const benefits = [
   {
     icon: Shield,
     title: "Audit-ready by default",
-    desc: "Every transaction has an append-only audit trail. Confidence-scored AI decisions. Period lock enforcement. SOC 2 ready.",
+    desc: "Every transaction has an append-only audit trail. Uncertain work escalates to you. Period lock enforcement. Audit-ready exports.",
   },
   {
     icon: FileText,
@@ -77,7 +76,7 @@ const accountantsComparison: ComparisonCategory[] = [
         values: [true, "Paid add-on", "Standard+"],
       },
       { name: "Month-end close automation", values: [true, false, false] },
-      { name: "Confidence-scored AI decisions", values: [true, false, false] },
+      { name: "Approvals with evidence", values: [true, false, false] },
       { name: "Free tier for small practices", values: [true, false, false] },
     ],
   },
@@ -170,21 +169,27 @@ export default function ForAccountantsPage() {
         categories={accountantsComparison}
       />
 
-      {/* Testimonial */}
+      {/* Why firms switch */}
       <section className="py-16 bg-background">
         <div className="mx-auto max-w-3xl px-4">
           <FadeInUp>
-            <TestimonialCard
-              testimonial={{
-                quote:
-                  "We manage 40 client entities. Before Xenboox, month-end close took two weeks of my team's time. Now it takes three days — and the AI does most of the work.",
-                name: "Omar Darboe",
-                role: "Finance Director, Atlantic Traders",
-                rating: 5,
-              }}
-              showRating
-              showPlan={false}
-            />
+            <div className="rounded-2xl border border-border/50 bg-card p-8 text-center">
+              <p className="font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+                Built for firms
+              </p>
+              <p className="mx-auto mt-3 max-w-xl text-pretty text-lg leading-relaxed text-foreground">
+                One queue for every client&apos;s close. Evidence attached to
+                every posting. An audit trail your reviewers will actually
+                enjoy reading.
+              </p>
+              <div className="mx-auto mt-5 flex max-w-md flex-wrap items-center justify-center gap-x-5 gap-y-2 text-sm text-muted-foreground">
+                <span>Multi-entity by design</span>
+                <span aria-hidden="true">·</span>
+                <span>Client-ready exports</span>
+                <span aria-hidden="true">·</span>
+                <span>Role-based access</span>
+              </div>
+            </div>
           </FadeInUp>
         </div>
       </section>

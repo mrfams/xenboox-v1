@@ -1,16 +1,13 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Features — AI-Native Accounting Platform | Xenboox",
+  title: "Features — Books That Run Themselves | Xenboox",
   description:
-    "AI agents handle invoicing, payroll, reconciliation, and month-end close. Multi-currency, multi-entity, bank-grade security. See what Xenboox can do.",
+    "Invoicing, payroll, compliance, close, forecasting, and reporting — handled by Xenboox with evidence attached and human approval where it matters.",
   openGraph: {
-    title: "Features — AI-Native Accounting Platform | Xenboox",
+    title: "Xenboox Features",
     description:
-      "AI agents handle invoicing, payroll, reconciliation, and month-end close. Multi-currency, multi-entity, bank-grade security.",
-    url: "https://xenboox.com/features",
-    siteName: "Xenboox",
-    type: "website",
+      "Everything a finance team does: invoicing, payroll, compliance, close, forecasting, reporting. You approve what matters.",
   },
 };
 
@@ -19,5 +16,5 @@ export default function FeaturesLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return <>{children}</>;
+  return children;
 }

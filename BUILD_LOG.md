@@ -4,6 +4,56 @@
 
 ---
 
+## 2026-09-05 — MARKETING: launch-grade redesign pass
+
+**Scope:** Marketing site studied against Stripe/Linear/Ramp patterns, then
+rebuilt blank-slate where it mattered. Integrity first: nothing ships that
+isn't true.
+
+### What shipped
+
+| Area | Change |
+| ---- | ------ |
+| **Hero demo** | Rebuilt to match the shipped product: Tasks (not Activity Hub), Thought lines, inline approval card, zero agent names/confidence |
+| **Hero** | Activity bar shows work ("Chasing 4 overdue invoices"), subline drops confidence-scored |
+| **Proof** | Fabricated testimonials → honest capability proof + early-cohort invitation (home, features) |
+| **Case studies** | Fabricated companies/metrics → early-access page (URL kept): who it's for, what early teams get |
+| **Careers** | Anonymous employee quotes → operating principles |
+| **For-accountants** | Fake firm quote → firm proof panel |
+| **Compare** | Fake switcher stories + stars → switch reasons; CTA drops agent-count/migration claims |
+| **Demo video** | Fake player (placeholder ID, fake duration/transcript) → honest product visual + signup CTA |
+| **Copy purge** | "99.7% auto-post" removed; "confidence-scored" → outcome language across 12 conversion files |
+| **Pricing** | Agent-count tiers → job-based; "SOC 2 compliance" → audit-ready exports (SOC 2 is roadmap) |
+| **One-pager** | Fake logos/stats/SOC 2 → sectors + honest stats |
+| **About** | Fake press/investor/customer logos removed; timeline de-fabricated; SOC 2 → security wording |
+| **Shell** | Footer Press Kit → /press; announcement bar → early-access framing |
+| **SEO** | Server metadata+OG layouts for 7 client routes; sitemap covers conversion routes |
+
+### Deliberately kept
+
+- Docs/terms/SLA confidence language (honest system description, not marketing).
+- Contact "SOC 2 compliance is in progress" (true).
+- Uptime SLA figures (matches the SLA commitment).
+- Demo transaction names (clearly illustrative mock data, not testimony).
+
+### Verification
+
+- New `marketing-launch.test.ts`: no fabricated proof, demo matches product,
+  honest language, metadata + sitemap coverage.
+- Deliberately skipped per user request: `typecheck`, `lint`, `vitest` —
+  CI must run them.
+- Manual pass still required: homepage scroll, mobile hero, pricing toggle,
+  compare pages, OG unfurl check.
+
+### Next
+
+1. CI green on this PR.
+2. Record the real 2-minute walkthrough; swap the product visual for the player.
+3. Collect first customer stories; replace early-access framing with proof.
+4. Grant/project spend tracking (logged in toAINative.md).
+
+---
+
 ## 2026-09-05 — PHASE C: absorb/delete 7 routes
 
 **Scope:** Phase C of the remaining-surfaces rethink. Seven routes deleted,
