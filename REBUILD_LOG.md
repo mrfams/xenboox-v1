@@ -225,3 +225,32 @@ N21 loading/error gates; then N22+ security hardening batch (G3): token hashing,
 ### Next loop pass
 
 **Engine v2 prep (G4)** or **N25 device/session UI** + P2 leftovers (`cleanupJournal` transactional inserts, `statusCode` column migration) — owner's call on sequencing.
+
+---
+
+## Session 007 — 2026-09-06 — Batch 3 (cont.) / P2 LEFTOVERS: N26 + N27
+
+### Graph delta
+
+| Node | Status | Evidence |
+|---|---|---|
+| N26 posting hygiene | **closed-deferred** | `createPostedJournal` gains `linkInsideTx` — source-document linking + audit commit **inside** the posting transaction; a link failure rolls back the whole posting so a posted JE can never exist without its source doc. Converted all 4 sites (AR invoice, AR payment, AP bill, AP payment). Void reversals (AR + AP) now commit reversal header + lines + original-status flip in ONE transaction. `cleanupJournal` (hard-deletes posted rows with swallowed errors) **deleted repo-wide** — prodway P2 closed |
+| N27 statusCode column | **closed-deferred** | Schema: `integer("status_code")` (was a copy-paste timestamp). Migration 0040 generated via drizzle-kit, then corrected: Postgres can't auto-cast timestamp→integer, so the generated SQL got `USING NULL::integer` (column never written — all NULL). Deviation from "never hand-edit migrations" documented and justified in the migration header + this log |
+
+### Tests authored (registry)
+
+`apps/web/__tests__/epoch0-batch3-p2-hardening.test.ts` — 6 cases (no cleanup refs anywhere, linkInsideTx present + used ×4, no linkErr catch blocks, one-tx reversals, integer schema + USING cast).
+
+### Stress cases designed
+
+- N26: fail the invoice-link update mid-posting → JE + lines rolled back, invoice unlinked, retry succeeds exactly once (reference idempotency); kill between reversal header and lines → no partial reversal (single tx)
+- N27: migrate on a DB with rows in idempotency_keys → NULL cast passes
+
+### Residual risks
+
+- Migration 0040 must run before/at next deploy (drizzle migrate step)
+- `linkInsideTx` callback runs inside the posting transaction — callers must not perform slow external I/O in it (documented by signature; all current uses are single-row updates + audit inserts)
+
+### Next loop pass
+
+N25 (device/session management UI) + Engine v2 prep (G4) — the immutable hash-chained journal build begins per KILLPLAN §4.

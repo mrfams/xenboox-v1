@@ -82,6 +82,8 @@ Every money/auth/concurrency node ships stress-case designs even when not execut
 | N22 | Reset/verification tokens hashed at rest (SHA-256, lookup-by-hash) | server/routers/auth.ts | Batch 1 | closed-deferred |
 | N23 | Durable MFA attempt throttle (5-strikes lockout reuse) | server/routers/auth.ts | Batch 1 | closed-deferred |
 | N24 | SCIM constant-time token compare | app/api/scim/v2/route.ts | Batch 1 | closed-deferred |
+| N26 | Posting hygiene: in-tx document linking, cleanupJournal deleted, one-tx reversals | journal-posting-core.ts, ar-posting.ts, ap-posting.ts | Batch 2 | closed-deferred |
+| N27 | statusCode column integer + safe-cast migration 0040 | packages/db/schema/idempotency.ts, migrations/0040 | Batch 1 | closed-deferred |
 | N15 | Converge month-end job onto pipeline semantics | packages/jobs/month-end-close.ts | Batch 1 | closed-deferred |
 | N14 | Wire durable closeSessions into executing close + DB idempotency | packages/agents/core/close-pipeline.ts | N15 | closed-deferred |
 

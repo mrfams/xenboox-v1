@@ -54,6 +54,12 @@ export interface PostJournalLine {
  * Insert a posted JE + lines for this entity, guarded by the reference
  * idempotency key and TrustGuard. Returns the JE id, or null when skipped
  * (closed period / TrustGuard rejection).
+ *
+ * Batch 3 / N26 — `linkInsideTx` runs INSIDE the posting transaction. Source
+ * document linking + audit belong in the same commit as the posted entry: if
+ * they fail, the transaction rolls back and no posted JE ever exists — the
+ * old post-then-cleanup pattern (delete the posted entry on link failure,
+ * with swallowed delete errors) is gone.
  */
 export async function createPostedJournal(opts: {
   entityId: string;
@@ -65,6 +71,10 @@ export async function createPostedJournal(opts: {
   lines: PostJournalLine[];
   /** Internal label for logs (e.g. "[ar-posting]", "[ap-posting]"). */
   logPrefix: string;
+  linkInsideTx?: (
+    tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
+    journalEntryId: string,
+  ) => Promise<void>;
 }): Promise<string | null> {
   const {
     entityId,
@@ -75,6 +85,7 @@ export async function createPostedJournal(opts: {
     source,
     lines,
     logPrefix,
+    linkInsideTx,
   } = opts;
 
   // Idempotency: a retried run may already have posted this reference.
@@ -152,6 +163,11 @@ export async function createPostedJournal(opts: {
             exchangeRate: l.exchangeRate,
           })),
         );
+
+        if (linkInsideTx) {
+          await linkInsideTx(tx, created.id);
+        }
+
         return created;
       });
       return entry.id;
@@ -180,21 +196,6 @@ export async function createPostedJournal(opts: {
   return null;
 }
 
-/**
- * Best-effort removal of a just-created JE + its lines. Used when the
- * post-insert link/audit step fails — never leave an orphan entry that
- * records money without a source document link.
- */
-export async function cleanupJournal(journalEntryId: string): Promise<void> {
-  await db
-    .delete(journalEntryLines)
-    .where(eq(journalEntryLines.journalEntryId, journalEntryId))
-    .catch(() => {});
-  await db
-    .delete(journalEntries)
-    .where(eq(journalEntries.id, journalEntryId))
-    .catch(() => {});
-}
 
 /** Deterministically ensure an operational COA row exists; returns its id. */
 export async function ensureAccount(

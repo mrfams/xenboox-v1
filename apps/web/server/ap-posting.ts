@@ -28,7 +28,6 @@ import { logger } from "@/lib/logger";
 import { moneyToCents } from "./ar-validation";
 import {
   createPostedJournal,
-  cleanupJournal,
   ensureAccount,
 } from "./journal-posting-core";
 
@@ -125,29 +124,25 @@ export async function postApBillToLedger(
       source: "ap_bill",
       lines: jeLines,
       logPrefix: "[ap-posting]",
+      linkInsideTx: async (tx, createdId) => {
+        await tx
+          .update(invoicesAp)
+          .set({ journalEntryId: createdId })
+          .where(
+            and(eq(invoicesAp.id, bill.id), eq(invoicesAp.entityId, entityId)),
+          );
+
+        await tx.insert(auditLog).values({
+          entityId,
+          userId,
+          action: "ap.postBill",
+          entityType: "invoice_ap",
+          entityIdRef: bill.id,
+          newValues: { journalEntryId: createdId, reference },
+        });
+      },
     });
     if (!jeId) return { posted: false, reason: "journal_skipped" };
-
-    try {
-      await db
-        .update(invoicesAp)
-        .set({ journalEntryId: jeId })
-        .where(
-          and(eq(invoicesAp.id, bill.id), eq(invoicesAp.entityId, entityId)),
-        );
-
-      await db.insert(auditLog).values({
-        entityId,
-        userId,
-        action: "ap.postBill",
-        entityType: "invoice_ap",
-        entityIdRef: bill.id,
-        newValues: { journalEntryId: jeId, reference },
-      });
-    } catch (linkErr) {
-      await cleanupJournal(jeId);
-      throw linkErr;
-    }
 
     return { posted: true, journalEntryId: jeId };
   } catch (error) {
@@ -243,32 +238,28 @@ export async function postApPaymentToLedger(
     source: "ap_payment",
     lines: jeLines,
     logPrefix: "[ap-posting]",
+    linkInsideTx: async (tx, createdId) => {
+      await tx
+        .update(paymentsAp)
+        .set({ journalEntryId: createdId })
+        .where(
+          and(eq(paymentsAp.id, payment.id), eq(paymentsAp.entityId, entityId)),
+        );
+
+      await tx.insert(auditLog).values({
+        entityId,
+        userId,
+        action: "ap.postPayment",
+        entityType: "payment_ap",
+        entityIdRef: payment.id,
+        newValues: { journalEntryId: createdId, reference },
+      });
+    },
   });
   if (!jeId) {
     throw new Error(
       "Payment could not be posted — the payment date's accounting period is closed or the entry failed validation",
     );
-  }
-
-  try {
-    await db
-      .update(paymentsAp)
-      .set({ journalEntryId: jeId })
-      .where(
-        and(eq(paymentsAp.id, payment.id), eq(paymentsAp.entityId, entityId)),
-      );
-
-    await db.insert(auditLog).values({
-      entityId,
-      userId,
-      action: "ap.postPayment",
-      entityType: "payment_ap",
-      entityIdRef: payment.id,
-      newValues: { journalEntryId: jeId, reference },
-    });
-  } catch (linkErr) {
-    await cleanupJournal(jeId);
-    throw linkErr;
   }
 
   return jeId;
@@ -351,8 +342,10 @@ export async function reverseApBillJournal(
   }
   if (!reversal) return { posted: false, reason: "reversal_insert_failed" };
 
-  try {
-    await db.insert(journalEntryLines).values(
+  // Batch 3 / N26 — lines + original-status flip commit together with the
+  // reversal header (single transaction).
+  await db.transaction(async (tx) => {
+    await tx.insert(journalEntryLines).values(
       originalLines.map((line) => ({
         journalEntryId: reversal.id,
         accountId: line.accountId,
@@ -361,13 +354,8 @@ export async function reverseApBillJournal(
         description: `Reversal: ${line.description}`,
       })),
     );
-  } catch (err) {
-    await cleanupJournal(reversal.id);
-    throw err;
-  }
 
-  try {
-    await db
+    await tx
       .update(journalEntries)
       .set({
         status: "reversed",
@@ -380,11 +368,7 @@ export async function reverseApBillJournal(
           eq(journalEntries.entityId, entityId),
         ),
       );
-  } catch (err) {
-    // Never leave a reversal entry whose original is still "posted".
-    await cleanupJournal(reversal.id);
-    throw err;
-  }
+  });
 
   return { posted: true, journalEntryId: reversal.id };
 }

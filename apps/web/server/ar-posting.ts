@@ -35,7 +35,6 @@ import { logger } from "@/lib/logger";
 import { moneyToCents } from "./ar-validation";
 import {
   createPostedJournal,
-  cleanupJournal,
   ensureAccount,
 } from "./journal-posting-core";
 
@@ -130,6 +129,9 @@ export async function postArInvoiceToLedger(
 
     const jeLines = buildArInvoiceLines(arAccountId, built);
     const reference = `ar-inv-${invoice.id}`;
+    // Batch 3 / N26 — document link + audit commit WITH the posted entry.
+    // A link failure rolls the whole posting back; no posted JE can exist
+    // without its source document.
     const jeId = await createPostedJournal({
       entityId,
       userId,
@@ -139,32 +141,28 @@ export async function postArInvoiceToLedger(
       source: "ar_invoice",
       lines: jeLines,
       logPrefix: "[ar-posting]",
+      linkInsideTx: async (tx, createdId) => {
+        await tx
+          .update(salesInvoices)
+          .set({ journalEntryId: createdId })
+          .where(
+            and(
+              eq(salesInvoices.id, invoice.id),
+              eq(salesInvoices.entityId, entityId),
+            ),
+          );
+
+        await tx.insert(auditLog).values({
+          entityId,
+          userId,
+          action: "ar.postInvoice",
+          entityType: "sales_invoice",
+          entityIdRef: invoice.id,
+          newValues: { journalEntryId: createdId, reference },
+        });
+      },
     });
     if (!jeId) return { posted: false, reason: "journal_skipped" };
-
-    try {
-      await db
-        .update(salesInvoices)
-        .set({ journalEntryId: jeId })
-        .where(
-          and(
-            eq(salesInvoices.id, invoice.id),
-            eq(salesInvoices.entityId, entityId),
-          ),
-        );
-
-      await db.insert(auditLog).values({
-        entityId,
-        userId,
-        action: "ar.postInvoice",
-        entityType: "sales_invoice",
-        entityIdRef: invoice.id,
-        newValues: { journalEntryId: jeId, reference },
-      });
-    } catch (linkErr) {
-      await cleanupJournal(jeId);
-      throw linkErr;
-    }
 
     return { posted: true, journalEntryId: jeId };
   } catch (error) {
@@ -260,32 +258,28 @@ export async function postArPaymentToLedger(
     source: "ar_payment",
     lines: jeLines,
     logPrefix: "[ar-posting]",
+    linkInsideTx: async (tx, createdId) => {
+      await tx
+        .update(paymentsAr)
+        .set({ journalEntryId: createdId })
+        .where(
+          and(eq(paymentsAr.id, payment.id), eq(paymentsAr.entityId, entityId)),
+        );
+
+      await tx.insert(auditLog).values({
+        entityId,
+        userId,
+        action: "ar.postPayment",
+        entityType: "payment_ar",
+        entityIdRef: payment.id,
+        newValues: { journalEntryId: createdId, reference },
+      });
+    },
   });
   if (!jeId) {
     throw new Error(
       "Payment could not be posted — the payment date's accounting period is closed or the entry failed validation",
     );
-  }
-
-  try {
-    await db
-      .update(paymentsAr)
-      .set({ journalEntryId: jeId })
-      .where(
-        and(eq(paymentsAr.id, payment.id), eq(paymentsAr.entityId, entityId)),
-      );
-
-    await db.insert(auditLog).values({
-      entityId,
-      userId,
-      action: "ar.postPayment",
-      entityType: "payment_ar",
-      entityIdRef: payment.id,
-      newValues: { journalEntryId: jeId, reference },
-    });
-  } catch (linkErr) {
-    await cleanupJournal(jeId);
-    throw linkErr;
   }
 
   return jeId;
@@ -372,8 +366,12 @@ export async function reverseArInvoiceJournal(
   }
   if (!reversal) return { posted: false, reason: "reversal_insert_failed" };
 
-  try {
-    await db.insert(journalEntryLines).values(
+  // Batch 3 / N26 — lines + original-status flip commit TOGETHER with the
+  // reversal header. The old post-then-cleanup pattern could leave a posted
+  // reversal whose original stayed "posted" (or vice versa) if a step failed
+  // after the first write; a single transaction makes that impossible.
+  await db.transaction(async (tx) => {
+    await tx.insert(journalEntryLines).values(
       originalLines.map((line) => ({
         journalEntryId: reversal.id,
         accountId: line.accountId,
@@ -382,13 +380,8 @@ export async function reverseArInvoiceJournal(
         description: `Reversal: ${line.description}`,
       })),
     );
-  } catch (err) {
-    await cleanupJournal(reversal.id);
-    throw err;
-  }
 
-  try {
-    await db
+    await tx
       .update(journalEntries)
       .set({
         status: "reversed",
@@ -401,11 +394,7 @@ export async function reverseArInvoiceJournal(
           eq(journalEntries.entityId, entityId),
         ),
       );
-  } catch (err) {
-    // Never leave a reversal entry whose original is still "posted".
-    await cleanupJournal(reversal.id);
-    throw err;
-  }
+  });
 
   return { posted: true, journalEntryId: reversal.id };
 }
