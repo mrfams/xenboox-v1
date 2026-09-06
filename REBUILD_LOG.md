@@ -624,3 +624,22 @@ Exemplar wiring: migrate Financial Pulse's KPI strip + Tasks rail + Operations m
 ### Next loop pass
 
 Continue surface migrations (Tasks rail amounts, Operations money blocks, Operations money-needs-you cards), then the DataGrid primitive (§6.1) — the §6.3 honesty bar becomes the default everywhere.
+
+---
+
+## Session 022 — 2026-09-06 — N50: OPERATIONS HONESTY MIGRATION
+
+### Graph delta
+
+| Node | Status | Evidence |
+|---|---|---|
+| N50 Operations honesty | **passed (Run Phase)** | `MetricNarrative` gains an error state (clay no-placeholder message, role=alert) — an error is NOT zero. Operations cash hero migrates to money mode with the query's isError surfaced (a failed dashboard query shows "Couldn't load your cash position", never $0.00); "This month, net" is undefined-honest at the source (`netChange = cashPos ? … : undefined`) |
+
+### Run Phase (executed this session)
+
+- **129/129 tests across 18 suites** — the Operations migration introduced zero regressions
+- Primitives suites (29 cases) green through two rounds
+
+### Next loop pass
+
+money-needs-you amounts → Money with signed tones; Tasks rail; then DataGrid primitive. CI (PR #31) remains the typecheck authority.

@@ -218,7 +218,7 @@ export default function MoneyFlowsPage() {
 function CashPositionPanel({ ask }: { ask: AskFn }) {
   const { format } = useFormatCurrency();
   const { entityId } = useEntity();
-  const { data: dash, isLoading: dashLoading } =
+  const { data: dash, isLoading: dashLoading, isError: dashError } =
     trpc.dashboard.getDashboardData.useQuery({}, { enabled: !!entityId });
   const { data: cashPos } = trpc.banking.getCashPosition.useQuery(
     {},
@@ -245,7 +245,7 @@ function CashPositionPanel({ ask }: { ask: AskFn }) {
     .slice(0, 8);
 
   const overdueBills = billsOverview?.statusCounts.overdue ?? 0;
-  const netChange = cashPos?.netChange ?? 0;
+  const netChange = cashPos ? (cashPos.netChange ?? 0) : undefined;
   const pendingInvoices = invoiceStats?.pendingCount ?? 0;
   const pendingBills = billsOverview?.statusCounts.pending ?? 0;
 
@@ -284,8 +284,9 @@ function CashPositionPanel({ ask }: { ask: AskFn }) {
         <div className="grid grid-cols-2 gap-x-6 gap-y-5 sm:grid-cols-4">
           <MetricNarrative
             label="Cash on hand"
-            value={format(health?.cashBalance ?? 0)}
+            money={{ value: health?.cashBalance }}
             loading={dashLoading && !health}
+            error={dashError ? "Couldn't load your cash position — nothing here is a placeholder value." : undefined}
             size="lg"
             className="col-span-2 sm:col-span-1"
           />
@@ -320,7 +321,9 @@ function CashPositionPanel({ ask }: { ask: AskFn }) {
           >
             <MetricNarrative
               label="This month, net"
-              value={format(netChange)}
+              money={{ value: health ? netChange : undefined }}
+              loading={dashLoading && !health}
+              error={dashError ? "Couldn't load this month's net change." : undefined}
               size="sm"
             />
           </button>

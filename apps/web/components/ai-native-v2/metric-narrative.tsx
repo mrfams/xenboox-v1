@@ -22,6 +22,7 @@ export function MetricNarrative({
   delta,
   deltaLabel,
   loading,
+  error,
   size = "md",
   className,
 }: {
@@ -39,6 +40,8 @@ export function MetricNarrative({
   delta?: number;
   deltaLabel?: string;
   loading?: boolean;
+  /** N50: an error is NOT zero — renders the clay no-placeholder message. */
+  error?: boolean | string;
   size?: "sm" | "md" | "lg";
   className?: string;
 }) {
@@ -49,7 +52,13 @@ export function MetricNarrative({
       <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/70">
         {label}
       </p>
-      {loading || moneyLoading ? (
+      {error ? (
+        <p className={"mt-0.5 text-xs text-error-clay"} role={"alert"}>
+          {typeof error === "string"
+            ? error
+            : "Couldn't load this metric — nothing here is a placeholder value."}
+        </p>
+      ) : loading || moneyLoading ? (
         <div className="mt-1.5 flex items-center gap-1.5">
           <Loader2
             className="h-3.5 w-3.5 animate-spin text-muted-foreground/50"
