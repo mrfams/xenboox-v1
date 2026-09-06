@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { entities, documents } from "@xenboox/db/schema";
 import { eq } from "drizzle-orm";
@@ -49,7 +48,7 @@ function generateStoragePath(entityId: string, fileName: string): string {
 export async function POST(request: Request) {
   try {
     // Auth check
-    const session = await getServerSession(authOptions);
+    const session = await auth();
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
