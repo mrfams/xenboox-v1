@@ -91,6 +91,7 @@ Every money/auth/concurrency node ships stress-case designs even when not execut
 | N33 | journal_events (append-only, hash-chained) + ledger_account_balances schema; migration 0041 + append-only trigger | packages/db/schema/ledger.ts, migrations/0041 | — | passed (Run Phase) |
 | N34 | @xenboox/ledger posting service: validate → idempotency → chain append + projection (one tx) | packages/ledger/src/posting.ts | N33 | passed (Run Phase) |
 | N35 | computeEventHash / verifyChain / rebuildBalances; tamper-evidence proven (7 mutation classes) | packages/ledger/src/hash.ts, verify.ts | N34 | passed (Run Phase) |
+| N36 | Shadow dual-write (mirror hook + majorToMinor/toLedgerLines/shadowMirror) + parity verifier + nightly cron | packages/ledger/src/shadow.ts, parity.ts, apps/web/server/journal-posting-core.ts, app/api/cron/ledger-parity | N34 | passed (Run Phase) |
 | N15 | Converge month-end job onto pipeline semantics | packages/jobs/month-end-close.ts | Batch 1 | closed-deferred |
 | N14 | Wire durable closeSessions into executing close + DB idempotency | packages/agents/core/close-pipeline.ts | N15 | closed-deferred |
 

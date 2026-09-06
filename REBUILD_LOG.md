@@ -335,3 +335,36 @@ N25 (device/session management UI) + Engine v2 prep (G4) — the immutable hash-
 ### Next loop pass
 
 N36: shadow dual-write (posting core mirrors every commit into journal_events behind a flag) + nightly parity verifier; N37: cut AR invoice posting onto `postToLedger` behind the flag with parity checks; N28 closes when the pipeline's depreciation routes through it.
+
+---
+
+## Session 011 — 2026-09-06 — G4: SHADOW DUAL-WRITE + PARITY VERIFIER (N36)
+
+### Graph delta
+
+| Node | Status | Evidence |
+|---|---|---|
+| N36 shadow dual-write + parity | **passed (Run Phase)** | `packages/ledger/src/shadow.ts`: `majorToMinor` (legacy 2dp strings → exact integer minor units), `toLedgerLines`, `shadowMirror` (idempotencyKey = legacy reference — old and new books are bound by the same key), `isShadowEnabled` (strict `LEDGER_SHADOW=true`). `packages/ledger/src/parity.ts`: `compareEntry` (pure — missing_event / total_mismatch / period_mismatch, both sides reported), `verifyParity(entityId)` (legacy posted JEs vs mirrored events, bounded). Hook: `createPostedJournal` mirrors every commit post-hoc when `LEDGER_SHADOW=true` — failure-isolated (a shadow failure can never break the real posting; the verifier reports it as missing, which is the signal). Entity currency resolved by lookup, never hardcoded. Cron: `GET /api/cron/ledger-parity` (x-cron-secret) — nightly tail walk (50 newest entities × 300 entries) or `?entityId=` operator deep-scan |
+
+### Run Phase (executed this session)
+
+- **19/19 ledger package tests passing** (10 engine + 9 shadow/parity), package tsc clean
+- **75/75 dashboard suites still green** (shadow hook introduced no regressions)
+- Newly discovered: none — the parity SQL sums only the debit side (cleaner than divide-by-2)
+
+### Cut-over sequence from here (graphed)
+
+1. N37: staging/prod runs `LEDGER_SHADOW=true` → parity cron walks the tail nightly → mismatches drive fixes
+2. N38: parity proven → AR invoice posting flips onto `postToLedger` (legacy write becomes the shadow) → verify → next module
+3. N28 closes automatically when the close pipeline's depreciation routes through the engine
+4. Legacy tables frozen read-only after the last module cut over
+
+### Residual risks
+
+- Shadow mirror doubles write volume per posting while enabled (bounded — serverless posting path, not bulk)
+- Parity scans are per-entry queries (N+1) — fine at nightly tail-walk volume; bulk scan gets a set-based rewrite if operators need full sweeps
+- The parity cron must be registered in vercel.json cron config at deploy (same as audit-archive)
+
+### Next loop pass
+
+N37: AR invoice cut-over behind the flag + staging parity evidence; then per-module cut-overs to close G4.

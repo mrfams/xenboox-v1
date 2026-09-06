@@ -16,9 +16,11 @@ import {
   journalEntryLines,
   fiscalPeriods,
   chartOfAccounts,
+  entities,
 } from "@xenboox/db/schema";
 import { validateJournalEntry, trustGuardToError } from "@xenboox/agents";
 import { db } from "@/lib/db";
+import { isShadowEnabled, shadowMirror } from "@xenboox/ledger";
 import { logger } from "@/lib/logger";
 
 export async function findOpenPeriod(entityId: string, date: string) {
@@ -170,6 +172,39 @@ export async function createPostedJournal(opts: {
 
         return created;
       });
+      // Batch 3 / N36 — shadow dual-write: mirror the committed JE into the
+      // v2 journal (flag-gated, failure-isolated). A shadow failure can never
+      // break the real posting; the parity verifier reports it as missing.
+      if (isShadowEnabled()) {
+        try {
+          const [entityRow] = await db.query.entities.findMany({
+            where: eq(entities.id, entityId),
+            columns: { currency: true },
+            limit: 1,
+          });
+          await shadowMirror(db, {
+            entityId,
+            actorId: userId,
+            actorType: 'user',
+            source,
+            reference,
+            effectiveDate: date,
+            currency: entityRow?.currency ?? 'USD',
+            lines: lines.map((l) => ({
+              accountId: l.accountId,
+              debit: l.debit,
+              credit: l.credit,
+              description: l.description,
+            })),
+          });
+        } catch (shadowErr) {
+          logger.warn(
+            { reference, err: shadowErr },
+            '[ledger-shadow] mirror failed — parity verifier will flag',
+          );
+        }
+      }
+
       return entry.id;
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
