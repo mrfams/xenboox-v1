@@ -1641,8 +1641,19 @@ n   * mutation, logging to the audit trail.
             });
           }
 
+          const totalAmount = data.lines.reduce(
+            (sum, l) => sum + l.quantity * l.unitPrice,
+            0,
+          );
+
+          // N29 — refuse creations that don't tally with the source document
+          // BEFORE any write: not even the customer find-or-create happens on
+          // a hallucinated total.
+          await verifyAgainstSource(totalAmount);
+
           // Entity-scoped customer find-or-create. The lookup must never
-          // cross entity boundaries.
+          // cross entity boundaries. (Runs after the tally gate — a refused
+          // creation must not leave an orphan customer behind.)
           let customer = await db.query.customers.findFirst({
             where: and(
               eq(customers.entityId, entityId),
@@ -1660,13 +1671,6 @@ n   * mutation, logging to the audit trail.
               .returning();
             customer = newCustomer;
           }
-
-          const totalAmount = data.lines.reduce(
-            (sum, l) => sum + l.quantity * l.unitPrice,
-            0,
-          );
-          // N29 — refuse creations that don't tally with the source document.
-          await verifyAgainstSource(totalAmount);
           const today = new Date().toISOString().slice(0, 10);
           const dueDate = new Date(
             Date.now() + data.dueInDays * 24 * 60 * 60 * 1000,
