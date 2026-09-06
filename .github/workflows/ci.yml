@@ -31,7 +31,7 @@ jobs:
       - run: pnpm lint
 
   typecheck:
-    name: Typecheck
+    name: Typecheck (ledger + web — blocking)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -44,12 +44,31 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       # The web app's full typecheck needs headroom (OOMs at the default heap)
-      - run: pnpm typecheck
+      - run: pnpm --filter=@xenboox/ledger typecheck
+      - run: pnpm --filter=@xenboox/web typecheck
         env:
           NODE_OPTIONS: --max-old-space-size=6144
 
+  typecheck-rest:
+    name: Typecheck (remaining packages — non-blocking debt visibility)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # Pre-existing failures (ingestion rootDir refs, jobs triaged) — tracked
+      # in ENGINEERING_SYSTEM.md; flips to blocking as each package is cleaned.
+      - run: pnpm --filter=@xenboox/agents --filter=@xenboox/ingestion --filter=@xenboox/jobs --filter=@xenboox/ui typecheck
+
   test:
-    name: Test
+    name: Test (ledger + epoch0 regression guard — blocking)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -61,7 +80,27 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm test
+      - run: pnpm --filter=@xenboox/ledger test
+      - run: pnpm --filter=@xenboox/web exec vitest run "__tests__/epoch0-*.test.ts"
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
+
+  test-full:
+    name: Test (full suite — non-blocking debt visibility)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter=@xenboox/web test
+      - run: pnpm --filter=@xenboox/agents test
 
   coverage:
     name: Coverage

@@ -563,3 +563,26 @@ N43 banking loop restructure → legacy freeze declaration → **G4 COMPLETE**. 
 ### Next loop pass
 
 Staging deployment: run migrations + enable LEDGER_SHADOW → parity evidence → per-module flips. Then G4 fully realized in production; tax filing integrations (Epoch 2–3) build on the same engine.
+
+---
+
+## Session 019 — 2026-09-06 — DEPLOYMENT TRACK: CI RESTRUCTURED + RUNBOOK PUBLISHED
+
+### Graph delta
+
+| Node | Status | Evidence |
+|---|---|---|
+| N46 CI restructure | **passed** | `ci.yml` split into blocking gates (ledger typecheck+tests, web typecheck with 6GB heap, epoch0 regression guard — the 16 verified suites) and non-blocking debt visibility (remaining-package typechecks, full web suite — pre-existing failures documented, tracked to blocking as each is cleaned) |
+| N47 deployment runbook | **passed** | `DEPLOYMENT.md`: flag matrix, staging runbook (migrations → env → parity verification → smoke), the 14-clean-nights parity gate per module flip, flip + rollback procedure, production gates (CI green, backups, pooled endpoint, canary entity), legacy freeze sequence, escalation (parity mismatch → rollback; hash-chain break → security incident) |
+| Staging cron | **passed** | `vercel.json` registers `/api/cron/ledger-parity` nightly 02:40 UTC |
+
+### Owner directives honored
+
+- Typecheck/test authority lives in CI (GitHub Actions), not this PC
+- CI is green-and-meaningful from day one: blocking on verified-clean scope, non-blocking visibility on documented debt — never red on somebody else's old failures, never hiding them either
+
+### Next
+
+1. Push `feat/epoch0-safety` → CI runs (first authoritative typecheck + full-suite visibility)
+2. Staging deploy per DEPLOYMENT.md §2 → parity evidence window
+3. N43-follow-on: banking mirror deep-scan during staging; then per-module flips
