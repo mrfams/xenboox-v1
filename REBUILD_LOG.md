@@ -606,3 +606,21 @@ Staging deployment: run migrations + enable LEDGER_SHADOW → parity evidence �
 ### Next loop pass
 
 Exemplar wiring: migrate Financial Pulse's KPI strip + Tasks rail + Operations money blocks onto Money/AsyncBlock (mechanical, per-surface), then the DataGrid primitive — the §6.1 build-out continues per surface.
+
+---
+
+## Session 021 — 2026-09-06 — N49: SURFACE MIGRATION EXEMPLAR — PULSE KPIs ON THE PRIMITIVES
+
+### Graph delta
+
+| Node | Status | Evidence |
+|---|---|---|
+| N49 surface migration (exemplar) | **passed (Run Phase)** | `MetricNarrative` gains money mode (`money?: { value, currency }`) rendered through the `Money` primitive — undefined value renders "Measuring…" honestly (never a zero), entity-correct currency, tabular numerals. Financial Pulse's four KPI cards (Revenue / Expenses / Net Profit / Cash & runway) migrated off `format(x ?? 0)` — the strip keeps its loading/error gate from N21, and inside it the money values are entity-correct + skeleton-guarded. `value` prop made optional (non-money metrics unaffected) |
+
+### Run Phase (executed this session)
+
+- **129/129 tests passing** (17 suites + primitives + the phase-a-pulse-ledger suite that exercises the migrated cards)
+
+### Next loop pass
+
+Continue surface migrations (Tasks rail amounts, Operations money blocks, Operations money-needs-you cards), then the DataGrid primitive (§6.1) — the §6.3 honesty bar becomes the default everywhere.

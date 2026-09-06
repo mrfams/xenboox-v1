@@ -658,7 +658,7 @@ function OverviewPanel({
         <div className="rounded-xl border border-border/50 bg-card p-4">
           <MetricNarrative
             label="Revenue"
-            value={format(pnl?.revenue ?? 0)}
+            money={{ value: pnl?.revenue, currency: displayCurrency }}
             narrative={
               pnl?.revenueChange
                 ? `${pnl.revenueChange > 0 ? "Up" : "Down"} ${Math.abs(pnl.revenueChange).toFixed(1)}% vs prior — ${pnl.revenueChange > 5 ? "strong" : "steady"}.`
@@ -681,7 +681,7 @@ function OverviewPanel({
         <div className="rounded-xl border border-border/50 bg-card p-4">
           <MetricNarrative
             label="Expenses"
-            value={format(pnl?.expenses ?? 0)}
+            money={{ value: pnl?.expenses, currency: displayCurrency }}
             narrative={
               pnl?.expensesChange
                 ? `${pnl.expensesChange > 0 ? "Up" : "Down"} ${Math.abs(pnl.expensesChange).toFixed(1)}% — watch the trend.`
@@ -702,7 +702,7 @@ function OverviewPanel({
         <div className="rounded-xl border border-border/50 bg-card p-4">
           <MetricNarrative
             label="Net Profit"
-            value={format(pnl?.netProfit ?? 0)}
+            money={{ value: pnl?.netProfit, currency: displayCurrency }}
             narrative={
               pnl?.revenue && pnl.revenue > 0
                 ? `${(((pnl.netProfit ?? 0) / pnl.revenue) * 100).toFixed(1)}% margin.`
@@ -742,7 +742,7 @@ function OverviewPanel({
         <div className="rounded-xl border border-border/50 bg-card p-4">
           <MetricNarrative
             label="Cash & runway"
-            value={format(overview?.cashBalance ?? 0)}
+            money={{ value: overview?.cashBalance, currency: displayCurrency }}
             narrative={
               overview?.runway != null
                 ? overview.runway < 3

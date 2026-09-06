@@ -104,6 +104,7 @@ Every money/auth/concurrency node ships stress-case designs even when not execut
 | N46 | CI restructured: blocking (ledger+web typecheck, epoch0 guard) / non-blocking (debt visibility) | .github/workflows/ci.yml | — | passed |
 | N47 | DEPLOYMENT.md runbook: flag matrix, parity gate (14 clean nights), flip/rollback, production gates, legacy freeze sequence | DEPLOYMENT.md | N46 | passed |
 | N48 | Design-system primitives: Money (entity-correct, tabular, skeleton-vs-zero) + AsyncBlock (honest async states) | apps/web/components/ui/ledger-primitives.tsx | — | passed (Run Phase) |
+| N49 | Surface migration exemplar: MetricNarrative money mode + Pulse KPIs on the primitives | apps/web/components/ai-native-v2/metric-narrative.tsx, financial-pulse/page.tsx | N48 | passed (Run Phase) |
 | N15 | Converge month-end job onto pipeline semantics | packages/jobs/month-end-close.ts | Batch 1 | closed-deferred |
 | N14 | Wire durable closeSessions into executing close + DB idempotency | packages/agents/core/close-pipeline.ts | N15 | closed-deferred |
 

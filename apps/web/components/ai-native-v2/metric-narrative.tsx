@@ -1,17 +1,23 @@
 "use client";
 
-import { ArrowDownRight, ArrowUpRight, Loader2 } from "lucide-react";
-
-import { cn } from "@/lib/utils";
-
 // ─── MetricNarrative ──────────────────────────────────────────────────────
 //
 // A number is never shown alone. Every metric carries the one-line
 // explanation of what it means — the AI's read, not just the figure.
+//
+// N49: money metrics pass `money` (rendered through the <Money> primitive —
+// entity-correct formatting, tabular numerals, skeleton-when-undefined) and
+// the `undefined` value renders "Measuring…" honestly instead of a zero.
+
+import { ArrowDownRight, ArrowUpRight, Loader2 } from "lucide-react";
+
+import { Money } from "@/components/ui/ledger-primitives";
+import { cn } from "@/lib/utils";
 
 export function MetricNarrative({
   label,
   value,
+  money,
   narrative,
   delta,
   deltaLabel,
@@ -20,7 +26,14 @@ export function MetricNarrative({
   className,
 }: {
   label: string;
-  value: string;
+  /** Plain string value (non-money metrics). */
+  value?: string;
+  /** Money mode (N49) — rendered through the <Money> primitive. When set,
+   * `value` is ignored and an undefined money value renders "Measuring…". */
+  money?: {
+    value?: number | string | null;
+    currency?: string | null;
+  };
   narrative?: string;
   /** Positive = good direction (up for cash, down for burn is caller's job) */
   delta?: number;
@@ -29,12 +42,14 @@ export function MetricNarrative({
   size?: "sm" | "md" | "lg";
   className?: string;
 }) {
+  const moneyLoading = money !== undefined && (money.value === undefined || money.value === null);
+
   return (
     <div className={cn("min-w-0", className)}>
       <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/70">
         {label}
       </p>
-      {loading ? (
+      {loading || moneyLoading ? (
         <div className="mt-1.5 flex items-center gap-1.5">
           <Loader2
             className="h-3.5 w-3.5 animate-spin text-muted-foreground/50"
@@ -52,7 +67,11 @@ export function MetricNarrative({
               size === "sm" && "text-sm",
             )}
           >
-            {value}
+            {money !== undefined ? (
+              <Money value={money.value} currency={money.currency} size={size === "lg" ? "lg" : "md"} className="font-semibold" />
+            ) : (
+              value
+            )}
           </p>
           {delta !== undefined && Number.isFinite(delta) && delta !== 0 && (
             <p
