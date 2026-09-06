@@ -130,10 +130,6 @@ jobs:
     name: Agent Eval
     runs-on: ubuntu-latest
     needs: [typecheck]
-    paths:
-      - "packages/agents/**"
-      - "packages/models/**"
-      - "packages/jobs/**"
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
