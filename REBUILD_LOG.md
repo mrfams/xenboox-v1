@@ -279,3 +279,29 @@ N25 (device/session management UI) + Engine v2 prep (G4) — the immutable hash-
 ### Next loop pass
 
 **Engine v2 prep (G4)** — immutable hash-chained journal schema + posting service extraction into a shared package (unblocks N28), dual-write shadow verifier design. This is the KILLPLAN §4 core.
+
+---
+
+## Session 009 — 2026-09-06 — Batch 3 (cont.) / N32: REVIEWERS SEE THE DOCUMENT
+
+**Owner directive:** when an extraction doesn't tally and escalates to a human, the user must be able to VIEW the actual uploaded file (stored in R2) before accepting or rejecting — they may never have seen it.
+
+### Graph delta
+
+| Node | Status | Evidence |
+|---|---|---|
+| N32 document viewer for escalated review | **passed (Run Phase)** | New `GET /api/documents/[id]/file` — authenticated, entity-access-verified (via `resolveEntityAccess`; cross-entity probes indistinguishable from nonexistent), streams the R2 object with `Content-Disposition: inline` + `nosniff` + private cache so PDFs/images render in the reviewer's tab. Honest 404s: no stored file / storage unconfigured / object missing (driver internals never leak). `IngestionReviewPanel` now renders a **"View document"** action beside the accept/reject decision. Note: uploads were already persisted to R2 (`upload/route.ts` writes r2Key/r2Bucket) — the viewer closes the visibility gap |
+
+### Run Phase
+
+- **75/75 tests passing** across all 10 suites (new: `epoch0-batch3-document-viewer.test.ts`, 4 cases)
+- Also this session: N29 ordering fix — the tally gate now runs BEFORE customer find-or-create, so a refused creation leaves zero orphans (committed `9df3c963`, 71/71 → then 75/75 with viewer tests)
+
+### Residual risks
+
+- Decision cards for document-backed notification items deep-link into the review panel (which now has the viewer); a richer inline preview (page thumbnails, zoom) arrives with the design-system rebuild — inline browser rendering covers PDF/images today
+- `/pay/[token]` and donor-portal file flows use their own authorization paths — untouched here
+
+### Next loop pass
+
+**Engine v2 prep (G4)** — immutable hash-chained journal schema, posting service extraction to a shared package (absorbs N28), dual-write shadow verifier.

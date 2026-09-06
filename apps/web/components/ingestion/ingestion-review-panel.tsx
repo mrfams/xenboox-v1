@@ -13,6 +13,7 @@ import {
   Pencil,
   Trash2,
   Eye,
+  ExternalLink,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -226,13 +227,28 @@ export function IngestionReviewPanel({
               </p>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="rounded-lg p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
-            aria-label="Close review panel"
-          >
-            <X className="h-4 w-4" />
-          </button>
+          <div className="flex items-center gap-2">
+            {/* N32 — the reviewer must SEE the actual document before
+                accepting or rejecting an escalated extraction. The file
+                streams from R2 through an entity-scoped, authenticated
+                route; inline disposition renders PDFs/images in the tab. */}
+            <a
+              href={`/api/documents/${documentId}/file`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:border-primary/40 hover:text-primary transition-colors"
+            >
+              <ExternalLink className="h-3.5 w-3.5" />
+              View document
+            </a>
+            <button
+              onClick={onClose}
+              className="rounded-lg p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+              aria-label="Close review panel"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
         </div>
 
         {/* Content */}
