@@ -297,6 +297,127 @@ export async function executeClosePipeline(params: {
   // Start cache cleanup on first pipeline run
   startCacheCleanup();
 
+  // ── Durable Session Gate (Batch 3 / N14) ─────────────────────────────
+  // The in-memory map above is per-process; the close session row is the
+  // durable idempotency + concurrency record (survives restarts, works
+  // across instances).
+  let closeSessionId: string | null = null;
+  {
+    const activeSessions = await db.query.closeSessions.findMany({
+      where: and(
+        eq(closeSessions.entityId, params.entityId),
+        eq(closeSessions.fiscalPeriodId, params.periodId),
+        inArray(closeSessions.status, ["in_progress", "ready"]),
+      ),
+      orderBy: [desc(closeSessions.openedAt)],
+      limit: 1,
+    });
+    const activeSession = activeSessions[0];
+    const activeWindowMs = 30 * 60_000;
+    if (
+      activeSession &&
+      Date.now() - new Date(activeSession.openedAt).getTime() < activeWindowMs
+    ) {
+      // Another close is actively running for this entity+period — refuse
+      // instead of double-closing (durable concurrency guard).
+      return {
+        closeState: {
+          entityId: params.entityId,
+          periodId: params.periodId,
+          period: periodStr,
+          triggerSource: params.triggerSource ?? "manual",
+          status: "awaiting_human",
+          steps: getInitialSteps(),
+          startedAt: new Date().toISOString(),
+          completedAt: new Date().toISOString(),
+          overallConfidence: 0,
+          errors: [
+            "A close for this period is already in progress (session " +
+              activeSession.id.slice(0, 8) +
+              ") — wait for it to finish or resolve it in the Close Center",
+          ],
+          warnings: [],
+          auditTrail: [],
+        },
+        stepTelemetry: [
+          {
+            step: "session_gate",
+            label: "Durable close session check",
+            startedAt: new Date(telemetryStart).toISOString(),
+            completedAt: new Date().toISOString(),
+            durationMs: Date.now() - telemetryStart,
+            status: "completed",
+            metadata: { existingSession: activeSession.id },
+          },
+        ],
+        durationMs: Date.now() - startTime,
+      } as { closeState: CloseState; stepTelemetry: StepTelemetry[]; durationMs: number };
+    }
+
+    // Recently locked/notified session for the same period → idempotent
+    // replay of a durable completed close (double-run protection).
+    const doneSessions = await db.query.closeSessions.findMany({
+      where: and(
+        eq(closeSessions.entityId, params.entityId),
+        eq(closeSessions.fiscalPeriodId, params.periodId),
+        inArray(closeSessions.status, ["locked", "notified"]),
+      ),
+      orderBy: [desc(closeSessions.openedAt)],
+      limit: 1,
+    });
+    const doneSession = doneSessions[0];
+    if (doneSession) {
+      const doneClose = await db.query.fiscalPeriods.findFirst({
+        where: eq(fiscalPeriods.id, params.periodId),
+        columns: { status: true },
+      });
+      if (doneClose?.status === "closed") {
+        return {
+          closeState: {
+            entityId: params.entityId,
+            periodId: params.periodId,
+            period: periodStr,
+            triggerSource: params.triggerSource ?? "manual",
+            status: "completed",
+            steps: getInitialSteps(),
+            startedAt: new Date(doneSession.openedAt).toISOString(),
+            completedAt: new Date().toISOString(),
+            overallConfidence: 1,
+            errors: [],
+            warnings: [],
+            auditTrail: [],
+          },
+          stepTelemetry: [
+            {
+              step: "idempotency_check",
+              label: "Durable close already completed",
+              startedAt: new Date(telemetryStart).toISOString(),
+              completedAt: new Date().toISOString(),
+              durationMs: Date.now() - telemetryStart,
+              status: "completed",
+              metadata: { session: doneSession.id, cached: true },
+            },
+          ],
+          durationMs: Date.now() - startTime,
+        } as { closeState: CloseState; stepTelemetry: StepTelemetry[]; durationMs: number };
+      }
+    }
+
+    const opened = await openCloseSession({
+      entityId: params.entityId,
+      fiscalPeriodId: params.periodId,
+      periodLabel: periodStr,
+      triggeredBy:
+        params.triggerSource === "scheduled" ||
+        params.triggerSource === "manual" ||
+        params.triggerSource === "agent"
+          ? params.triggerSource
+          : "agent",
+      triggeredByUserId: params.userId,
+    });
+    closeSessionId = opened.sessionId;
+  }
+
   // ── Enterprise: Pipeline-Level Timeout ───────────────────────────────
   const pipelinePromise = (async () => {
     const closeState: CloseState = {
@@ -764,8 +885,29 @@ export async function executeClosePipeline(params: {
     }
   })(); // <-- IIFE invoked immediately
 
+  const guardedPipeline = pipelinePromise.then(async (result) => {
+    try {
+      if (closeSessionId) {
+        const sessionStatus =
+          result.closeState.status === "completed" ? "locked" : "blocked";
+        await db
+          .update(closeSessions)
+          .set({
+            status: sessionStatus,
+            closedAt: new Date(),
+            errors: result.closeState.errors,
+            warnings: result.closeState.warnings,
+          })
+          .where(eq(closeSessions.id, closeSessionId));
+      }
+    } catch {
+      // session finalization must never mask the close result itself
+    }
+    return result;
+  });
+
   return withTimeout(
-    () => pipelinePromise,
+    () => guardedPipeline,
     pipelineTimeout.maxExecutionMs,
     "close-pipeline",
     { onTimeout: () => { abort.aborted = true; } },

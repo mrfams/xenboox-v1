@@ -76,8 +76,8 @@ Every money/auth/concurrency node ships stress-case designs even when not execut
 | N16 | Cancellation-correct timeouts (onTimeout + 5 boundary checks) | packages/agents/core/retry.ts, close-pipeline.ts | Batch 1 | closed-deferred |
 | N17 | Banking demo-money removal, honest manual sync | server/routers/banking.ts | Batch 1 | closed-deferred |
 | N18 | SSE truth + tenant isolation (entityId scoping, events subquery, full-taskId runId) | app/api/agent-events/route.ts, packages/agents/core/orchestrator.ts | Batch 1 | closed-deferred |
-| N15 | Converge month-end job onto pipeline semantics | packages/jobs/month-end-close.ts | Batch 1 | backlog |
-| N14 | Wire durable closeSessions into executing close + DB idempotency | packages/agents/core/close-pipeline.ts, retry.ts | N15 | backlog |
+| N15 | Converge month-end job onto pipeline semantics | packages/jobs/month-end-close.ts | Batch 1 | closed-deferred |
+| N14 | Wire durable closeSessions into executing close + DB idempotency | packages/agents/core/close-pipeline.ts | N15 | closed-deferred |
 
 ### Upcoming batches (already graphed, not started)
 

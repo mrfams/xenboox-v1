@@ -132,3 +132,33 @@ Batch 2 / G1 "LEDGER TRUTH": approvals re-validation (balance + open-period), du
 ### Next loop pass
 
 N19: server-side unified Needs-you queue (end client stitching of listAgentApprovals + notifications.list + tasks.list); N20: batch approve; N21: loading/error gates on Financial Pulse numerics.
+
+---
+
+## Session 004 — 2026-09-06 — Batch 3 (cont.) / N15 + N14: CLOSE CONVERGENCE + DURABLE SESSIONS
+
+### Graph delta
+
+| Node | Status | Evidence |
+|---|---|---|
+| N15 one close implementation | **closed-deferred** | `packages/jobs/month-end-close.ts` rewritten (277→~160 lines): resolves period+entity, then **delegates to `executeClosePipeline`** (`triggerSource: "scheduled"`, timeout budget 480s/90s-step sized to the job's 600s maxDuration). The duplicate flow — no TrustGuard, no TB snapshot, `new Date()` JE dates, job-local depreciation posting — is deleted. Outcome mapping is honest: completed → deduped notification + success; awaiting_human/failed → throw with the pipeline's own errors → Trigger.dev retry → DLQ. `executeClosePipeline` + `CloseTriggerSource`/`PipelineTimeoutConfig` re-exported from the agents root index |
+| N14 durable close sessions wired | **closed-deferred** | `executeClosePipeline` now: (1) opens a durable `closeSessions` row via `openCloseSession` after validation; (2) **refuses a second close** for the same entity+period while a session is in_progress/ready within a 30-min window (durable concurrency guard — the in-memory map remains only as the cheap first layer); (3) replays idempotently when a locked/notified session + closed period exist (double-run protection across restarts); (4) finalizes the session on EVERY exit path (`guardedPipeline.then`) — completed→locked, else→blocked — with errors/warnings persisted; finalization is catch-isolated so it never masks the close result |
+
+### Tests authored (registry)
+
+`apps/web/__tests__/epoch0-batch3-close-convergence.test.ts` — 8 cases (delegation, duplicate deletion incl. no direct journal-table writes from the job, honest outcome mapping, session open/finalize/refuse/replay/finalize-isolation).
+
+### Stress cases designed
+
+- N15: Trigger.dev retry after pipeline timeout → session gate replays or refuses (no double close); DLQ payload carries the pipeline's real step errors
+- N14: two concurrent close triggers (job + manual Close Center) → second is refused with session pointer; kill -9 mid-close → session stays in_progress → retry within 30min refuses, after 30min re-opens; close completes then a second run → idempotent replay, no double depreciation
+
+### REVIEW notes
+
+- Codemod escaping bug mangled `packages/agents/index.ts` mid-edit — repaired and verified via git diff (net change: +executeClosePipeline in core export block, +type re-exports, block split only)
+- `closeSessions.errors` is jsonb string[] — pipeline errors shape matches; `openedAt` (not startedAt) used for the recency window
+- Residual: no partial unique index on (entityId, fiscalPeriodId, active-status) — the guard is query-then-insert; the race window is acceptable now (job concurrencyLimit:1) and dies entirely with Engine v2 (migration to be generated in Epoch 1)
+
+### Next loop pass
+
+N19: server-side unified Needs-you queue (end the client stitching of listAgentApprovals + notifications.list + tasks.list); N20: batch approve; N21: Financial Pulse loading/error gates.

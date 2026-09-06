@@ -57,6 +57,7 @@ export {
   ALL_DEPARTMENTS,
   withRetry,
   withTimeout,
+  executeClosePipeline,
   withConcurrencyLimit,
   redactPII,
   redactPIIFromObject,
@@ -72,6 +73,10 @@ export {
   TimeoutError,
   DEFAULT_RETRY_CONFIG,
   DEFAULT_PIPELINE_TIMEOUT,
+} from "./core";
+export type { CloseTriggerSource, PipelineTimeoutConfig } from "./core";
+
+export {
   runReconciliationPipeline,
   getReconciliationStatus,
   runCashPipeline,
