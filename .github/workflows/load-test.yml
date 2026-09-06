@@ -15,13 +15,17 @@ on:
   schedule:
     - cron: "0 2 * * *" # nightly 02:00 UTC
 
+permissions:
+  contents: read
+
 jobs:
   load-test:
     name: k6 load suite
     runs-on: ubuntu-latest
     # Only run when staging creds exist; skip silently otherwise so a missing
-    # staging env never fails the repo's default CI.
-    if: ${{ secrets.LOAD_TEST_URL != '' }}
+    # staging env never fails the repo's default CI. The secrets context is
+    # not available in job-level `if` — the env-var check below is the
+    # supported pattern for secret presence gating.
     steps:
       - uses: actions/checkout@v4
 

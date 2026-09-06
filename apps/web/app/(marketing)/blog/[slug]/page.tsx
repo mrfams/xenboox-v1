@@ -16,7 +16,14 @@ import {
   getRelatedPosts,
 } from "@/lib/content-server";
 
-// Generate static paths for all blog posts
+// Render dynamically at request time — the build environment has no
+// reachable Postgres, so build-time prerender/generateStaticParams cannot
+// produce real content (queries degrade to empty). Real DB-backed pages are
+// served per-request instead.
+export const dynamic = "force-dynamic";
+
+// Static path candidates (best-effort — empty when DB is unreachable at
+// build time, which is the case on Vercel).
 export async function generateStaticParams() {
   const slugs = await getAllPublishedPostSlugs();
   return slugs.map((slug) => ({ slug }));

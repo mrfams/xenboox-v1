@@ -23,7 +23,12 @@ import {
   getRelatedJobs,
 } from "@/lib/content-server";
 
-// Generate static paths for all job listings
+// Render dynamically at request time — the build environment has no
+// reachable Postgres, so build-time prerender cannot produce real content.
+export const dynamic = "force-dynamic";
+
+// Static path candidates (best-effort — empty when DB is unreachable at
+// build time, which is the case on Vercel).
 export async function generateStaticParams() {
   const slugs = await getAllActiveJobSlugs();
   return slugs.map((slug) => ({ slug }));

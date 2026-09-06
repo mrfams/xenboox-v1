@@ -56,6 +56,12 @@ USER nextjs
 
 EXPOSE 3000
 
+# Container liveness — /api/health/live is process-only (no DB), so it is
+# safe for Docker's HEALTHCHECK (checkov CKV_DOCKER_x). Orchestrator-level
+# readiness should use /api/health/deep instead.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+  CMD node -e "fetch('http://127.0.0.1:3000/api/health/live').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 

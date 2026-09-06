@@ -14,8 +14,20 @@ title = "Xenboox Secret Scanning Rules"
     '''package-lock\.json$''',
     '''yarn\.lock$''',
   ]
+  commits = [
+    # Test suite files contain fake postgresql://test:test@localhost:5432/test
+    # connection strings (vitest setup + DB-layer tests). They are not real
+    # credentials — they never leave the test runner and match no live host.
+    # Commits below introduced the fixtures; extend this list when tests add
+    # new fixture commits.
+    "d8da79b1cedebaaf32fb4d52fd27d90fb889e586",
+  ]
   # Allow test fixtures and mock data
   regexes = [
+    # Vitest setup + DB-layer test fixtures use a fixed fake connection
+    # string; it matches the neon/connection-string rules but is not a real
+    # credential (localhost, never leaves the test runner).
+    '''postgresql://test:test@localhost:5432/test''',
     # Test/example values
     '''(?i)test[_-]?secret[_-]?key\s*=\s*['"']?test[_-]?key['"']?''',
     '''(?i)example[_-]?token\s*=\s*['"']?example['"']?''',

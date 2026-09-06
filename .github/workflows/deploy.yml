@@ -10,9 +10,12 @@ concurrency:
   group: deploy-${{ github.ref }}
   cancel-in-progress: true
 
+# Minimal top-level permissions — read-only by default (checkov CKV2_GHA_1).
+permissions:
+  contents: read
+
 env:
   NODE_VERSION: "20"
-  PNPM_VERSION: "9"
 
 jobs:
   # ─── Preview Deploy (PRs) ────────────────────────────────────────────────
@@ -24,8 +27,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
-        with:
-          version: ${{ env.PNPM_VERSION }}
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
@@ -48,15 +49,18 @@ jobs:
           NEXTAUTH_URL: ${{ secrets.STAGING_NEXTAUTH_URL }}
           SENTRY_DSN: ${{ secrets.STAGING_SENTRY_DSN }}
       - name: Deploy to preview
-        run: npx vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }}
+        id: deploy
         working-directory: apps/web
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-        id: deploy
+        run: |
+          URL=$(npx vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }} | tail -1)
+          echo "url=${URL}" >> "$GITHUB_OUTPUT"
+          echo "Preview URL: ${URL}"
       - name: Run smoke tests against preview
         run: |
-          PREVIEW_URL=$(npx vercel inspect --token=${{ secrets.VERCEL_TOKEN }} --errated)
+          PREVIEW_URL="${{ steps.deploy.outputs.url }}"
           echo "Preview URL: $PREVIEW_URL"
           # Smoke test: verify app responds
           STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$PREVIEW_URL/login")
@@ -89,8 +93,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
-        with:
-          version: ${{ env.PNPM_VERSION }}
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
@@ -115,8 +117,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
-        with:
-          version: ${{ env.PNPM_VERSION }}
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
@@ -163,8 +163,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
-        with:
-          version: ${{ env.PNPM_VERSION }}
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}

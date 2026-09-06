@@ -10,6 +10,9 @@ on:
     - cron: "0 4 * * 1" # Monday 04:00 UTC
   workflow_dispatch: # Manual trigger
 
+permissions:
+  contents: read
+
 env:
   NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
   NEON_PROJECT_ID: ${{ secrets.NEON_PROJECT_ID }}
@@ -116,7 +119,7 @@ jobs:
           " | tr -d ' ')
 
           echo "RLS-enabled tables: ${RLS_COUNT}"
-          if [ "$RLLS_COUNT" -lt 6 ]; then
+          if [ "$RLS_COUNT" -lt 6 ]; then
             echo "ERROR: Only ${RLS_COUNT}/6 critical tables have RLS enabled"
             exit 1
           fi
