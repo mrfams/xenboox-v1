@@ -104,17 +104,30 @@ export default function FinancialPulseV2Page() {
     "this_month" | "last_month" | "this_quarter"
   >("this_month");
 
-  const { data: dashboardData } = trpc.dashboard.getDashboardData.useQuery(
+  // Batch 3 / N21 — every numeric block gates on real loading/error state.
+  // A number that hasn't loaded is NOT zero; a failed query is NOT zero.
+  const {
+    data: dashboardData,
+    isLoading: dashboardLoading,
+    isError: dashboardError,
+  } = trpc.dashboard.getDashboardData.useQuery(
     { period: selectedPeriod },
     { enabled: !!entityId },
   );
-  const { data: pnlData } = trpc.reports.getPnlOverview.useQuery(undefined, {
+  const {
+    data: pnlData,
+    isLoading: pnlLoading,
+    isError: pnlError,
+  } = trpc.reports.getPnlOverview.useQuery(undefined, {
     enabled: !!entityId,
   });
   const { data: currentPeriod } = trpc.fiscal.getCurrent.useQuery(undefined, {
     enabled: !!entityId,
   });
   const currentPeriodId = currentPeriod?.id;
+  // Core hero/KPI gate: dashboards + P&L feed the four metric cards.
+  const pulseMetricsLoading = dashboardLoading || pnlLoading;
+  const pulseMetricsError = dashboardError || pnlError;
   const { data: cashFlowData } = trpc.reports.getCashFlow.useQuery(
     { periodId: currentPeriodId ?? "" },
     { enabled: !!entityId && !!currentPeriodId },
@@ -624,7 +637,23 @@ function OverviewPanel({
       <section
         aria-label="Key metrics"
         className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4"
-      >
+      >>
+        {pulseMetricsError ? (
+          <div className="rounded-xl border border-error-clay/30 bg-card p-4 sm:col-span-2 lg:col-span-4">
+            <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Key metrics</p>
+            <p className="mt-2 text-xs text-error-clay">Couldn&apos;t load your numbers — refresh to retry. Nothing here is a placeholder value.</p>
+          </div>
+        ) : pulseMetricsLoading ? (
+          <>
+            {["Revenue", "Expenses", "Net Profit", "Cash & runway"].map((label) => (
+              <div key={label} className="rounded-xl border border-border/50 bg-card p-4" aria-busy="true">
+                <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
+                <div className="mt-2 h-6 w-24 animate-pulse rounded bg-muted" aria-hidden="true" />
+                <div className="mt-3 h-3 w-32 animate-pulse rounded bg-muted/70" aria-hidden="true" />
+              </div>
+            ))}
+          </>
+        ) : (
         <div className="rounded-xl border border-border/50 bg-card p-4">
           <MetricNarrative
             label="Revenue"
@@ -745,7 +774,8 @@ function OverviewPanel({
             Ask why →
           </button>
         </div>
-      </section>
+)}
+            </section>
 
       {/* Exchange rates + Daily close status strip */}
       <div className="grid gap-3 sm:grid-cols-2">

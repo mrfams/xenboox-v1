@@ -192,3 +192,36 @@ N19: server-side unified Needs-you queue (end the client stitching of listAgentA
 ### Next loop pass
 
 N21 loading/error gates; then N22+ security hardening batch (G3): token hashing, MFA throttle, SCIM constant-time, device/session UI.
+
+---
+
+## Session 006 — 2026-09-06 — Batch 3 (cont.) / G3 SECURITY HARDENING: N21–N24
+
+### Graph delta
+
+| Node | Status | Evidence |
+|---|---|---|
+| N21 Pulse honest states | **closed-deferred** | `financial-pulse/page.tsx`: core queries now extract isLoading/isError; the KPI strip renders `aria-busy` skeletons while loading and an explicit "Couldn't load your numbers" card on failure — **zeros are never rendered as data** (prodway Part 4 #12 closed for the primary surface) |
+| N22 tokens hashed at rest | **closed-deferred** | `auth.ts`: `hashToken()` (SHA-256) applied to all 3 creation sites (2× verificationTokens, resetPasswordToken) and all 3 consumption sites (reset lookup, verify lookup, post-verify delete) — raw tokens exist only inside the email link. DB leak no longer yields working account-takeover links (prodway P2 closed) |
+| N23 MFA attempt throttle | **closed-deferred** | `completeMfaChallenge`: locked accounts rejected with TOO_MANY_REQUESTS before verification; failures increment `failedLoginAttempts` durably on the user row with the same 5-strikes/30-min policy as passwords (documented field reuse — no migration); TOTP and backup-code success reset the counter. TOTP's 1M keyspace is not guessable at 5 tries per half hour |
+| N24 SCIM timing-safe compare | **closed-deferred** | `scim/v2/route.ts`: `timingSafeEqual` with a same-length dummy compare on length mismatch so wrong-length guesses keep the same timing profile (prodway P3 closed) |
+
+### Tests authored (registry)
+
+`apps/web/__tests__/epoch0-batch3-security-hardening.test.ts` — 11 cases across N21–N24.
+
+### Stress cases designed
+
+- N22: legacy plaintext tokens in DB become invalid after deploy (accepted — dev stage); email link with raw token still verifies (round-trip)
+- N23: 5 rapid wrong TOTP codes → locked; correct code after lockout → rejected until expiry; correct code within attempts → counter resets
+- N21: slow 3G → skeletons, then values; API 500 → error card, never zeros; entity switch mid-load → N6 cache reset re-gates
+
+### Residual risks
+
+- N23 reuses password-lockout fields (documented; dedicated `mfaFailedAttempts` columns would need a Drizzle migration — fold into Epoch 1 migration batch if desired)
+- Remaining G3 item: device/session management UI (N25) — needs a small surface; scheduled with the Epoch 1 UX work
+- All statuses remain `closed-deferred` until the Run Phase executes the registry (now 5 suites / 53 cases)
+
+### Next loop pass
+
+**Engine v2 prep (G4)** or **N25 device/session UI** + P2 leftovers (`cleanupJournal` transactional inserts, `statusCode` column migration) — owner's call on sequencing.

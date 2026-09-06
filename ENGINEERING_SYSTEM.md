@@ -78,6 +78,10 @@ Every money/auth/concurrency node ships stress-case designs even when not execut
 | N18 | SSE truth + tenant isolation (entityId scoping, events subquery, full-taskId runId) | app/api/agent-events/route.ts, packages/agents/core/orchestrator.ts | Batch 1 | closed-deferred |
 | N19 | Server-side unified needsYou queue (end client stitching) | server/routers/tasks.ts, app/dashboard/tasks/page.tsx | Batch 1 | closed-deferred |
 | N20 | Batch approve with honest per-item results | app/dashboard/tasks/page.tsx | N19 | closed-deferred |
+| N21 | Financial Pulse honest loading/error states (KPI strip gated) | app/dashboard/financial-pulse/page.tsx | Batch 1 | closed-deferred |
+| N22 | Reset/verification tokens hashed at rest (SHA-256, lookup-by-hash) | server/routers/auth.ts | Batch 1 | closed-deferred |
+| N23 | Durable MFA attempt throttle (5-strikes lockout reuse) | server/routers/auth.ts | Batch 1 | closed-deferred |
+| N24 | SCIM constant-time token compare | app/api/scim/v2/route.ts | Batch 1 | closed-deferred |
 | N15 | Converge month-end job onto pipeline semantics | packages/jobs/month-end-close.ts | Batch 1 | closed-deferred |
 | N14 | Wire durable closeSessions into executing close + DB idempotency | packages/agents/core/close-pipeline.ts | N15 | closed-deferred |
 

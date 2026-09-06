@@ -16,6 +16,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { eq, and } from "drizzle-orm";
+import { timingSafeEqual } from "crypto";
 
 import { db } from "@/lib/db";
 import { users, userEntityAccess, entities } from "@xenboox/db/schema";
@@ -35,7 +36,18 @@ function validateScimAuth(req: NextRequest): boolean {
     return false;
   }
 
-  return token === configuredToken;
+  // Batch 3 / N24 — constant-time compare: the raw `===` leaks token
+  // characters one microsecond at a time to a patient attacker on the same
+  // network path.
+  const a = Buffer.from(token);
+  const b = Buffer.from(configuredToken);
+  if (a.length !== b.length) {
+    // Length differs — compare against a same-length dummy so the timing
+    // profile of a wrong-length guess matches a wrong-value guess.
+    timingSafeEqual(a, Buffer.alloc(a.length, "x"));
+    return false;
+  }
+  return timingSafeEqual(a, b);
 }
 
 function unauthorized(): NextResponse {

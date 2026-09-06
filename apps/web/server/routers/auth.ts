@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { eq, and, desc } from "drizzle-orm";
+import { createHash } from "crypto";
 import { users, sessions, verificationTokens } from "@xenboox/db/schema/auth";
 import { entities, userEntityAccess } from "@xenboox/db/schema/organization";
 import { orgRoles } from "@xenboox/db/schema/org-roles";
@@ -47,6 +48,13 @@ const MOBILE_TOKEN_EXPIRY = "30d";
 const MFA_TOKEN_EXPIRY = "5m";
 
 const JWT_SECRET = new TextEncoder().encode(process.env.AUTH_SECRET);
+// ─── Token hashing (Batch 3 / N22) ──────────────────────────────────────────
+// Email-bound tokens are stored as SHA-256 hashes — a DB leak no longer yields
+// working reset/verification links. The raw token exists only in the email.
+function hashToken(token: string): string {
+  return createHash("sha256").update(token).digest("hex");
+}
+
 
 /**
  * Gets the first entity accessible to a user, following Milestone 9's
@@ -293,7 +301,7 @@ export const authRouter = router({
           );
           await db.insert(verificationTokens).values({
             identifier: user.email!,
-            token: verificationToken,
+            token: hashToken(verificationToken),
             expires: verificationExpires,
           });
           const verifyUrl = `${getAppUrl()}/verify-email?token=${verificationToken}`;
@@ -423,7 +431,7 @@ export const authRouter = router({
         await db
           .update(users)
           .set({
-            resetPasswordToken: resetToken,
+            resetPasswordToken: hashToken(resetToken),
             resetPasswordExpires: resetExpires,
           })
           .where(eq(users.id, user.id));
@@ -479,7 +487,7 @@ export const authRouter = router({
         }
 
         const user = await db.query.users.findFirst({
-          where: eq(users.resetPasswordToken, input.token),
+          where: eq(users.resetPasswordToken, hashToken(input.token)),
         });
 
         if (!user) {
@@ -636,7 +644,7 @@ export const authRouter = router({
 
       await db.insert(verificationTokens).values({
         identifier: user.email!,
-        token: verificationToken,
+        token: hashToken(verificationToken),
         expires: verificationExpires,
       });
 
@@ -663,7 +671,7 @@ export const authRouter = router({
     .mutation(async ({ input }) => {
       try {
         const verificationToken = await db.query.verificationTokens.findFirst({
-          where: eq(verificationTokens.token, input.token),
+          where: eq(verificationTokens.token, hashToken(input.token)),
         });
 
         if (!verificationToken) {
@@ -698,7 +706,7 @@ export const authRouter = router({
 
         await db
           .delete(verificationTokens)
-          .where(eq(verificationTokens.token, input.token));
+          .where(eq(verificationTokens.token, hashToken(input.token)));
 
         return { success: true, message: "Email verified successfully" };
       } catch (error) {
@@ -974,8 +982,44 @@ export const authRouter = router({
           });
         }
 
+        // Batch 3 / N23 — MFA attempt throttle. The mfaToken is stateless, so
+        // failure counting is durable on the user row: same 5-strikes/30min
+        // policy as passwords. TOTP guessing 1M combinations is not viable at
+        // 5 attempts per half hour. Success resets the counter.
+        if (user.lockoutUntil && user.lockoutUntil > new Date()) {
+          const minutesRemaining = Math.ceil(
+            (user.lockoutUntil.getTime() - Date.now()) / 60000,
+          );
+          throw new TRPCError({
+            code: "TOO_MANY_REQUESTS",
+            message: `Too many failed verification attempts. Try again in ${minutesRemaining} minute${minutesRemaining !== 1 ? "s" : ""}.`,
+          });
+        }
+
+        const recordMfaFailure = async () => {
+          const attempts = (user.failedLoginAttempts ?? 0) + 1;
+          await db
+            .update(users)
+            .set({
+              failedLoginAttempts: attempts,
+              ...(attempts >= LOCKOUT_THRESHOLD
+                ? {
+                    lockoutUntil: new Date(Date.now() + LOCKOUT_DURATION_MS),
+                    failedLoginAttempts: 0,
+                  }
+                : {}),
+            })
+            .where(eq(users.id, user.id));
+        };
+
         // Try TOTP verification
         if (verifyTOTP(input.totpCode, user.twoFactorSecret)) {
+          if (user.failedLoginAttempts) {
+            await db
+              .update(users)
+              .set({ failedLoginAttempts: 0, lockoutUntil: null })
+              .where(eq(users.id, user.id));
+          }
           const token = await createMobileToken({
             sub: user.id,
             email: user.email!,
@@ -1007,7 +1051,11 @@ export const authRouter = router({
 
               await db
                 .update(users)
-                .set({ backupCodes: JSON.stringify(remaining) })
+                .set({
+                  backupCodes: JSON.stringify(remaining),
+                  failedLoginAttempts: 0,
+                  lockoutUntil: null,
+                })
                 .where(eq(users.id, user.id));
 
               const token = await createMobileToken({
@@ -1037,6 +1085,9 @@ export const authRouter = router({
             // JSON parse failed, skip backup code check
           }
         }
+
+        // Neither TOTP nor backup code matched — count the failure (N23).
+        await recordMfaFailure();
 
         throw new TRPCError({
           code: "UNAUTHORIZED",
