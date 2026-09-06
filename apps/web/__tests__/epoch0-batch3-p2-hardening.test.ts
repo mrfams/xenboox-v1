@@ -28,9 +28,13 @@ describe("N26 no post-then-cleanup in the posting paths", () => {
   });
 
   it("AR invoice, AR payment, AP bill, AP payment link inside the posting tx", () => {
-    // N37: AR now has 3 — invoice legacy path + invoice cut-over mirror + payment
+    // N37/N38: AR has 3 and AP has 4 (each module: legacy path + cut-over
+    // mirror + [AP payment]); the invariant is ">= 2 per module with no
+    // post-then-cleanup anywhere"
     expect(ar.match(/linkInsideTx:/g)?.length).toBeGreaterThanOrEqual(2);
-    expect(ap.match(/linkInsideTx:/g)?.length).toBe(2);
+    expect(ap.match(/linkInsideTx:/g)?.length).toBeGreaterThanOrEqual(2);
+    // N38: AP has 4 — bill legacy + bill mirror + payment legacy + payment mirror
+    expect(ap.match(/linkInsideTx:/g)?.length).toBeGreaterThanOrEqual(2);
     for (const src of [ar, ap]) {
       expect(src).not.toMatch(/catch \(linkErr\)/);
     }

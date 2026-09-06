@@ -393,3 +393,22 @@ N37: AR invoice cut-over behind the flag + staging parity evidence; then per-mod
 ### Next loop pass
 
 Same pattern for AP bill + payments cut-overs (mechanical, same shape as N37); then expenses + close depreciation routing (N28 closes); then legacy freeze → G4 complete.
+
+---
+
+## Session 013 — 2026-09-06 — G4: AP BILL + PAYMENT CUT-OVERS (N38)
+
+### Graph delta
+
+| Node | Status | Evidence |
+|---|---|---|
+| N38 AP cut-over | **passed (Run Phase)** | `postApBillToLedger` and `postApPaymentToLedger` both branch on `LEDGER_PRIMARY_AP=true` — engine-first (`postToLedger`, same `ap-inv-`/`ap-pay-` reference keys, bill currency — never hardcoded), legacy mirror via `createPostedJournal` after the engine commit, shared `linkBill`/`linkPayment` helpers serving both branches. Same asymmetric failure semantics as N37: engine failure aborts everything; mirror failure leaves the event standing for the parity verifier. Legacy-primary remains the default until staging parity evidence lands |
+
+### Run Phase (executed this session)
+
+- **85/85 tests passing** across all 12 suites (new: `epoch0-batch3-ap-cutover.test.ts`, 5 cases)
+- Two stale count assertions updated with reasons (N26: AP now has 4 linkInsideTx sites — bill legacy + bill mirror + payment legacy + payment mirror; invariant stays "no post-then-cleanup anywhere")
+
+### Next loop pass
+
+Expenses posting cut-over + close-pipeline depreciation routing (N28 closes) → G4 complete → legacy freeze.

@@ -24,6 +24,7 @@ import {
   resolvePaymentReceiptAccount,
 } from "@xenboox/db";
 import { db } from "@/lib/db";
+import { postToLedger, toLedgerLines } from "@xenboox/ledger";
 import { logger } from "@/lib/logger";
 import { moneyToCents } from "./ar-validation";
 import {
@@ -64,6 +65,7 @@ export async function postApBillToLedger(
         invoiceDate: true,
         journalEntryId: true,
         status: true,
+        currency: true,
       },
     });
     if (!bill) return { posted: false, reason: "bill_not_found" };
@@ -115,6 +117,77 @@ export async function postApBillToLedger(
 
     const jeLines = buildApInvoiceLines(apAccountId, built);
     const reference = `ap-inv-${bill.id}`;
+    const linkBill = async (tx: Parameters<Parameters<typeof db.transaction>[0]>[0], jeIdToLink: string) => {
+      await tx
+        .update(invoicesAp)
+        .set({ journalEntryId: jeIdToLink })
+        .where(
+          and(eq(invoicesAp.id, bill.id), eq(invoicesAp.entityId, entityId)),
+        );
+
+      await tx.insert(auditLog).values({
+        entityId,
+        userId,
+        action: "ap.postBill",
+        entityType: "invoice_ap",
+        entityIdRef: bill.id,
+        newValues: { journalEntryId: jeIdToLink, reference },
+      });
+    };
+
+    // ── N38 cut-over flag — engine authoritative when enabled ───────────
+    if (process.env.LEDGER_PRIMARY_AP === "true") {
+      let engineEventId: string | null = null;
+      try {
+        const engine = await postToLedger(db, {
+          entityId,
+          actorType: "user",
+          actorId: userId,
+          source: "ap_bill",
+          effectiveDate: bill.invoiceDate,
+          currency: bill.currency,
+          idempotencyKey: reference,
+          lines: toLedgerLines(jeLines),
+          metadata: { invoiceNumber: bill.invoiceNumber },
+        });
+        engineEventId = engine.eventId;
+      } catch (err) {
+        logger.error(
+          { err, billId, reference },
+          "[ap-posting] engine posting failed (LEDGER_PRIMARY_AP)",
+        );
+        return { posted: false, reason: "journal_skipped" };
+      }
+
+      let mirrorJeId: string | null = null;
+      try {
+        mirrorJeId = await createPostedJournal({
+          entityId,
+          userId,
+          date: bill.invoiceDate,
+          description: `Purchase bill ${bill.invoiceNumber}`,
+          reference,
+          source: "ap_bill",
+          lines: jeLines,
+          logPrefix: "[ap-posting][mirror]",
+          linkInsideTx: async (tx, createdId) => {
+            await linkBill(tx, createdId);
+          },
+        });
+      } catch (mirrorErr) {
+        logger.error(
+          { mirrorErr, billId, reference, engineEventId },
+          "[ap-posting] legacy mirror failed after engine commit — parity verifier will reconcile",
+        );
+      }
+
+      return {
+        posted: true,
+        journalEntryId: mirrorJeId ?? engineEventId ?? "",
+      };
+    }
+
+    // Legacy-primary path (default until cut-over completes).
     const jeId = await createPostedJournal({
       entityId,
       userId,
@@ -125,21 +198,7 @@ export async function postApBillToLedger(
       lines: jeLines,
       logPrefix: "[ap-posting]",
       linkInsideTx: async (tx, createdId) => {
-        await tx
-          .update(invoicesAp)
-          .set({ journalEntryId: createdId })
-          .where(
-            and(eq(invoicesAp.id, bill.id), eq(invoicesAp.entityId, entityId)),
-          );
-
-        await tx.insert(auditLog).values({
-          entityId,
-          userId,
-          action: "ap.postBill",
-          entityType: "invoice_ap",
-          entityIdRef: bill.id,
-          newValues: { journalEntryId: createdId, reference },
-        });
+        await linkBill(tx, createdId);
       },
     });
     if (!jeId) return { posted: false, reason: "journal_skipped" };
@@ -182,7 +241,7 @@ export async function postApPaymentToLedger(
       eq(invoicesAp.id, payment.invoiceApId),
       eq(invoicesAp.entityId, entityId),
     ),
-    columns: { id: true, invoiceNumber: true, journalEntryId: true },
+    columns: { id: true, invoiceNumber: true, journalEntryId: true, currency: true },
   });
   if (!bill) throw new Error("Bill not found");
   if (!bill.journalEntryId) {
@@ -229,6 +288,76 @@ export async function postApPaymentToLedger(
     cents,
     `Payment ${payment.method} — bill ${bill.invoiceNumber}`,
   );
+  const linkPayment = async (tx: Parameters<Parameters<typeof db.transaction>[0]>[0], jeIdToLink: string) => {
+    await tx
+      .update(paymentsAp)
+      .set({ journalEntryId: jeIdToLink })
+      .where(
+        and(eq(paymentsAp.id, payment.id), eq(paymentsAp.entityId, entityId)),
+      );
+
+    await tx.insert(auditLog).values({
+      entityId,
+      userId,
+      action: "ap.postPayment",
+      entityType: "payment_ap",
+      entityIdRef: payment.id,
+      newValues: { journalEntryId: jeIdToLink, reference },
+    });
+  };
+
+  // ── N38 cut-over flag — engine authoritative when enabled ─────────────
+  if (process.env.LEDGER_PRIMARY_AP === "true") {
+    let engineEventId: string | null = null;
+    try {
+      const engine = await postToLedger(db, {
+        entityId,
+        actorType: "user",
+        actorId: userId,
+        source: "ap_payment",
+        effectiveDate: payment.paymentDate,
+        currency: bill.currency,
+        idempotencyKey: reference,
+        lines: toLedgerLines(jeLines),
+        metadata: { billId: bill.id },
+      });
+      engineEventId = engine.eventId;
+    } catch (err) {
+      logger.error(
+        { err, paymentId: payment.id, reference },
+        "[ap-posting] engine posting failed (LEDGER_PRIMARY_AP)",
+      );
+      throw new Error(
+        "Payment could not be posted — the payment date's accounting period is closed or the entry failed validation",
+      );
+    }
+
+    let mirrorJeId: string | null = null;
+    try {
+      mirrorJeId = await createPostedJournal({
+        entityId,
+        userId,
+        date: payment.paymentDate,
+        description: `Payment on bill ${bill.invoiceNumber}`,
+        reference,
+        source: "ap_payment",
+        lines: jeLines,
+        logPrefix: "[ap-posting][mirror]",
+        linkInsideTx: async (tx, createdId) => {
+          await linkPayment(tx, createdId);
+        },
+      });
+    } catch (mirrorErr) {
+      logger.error(
+        { mirrorErr, paymentId: payment.id, reference, engineEventId },
+        "[ap-posting] legacy mirror failed after engine commit — parity verifier will reconcile",
+      );
+    }
+
+    return mirrorJeId ?? engineEventId ?? "";
+  }
+
+  // Legacy-primary path (default until cut-over completes).
   const jeId = await createPostedJournal({
     entityId,
     userId,
@@ -239,21 +368,7 @@ export async function postApPaymentToLedger(
     lines: jeLines,
     logPrefix: "[ap-posting]",
     linkInsideTx: async (tx, createdId) => {
-      await tx
-        .update(paymentsAp)
-        .set({ journalEntryId: createdId })
-        .where(
-          and(eq(paymentsAp.id, payment.id), eq(paymentsAp.entityId, entityId)),
-        );
-
-      await tx.insert(auditLog).values({
-        entityId,
-        userId,
-        action: "ap.postPayment",
-        entityType: "payment_ap",
-        entityIdRef: payment.id,
-        newValues: { journalEntryId: createdId, reference },
-      });
+      await linkPayment(tx, createdId);
     },
   });
   if (!jeId) {
