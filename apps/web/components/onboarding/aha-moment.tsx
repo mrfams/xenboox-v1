@@ -28,11 +28,12 @@ export function AhaMomentStep({ onNext, onPrev }: Props) {
 
   useEffect(() => {
     try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports -- lazy require keeps analytics out of the initial bundle
       const { track } = require("@/lib/analytics/events");
       const {
         trackFunnel,
         trackFeatureAdoption,
-      } = require("@/lib/analytics/feature-tracking");
+      } = require("@/lib/analytics/feature-tracking"); // eslint-disable-line @typescript-eslint/no-require-imports
       const entityId = localStorage.getItem("currentEntityId") ?? "";
       track("aha_moment_viewed", { entityId });
       trackFunnel("aha_moment_viewed", { entityId });

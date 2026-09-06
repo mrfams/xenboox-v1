@@ -285,7 +285,7 @@ export function CoaImportWizard() {
       const mapped = mapType(typeVal || subtypeVal, format);
 
       return {
-        code: code.replace(/[^a-zA-Z0-9\-\.]/g, "").slice(0, 20),
+        code: code.replace(/[^a-zA-Z0-9.-]/g, "").slice(0, 20),
         name: name.slice(0, 200),
         type: mapped.type,
         subtype: mapped.subtype,

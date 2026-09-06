@@ -60,27 +60,34 @@ export function SessionExpiryProvider({
       // Clear tRPC/React-Query caches so no stale financial data survives logout.
       try {
         queryClient.clear();
-      } catch {}
+      } catch {
+        // Intentional: storage/parsing failures fall through to defaults
+      }
       try {
         localStorage.removeItem("currentEntityId");
-      } catch {}
+      } catch {
+        // Intentional: storage/parsing failures fall through to defaults
+      }
       // Cross-tab notify — cloud is still source of truth, this is only UX sync.
       try {
         const bc = new BroadcastChannel("xenboox:auth");
         bc.postMessage({ type: "session-expired", reason });
         bc.close();
-      } catch {}
+      } catch {
+        // Intentional: storage/parsing failures fall through to defaults
+      }
       try {
-        localStorage.setItem(
-          "xenboox:session-expired-at",
-          String(Date.now()),
-        );
-      } catch {}
+        localStorage.setItem("xenboox:session-expired-at", String(Date.now()));
+      } catch {
+        // Intentional: storage/parsing failures fall through to defaults
+      }
       // Clear the stale JWT cookie before navigating — otherwise /login
       // bounces back to /dashboard (middleware sees isLoggedIn=true).
       try {
         await signOut({ redirect: false });
-      } catch {}
+      } catch {
+        // Intentional: storage/parsing failures fall through to defaults
+      }
       const loginUrl = `/login?callbackUrl=${encodeURIComponent(callbackUrl)}&expired=1`;
       router.replace(loginUrl);
     },
@@ -103,7 +110,9 @@ export function SessionExpiryProvider({
         const bc = new BroadcastChannel("xenboox:auth");
         bc.postMessage({ type: "session-expired" });
         bc.close();
-      } catch {}
+      } catch {
+        // Intentional: storage/parsing failures fall through to defaults
+      }
     },
     [pathname, expired],
   );
@@ -143,7 +152,9 @@ export function SessionExpiryProvider({
       bc.onmessage = (e) => {
         if (e.data?.type === "session-expired") trigger(true);
       };
-    } catch {}
+    } catch {
+      // Intentional: storage/parsing failures fall through to defaults
+    }
     const onStorage = (e: StorageEvent) => {
       if (e.key === "xenboox:session-expired-at" && e.newValue) trigger(true);
     };
@@ -151,7 +162,9 @@ export function SessionExpiryProvider({
     return () => {
       try {
         bc?.close();
-      } catch {}
+      } catch {
+        // Intentional: storage/parsing failures fall through to defaults
+      }
       window.removeEventListener("storage", onStorage);
     };
   }, [trigger]);
@@ -196,8 +209,11 @@ export function SessionExpiryProvider({
   React.useEffect(() => {
     if (status !== "authenticated") return;
     const tokenExpMs =
-      session && typeof (session as unknown as { expires?: string }).expires === "string"
-        ? new Date((session as unknown as { expires: string }).expires).getTime()
+      session &&
+      typeof (session as unknown as { expires?: string }).expires === "string"
+        ? new Date(
+            (session as unknown as { expires: string }).expires,
+          ).getTime()
         : null;
     const check = () => {
       const now = Date.now();
@@ -228,7 +244,9 @@ export function SessionExpiryProvider({
       setCountdown((c) => {
         if (c <= 1) {
           window.clearInterval(id);
-          void hardRedirect(expired ? "expired-countdown" : "warning-countdown");
+          void hardRedirect(
+            expired ? "expired-countdown" : "warning-countdown",
+          );
           return 0;
         }
         return c - 1;

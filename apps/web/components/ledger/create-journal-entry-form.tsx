@@ -31,6 +31,7 @@ export function CreateJournalEntryForm({
   onCreated?: () => void;
 }) {
   const { entityId } = useEntity();
+  const { format } = useFormatCurrency();
   const [description, setDescription] = useState("");
   const [reference, setReference] = useState("");
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
@@ -99,7 +100,8 @@ export function CreateJournalEntryForm({
   }, []);
 
   const handleSubmit = () => {
-    const { format } = useFormatCurrency();
+    // useFormatCurrency is a context hook — its format fn is stable, so we
+    // grab it at render time instead (hooks cannot be called in handlers).
     setError(null);
     if (!description.trim()) {
       setError("Description is required");

@@ -38,7 +38,9 @@ function hasCompletedActivation(flag: ActivationFlag): boolean {
 function markActivationComplete(flag: ActivationFlag): void {
   try {
     localStorage.setItem(ACTIVATION_FLAGS[flag], "true");
-  } catch {}
+  } catch {
+    // Intentional: storage/parsing failures fall through to defaults
+  }
 }
 
 /**

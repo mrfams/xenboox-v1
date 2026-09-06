@@ -32,7 +32,9 @@ export function CookieConsentBanner() {
       ).posthog;
       if (value === "analytics") posthog?.opt_in_capturing();
       else posthog?.opt_out_capturing();
-    } catch {}
+    } catch {
+      // Intentional: storage/parsing failures fall through to defaults
+    }
     setVisible(false);
   };
 

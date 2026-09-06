@@ -222,7 +222,11 @@ export default function MissionControlPage() {
     const taskId = params.get("task")?.trim();
     const source = params.get("source")?.trim();
     if (!taskId) return;
-    if (source !== "close_task" && source !== "live_run" && source !== "daily_close")
+    if (
+      source !== "close_task" &&
+      source !== "live_run" &&
+      source !== "daily_close"
+    )
       return;
     taskLinkConsumed.current = true;
     params.delete("task");
@@ -416,7 +420,6 @@ export default function MissionControlPage() {
   );
 }
 
-
 // ─── Missions Board ───────────────────────────────────────────────────────
 //
 // Empty state as launchpad: goal-shaped cards, not prompt examples.
@@ -490,7 +493,6 @@ function MissionsBoard({
     </section>
   );
 }
-
 
 // ─── Keyboard Shortcuts ──────────────────────────────────────────────────
 
@@ -693,9 +695,9 @@ function ProactiveBriefing({ entityId }: { entityId: string | null }) {
     items.push({
       id: "review",
       type: "warning",
-        title: `${ingestionStats.pendingReview} document${ingestionStats.pendingReview > 1 ? "s" : ""} need review`,
-        value: "Verify",
-        href: "/dashboard/tasks",
+      title: `${ingestionStats.pendingReview} document${ingestionStats.pendingReview > 1 ? "s" : ""} need review`,
+      value: "Verify",
+      href: "/dashboard/tasks",
     });
   }
 
@@ -801,7 +803,9 @@ function GettingStartedChecklist({
       setDismissed(localStorage.getItem(DISMISSED_KEY) === "true");
       const stored = localStorage.getItem(COMPLETED_KEY);
       if (stored) setCompleted(JSON.parse(stored));
-    } catch {}
+    } catch {
+      // Intentional: storage/parsing failures fall through to defaults
+    }
   }, []);
 
   if (dismissed) return null;
@@ -816,14 +820,18 @@ function GettingStartedChecklist({
     setCompleted(next);
     try {
       localStorage.setItem(COMPLETED_KEY, JSON.stringify(next));
-    } catch {}
+    } catch {
+      // Intentional: storage/parsing failures fall through to defaults
+    }
   }
 
   function dismiss() {
     setDismissed(true);
     try {
       localStorage.setItem(DISMISSED_KEY, "true");
-    } catch {}
+    } catch {
+      // Intentional: storage/parsing failures fall through to defaults
+    }
   }
 
   return (

@@ -99,7 +99,7 @@ export async function generateProfessionalExcel(
   for (const section of data.sections) {
     if (!section.table || section.table.rows.length === 0) continue;
 
-    const sheetName = section.heading.slice(0, 31).replace(/[\/\\?*\[\]]/g, "");
+    const sheetName = section.heading.slice(0, 31).replace(/[/\\?*[\]]/g, "");
     const ws = wb.addWorksheet(sheetName);
 
     // Section header
@@ -116,7 +116,9 @@ export async function generateProfessionalExcel(
     applyHeaderStyle(headerRow, section.table.columns.length);
 
     // Data rows
-    for (const row of data.sections.indexOf(section) >= 0 ? section.table.rows : []) {
+    for (const row of data.sections.indexOf(section) >= 0
+      ? section.table.rows
+      : []) {
       ws.addRow(row);
     }
 
@@ -142,7 +144,7 @@ export async function generateProfessionalExcel(
     });
 
     // Freeze panes (freeze header row)
-    const headerRowIdx = (section.intro ? 4 : 3); // 0-based after title + intro + blank
+    const headerRowIdx = section.intro ? 4 : 3; // 0-based after title + intro + blank
     ws.views = [{ state: "frozen", ySplit: headerRowIdx }];
   }
 

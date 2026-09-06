@@ -97,6 +97,7 @@ if (typeof window === "undefined") {
     originalError(...args);
     // Extract the first argument — could be error object, context object, or message
     try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports -- lazy require avoids bundling Sentry into edge/preview paths
       const Sentry = require("@sentry/nextjs");
       const firstArg = args[0];
       if (firstArg instanceof Error) {

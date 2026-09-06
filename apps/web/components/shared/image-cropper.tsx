@@ -357,7 +357,9 @@ export function ImageCropper({
           onTouchMove={handlePointerMove}
         >
           {imgSrc && (
-            /* eslint-disable-next-line @next/next/no-img-element */
+            // Canvas crop source — next/image is not applicable here (raw
+            // pixel data, no layout; the Next plugin isn't active in this
+            // config anyway).
             <img
               src={imgSrc}
               alt="Crop source"

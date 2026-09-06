@@ -555,7 +555,7 @@ export async function writeOffBadDebt(
     }
 
     // Find the AR GL account (typically 1200)
-    let arAccount = await db.query.chartOfAccounts.findFirst({
+    const arAccount = await db.query.chartOfAccounts.findFirst({
       where: and(
         eq(chartOfAccounts.entityId, entityId),
         eq(chartOfAccounts.code, "1200"),

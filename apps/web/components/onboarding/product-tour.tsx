@@ -283,6 +283,7 @@ export function ProductTour() {
   const handleComplete = useCallback(() => {
     // Analytics: track tour completion
     try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports -- lazy require keeps analytics out of the initial bundle
       const { track } = require("@/lib/analytics/events");
       track("product_tour_completed", {
         entityId: localStorage.getItem("currentEntityId") ?? "",
@@ -298,6 +299,7 @@ export function ProductTour() {
   const handleSkip = useCallback(() => {
     // Analytics: track tour skip
     try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports -- lazy require keeps analytics out of the initial bundle
       const { track } = require("@/lib/analytics/events");
       track("product_tour_skipped", {
         entityId: localStorage.getItem("currentEntityId") ?? "",

@@ -16,7 +16,9 @@ export function trackFeatureAdoption(
       feature,
       surface: (props.surface as string) ?? "unknown",
     });
-  } catch {}
+  } catch {
+    // Intentional: storage/parsing failures fall through to defaults
+  }
 }
 
 /**
@@ -31,7 +33,9 @@ export function trackFunnel(step: string, props: Record<string, unknown> = {}) {
       }
     ).posthog;
     posthog?.capture("funnel_step", { step, ...props });
-  } catch {}
+  } catch {
+    // Intentional: storage/parsing failures fall through to defaults
+  }
 }
 
 /**

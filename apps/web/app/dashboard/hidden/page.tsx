@@ -42,6 +42,10 @@ const ROUTES: HiddenRoute[] = [
 ];
 
 export default function HiddenInspectorPage() {
+  // useState is called unconditionally at the top level (rules-of-hooks);
+  // the production branch below simply never uses it.
+  const [activeHref, setActiveHref] = useState<string>(ROUTES[0]!.href);
+
   if (process.env.NODE_ENV === "production") {
     return (
       <div className="flex h-[60vh] items-center justify-center p-8 text-center">
@@ -64,7 +68,6 @@ export default function HiddenInspectorPage() {
     );
   }
 
-  const [activeHref, setActiveHref] = useState<string>(ROUTES[0]!.href);
   const active = ROUTES.find((r) => r.href === activeHref) ?? ROUTES[0]!;
 
   return (
