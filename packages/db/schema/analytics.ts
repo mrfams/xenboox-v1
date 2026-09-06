@@ -446,11 +446,6 @@ export async function getNarrativeHistory(
 ): Promise<Array<typeof narrativeHistory.$inferSelect>> {
   const { entityId, narrativeType, limit = 10 } = params;
 
-  const conditions = [narrativeHistory.entityId];
-  if (narrativeType) {
-    conditions.push(narrativeHistory.narrativeType);
-  }
-
   return db.query.narrativeHistory.findMany({
     where: (t: any, { and, eq }: any) => {
       const clauses = [eq(t.entityId, entityId)];

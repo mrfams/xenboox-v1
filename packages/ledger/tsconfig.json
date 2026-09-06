@@ -1,0 +1,34 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": [
+      "ES2022"
+    ],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    "incremental": true,
+    "isolatedModules": true,
+    "paths": {
+      "@xenboox/db": [
+        "../db/index.ts"
+      ],
+      "@xenboox/db/*": [
+        "../db/*"
+      ]
+    }
+  },
+  "include": [
+    "index.ts",
+    "src/**/*.ts",
+    "__tests__/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
+}

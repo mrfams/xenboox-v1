@@ -52,6 +52,7 @@
     "@types/file-saver": "2.0.7",
     "@xenboox/agents": "workspace:*",
     "@xenboox/db": "workspace:*",
+    "@xenboox/ledger": "workspace:*",
     "@xenboox/jobs": "workspace:*",
     "@xenboox/ui": "workspace:*",
     "bcryptjs": "^2.4.3",

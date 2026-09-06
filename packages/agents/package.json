@@ -22,6 +22,7 @@
     "@langchain/langgraph": "^0.2.0",
     "@langchain/openai": "^0.3.0",
     "@xenboox/db": "workspace:*",
+    "@xenboox/ledger": "workspace:*",
     "@xenboox/jobs": "workspace:*",
     "@xenboox/models": "workspace:*",
     "drizzle-orm": "0.45.2",

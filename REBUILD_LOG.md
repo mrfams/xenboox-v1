@@ -305,3 +305,33 @@ N25 (device/session management UI) + Engine v2 prep (G4) — the immutable hash-
 ### Next loop pass
 
 **Engine v2 prep (G4)** — immutable hash-chained journal schema, posting service extraction to a shared package (absorbs N28), dual-write shadow verifier.
+
+---
+
+## Session 010 — 2026-09-06 — G4 BEGINS: LEDGER ENGINE v2 FOUNDATION (KILLPLAN §4)
+
+### Graph delta
+
+| Node | Status | Evidence |
+|---|---|---|
+| N33 ledger schema | **passed (Run Phase)** | `packages/db/schema/ledger.ts`: `journal_events` — append-only event store (per-entity `seq` unique, `(entity_id, idempotency_key)` unique, jsonb lines in **integer minor units**, `prev_event_hash`/`event_hash` chain columns); `ledger_account_balances` — CQRS per-period deltas. Migration `0041` generated via drizzle-kit + documented hand-addition: **append-only trigger** (UPDATE/DELETE raise) + note that app-role grant revocation lands with force-RLS role wiring (Epoch 1) |
+| N34 posting service | **passed (Run Phase)** | New package **`@xenboox/ledger`**: `postToLedger()` — deterministic validation FIRST (balanced, integer minor units, one-side-per-line, ≥2 lines — with a proof-by-exploding-proxy test that the DB is never touched for invalid entries), open-period gate, idempotency (committed key returns the ORIGINAL result), hash-chained append + balance projection upserts in ONE transaction. Single writer per entity via the `seq` unique index — race conditions eliminated by construction |
+| N35 chain + enforcement | **passed (Run Phase)** | `computeEventHash` — SHA-256 over canonical (key-sorted, versioned) serialization of the stored fields + prev hash; `verifyChain(entityId)` — full ordered scan proving seq contiguity + prev linkage + hash integrity; `rebuildBalances(entityId)` — CQRS projection rebuilt from events (self-healing proof). Tamper-evidence tests: 7 mutation classes each change the hash; chain propagation verified (tampering event N changes N+1's expected hash) |
+| N28 (carried) | noted | Pipeline depreciation re-routing onto the poster becomes possible now that `@xenboox/ledger` is a dependency of agents — cut-over pass work |
+| Pre-existing debt fixed | — | `packages/db/schema/analytics.ts:451` — dead `conditions` array with a type error (built, never used) removed; `packages/db` + `packages/ledger` now both typecheck clean |
+
+### Run Phase (executed this session)
+
+- **10/10 ledger engine tests passing**: hash determinism, tamper evidence (7 classes), key-order independence, chain propagation, version pinning, genesis, 4 validation classes with DB-untouched proof
+- `packages/ledger` tsc: **zero errors** (this package is fully clean, unlike the monorepo at large)
+- Consumers wired: `@xenboox/ledger: workspace:*` added to web, agents, jobs
+
+### Residual risks
+
+- Migration 0041 must run before cut-over (drizzle migrate)
+- Cut-over (next passes): shadow dual-write from `journal-posting-core`, nightly parity verifier, module-by-module posting cutover, then Engine v2 becomes the only write path
+- `ledger.ts` jsonb `lines` carries accountCode snapshots — COA renames never corrupt history
+
+### Next loop pass
+
+N36: shadow dual-write (posting core mirrors every commit into journal_events behind a flag) + nightly parity verifier; N37: cut AR invoice posting onto `postToLedger` behind the flag with parity checks; N28 closes when the pipeline's depreciation routes through it.

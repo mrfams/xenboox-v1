@@ -288,6 +288,13 @@
       "when": 1788672396651,
       "tag": "0040_majestic_gamora",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1788682514672,
+      "tag": "0041_cold_radioactive_man",
+      "breakpoints": true
     }
   ]
 }
