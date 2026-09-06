@@ -162,3 +162,33 @@ N19: server-side unified Needs-you queue (end client stitching of listAgentAppro
 ### Next loop pass
 
 N19: server-side unified Needs-you queue (end the client stitching of listAgentApprovals + notifications.list + tasks.list); N20: batch approve; N21: Financial Pulse loading/error gates.
+
+---
+
+## Session 005 — 2026-09-06 — Batch 3 (cont.) / N19 + N20: UNIFIED QUEUE + BATCH APPROVE
+
+### Graph delta
+
+| Node | Status | Evidence |
+|---|---|---|
+| N19 server-side needs-you queue | **closed-deferred** | New `tasks.needsYou` procedure: agent-activity review items (same conditions as ingestion.listAgentApprovals, resolved excluded) + decision-typed notifications folded and deduped SERVER-side, newest first. Tasks page now runs ONE queue query (`tasks.needsYou`) — the client stitching of `ingestion.listAgentApprovals` + `notifications.list` + `tasks.list` is deleted (toAInative §4 contract finally met). Honest loading state added before "All clear" |
+| N20 batch approve | **closed-deferred** | `batchApproveVisible` uses `Promise.allSettled` over visible items; ingestion items with a documentId are EXCLUDED (they need human document review); successes leave the queue + one data-changed emit; failures stay with an honest "N approved, M failed — try those again" toast. Header gets a disabled-aware "Approve all" button |
+
+### Tests authored (registry)
+
+`apps/web/__tests__/epoch0-batch3-needsyou-queue.test.ts` — 6 cases.
+
+### Stress cases designed
+
+- N19: 100+ queue items (limit bounded at 50); resolved item race (resolved between query and render → server excludes on refetch); notification data as string vs object vs malformed JSON
+- N20: 30-item batch where 5 fail (5 stay visible, 25 leave); approve racing resolve from another tab (CONFLICT → counted as failed, stays); double-click Approve all (batchRunning guard)
+
+### Residual risks
+
+- N21 (Financial Pulse loading/error gates on every numeric block) — next pass
+- `ingestion.listAgentApprovals` still exists for its other consumers; unify it to delegate to `tasks.needsYou` internals later (dedupe of query conditions)
+- agent_activity output-shape heuristics (title/message/description fallbacks) mirror ingestion.ts — unify in the same later pass
+
+### Next loop pass
+
+N21 loading/error gates; then N22+ security hardening batch (G3): token hashing, MFA throttle, SCIM constant-time, device/session UI.

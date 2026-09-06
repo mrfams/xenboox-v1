@@ -104,14 +104,15 @@ function TasksPageInner() {
   }, [searchParams]);
 
   // ── Data ──────────────────────────────────────────────────────────────
-  const { data: agentApprovals } = trpc.ingestion.listAgentApprovals.useQuery(
-    { limit: 50 },
-    { enabled: !!entityId, refetchInterval: 15_000 },
-  );
-  const { data: allNotifications } = trpc.notifications.list.useQuery(
-    { limit: 30, onlyUnread: false },
-    { enabled: !!entityId, refetchInterval: 30_000 },
-  );
+  // Batch 3 / N19: the needs-you queue is assembled SERVER-SIDE by
+  // tasks.needsYou (agent activity + decision notifications, deduped).
+  // The old client-side stitching of ingestion.listAgentApprovals +
+  // notifications.list + tasks.list is gone — toAInative §4 contract.
+  const { data: needsYouData, isLoading: needsYouLoading } =
+    trpc.tasks.needsYou.useQuery(
+      { limit: 50 },
+      { enabled: !!entityId, refetchInterval: 15_000 },
+    );
   const { data: tasksData, isLoading: tasksLoading } = trpc.tasks.list.useQuery(
     { limit: 50 },
     { enabled: !!entityId, refetchInterval: 10_000 },
@@ -121,78 +122,10 @@ function TasksPageInner() {
   const rejectIngestion = trpc.ingestion.rejectReview.useMutation();
   const markNotificationRead = trpc.notifications.markAsRead.useMutation();
 
-  // ── Build the needs-you queue ─────────────────────────────────────────
-  // Only things blocked on a human. Passive updates are not queue items —
-  // completed work already lives under Tasks → Done.
-  const needsYou: DecisionItem[] = useMemo(() => {
-    const out: DecisionItem[] = [];
-    const seen = new Set<string>();
-
-    if (agentApprovals?.items) {
-      for (const a of agentApprovals.items) {
-        if (seen.has(a.id)) continue;
-        seen.add(a.id);
-        const meta = (a.metadata ?? {}) as Record<string, unknown>;
-        out.push({
-          id: a.id,
-          category: "agent_activity",
-          title: a.title ?? "Needs your decision",
-          summary: a.description ?? "Review the recommendation below.",
-          rationale:
-            (meta.recommendation as string) ?? a.description ?? undefined,
-          createdAt: a.createdAt,
-          evidence: (meta.inputData ?? {}) as Record<string, unknown>,
-        });
-      }
-    }
-
-    if (allNotifications?.length) {
-      for (const n of allNotifications) {
-        if (seen.has(n.id)) continue;
-        const typeKey = n.type ?? "info";
-        const isDecision =
-          typeKey === "agent_escalation" ||
-          typeKey === "agent_flag" ||
-          typeKey === "overdue_invoice" ||
-          typeKey === "budget_exceeded" ||
-          typeKey === "ingestion_review" ||
-          typeKey === "ingestion_escalated";
-        if (!isDecision) continue;
-        seen.add(n.id);
-
-        let notificationData: Record<string, unknown> = {};
-        if (n.data && typeof n.data === "object") {
-          notificationData = n.data as Record<string, unknown>;
-        } else if (typeof n.data === "string") {
-          try {
-            notificationData = JSON.parse(n.data) as Record<string, unknown>;
-          } catch {
-            notificationData = {};
-          }
-        }
-        const documentId =
-          typeof notificationData.documentId === "string"
-            ? notificationData.documentId
-            : undefined;
-        const isIngestion =
-          typeKey === "ingestion_review" ||
-          typeKey === "ingestion_escalated";
-
-        out.push({
-          id: n.id,
-          category: isIngestion ? "ingestion" : "notification",
-          title: n.title,
-          summary: n.body ?? "",
-          createdAt: n.createdAt ?? undefined,
-          documentId,
-          notificationType: typeKey,
-          notificationData,
-        });
-      }
-    }
-
-    return out;
-  }, [agentApprovals, allNotifications]);
+  const needsYou: DecisionItem[] = useMemo(
+    () => (needsYouData?.items ?? []) as DecisionItem[],
+    [needsYouData],
+  );
 
   const visible = needsYou.filter((i) => !dismissed.has(i.id));
   const selected = visible[Math.min(cursor, Math.max(visible.length - 1, 0))] ?? null;
@@ -272,6 +205,69 @@ function TasksPageInner() {
     [resolveApproval, markNotificationRead, rejectIngestion, note, announce, entityId],
   );
 
+  // ── Batch approve (Batch 3 / N20) ─────────────────────────────────────
+  // Approves every currently visible needs-you item that can be approved
+  // without opening a document review (ingestion items with a documentId are
+  // skipped — they need human document review). Per-item results are
+  // reported honestly: successes leave the queue, failures stay with a toast.
+  const [batchRunning, setBatchRunning] = useState(false);
+  const batchApproveVisible = useCallback(async () => {
+    if (batchRunning) return;
+    const targets = visible.filter(
+      (i) => !(i.category === "ingestion" && i.documentId),
+    );
+    if (targets.length === 0) return;
+    setBatchRunning(true);
+    const results = await Promise.allSettled(
+      targets.map(async (item) => {
+        if (item.category === "agent_activity") {
+          await resolveApproval.mutateAsync({
+            itemId: item.id,
+            itemType: "agent_escalation",
+            action: "approved",
+            reason: "Approved via batch from Tasks",
+          });
+        } else if (item.category === "notification") {
+          const logId =
+            typeof item.notificationData?.logId === "string"
+              ? item.notificationData.logId
+              : undefined;
+          if (item.notificationType === "agent_escalation" && logId) {
+            await resolveApproval.mutateAsync({
+              itemId: logId,
+              itemType: "agent_escalation",
+              action: "approved",
+              reason: "Approved via batch from Tasks",
+            });
+          }
+          await markNotificationRead.mutateAsync({ id: item.id });
+        }
+        return item.id;
+      }),
+    );
+    const okIds: string[] = [];
+    let failed = 0;
+    for (const r of results) {
+      if (r.status === "fulfilled") okIds.push(r.value);
+      else failed += 1;
+    }
+    if (okIds.length > 0) {
+      setDismissed((p) => {
+        const n = new Set(p);
+        for (const id of okIds) n.add(id);
+        return n;
+      });
+      if (entityId) emitDataChanged("activity-hub", "approve_task", entityId);
+    }
+    if (failed > 0) {
+      toast.warning("" + okIds.length + " approved, " + failed + " failed — try those again");
+    } else {
+      toast.success("" + okIds.length + " approved");
+    }
+    announce("" + okIds.length + " approved, " + failed + " failed");
+    setBatchRunning(false);
+  }, [visible, batchRunning, resolveApproval, markNotificationRead, entityId, announce]);
+
   // ── Keyboard triage: j/k move · a approve · r reject · 1/2 sections ───
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -338,6 +334,14 @@ function TasksPageInner() {
                 {needsCount} need you
               </span>
             )}
+              <button
+                type="button"
+                onClick={() => void batchApproveVisible()}
+                disabled={batchRunning || needsCount === 0}
+                className="inline-flex items-center gap-1 rounded-full border border-border/60 px-2 py-0.5 text-[10px] font-semibold text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {batchRunning ? "Approving…" : "Approve all"}
+              </button>
           </div>
           <p className="hidden font-mono text-[10px] text-muted-foreground/60 sm:block">
             1/2 section · j/k move · a/r decide
@@ -394,7 +398,15 @@ function TasksPageInner() {
       </header>
 
       {section === "needs-you" ? (
-        visible.length === 0 ? (
+        needsYouLoading ? (
+          <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-2 p-8 text-center">
+            <div
+              className="h-6 w-6 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-foreground"
+              aria-hidden="true"
+            />
+            <p className="text-xs text-muted-foreground">Loading your queue…</p>
+          </div>
+        ) : visible.length === 0 ? (
           <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-2 p-8 text-center">
             <CheckCircle2
               className="mb-1 h-8 w-8 text-balanced-green"

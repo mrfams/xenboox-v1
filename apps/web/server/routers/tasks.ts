@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, ne, inArray, sql } from "drizzle-orm";
 import {
   closeTasks,
   opsLiveRuns,
@@ -8,6 +8,8 @@ import {
   dailyCloseRuns,
   chatMessages,
   agentRoutingLogs,
+  agentActivity,
+  notifications,
 } from "@xenboox/db/schema";
 
 import { db } from "@/lib/db";
@@ -699,5 +701,171 @@ export const tasksRouter = router({
         },
         createdAt: run.createdAt,
       };
+    }),
+
+  // ─── Needs-you queue (Batch 3 / N19) ──────────────────────────────────
+  // The ONE server-side source for things blocked on a human. Replaces the
+  // client stitching of ingestion.listAgentApprovals + notifications.list +
+  // tasks.list on the Tasks page (toAInative §4: "never stitch in the
+  // client"). Decision-typed notifications are folded in here — completed
+  // work stays under Tasks → Done and never appears in this queue.
+  needsYou: rlsProtectedProcedure
+    .input(
+      z
+        .object({
+          limit: z.number().int().min(1).max(100).default(50),
+        })
+        .optional(),
+    )
+    .query(async ({ ctx, input }) => {
+      const limit = input?.limit ?? 50;
+
+      type DecisionItem = {
+        id: string;
+        category: "agent_activity" | "ingestion" | "notification";
+        title: string;
+        summary: string;
+        rationale?: string;
+        amount?: string;
+        documentId?: string;
+        notificationType?: string;
+        notificationData?: Record<string, unknown>;
+        createdAt?: string | Date;
+        evidence?: Record<string, unknown>;
+      };
+
+      const out: DecisionItem[] = [];
+      const seen = new Set<string>();
+
+      // 1. Agent activity awaiting review (same conditions as
+      //    ingestion.listAgentApprovals — resolved items leave the queue).
+      const agentNames = [
+        "ap-agent",
+        "ar-agent",
+        "cash-agent",
+        "compliance-agent",
+        "treasury-agent",
+        "payroll-manager-agent",
+        "controller-agent",
+        "asset-agent",
+        "inventory-agent",
+      ];
+      const reviewActions = [
+        "escalate",
+        "escalated",
+        "flag_for_review",
+        "needs_review",
+        "approval_needed",
+        "review_required",
+      ];
+
+      const [activities, escalationActivities] = await Promise.all([
+        db.query.agentActivity.findMany({
+          where: and(
+            eq(agentActivity.entityId, ctx.entityId!),
+            inArray(agentActivity.agentName, agentNames),
+            sql`(
+              COALESCE(${agentActivity.confidence}::numeric, 0) < 0.8
+              OR ${agentActivity.status} = 'review_needed'
+            )`,
+            ne(agentActivity.status, "resolved"),
+          ),
+          orderBy: [desc(agentActivity.createdAt)],
+          limit,
+        }),
+        db.query.agentActivity.findMany({
+          where: and(
+            eq(agentActivity.entityId, ctx.entityId!),
+            inArray(agentActivity.action, reviewActions),
+            ne(agentActivity.status, "resolved"),
+          ),
+          orderBy: [desc(agentActivity.createdAt)],
+          limit: 10,
+        }),
+      ]);
+
+      for (const a of [...activities, ...escalationActivities]) {
+        if (seen.has(a.id)) continue;
+        seen.add(a.id);
+        const outputData = (a.output ?? {}) as Record<string, unknown>;
+        const inputData = (a.input ?? {}) as Record<string, unknown>;
+        const title =
+          (outputData.title as string) ??
+          (outputData.message as string) ??
+          "Needs your decision";
+        const summary =
+          (outputData.message as string) ??
+          (outputData.description as string) ??
+          "Review the recommendation below.";
+        out.push({
+          id: a.id,
+          category: "agent_activity",
+          title,
+          summary,
+          rationale:
+            (outputData.recommendation as string) ?? summary || undefined,
+          createdAt: a.createdAt ?? undefined,
+          evidence: inputData,
+        });
+      }
+
+      // 2. Decision-typed notifications (escalations, reviews, overdue, budget).
+      const decisionTypes = [
+        "agent_escalation",
+        "agent_flag",
+        "overdue_invoice",
+        "budget_exceeded",
+        "ingestion_review",
+        "ingestion_escalated",
+      ];
+      const decisionNotifications = await db.query.notifications.findMany({
+        where: and(
+          eq(notifications.entityId, ctx.entityId!),
+          inArray(notifications.type, decisionTypes),
+        ),
+        orderBy: [desc(notifications.createdAt)],
+        limit,
+      });
+
+      for (const n of decisionNotifications) {
+        if (seen.has(n.id)) continue;
+        seen.add(n.id);
+        let notificationData: Record<string, unknown> = {};
+        if (n.data && typeof n.data === "object") {
+          notificationData = n.data as Record<string, unknown>;
+        } else if (typeof n.data === "string") {
+          try {
+            notificationData = JSON.parse(n.data) as Record<string, unknown>;
+          } catch {
+            notificationData = {};
+          }
+        }
+        const typeKey = n.type ?? "info";
+        const isIngestion =
+          typeKey === "ingestion_review" || typeKey === "ingestion_escalated";
+        const documentId =
+          typeof notificationData.documentId === "string"
+            ? notificationData.documentId
+            : undefined;
+        out.push({
+          id: n.id,
+          category: isIngestion ? "ingestion" : "notification",
+          title: n.title,
+          summary: n.body ?? "",
+          createdAt: n.createdAt ?? undefined,
+          documentId,
+          notificationType: typeKey,
+          notificationData,
+        });
+      }
+
+      // 3. Newest first.
+      out.sort((a, b) => {
+        const ta = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const tb = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return tb - ta;
+      });
+
+      return { items: out.slice(0, limit) };
     }),
 });
