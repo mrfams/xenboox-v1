@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { Suspense } from "react";
 
 import { LoginForm } from "@/components/auth/login-form";
 import { isSsoEnabled, getSsoDisplayName } from "@/lib/auth/sso";
@@ -62,12 +63,20 @@ export default async function LoginPage({
         </Link>
       </div>
 
-      <LoginForm
-        ssoEnabled={ssoEnabled}
-        ssoDisplayName={ssoDisplayName}
-        callbackUrl={callbackUrl}
-        expired={expired}
-      />
+      <Suspense
+        fallback={
+          <div className="flex min-h-[320px] items-center justify-center">
+            <div className="h-8 w-8 animate-spin rounded-full border-2 border-border border-t-primary" />
+          </div>
+        }
+      >
+        <LoginForm
+          ssoEnabled={ssoEnabled}
+          ssoDisplayName={ssoDisplayName}
+          callbackUrl={callbackUrl}
+          expired={expired}
+        />
+      </Suspense>
 
       <div className="mt-6 text-center text-sm text-muted-foreground">
         Don&apos;t have an account?{" "}
