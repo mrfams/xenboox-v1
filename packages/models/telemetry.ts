@@ -3,8 +3,8 @@
 
 import { db } from "@xenboox/db";
 import { agentActivity } from "@xenboox/db/schema";
-import { modelRegistry, modelCostTracking } from "@xenboox/db/schema";
-import { eq, and, sql } from "drizzle-orm";
+import { modelCostTracking } from "@xenboox/db/schema";
+import { and, sql } from "drizzle-orm";
 import type { ProviderId } from "./types";
 
 // ─── Cost Calculation ──────────────────────────────────────────────
@@ -203,7 +203,6 @@ export async function rollupDailyCosts(date?: string): Promise<void> {
 // Helper: get a default entity for cost tracking (system-level)
 async function getDefaultEntityId(): Promise<string | null> {
   try {
-    const { entities } = await import("@xenboox/db/schema");
     const result = await db.query.entities.findFirst();
     return result?.id ?? null;
   } catch {

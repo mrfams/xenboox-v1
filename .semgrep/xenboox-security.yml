@@ -153,14 +153,15 @@ rules:
   # ──────────────────────────────────────────────────────────────
   # 8. Insecure randomness for security-critical operations
   # ──────────────────────────────────────────────────────────────
+  # NOTE: assignments to security-relevant variable names only. (A previous
+  # version used `pattern-inside: ...token...` which is invalid Semgrep
+  # syntax and failed rule validation at scan time — PatternParseError.)
   - id: no-math-random-for-security
     patterns:
-      - pattern-either:
-          - pattern: Math.random()
-          - pattern: $X = Math.random()
-      - pattern-inside: |
-          ...token...
-          ...
+      - pattern: $SECRET = Math.random()
+      - metavariable-regex:
+          metavariable: $SECRET
+          regex: (?i)(token|secret|nonce|salt|otp|password|apikey|api_key|session)
     message: >
       Math.random() is not cryptographically secure. Use crypto.randomBytes()
       or crypto.randomUUID() for tokens, secrets, and security-critical values.

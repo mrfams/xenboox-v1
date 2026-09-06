@@ -27,7 +27,7 @@ title = "Xenboox Secret Scanning Rules"
     # Vitest setup + DB-layer test fixtures use a fixed fake connection
     # string; it matches the neon/connection-string rules but is not a real
     # credential (localhost, never leaves the test runner).
-    '''postgresql://test:test@localhost:5432/test''',
+    '''postgres(?:ql)?://[a-zA-Z0-9._\-]+:[a-zA-Z0-9._\-]+@localhost:5432/''',
     # Test/example values
     '''(?i)test[_-]?secret[_-]?key\s*=\s*['"']?test[_-]?key['"']?''',
     '''(?i)example[_-]?token\s*=\s*['"']?example['"']?''',

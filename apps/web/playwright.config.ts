@@ -1,5 +1,10 @@
 import { defineConfig, devices } from "@playwright/test";
 
+// CI never started the app before (the e2e job was unreachable — CI died at
+// pnpm setup). `webServer` boots the standalone server so tests actually have
+// a target; locally, set BASE_URL to point at an already-running dev server.
+const RUN_WEB_SERVER = !!process.env.CI;
+
 const BASE_URL = process.env.BASE_URL || "http://127.0.0.1:3000";
 const TEST_EMAIL = process.env.TEST_EMAIL || "demo@xenboox.com";
 const TEST_PASSWORD = process.env.TEST_PASSWORD || "demo1234";
@@ -38,6 +43,13 @@ export default defineConfig({
     },
     ignoreHTTPSErrors: true,
   },
+  webServer: RUN_WEB_SERVER
+    ? {
+        command: "pnpm exec next start",
+        url: "http://127.0.0.1:3000/api/health/live",
+        timeout: 120_000,
+      }
+    : undefined,
   projects: [
     // 1. Auth setup — authenticate once via the real UI flow and persist
     //    storageState. All authenticated projects depend on this so they never

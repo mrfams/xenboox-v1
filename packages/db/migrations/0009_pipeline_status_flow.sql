@@ -10,5 +10,9 @@ ALTER TYPE "public"."doc_status" ADD VALUE 'agent_processing' AFTER 'synced';
 --> statement-breakpoint
 ALTER TYPE "public"."doc_status" ADD VALUE 'done' AFTER 'agent_processing';
 --> statement-breakpoint
--- Update the default column value from 'uploaded' to 'detected' for new documents
-ALTER TABLE "documents" ALTER COLUMN "status" SET DEFAULT 'detected';
+-- NOTE: the original migration also ran
+-- ALTER TABLE "documents" ALTER COLUMN "status" SET DEFAULT 'detected';
+-- here. Setting a column default to an enum value added in the SAME
+-- transaction fails on fresh databases (Postgres: "unsafe use of new value
+-- ... of enum type") because drizzle wraps each migration in one txn. The
+-- default is applied in 0042_doc_status_default_detected instead.

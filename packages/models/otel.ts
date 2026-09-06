@@ -32,9 +32,13 @@
 const ATTR_SERVICE_NAME = "service.name";
 const ATTR_SERVICE_VERSION = "service.version";
 
-// `sdk` holds the live SDK instance once started. Typed via the dynamic
-// import's module type (import type is erased at runtime — no top-level load).
-type NodeSdkInstance = import("@opentelemetry/sdk-node").NodeSDK;
+// Type-only imports: fully erased at compile time, so the edge bundle never
+// loads the OTel SDK packages (same guarantee as the dynamic imports below).
+import type { NodeSDK } from "@opentelemetry/sdk-node";
+import type { Sampler } from "@opentelemetry/sdk-trace-base";
+
+// `sdk` holds the live SDK instance once started.
+type NodeSdkInstance = NodeSDK;
 let sdk: NodeSdkInstance | null = null;
 /** Guards against double registration (dev hot-reload, multiple register() calls). */
 let initialized = false;
@@ -52,9 +56,7 @@ export function isOtelEnabled(): boolean {
  * The sampler classes come from a dynamic import so the edge bundle never
  * loads @opentelemetry/sdk-trace-base. Async because of the dynamic import.
  */
-export async function resolveSampler(): Promise<
-  import("@opentelemetry/sdk-trace-base").Sampler
-> {
+export async function resolveSampler(): Promise<Sampler> {
   const {
     AlwaysOffSampler,
     AlwaysOnSampler,
@@ -153,7 +155,6 @@ export async function initOtel(): Promise<void> {
 
   sdk.start();
 
-  // eslint-disable-next-line no-console
   console.log(
     `[OTel] TracerProvider initialized → ${endpoint} (service: ${
       process.env.OTEL_SERVICE_NAME ?? "xenboox-web"
