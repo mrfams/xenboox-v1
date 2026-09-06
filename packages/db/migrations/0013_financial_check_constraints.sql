@@ -17,9 +17,8 @@ ALTER TABLE sales_invoices ADD CONSTRAINT invoices_ar_balance_check CHECK (balan
 -- AR Payments: amount must be positive
 ALTER TABLE payments_ar ADD CONSTRAINT payments_ar_amount_check CHECK (amount > 0);
 
--- Journal Entries: debit and credit totals must be non-negative
-ALTER TABLE journal_entries ADD CONSTRAINT journal_entries_total_debit_check CHECK (total_debit >= 0);
-ALTER TABLE journal_entries ADD CONSTRAINT journal_entries_total_credit_check CHECK (total_credit >= 0);
+-- Journal Entries: no total_debit/total_credit columns exist on journal_entries
+-- (they never did — those constraints were dead code). Lines carry debit/credit.
 
 -- Journal Lines: debit/credit must not both be zero (original referenced "journal_lines"
 -- with an "amount" column that never existed — journal_entry_lines has debit/credit instead)
@@ -42,11 +41,10 @@ ALTER TABLE inventory_items ADD CONSTRAINT inventory_items_standard_cost_check C
 ALTER TABLE inventory_transactions ADD CONSTRAINT inventory_transactions_quantity_check CHECK (quantity > 0);
 ALTER TABLE inventory_transactions ADD CONSTRAINT inventory_transactions_total_cost_check CHECK (total_cost > 0);
 
--- Warehouses: capacity must be positive if set
-ALTER TABLE warehouses ADD CONSTRAINT warehouses_capacity_check CHECK (capacity > 0);
+-- Warehouses: no capacity column exists (dead constraint removed)
 
--- Employees: salary must be positive
-ALTER TABLE employees ADD CONSTRAINT employees_salary_check CHECK (salary > 0);
+-- Employees: no salary column on employees — salary lives on employee_contracts.basic_salary
+ALTER TABLE employee_contracts ADD CONSTRAINT employee_contracts_basic_salary_check CHECK (basic_salary > 0);
 
 -- Bank Transactions: amount must be non-zero
 ALTER TABLE bank_transactions ADD CONSTRAINT bank_transactions_amount_check CHECK (amount != 0);
@@ -54,8 +52,8 @@ ALTER TABLE bank_transactions ADD CONSTRAINT bank_transactions_amount_check CHEC
 -- Mobile Money Transactions: amount must be non-zero
 ALTER TABLE mobile_money_transactions ADD CONSTRAINT mobile_money_transactions_amount_check CHECK (amount != 0);
 
--- Cash Accounts: balance must be non-negative
-ALTER TABLE cash_accounts ADD CONSTRAINT cash_accounts_balance_check CHECK (balance >= 0);
+-- Cash Accounts: balance must be non-negative (column is current_balance)
+ALTER TABLE cash_accounts ADD CONSTRAINT cash_accounts_balance_check CHECK (current_balance >= 0);
 
 -- Imprest Floats: amount must be positive
 ALTER TABLE imprest_floats ADD CONSTRAINT imprest_floats_amount_check CHECK (amount > 0);

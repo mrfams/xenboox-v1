@@ -94,10 +94,7 @@ export const rolePermissions = pgTable(
   ],
 );
 
-export const rolePermissionsRelations = relations(
-  rolePermissions,
-  ({}) => ({}),
-);
+export const rolePermissionsRelations = relations(rolePermissions, () => ({}));
 
 // ─── USER PERMISSION OVERRIDES ──────────────────
 // Per-user exceptions to the role-based permissions
@@ -134,7 +131,7 @@ export const userPermissionOverrides = pgTable(
 
 export const userPermissionOverridesRelations = relations(
   userPermissionOverrides,
-  ({}) => ({}),
+  () => ({}),
 );
 
 // ─── AUDIT LOG FOR PERMISSION CHANGES ───────────
