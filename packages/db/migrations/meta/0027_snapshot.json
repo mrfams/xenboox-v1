@@ -33487,7 +33487,7 @@
         },
         "review_item_id": {
           "name": "review_item_id",
-          "type": "varchar(255)",
+          "type": "uuid",
           "primaryKey": false,
           "notNull": true
         },
@@ -33562,7 +33562,7 @@
         },
         "review_item_id": {
           "name": "review_item_id",
-          "type": "varchar(255)",
+          "type": "uuid",
           "primaryKey": false,
           "notNull": true
         },
@@ -33642,7 +33642,7 @@
         },
         "review_item_id": {
           "name": "review_item_id",
-          "type": "varchar(255)",
+          "type": "uuid",
           "primaryKey": false,
           "notNull": true
         },
