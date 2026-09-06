@@ -35,14 +35,12 @@ CREATE UNIQUE INDEX IF NOT EXISTS "mm_tx_provider_id_unique"
   ON "mobile_money_transactions" ("provider_tx_id") WHERE "provider_tx_id" IS NOT NULL;
 
 -- bank_connections: provider_connection_id should be unique per provider
-DROP INDEX IF EXISTS "bank_conn_provider";
-CREATE UNIQUE INDEX IF NOT EXISTS "bank_conn_provider_unique"
-  ON "bank_connections" ("provider", "provider_connection_id");
+-- NOTE: moved to 0044_constraints_catchup.sql — bank_connections is created in 0015,
+-- after this migration, so this index can't be created here on a fresh database.
+-- (Original also had a DROP INDEX of a same-named index, which never existed.)
 
 -- email_forwarding_rules: email_address should be unique per entity
-DROP INDEX IF EXISTS "email_rule_address";
-CREATE UNIQUE INDEX IF NOT EXISTS "email_rules_entity_address_unique"
-  ON "email_forwarding_rules" ("entity_id", "email_address");
+-- NOTE: moved to 0044_constraints_catchup.sql — same forward-reference problem.
 
 -- ─── COMPOSITE INDEXES ──────────────────────────────
 
@@ -74,14 +72,14 @@ CREATE INDEX IF NOT EXISTS "idx_audit_log_entity_created"
 CREATE INDEX IF NOT EXISTS "idx_chat_messages_conversation_created"
   ON "chat_messages" ("conversation_id", "created_at");
 
--- purchase_order_lines: PO-scoped queries
+-- po_lines (original referenced "purchase_order_lines", which is not a real table): PO-scoped queries
 CREATE INDEX IF NOT EXISTS "idx_po_lines_po_id"
-  ON "purchase_order_lines" ("purchase_order_id");
+  ON "po_lines" ("purchase_order_id");
 
--- invoice_lines_ap: invoice-scoped queries
+-- invoice_ap_lines (original referenced "invoice_lines_ap", which is not a real table): invoice-scoped queries
 CREATE INDEX IF NOT EXISTS "idx_invoice_lines_ap_invoice_id"
-  ON "invoice_lines_ap" ("invoice_id");
+  ON "invoice_ap_lines" ("invoice_ap_id");
 
--- invoice_lines_ar: invoice-scoped queries
+-- sales_invoice_lines (original referenced "invoice_lines_ar", which is not a real table): invoice-scoped queries
 CREATE INDEX IF NOT EXISTS "idx_invoice_lines_ar_invoice_id"
-  ON "invoice_lines_ar" ("invoice_id");
+  ON "sales_invoice_lines" ("sales_invoice_id");

@@ -6,8 +6,12 @@
 // period. Mismatches are enumerated, never averaged away.
 
 import { and, eq, desc, sql } from "drizzle-orm";
-import { journalEntries, journalEntryLines, fiscalPeriods } from "@xenboox/db/schema/accounting";
+import {
+  journalEntries,
+  journalEntryLines,
+} from "@xenboox/db/schema/accounting";
 import { journalEvents } from "@xenboox/db/schema/ledger";
+import type { Database } from "@xenboox/db";
 
 export interface ParityMismatch {
   reference: string;
@@ -67,7 +71,7 @@ export function compareEntry(
  * Verify parity for one entity over its most recent posted legacy entries.
  */
 export async function verifyParity(
-  db: import("@xenboox/db").Database,
+  db: Database,
   entityId: string,
   opts?: { limit?: number },
 ): Promise<ParityReport> {
@@ -138,7 +142,11 @@ export async function verifyParity(
       : null;
 
     const mismatch = compareEntry(
-      { reference: entry.reference, totalMinor: legacyTotalMinor, periodId: entry.periodId },
+      {
+        reference: entry.reference,
+        totalMinor: legacyTotalMinor,
+        periodId: entry.periodId,
+      },
       eventTotals,
     );
     if (mismatch) mismatches.push(mismatch);

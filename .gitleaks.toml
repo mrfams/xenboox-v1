@@ -21,13 +21,17 @@ title = "Xenboox Secret Scanning Rules"
     # Commits below introduced the fixtures; extend this list when tests add
     # new fixture commits.
     "d8da79b1cedebaaf32fb4d52fd27d90fb889e586",
+    "98a808d6726520eceb21971e0d5142daf92f131b",
   ]
   # Allow test fixtures and mock data
   regexes = [
     # Vitest setup + DB-layer test fixtures use a fixed fake connection
     # string; it matches the neon/connection-string rules but is not a real
     # credential (localhost, never leaves the test runner).
-    '''postgres(?:ql)?://[a-zA-Z0-9._\-]+:[a-zA-Z0-9._\-]+@localhost:5432/''',
+    # NOTE: the neon rule's host char class excludes ':', so its captured
+    # secret is truncated at the host ("...@localhost") — the allowlist regex
+    # must therefore NOT require a port/path suffix to match that secret form.
+    '''postgres(?:ql)?://[a-zA-Z0-9._\-]+:[a-zA-Z0-9._\-]+@localhost''',
     # Test/example values
     '''(?i)test[_-]?secret[_-]?key\s*=\s*['"']?test[_-]?key['"']?''',
     '''(?i)example[_-]?token\s*=\s*['"']?example['"']?''',

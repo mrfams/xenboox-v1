@@ -18,10 +18,9 @@ import {
 } from "@xenboox/db/schema/ledger";
 import { fiscalPeriods } from "@xenboox/db/schema/accounting";
 import { GENESIS_HASH, computeEventHash } from "./hash";
+import type { Database } from "@xenboox/db";
 
-export type LedgerDb = Parameters<
-  Parameters<import("@xenboox/db").Database["transaction"]>[0]
->[0];
+export type LedgerDb = Parameters<Parameters<Database["transaction"]>[0]>[0];
 
 export class LedgerValidationError extends Error {
   constructor(
@@ -80,7 +79,7 @@ function assertInteger(value: number, label: string): void {
 }
 
 export async function postToLedger(
-  db: import("@xenboox/db").Database,
+  db: Database,
   params: PostToLedgerParams,
 ): Promise<PostToLedgerResult> {
   const lines = params.lines;

@@ -934,7 +934,8 @@ CREATE TABLE "firm_dashboard_snapshots" (
 	"updated_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "idempotency_keys" (
+-- IF NOT EXISTS: 0007_idempotency_keys already created this table on fresh DBs
+CREATE TABLE IF NOT EXISTS "idempotency_keys" (
 	"key" varchar(255) PRIMARY KEY NOT NULL,
 	"user_id" text NOT NULL,
 	"entity_id" text NOT NULL,
@@ -1158,7 +1159,9 @@ CREATE TABLE "inbound_emails" (
 	"updated_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "legal_acceptances" (
+-- IF NOT EXISTS: 0012 historically created these tables (its creates are now
+-- inert comments); IF NOT EXISTS keeps fresh-DB replay safe either way.
+CREATE TABLE IF NOT EXISTS "legal_acceptances" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"user_id" uuid NOT NULL,
 	"entity_id" uuid NOT NULL,
@@ -1173,7 +1176,7 @@ CREATE TABLE "legal_acceptances" (
 	"updated_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "owner_notifications" (
+CREATE TABLE IF NOT EXISTS "owner_notifications" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"entity_id" uuid NOT NULL,
 	"owner_id" uuid NOT NULL,
@@ -1189,7 +1192,7 @@ CREATE TABLE "owner_notifications" (
 	"updated_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "pro_tier_reviews" (
+CREATE TABLE IF NOT EXISTS "pro_tier_reviews" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"entity_id" uuid NOT NULL,
 	"requested_by" uuid NOT NULL,

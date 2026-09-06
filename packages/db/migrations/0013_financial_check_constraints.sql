@@ -9,9 +9,10 @@ ALTER TABLE invoices_ap ADD CONSTRAINT invoices_ap_balance_check CHECK (balance 
 -- AP Payments: amount must be positive
 ALTER TABLE payments_ap ADD CONSTRAINT payments_ap_amount_check CHECK (amount > 0);
 
--- AR Invoices: amounts must be positive, balance must not exceed total
-ALTER TABLE invoices_ar ADD CONSTRAINT invoices_ar_total_amount_check CHECK (total_amount > 0);
-ALTER TABLE invoices_ar ADD CONSTRAINT invoices_ar_balance_check CHECK (balance >= 0 AND balance <= total_amount);
+-- AR Invoices (sales_invoices): amounts must be positive, balance must not exceed total
+-- NOTE: original referenced "invoices_ar", which is not a real table (it's "sales_invoices")
+ALTER TABLE sales_invoices ADD CONSTRAINT invoices_ar_total_amount_check CHECK (total_amount > 0);
+ALTER TABLE sales_invoices ADD CONSTRAINT invoices_ar_balance_check CHECK (balance >= 0 AND balance <= total_amount);
 
 -- AR Payments: amount must be positive
 ALTER TABLE payments_ar ADD CONSTRAINT payments_ar_amount_check CHECK (amount > 0);
@@ -20,8 +21,9 @@ ALTER TABLE payments_ar ADD CONSTRAINT payments_ar_amount_check CHECK (amount > 
 ALTER TABLE journal_entries ADD CONSTRAINT journal_entries_total_debit_check CHECK (total_debit >= 0);
 ALTER TABLE journal_entries ADD CONSTRAINT journal_entries_total_credit_check CHECK (total_credit >= 0);
 
--- Journal Lines: amount must be non-zero (no zero-value entries)
-ALTER TABLE journal_lines ADD CONSTRAINT journal_lines_amount_check CHECK (amount != 0);
+-- Journal Lines: debit/credit must not both be zero (original referenced "journal_lines"
+-- with an "amount" column that never existed — journal_entry_lines has debit/credit instead)
+ALTER TABLE journal_entry_lines ADD CONSTRAINT journal_entry_lines_not_both_zero_check CHECK (NOT (debit = 0 AND credit = 0));
 
 -- Fixed Assets: cost and useful life must be positive, salvage value non-negative
 ALTER TABLE fixed_assets ADD CONSTRAINT fixed_assets_cost_check CHECK (cost > 0);
@@ -58,12 +60,11 @@ ALTER TABLE cash_accounts ADD CONSTRAINT cash_accounts_balance_check CHECK (bala
 -- Imprest Floats: amount must be positive
 ALTER TABLE imprest_floats ADD CONSTRAINT imprest_floats_amount_check CHECK (amount > 0);
 
--- Petty Cash Entries: amount must be positive
-ALTER TABLE petty_cash_entries ADD CONSTRAINT petty_cash_entries_amount_check CHECK (amount > 0);
+-- Petty Cash Ledger (original referenced "petty_cash_entries", which is not a real table)
+ALTER TABLE petty_cash_ledger ADD CONSTRAINT petty_cash_ledger_balance_check CHECK (balance >= 0);
 
--- Budget Line Items: budgeted amount must be positive, actual spent must be non-negative
-ALTER TABLE budget_line_items ADD CONSTRAINT budget_line_items_budgeted_amount_check CHECK (budgeted_amount > 0);
-ALTER TABLE budget_line_items ADD CONSTRAINT budget_line_items_actual_spent_check CHECK (actual_spent >= 0);
+-- Budget Lines: moved to 0044_constraints_catchup.sql — budget_lines is created
+-- in 0015 (after this file), and the original referenced a table/columns that never existed.
 
 -- Purchase Orders: total amount must be positive
 ALTER TABLE purchase_orders ADD CONSTRAINT purchase_orders_total_amount_check CHECK (total_amount > 0);

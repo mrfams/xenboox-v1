@@ -11,7 +11,6 @@ import {
   LEDGER_HASH_VERSION,
   type LedgerEventHashInput,
 } from "../src/hash";
-import { LedgerValidationError } from "../src/posting";
 
 const baseEvent: LedgerEventHashInput = {
   entityId: "e1e1e1e1-1111-4111-8111-111111111111",
@@ -156,7 +155,11 @@ describe("posting validation (pure rules — no DB)", () => {
     const { postToLedger } = await import("../src/posting");
     const explodingDb = new Proxy(
       {},
-      { get() { throw new Error("DB must not be touched"); } },
+      {
+        get() {
+          throw new Error("DB must not be touched");
+        },
+      },
     );
     await expect(
       postToLedger(explodingDb as never, {
@@ -168,8 +171,18 @@ describe("posting validation (pure rules — no DB)", () => {
         currency: "GMD",
         idempotencyKey: "k2",
         lines: [
-          { accountId: "a", accountCode: "1", debitMinor: 100.5, creditMinor: 0 },
-          { accountId: "b", accountCode: "4", debitMinor: 0, creditMinor: 100.5 },
+          {
+            accountId: "a",
+            accountCode: "1",
+            debitMinor: 100.5,
+            creditMinor: 0,
+          },
+          {
+            accountId: "b",
+            accountCode: "4",
+            debitMinor: 0,
+            creditMinor: 100.5,
+          },
         ],
       }),
     ).rejects.toMatchObject({ code: "NON_INTEGER_AMOUNT" });
@@ -179,7 +192,11 @@ describe("posting validation (pure rules — no DB)", () => {
     const { postToLedger } = await import("../src/posting");
     const explodingDb = new Proxy(
       {},
-      { get() { throw new Error("DB must not be touched"); } },
+      {
+        get() {
+          throw new Error("DB must not be touched");
+        },
+      },
     );
     await expect(
       postToLedger(explodingDb as never, {
@@ -191,7 +208,12 @@ describe("posting validation (pure rules — no DB)", () => {
         currency: "GMD",
         idempotencyKey: "k3",
         lines: [
-          { accountId: "a", accountCode: "1", debitMinor: 100, creditMinor: 50 },
+          {
+            accountId: "a",
+            accountCode: "1",
+            debitMinor: 100,
+            creditMinor: 50,
+          },
           { accountId: "b", accountCode: "4", debitMinor: 0, creditMinor: 50 },
         ],
       }),
@@ -202,7 +224,11 @@ describe("posting validation (pure rules — no DB)", () => {
     const { postToLedger } = await import("../src/posting");
     const explodingDb = new Proxy(
       {},
-      { get() { throw new Error("DB must not be touched"); } },
+      {
+        get() {
+          throw new Error("DB must not be touched");
+        },
+      },
     );
     await expect(
       postToLedger(explodingDb as never, {

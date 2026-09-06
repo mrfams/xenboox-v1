@@ -11,6 +11,7 @@
 // — which is exactly the signal we want.
 
 import type { LedgerEventLine } from "@xenboox/db/schema/ledger";
+import type { Database } from "@xenboox/db";
 import { postToLedger } from "./posting";
 
 export function isShadowEnabled(): boolean {
@@ -71,7 +72,7 @@ export interface ShadowMirrorParams {
  * failure must never break the real posting.
  */
 export async function shadowMirror(
-  db: import("@xenboox/db").Database,
+  db: Database,
   params: ShadowMirrorParams,
 ): Promise<{ eventId: string; seq: number; duplicate: boolean }> {
   return postToLedger(db, {

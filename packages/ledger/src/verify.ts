@@ -1,9 +1,13 @@
 // ─── Ledger Engine v2 — chain verification + projection rebuild (§4.1/4.3) ──
 
 import { asc, eq } from "drizzle-orm";
-import { journalEvents, ledgerAccountBalances } from "@xenboox/db/schema/ledger";
+import {
+  journalEvents,
+  ledgerAccountBalances,
+} from "@xenboox/db/schema/ledger";
 import { GENESIS_HASH, computeEventHash } from "./hash";
 import type { LedgerEventLine } from "@xenboox/db/schema/ledger";
+import type { Database } from "@xenboox/db";
 
 export interface ChainVerification {
   valid: boolean;
@@ -18,7 +22,7 @@ export interface ChainVerification {
  * ordered scan proves the books have not been tampered with.
  */
 export async function verifyChain(
-  db: import("@xenboox/db").Database,
+  db: Database,
   entityId: string,
 ): Promise<ChainVerification> {
   const events = await db.query.journalEvents.findMany({
@@ -69,7 +73,7 @@ export async function verifyChain(
  * proof that events are the source of truth and balances are derived.
  */
 export async function rebuildBalances(
-  db: import("@xenboox/db").Database,
+  db: Database,
   entityId: string,
 ): Promise<{ accounts: number; events: number }> {
   const events = await db.query.journalEvents.findMany({
@@ -79,7 +83,13 @@ export async function rebuildBalances(
 
   const deltas = new Map<
     string,
-    { accountId: string; periodId: string; currency: string; debit: number; credit: number }
+    {
+      accountId: string;
+      periodId: string;
+      currency: string;
+      debit: number;
+      credit: number;
+    }
   >();
 
   for (const event of events) {
@@ -101,7 +111,9 @@ export async function rebuildBalances(
   }
 
   return db.transaction(async (tx) => {
-    await tx.delete(ledgerAccountBalances).where(eq(ledgerAccountBalances.entityId, entityId));
+    await tx
+      .delete(ledgerAccountBalances)
+      .where(eq(ledgerAccountBalances.entityId, entityId));
     const rows = [...deltas.values()].map((d) => ({
       entityId,
       accountId: d.accountId,
