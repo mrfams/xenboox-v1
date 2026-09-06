@@ -1,13 +1,16 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "For Accountants — Every Client's Close in One Queue | Xenboox",
+  title: "Xenboox for Accountants — Every Client's Close in One Queue",
   description:
-    "Multi-entity by design. Run every client's close from one queue with evidence on every posting and an audit trail reviewers love.",
+    "Manage multiple clients with books that run themselves. Automated bookkeeping, payroll, and compliance for accounting firms. Free tier available.",
   openGraph: {
     title: "Xenboox for Accountants",
     description:
-      "One queue for every client's close. Evidence on every posting. Audit-ready, multi-entity, multi-currency.",
+      "One queue for every client's close, evidence on every posting. Free tier available.",
+    url: "https://xenboox.com/for-accountants",
+    siteName: "Xenboox",
+    type: "website",
   },
 };
 
@@ -16,5 +19,5 @@ export default function ForAccountantsLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return children;
+  return <>{children}</>;
 }

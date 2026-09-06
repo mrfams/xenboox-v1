@@ -1,13 +1,16 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Pricing — Plans for Every Stage | Xenboox",
+  title: "Pricing — Start Free | Xenboox",
   description:
-    "Start free. Paid plans from $29/mo with unlimited journal entries, full close automation, payroll, and multi-entity support. No credit card required.",
+    "Start free. Paid plans from $29/mo with unlimited journal entries, full close automation, payroll, and multi-entity support. Cancel anytime. 30-day money-back guarantee.",
   openGraph: {
-    title: "Xenboox Pricing — Start Free",
+    title: "Pricing — Start Free | Xenboox",
     description:
-      "Free tier for getting started, paid plans from $29/mo. Unlimited entries, full automation, human support.",
+      "Start free. Paid plans from $29/mo with unlimited entries, full automation, and multi-entity support.",
+    url: "https://xenboox.com/pricing",
+    siteName: "Xenboox",
+    type: "website",
   },
 };
 
@@ -16,5 +19,5 @@ export default function PricingLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return children;
+  return <>{children}</>;
 }
