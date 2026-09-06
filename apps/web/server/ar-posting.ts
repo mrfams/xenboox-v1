@@ -31,6 +31,7 @@ import {
   buildArPaymentLines,
 } from "@xenboox/db";
 import { db } from "@/lib/db";
+import { postToLedger, toLedgerLines } from "@xenboox/ledger";
 import { logger } from "@/lib/logger";
 import { moneyToCents } from "./ar-validation";
 import {
@@ -75,6 +76,7 @@ export async function postArInvoiceToLedger(
         invoiceDate: true,
         journalEntryId: true,
         status: true,
+        currency: true,
       },
     });
     if (!invoice) return { posted: false, reason: "invoice_not_found" };
@@ -129,9 +131,89 @@ export async function postArInvoiceToLedger(
 
     const jeLines = buildArInvoiceLines(arAccountId, built);
     const reference = `ar-inv-${invoice.id}`;
-    // Batch 3 / N26 — document link + audit commit WITH the posted entry.
-    // A link failure rolls the whole posting back; no posted JE can exist
-    // without its source document.
+    const linkInvoice = async (tx: Parameters<Parameters<typeof db.transaction>[0]>[0], jeIdToLink: string) => {
+      await tx
+        .update(salesInvoices)
+        .set({ journalEntryId: jeIdToLink })
+        .where(
+          and(
+            eq(salesInvoices.id, invoice.id),
+            eq(salesInvoices.entityId, entityId),
+          ),
+        );
+
+      await tx.insert(auditLog).values({
+        entityId,
+        userId,
+        action: "ar.postInvoice",
+        entityType: "sales_invoice",
+        entityIdRef: invoice.id,
+        newValues: { journalEntryId: jeIdToLink, reference },
+      });
+    };
+
+    // ── Batch 3 / N37 — cut-over flag ────────────────────────────────────
+    // LEDGER_PRIMARY_AR=true: the v2 journal is AUTHORITATIVE. The legacy
+    // journal write becomes the derived mirror so reports/balances (which
+    // still read legacy tables) keep working during the transition window.
+    // Failure isolation: an engine failure aborts everything (nothing
+    // posted); a legacy-mirror failure after an engine commit leaves the
+    // event standing and is caught by the parity verifier.
+    if (process.env.LEDGER_PRIMARY_AR === "true") {
+      let engineEventId: string | null = null;
+      try {
+        const engine = await postToLedger(db, {
+          entityId,
+          actorType: "user",
+          actorId: userId,
+          source: "ar_invoice",
+          effectiveDate: invoice.invoiceDate,
+          currency: invoice.currency,
+          idempotencyKey: reference,
+          lines: toLedgerLines(jeLines),
+          metadata: { invoiceNumber: invoice.invoiceNumber },
+        });
+        engineEventId = engine.eventId;
+      } catch (err) {
+        logger.error(
+          { err, invoiceId, reference },
+          "[ar-posting] engine posting failed (LEDGER_PRIMARY_AR)",
+        );
+        return { posted: false, reason: "journal_skipped" };
+      }
+
+      // Legacy mirror (derived) — keeps legacy readers consistent. The
+      // mirror reuses the legacy writer so TrustGuard + link semantics
+      // remain identical to the pre-cut-over path.
+      let mirrorJeId: string | null = null;
+      try {
+        mirrorJeId = await createPostedJournal({
+          entityId,
+          userId,
+          date: invoice.invoiceDate,
+          description: `Sales invoice ${invoice.invoiceNumber}`,
+          reference,
+          source: "ar_invoice",
+          lines: jeLines,
+          logPrefix: "[ar-posting][mirror]",
+          linkInsideTx: async (tx, createdId) => {
+            await linkInvoice(tx, createdId);
+          },
+        });
+      } catch (mirrorErr) {
+        logger.error(
+          { mirrorErr, invoiceId, reference, engineEventId },
+          "[ar-posting] legacy mirror failed after engine commit — parity verifier will reconcile",
+        );
+      }
+
+      return {
+        posted: true,
+        journalEntryId: mirrorJeId ?? engineEventId ?? "",
+      };
+    }
+
+    // Legacy-primary path (default until cut-over completes).
     const jeId = await createPostedJournal({
       entityId,
       userId,
@@ -142,24 +224,7 @@ export async function postArInvoiceToLedger(
       lines: jeLines,
       logPrefix: "[ar-posting]",
       linkInsideTx: async (tx, createdId) => {
-        await tx
-          .update(salesInvoices)
-          .set({ journalEntryId: createdId })
-          .where(
-            and(
-              eq(salesInvoices.id, invoice.id),
-              eq(salesInvoices.entityId, entityId),
-            ),
-          );
-
-        await tx.insert(auditLog).values({
-          entityId,
-          userId,
-          action: "ar.postInvoice",
-          entityType: "sales_invoice",
-          entityIdRef: invoice.id,
-          newValues: { journalEntryId: createdId, reference },
-        });
+        await linkInvoice(tx, createdId);
       },
     });
     if (!jeId) return { posted: false, reason: "journal_skipped" };

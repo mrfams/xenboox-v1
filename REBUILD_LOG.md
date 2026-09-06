@@ -368,3 +368,28 @@ N36: shadow dual-write (posting core mirrors every commit into journal_events be
 ### Next loop pass
 
 N37: AR invoice cut-over behind the flag + staging parity evidence; then per-module cut-overs to close G4.
+
+---
+
+## Session 012 — 2026-09-06 — G4: AR INVOICE CUT-OVER BEHIND THE FLAG (N37)
+
+### Graph delta
+
+| Node | Status | Evidence |
+|---|---|---|
+| N37 AR cut-over | **passed (Run Phase)** | `postArInvoiceToLedger` now branches on `LEDGER_PRIMARY_AR=true`: **engine-first** (`postToLedger` with the same `ar-inv-<id>` idempotency key, real invoice currency, TrustGuard-equivalent validation inside the engine) → legacy mirror via `createPostedJournal` (so legacy readers stay consistent during the transition) → invoice link + audit. Failure semantics are asymmetric by design: engine failure aborts everything (nothing posted, reason journal_skipped); legacy-mirror failure after an engine commit leaves the event standing and is caught by the parity verifier. Default remains legacy-primary until staging parity evidence accumulates. Invoice fetch now selects `currency` (the engine refuses hardcoded money). Shared `linkInvoice` helper serves both branches |
+
+### Run Phase (executed this session)
+
+- **80/80 tests passing** across all 11 suites (new: `epoch0-batch3-ar-cutover.test.ts`, 5 cases)
+- One stale assertion updated honestly (N26 counted 2 linkInsideTx in ar-posting; the cut-over mirror legitimately makes it 3 — invariant relaxed to ≥2 with the reason recorded in the test)
+- `packages/ledger` tsc clean
+
+### Residual risks
+
+- With `LEDGER_PRIMARY_AR=true`, a legacy-mirror failure leaves `salesInvoices.journalEntryId` unset while money stands in the engine — the parity verifier detects it; a repair backfill is listed for the ops runbook
+- Cut-over rollout order: staging (shadow + parity evidence) → prod shadow → prod flip per module
+
+### Next loop pass
+
+Same pattern for AP bill + payments cut-overs (mechanical, same shape as N37); then expenses + close depreciation routing (N28 closes); then legacy freeze → G4 complete.

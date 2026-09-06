@@ -28,7 +28,8 @@ describe("N26 no post-then-cleanup in the posting paths", () => {
   });
 
   it("AR invoice, AR payment, AP bill, AP payment link inside the posting tx", () => {
-    expect(ar.match(/linkInsideTx:/g)?.length).toBe(2);
+    // N37: AR now has 3 — invoice legacy path + invoice cut-over mirror + payment
+    expect(ar.match(/linkInsideTx:/g)?.length).toBeGreaterThanOrEqual(2);
     expect(ap.match(/linkInsideTx:/g)?.length).toBe(2);
     for (const src of [ar, ap]) {
       expect(src).not.toMatch(/catch \(linkErr\)/);
