@@ -1613,7 +1613,12 @@ CREATE TABLE "pending_invites" (
 	CONSTRAINT "pending_invites_token_unique" UNIQUE("token")
 );
 --> statement-breakpoint
-ALTER TABLE "documents" ALTER COLUMN "status" SET DEFAULT 'detected';--> statement-breakpoint
+-- NOTE: the "SET DEFAULT 'detected'" for documents.status was removed from
+-- this spot: on a fresh database the whole chain runs in ONE transaction and
+-- 'detected' is only added to doc_status in 0009 — using it as a default
+-- here (before 0015's end-of-file DROP/CREATE of doc_status, where it is a
+-- creation-time value) triggers "unsafe use of new value of enum type".
+-- The default is applied by 0042_doc_status_default_detected instead.
 ALTER TABLE "sessions" ADD COLUMN "ip_address" text;--> statement-breakpoint
 ALTER TABLE "sessions" ADD COLUMN "user_agent" text;--> statement-breakpoint
 ALTER TABLE "users" ADD COLUMN "auth_provider" text DEFAULT 'credentials' NOT NULL;--> statement-breakpoint

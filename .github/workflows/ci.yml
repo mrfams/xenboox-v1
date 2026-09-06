@@ -160,6 +160,9 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
           NEXTAUTH_URL: ${{ secrets.NEXTAUTH_URL }}
+          # Not a secret: stable production domain (same value Vercel builds
+          # with). lib/app-url.ts hard-requires it when NODE_ENV=production.
+          NEXT_PUBLIC_APP_URL: https://xenboox.vercel.app
 
   e2e:
     name: E2E (Playwright — anon marketing + onboarding)
