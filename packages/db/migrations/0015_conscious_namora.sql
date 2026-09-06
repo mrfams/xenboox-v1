@@ -2030,6 +2030,10 @@ CREATE UNIQUE INDEX "pending_invites_token" ON "pending_invites" USING btree ("t
 CREATE INDEX "pending_invites_email_status" ON "pending_invites" USING btree ("email","status");--> statement-breakpoint
 CREATE INDEX "pending_invites_invited_by" ON "pending_invites" USING btree ("invited_by");--> statement-breakpoint
 ALTER TABLE "organizations" ADD CONSTRAINT "organizations_billing_owner_user_id_users_id_fk" FOREIGN KEY ("billing_owner_user_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+-- The column default ('uploaded'::doc_status) survives SET DATA TYPE and keeps
+-- depending on the enum, so it must be dropped before the type swap. 0042
+-- re-applies DEFAULT 'detected' after the new type exists.
+ALTER TABLE "public"."documents" ALTER COLUMN "status" DROP DEFAULT;--> statement-breakpoint
 ALTER TABLE "public"."documents" ALTER COLUMN "status" SET DATA TYPE text;--> statement-breakpoint
 DROP TYPE "public"."doc_status";--> statement-breakpoint
 CREATE TYPE "public"."doc_status" AS ENUM('detected', 'processing', 'extracted', 'synced', 'agent_processing', 'done', 'failed', 'archived', 'uploaded', 'processed');--> statement-breakpoint
