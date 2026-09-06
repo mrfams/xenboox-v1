@@ -86,6 +86,10 @@ export interface IngestionState {
   mimeType: string;
   ocrText: string;
   ocrConfidence: number;
+  /** Active entity tax rates (N45) — populated by the pipeline so
+   * TrustGuard can flag extracted taxes the entity has NOT configured.
+   * Self-serve: users add rates in Settings → Taxes; unknown rates escalate. */
+  entityTaxRates?: Array<{ name: string; ratePercent: number }>;
   classification: {
     category: string;
     confidence: number;

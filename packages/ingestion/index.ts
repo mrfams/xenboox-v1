@@ -176,6 +176,32 @@ export async function runIngestionPipeline(
       };
     }
 
+    // N45 — load the entity's ACTIVE tax rates so TrustGuard can flag
+    // extracted taxes the entity has not configured (self-serve: users add
+    // rates in Settings → Taxes; unknown rates escalate to review).
+    const activeTaxRules = await db.query.jurisdictionTaxRules.findMany({
+      where: and(
+        eq(jurisdictionTaxRules.entityId, entityId),
+        eq(jurisdictionTaxRules.status, "active"),
+      ),
+      columns: { name: true, rateOrBands: true },
+      limit: 100,
+    });
+    const entityTaxRates: Array<{ name: string; ratePercent: number }> = [];
+    for (const rule of activeTaxRules) {
+      const cfg = rule.rateOrBands;
+      if (cfg.type === "rate" && typeof cfg.rate === "number") {
+        entityTaxRates.push({ name: rule.name, ratePercent: cfg.rate * 100 });
+      } else if (cfg.type === "bands") {
+        for (const band of cfg.bands ?? []) {
+          entityTaxRates.push({
+            name: `${rule.name} (${band.rate * 100}% band)`,
+            ratePercent: band.rate * 100,
+          });
+        }
+      }
+    }
+
     const extractionMeta = (metadata.extraction ?? {}) as Record<
       string,
       unknown
@@ -187,6 +213,7 @@ export async function runIngestionPipeline(
 
     // Build the ingestion state
     const state: IngestionState = {
+      entityTaxRates,
       documentId: doc.id,
       entityId,
       mimeType: doc.mimeType ?? "",

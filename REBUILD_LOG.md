@@ -533,3 +533,33 @@ N43 banking loop restructure → legacy freeze declaration → **G4 COMPLETE**. 
 2. Staging: migration 0041 + `LEDGER_SHADOW=true` → parity evidence
 3. Per-module flag flips as parity holds
 4. Legacy freeze → G4 fully realized in production
+
+---
+
+## Session 018 — 2026-09-06 — SELF-SERVE TAX VERIFIED + UNKNOWN-TAX ESCALATION (N45) + CI/STAGING WIRING
+
+**Owner directives:** (1) self-serve tax config so uncovered jurisdictions can use the platform; (2) unknown tax on a document → ask the user AND surface to admin for verification/adding; (3) typecheck stays in CI.
+
+### Graph delta
+
+| Node | Status | Evidence |
+|---|---|---|
+| N44 self-serve tax config | **verified complete (no build needed)** | End-to-end already wired: `tax-config.ts` (createRule/update/deactivate — entity-scoped, owner/admin/finance_director-gated, versioned with history, draft→active lifecycle, per-customer/vendor overrides) + `taxes-section.tsx` UI (presets install, create, update, toggle, deactivate). Uncovered jurisdictions self-serve their rates |
+| N45 unknown-tax escalation | **passed (Run Phase)** | The pipeline now loads the entity's ACTIVE tax rates (flat + band configs flattened) into `IngestionState.entityTaxRates`; TrustGuard's invoice validation adds the `invoice_tax_unknown` WARNING: implied rate (tax/subtotal) not matching any configured rate within ±0.5pp → warning → the document routes to human review (posting-engine sends warnings to review) with the message "Tax rate X% is not configured for this entity — review it or add it in Settings → Taxes". The check appears in the document's trustGuard metadata, which the admin review queue already surfaces. Both of the owner's paths work: the USER is asked (review panel) and the ADMIN can verify + add the rate (tax-config self-serve + the flagged document). Nothing configures itself silently |
+| CI wiring | **passed** | `ci.yml` typecheck job now runs with `NODE_OPTIONS=--max-old-space-size=6144` (the PC's OOM constraint doesn't exist on CI runners). Turbo picks up `@xenboox/ledger`'s typecheck + test automatically (both scripts exist) |
+| Staging wiring | **passed** | `vercel.json` registers `/api/cron/ledger-parity` nightly at 02:40 UTC (valid JSON confirmed). Staging checklist: migration 0041 → `LEDGER_SHADOW=true` → parity cron accumulates evidence → per-module `LEDGER_PRIMARY_*` flips |
+
+### Run Phase (executed this session)
+
+- **21/21 ledger tests** (incl. 6 new unknown-tax matching cases + FX canonicalization), ledger tsc clean
+- 104/104 dashboard suites re-verified earlier this session
+- Ingestion signature threading fixed during the run (validateInvoiceExtraction now takes state — caught by typecheck discipline before it could be a runtime bug)
+
+### Residual risks
+
+- `packages/ingestion` raw tsc shows pre-existing project-references (rootDir) noise + pre-existing `__tests__/period-manager.test.ts` type errors — both predate this work, both are CI-tractable
+- The unknown-rate check needs the entity to HAVE configured rates to compare; entities with zero configured rates get no false "unknown" flags (by design — self-serve starts with presets install)
+
+### Next loop pass
+
+Staging deployment: run migrations + enable LEDGER_SHADOW → parity evidence → per-module flips. Then G4 fully realized in production; tax filing integrations (Epoch 2–3) build on the same engine.

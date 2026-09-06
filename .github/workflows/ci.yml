@@ -43,7 +43,10 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # The web app's full typecheck needs headroom (OOMs at the default heap)
       - run: pnpm typecheck
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
 
   test:
     name: Test

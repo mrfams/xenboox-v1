@@ -85,7 +85,7 @@ export function runTrustGuard(state: IngestionState): TrustGuardResult {
   // Run type-specific checks
   switch (category) {
     case "invoice":
-      checks.push(...validateInvoiceExtraction(data));
+      checks.push(...validateInvoiceExtraction(state, data));
       break;
     case "receipt":
       checks.push(...validateReceiptExtraction(data));
@@ -160,6 +160,7 @@ export function runTrustGuard(state: IngestionState): TrustGuardResult {
  * 4. Line items math: qty × unitPrice should equal amount (per line)
  */
 function validateInvoiceExtraction(
+  state: IngestionState,
   data: Record<string, unknown>,
 ): TrustGuardCheck[] {
   const checks: TrustGuardCheck[] = [];
@@ -205,7 +206,38 @@ function validateInvoiceExtraction(
       }
     }
 
-    // Check 2: Sum of line amounts vs subtotal
+    // Check 1b: Unknown tax rate (N45) — the implied rate (tax/subtotal) must
+  // match a rate the entity has CONFIGURED (self-serve in Settings → Taxes).
+  // Unknown rates are a WARNING: the math may still tally, but the tax goes
+  // to human review and the admin can add the rate for the jurisdiction.
+  if (
+    subtotal !== undefined &&
+    taxAmount !== undefined &&
+    subtotal > 0 &&
+    state.entityTaxRates &&
+    state.entityTaxRates.length > 0
+  ) {
+    const impliedRate = Number(((taxAmount / subtotal) * 100).toFixed(2));
+    const tolerance = 0.5; // percentage points
+    const matched = state.entityTaxRates.some(
+      (r) => Math.abs(r.ratePercent - impliedRate) <= tolerance,
+    );
+    checks.push({
+      name: "invoice_tax_unknown",
+      description: "Extracted tax rate matches a configured entity tax",
+      passed: matched,
+      expected: matched
+        ? impliedRate
+        : (state.entityTaxRates[0]?.ratePercent ?? 0),
+      actual: impliedRate,
+      severity: "warning",
+      message: matched
+        ? `Tax rate ${impliedRate}% matches a configured entity tax`
+        : `Tax rate ${impliedRate}% is not configured for this entity — review it or add it in Settings → Taxes so future documents post cleanly`,
+    });
+  }
+
+  // Check 2: Sum of line amounts vs subtotal
     const computedSubtotal = lineItems.reduce((sum, line) => {
       return sum + (line.amount ?? 0);
     }, 0);
