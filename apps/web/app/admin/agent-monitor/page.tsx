@@ -230,6 +230,7 @@ export default function AgentMonitorPage() {
     humanReviewCount,
     successRate,
     timeSavedHours,
+    summary,
     isLoading,
     refetch,
     isRefetching,

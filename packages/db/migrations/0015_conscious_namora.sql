@@ -1622,10 +1622,9 @@ CREATE TABLE "pending_invites" (
 ALTER TABLE "sessions" ADD COLUMN "ip_address" text;--> statement-breakpoint
 ALTER TABLE "sessions" ADD COLUMN "user_agent" text;--> statement-breakpoint
 ALTER TABLE "users" ADD COLUMN "auth_provider" text DEFAULT 'credentials' NOT NULL;--> statement-breakpoint
-ALTER TABLE "users" ADD COLUMN "reset_password_token" text;--> statement-breakpoint
-ALTER TABLE "users" ADD COLUMN "reset_password_expires" timestamp;--> statement-breakpoint
-ALTER TABLE "users" ADD COLUMN "failed_login_attempts" integer DEFAULT 0 NOT NULL;--> statement-breakpoint
-ALTER TABLE "users" ADD COLUMN "lockout_until" timestamp;--> statement-breakpoint
+-- reset_password_token / reset_password_expires / failed_login_attempts /
+-- lockout_until are already added by 0008_security_fields (with IF NOT
+-- EXISTS) — re-adding them here hard-fails on fresh databases.
 ALTER TABLE "users" ADD COLUMN "two_factor_enabled" boolean DEFAULT false NOT NULL;--> statement-breakpoint
 ALTER TABLE "users" ADD COLUMN "two_factor_secret" text;--> statement-breakpoint
 ALTER TABLE "users" ADD COLUMN "backup_codes" text;--> statement-breakpoint

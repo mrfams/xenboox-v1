@@ -1,5 +1,6 @@
 "use client";
 
+import type { ComponentType } from "react";
 import { Check, CheckCheck, PlugZap, Workflow } from "lucide-react";
 
 import { Section } from "@/components/marketing/section";
@@ -13,16 +14,37 @@ import { FadeInUp } from "@/components/marketing/reveal";
 // type, double-bezel hardware cards, ghost numbers, scroll-driven timeline.
 // ────────────────────────────────────────────────────────────────────────────
 
-type Step = {
+type Step = Required<Pick<HowItWorksStep, "title" | "description">> & {
   n: string;
   kicker: string;
-  icon: typeof PlugZap;
-  title: string;
-  description: string;
+  icon: NonNullable<HowItWorksStep["icon"]>;
   bullets: string[];
 };
 
-const steps: Step[] = [
+// Public step shape — accepts both the editorial internal shape (n, kicker,
+// bullets) and the simpler page-level shape (step number, optional icon).
+export type HowItWorksStep = {
+  n?: string;
+  step?: string;
+  kicker?: string;
+  icon?: ComponentType<{
+    className?: string;
+    "aria-hidden"?: boolean | "true" | "false";
+    strokeWidth?: number;
+  }>;
+  title: string;
+  description: string;
+  bullets?: string[];
+};
+
+type HowItWorksProps = {
+  id?: string;
+  title?: string;
+  subtitle?: string;
+  steps?: HowItWorksStep[];
+};
+
+const defaults: Step[] = [
   {
     n: "01",
     kicker: "02 min  •  3 sources",
@@ -64,10 +86,25 @@ const steps: Step[] = [
   },
 ];
 
-export function HowItWorks() {
+export function HowItWorks({
+  id = "how-it-works",
+  title,
+  subtitle,
+  steps: customSteps,
+}: HowItWorksProps = {}) {
+  const active: Step[] =
+    customSteps?.map((s, i) => ({
+      n: s.n ?? s.step ?? String(i + 1),
+      kicker: s.kicker ?? "",
+      icon: s.icon ?? PlugZap,
+      title: s.title,
+      description: s.description,
+      bullets: s.bullets ?? [],
+    })) ?? defaults;
+
   return (
     <Section
-      id="how-it-works"
+      id={id}
       className="relative overflow-hidden bg-background py-20 sm:py-24 lg:py-28"
     >
       {/* Ambient */}
@@ -89,16 +126,19 @@ export function HowItWorks() {
         <FadeInUp>
           <div className="mx-auto max-w-3xl text-center">
             <h2 className="text-3xl font-semibold leading-[1.05] tracking-tight text-foreground sm:text-4xl lg:text-[2.75rem]">
-              Set up in minutes.
-              <br />
-              <span className="text-muted-foreground">
-                First close in days.
-              </span>
+              {title ?? (
+                <>
+                  Set up in minutes.
+                  <br />
+                  <span className="text-muted-foreground">
+                    First close in days.
+                  </span>
+                </>
+              )}
             </h2>
             <p className="mx-auto mt-4 max-w-2xl text-[15px] leading-relaxed text-muted-foreground sm:text-base">
-              Xenboox replaces the daily grind of accounting work, not your
-              judgment. Every step is logged, reversible, and entity-scoped —
-              across every entity you own.
+              {subtitle ??
+                "Xenboox replaces the daily grind of accounting work, not your judgment. Every step is logged, reversible, and entity-scoped — across every entity you own."}
             </p>
           </div>
         </FadeInUp>
@@ -109,7 +149,7 @@ export function HowItWorks() {
             className="relative grid gap-5 sm:gap-6 lg:grid-cols-3 lg:gap-6"
             aria-label="How Xenboox works in three steps"
           >
-            {steps.map((step, i) => (
+            {active.map((step, i) => (
               <li key={step.n} className="relative">
                 <FadeInUp delay={i * 0.12} className="h-full">
                   {/* Double-bezel outer */}
@@ -139,31 +179,35 @@ export function HowItWorks() {
                       </div>
 
                       {/* Kicker */}
-                      <p className="relative mt-4 font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground/70">
-                        {step.kicker}
-                      </p>
+                      {step.kicker ? (
+                        <p className="relative mt-4 font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground/70">
+                          {step.kicker}
+                        </p>
+                      ) : null}
                       <p className="relative mt-2 text-pretty text-sm leading-relaxed text-muted-foreground sm:text-[14.5px]">
                         {step.description}
                       </p>
 
                       {/* Proof bullets — premium utilitarian */}
-                      <ul className="relative mt-5 space-y-2 border-t border-border/40 pt-5">
-                        {step.bullets.map((b) => (
-                          <li
-                            key={b}
-                            className="flex items-start gap-2 text-sm leading-relaxed text-muted-foreground"
-                          >
-                            <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-primary/10">
-                              <Check
-                                className="h-3 w-3 text-primary"
-                                strokeWidth={2.5}
-                                aria-hidden="true"
-                              />
-                            </span>
-                            <span className="text-[13.5px]">{b}</span>
-                          </li>
-                        ))}
-                      </ul>
+                      {step.bullets.length > 0 ? (
+                        <ul className="relative mt-5 space-y-2 border-t border-border/40 pt-5">
+                          {step.bullets.map((b) => (
+                            <li
+                              key={b}
+                              className="flex items-start gap-2 text-sm leading-relaxed text-muted-foreground"
+                            >
+                              <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-primary/10">
+                                <Check
+                                  className="h-3 w-3 text-primary"
+                                  strokeWidth={2.5}
+                                  aria-hidden="true"
+                                />
+                              </span>
+                              <span className="text-[13.5px]">{b}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : null}
 
                       {/* Micro metric footer */}
                       <div className="relative mt-6 flex items-center gap-2 text-xs text-muted-foreground">
