@@ -28,6 +28,7 @@ import {
   ensureAccount,
   type PostJournalLine,
 } from "../journal-posting-core";
+import { postToLedger, toLedgerLines } from "@xenboox/ledger";
 
 // §4.1 — exchange rates update daily (ECB sync) or via manual upsert; the
 // rate-resolution path runs on every conversion. Entity-scoped 60s cache,
@@ -686,24 +687,71 @@ export const currencyRouter = router({
         // future revaluation runs exclude them.
         let journalEntryId: string | null = null;
         if (entryLines.length > 0) {
-          journalEntryId = await createPostedJournal({
-            entityId,
-            userId,
-            date: periodEndStr,
-            description: `FX revaluation ${input.period}`,
-            reference: `fx-reval:${entityId}:${input.period}`,
-            source: "fx_revaluation",
-            lines: entryLines,
-            logPrefix: "[fx-revaluation]",
-          });
-          if (!journalEntryId) {
-            // Never record a completed run without the entry: the period may
-            // be closed or TrustGuard rejected the entry. Surface the failure.
-            throw new TRPCError({
-              code: "BAD_REQUEST",
-              message:
-                "Revaluation entry could not be posted — the fiscal period may be closed or the entry failed validation",
+          // ── N42a cut-over flag — engine authoritative when enabled ─────
+          if (process.env.LEDGER_PRIMARY_FX === "true") {
+            let engineEventId: string | null = null;
+            try {
+              const engine = await postToLedger(db, {
+                entityId,
+                actorType: "system",
+                actorId: "fx-revaluation",
+                source: "fx_revaluation",
+                effectiveDate: periodEndStr,
+                currency: baseCurrency,
+                idempotencyKey: `fx-reval:${entityId}:${input.period}`,
+                lines: toLedgerLines(entryLines),
+                metadata: { period: input.period },
+              });
+              engineEventId = engine.eventId;
+            } catch (engineErr) {
+              throw new TRPCError({
+                code: "BAD_REQUEST",
+                message: `Revaluation entry could not be posted — ${engineErr instanceof Error ? engineErr.message : "engine validation failed"}`,
+              });
+            }
+            // Legacy mirror (derived) — legacy readers stay consistent.
+            try {
+              journalEntryId = await createPostedJournal({
+                entityId,
+                userId,
+                date: periodEndStr,
+                description: `FX revaluation ${input.period}`,
+                reference: `fx-reval:${entityId}:${input.period}`,
+                source: "fx_revaluation",
+                lines: entryLines,
+                logPrefix: "[fx-revaluation][mirror]",
+              });
+            } catch (mirrorErr) {
+              console.error(
+                "[fx-revaluation] legacy mirror failed after engine commit — parity verifier will reconcile",
+                mirrorErr,
+              );
+            }
+            if (!journalEntryId) {
+              // The event stands in the engine; the run records the engine id.
+              journalEntryId = engineEventId;
+            }
+          } else {
+            // Legacy-primary path (default until cut-over completes).
+            journalEntryId = await createPostedJournal({
+              entityId,
+              userId,
+              date: periodEndStr,
+              description: `FX revaluation ${input.period}`,
+              reference: `fx-reval:${entityId}:${input.period}`,
+              source: "fx_revaluation",
+              lines: entryLines,
+              logPrefix: "[fx-revaluation]",
             });
+            if (!journalEntryId) {
+              // Never record a completed run without the entry: the period may
+              // be closed or TrustGuard rejected the entry. Surface the failure.
+              throw new TRPCError({
+                code: "BAD_REQUEST",
+                message:
+                  "Revaluation entry could not be posted — the fiscal period may be closed or the entry failed validation",
+              });
+            }
           }
         }
 

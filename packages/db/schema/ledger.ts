@@ -35,6 +35,14 @@ export type LedgerEventLine = {
   debitMinor: number;
   creditMinor: number;
   description?: string;
+  /** FX stamp (revaluation/foreign postings): the currency this line is
+   * denominated in, its base-currency amount, and the rate used. Present on
+   * FX lines; absent (undefined) for base-currency lines so revaluation runs
+   * can exclude them deterministically. */
+  currency?: string;
+  baseCurrency?: string;
+  baseAmountMinor?: number;
+  exchangeRate?: number;
 };
 
 export const journalEvents = pgTable(

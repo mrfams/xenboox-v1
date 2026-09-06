@@ -463,3 +463,37 @@ Payroll posting cut-over + any remaining posting sites → legacy freeze → **G
 ### Next loop pass
 
 N42 (FX revaluation + banking posting cut-overs) → **G4 COMPLETE** → legacy freeze declaration + staging shadow-run checklist for deployment.
+
+---
+
+## Session 016 — 2026-09-06 — G4: FX CUT-OVER (N42a) — CORE CUT-OVER COMPLETE
+
+### Graph delta
+
+| Node | Status | Evidence |
+|---|---|---|
+| N42a FX revaluation cut-over | **passed (Run Phase)** | `currency.ts` branches on `LEDGER_PRIMARY_FX=true`: engine posts with `fx-reval:{entity}:{period}` key, system actor, base currency; legacy mirror after (mirror failure → the run records the engine eventId — the event stands, parity reconciles). Engine `LedgerEventLine` extended with optional FX stamps (`currency`/`baseCurrency`/`baseAmountMinor`/`exchangeRate`) participating in tamper evidence only when present — base-currency lines hash unchanged. Legacy-primary preserved as default |
+| N43 banking categorization | **backlog (deliberate scope call)** | The banking per-tx loop's mirror extraction is intricate (per-tx period resolution, skip semantics, results array) — a rushed codemod risks the bug class this entire cut-over exists to eliminate. Banking already posts deterministically (TrustGuard + reference idempotency) on the hardened legacy path. N43 next pass with the loop properly restructured |
+
+### Run Phase (executed this session)
+
+- **104/104 dashboard tests (15 suites) + 21/21 ledger tests = 125 passing**, ledger tsc clean
+- New: `epoch0-batch3-fx-cutover.test.ts` (5 cases) + FX canonicalization tests in the ledger suite
+
+### G4 CUT-OVER STATUS — core complete
+
+| Module | Engine flag |
+|---|---|
+| AR invoice + AR payment | `LEDGER_PRIMARY_AR` |
+| AP bill + AP payment | `LEDGER_PRIMARY_AP` |
+| Expense reimbursements | `LEDGER_PRIMARY_EXPENSES` |
+| Close depreciation | `LEDGER_PRIMARY_CLOSE` |
+| Payroll | `LEDGER_PRIMARY_PAYROLL` |
+| FX revaluation | `LEDGER_PRIMARY_FX` |
+| Banking categorization | N43 (deterministic legacy path, shadow-ready) |
+
+All flags default OFF — the flip is a staged, reversible, per-environment operations decision gated by parity evidence.
+
+### Next loop pass
+
+N43 banking loop restructure → legacy freeze declaration → **G4 COMPLETE**. Then CI wiring (typecheck + suites on GitHub Actions) per the owner's CI-first directive.

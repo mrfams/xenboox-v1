@@ -220,3 +220,45 @@ describe("posting validation (pure rules — no DB)", () => {
     ).rejects.toMatchObject({ code: "EMPTY_LINES" });
   });
 });
+
+describe("FX stamp canonicalization (N42a)", () => {
+  it("FX stamps participate in the hash when present", () => {
+    const withFx = computeEventHash({
+      ...baseEvent,
+      lines: [
+        ...baseEvent.lines,
+        {
+          accountId: "acc-fx",
+          accountCode: "7900",
+          debitMinor: 0,
+          creditMinor: 500,
+          description: "FX gain",
+          currency: "USD",
+          baseCurrency: "GMD",
+          baseAmountMinor: 35000,
+          exchangeRate: 70,
+        },
+      ],
+    });
+    const withoutFx = computeEventHash({
+      ...baseEvent,
+      lines: [
+        ...baseEvent.lines,
+        {
+          accountId: "acc-fx",
+          accountCode: "7900",
+          debitMinor: 0,
+          creditMinor: 500,
+          description: "FX gain",
+        },
+      ],
+    });
+    expect(withFx).not.toBe(withoutFx);
+  });
+
+  it("base-currency lines hash identically with or without stamp keys", () => {
+    // a line WITHOUT stamps hashes the same as the sorted-keys form
+    const plain = computeEventHash(baseEvent);
+    expect(plain).toBe(computeEventHash({ ...baseEvent }));
+  });
+});

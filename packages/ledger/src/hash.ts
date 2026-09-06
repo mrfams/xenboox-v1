@@ -64,13 +64,25 @@ export function computeEventHash(input: LedgerEventHashInput): string {
 // ── stable stringify (sorted keys, recursive, no whitespace) ────────────────
 
 function sortLineKeys(line: LedgerEventLine): LedgerEventLine {
-  return {
+  const base = {
     accountId: line.accountId,
     accountCode: line.accountCode,
     creditMinor: line.creditMinor,
     debitMinor: line.debitMinor,
     description: line.description,
   };
+  // FX stamps participate in the hash only when present — a base-currency
+  // line and the same line without stamps hash identically.
+  if (line.currency !== undefined) {
+    return {
+      ...base,
+      baseAmountMinor: line.baseAmountMinor,
+      baseCurrency: line.baseCurrency,
+      currency: line.currency,
+      exchangeRate: line.exchangeRate,
+    };
+  }
+  return base;
 }
 
 function sortLines(lines: LedgerEventLine[]): LedgerEventLine[] {
