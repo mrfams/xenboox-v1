@@ -1557,14 +1557,14 @@ ${INJECTION_DEFENSE_SUFFIX}`;
       content.split("\n")[0] ||
       `${entityName} financial summary`;
 
-    let highlightText = highlightsMatch?.[1]?.trim() || "";
-    let highlights = highlightText
+    const highlightText = highlightsMatch?.[1]?.trim() || "";
+    const highlights = highlightText
       .split("\n")
       .map((h) => h.replace(/^[-•*]\s*/, "").trim())
       .filter((h) => h.length > 0);
 
-    let concernText = concernsMatch?.[1]?.trim() || "";
-    let concerns = concernText
+    const concernText = concernsMatch?.[1]?.trim() || "";
+    const concerns = concernText
       .split("\n")
       .map((c) => c.replace(/^[-•*]\s*/, "").trim())
       .filter((c) => c.length > 0);

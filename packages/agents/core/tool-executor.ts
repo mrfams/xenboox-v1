@@ -360,6 +360,7 @@ export function getAgentToolsForCallModel(agentName: string): Array<{
   description: string;
   inputSchema: Record<string, unknown>;
 }> {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports -- lazy require: breaks a module init-order cycle with tool-registry
   const { getTool, getAllTools } = require("./tool-registry");
   const config =
     DEFAULT_AGENT_TOOL_CONFIGS[agentName] ??

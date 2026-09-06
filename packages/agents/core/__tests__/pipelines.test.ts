@@ -795,9 +795,8 @@ describe("Pipeline 1: CFO Agent Orchestration Pipeline", () => {
   });
 
   it("should seed default confidence thresholds", async () => {
-    const { seedDefaultThresholds, DEFAULT_THRESHOLDS } = await import(
-      "../pipeline"
-    );
+    const { seedDefaultThresholds, DEFAULT_THRESHOLDS } =
+      await import("../pipeline");
     expect(DEFAULT_THRESHOLDS.length).toBeGreaterThan(0);
     expect(DEFAULT_THRESHOLDS[0].agentId).toBeDefined();
     expect(DEFAULT_THRESHOLDS[0].transactionType).toBeDefined();
@@ -887,9 +886,8 @@ describe("Pipeline 1: CFO Agent Orchestration Pipeline", () => {
   });
 
   it("should check confidence gate thresholds", async () => {
-    const { evaluateConfidenceGate, createInputEvent } = await import(
-      "../pipeline"
-    );
+    const { evaluateConfidenceGate, createInputEvent } =
+      await import("../pipeline");
     const event = createInputEvent({
       channel: "web_chat",
       userId: "user-1",
@@ -917,9 +915,8 @@ describe("Pipeline 1: CFO Agent Orchestration Pipeline", () => {
   });
 
   it("should escalate summaries below confidence threshold", async () => {
-    const { evaluateConfidenceGate, createInputEvent } = await import(
-      "../pipeline"
-    );
+    const { evaluateConfidenceGate, createInputEvent } =
+      await import("../pipeline");
     const event = createInputEvent({
       channel: "web_chat",
       userId: "user-1",
@@ -953,9 +950,8 @@ describe("Pipeline 1: CFO Agent Orchestration Pipeline", () => {
   });
 
   it("should generate response for query intent", async () => {
-    const { synthesizeResponse, createInputEvent } = await import(
-      "../pipeline"
-    );
+    const { synthesizeResponse, createInputEvent } =
+      await import("../pipeline");
     const event = createInputEvent({
       channel: "web_chat",
       userId: "user-1",
@@ -1009,7 +1005,7 @@ describe("Pipeline 2: Autonomous Close Pipeline", () => {
     // returns a CLOSED period so the close validation passes. Once the close
     // pipeline's tx.update() closes the current period, the id-based query
     // returns "closed" so post-close verification passes.
-    let periodClosed = false;
+    const periodClosed = false;
     (globalThis as any).__closePeriodClosed = false;
     db.query.fiscalPeriods.findFirst.mockImplementation(async (args?: any) => {
       const whereJson = JSON.stringify(args?.where, (k, v) =>
@@ -1883,9 +1879,8 @@ describe("Pipeline 3: Autonomous Bank Reconciliation Pipeline", () => {
 
   describe("classifyPendingSettlement", () => {
     it("should return false for non-mobile-money accounts", async () => {
-      const { classifyPendingSettlement } = await import(
-        "../reconciliation-pipeline"
-      );
+      const { classifyPendingSettlement } =
+        await import("../reconciliation-pipeline");
       const result = classifyPendingSettlement(
         new Date().toISOString().split("T")[0]!,
         1000,
@@ -1895,18 +1890,16 @@ describe("Pipeline 3: Autonomous Bank Reconciliation Pipeline", () => {
     });
 
     it("should return true for recent mobile money transactions (< 3 days)", async () => {
-      const { classifyPendingSettlement } = await import(
-        "../reconciliation-pipeline"
-      );
+      const { classifyPendingSettlement } =
+        await import("../reconciliation-pipeline");
       const today = new Date().toISOString().split("T")[0]!;
       const result = classifyPendingSettlement(today, 1000, true);
       expect(result).toBe(true);
     });
 
     it("should return false for old mobile money transactions", async () => {
-      const { classifyPendingSettlement } = await import(
-        "../reconciliation-pipeline"
-      );
+      const { classifyPendingSettlement } =
+        await import("../reconciliation-pipeline");
       const oldDate = new Date();
       oldDate.setDate(oldDate.getDate() - 10);
       const result = classifyPendingSettlement(
@@ -1922,27 +1915,24 @@ describe("Pipeline 3: Autonomous Bank Reconciliation Pipeline", () => {
 
   describe("determineUnmatchedDetail", () => {
     it("should return pending_settlement reason when flagged", async () => {
-      const { determineUnmatchedDetail } = await import(
-        "../reconciliation-pipeline"
-      );
+      const { determineUnmatchedDetail } =
+        await import("../reconciliation-pipeline");
       const result = determineUnmatchedDetail([], true);
       expect(result.reason).toBe("pending_settlement");
       expect(result.suggestedAction).toContain("settlement");
     });
 
     it("should return no_candidate when no candidates exist", async () => {
-      const { determineUnmatchedDetail } = await import(
-        "../reconciliation-pipeline"
-      );
+      const { determineUnmatchedDetail } =
+        await import("../reconciliation-pipeline");
       const result = determineUnmatchedDetail([], false);
       expect(result.reason).toBe("no_candidate");
       expect(result.suggestedAction).toContain("No matching");
     });
 
     it("should return multiple_candidates when > 1 candidates", async () => {
-      const { determineUnmatchedDetail } = await import(
-        "../reconciliation-pipeline"
-      );
+      const { determineUnmatchedDetail } =
+        await import("../reconciliation-pipeline");
       const result = determineUnmatchedDetail(
         [
           { journalEntryId: "je-1", amount: 1000, totalScore: 0.9 },
@@ -1955,9 +1945,8 @@ describe("Pipeline 3: Autonomous Bank Reconciliation Pipeline", () => {
     });
 
     it("should return below_confidence when single candidate below threshold", async () => {
-      const { determineUnmatchedDetail } = await import(
-        "../reconciliation-pipeline"
-      );
+      const { determineUnmatchedDetail } =
+        await import("../reconciliation-pipeline");
       const result = determineUnmatchedDetail(
         [{ journalEntryId: "je-1", amount: 1000, totalScore: 0.4 }],
         false,
@@ -1968,9 +1957,8 @@ describe("Pipeline 3: Autonomous Bank Reconciliation Pipeline", () => {
     });
 
     it("should return amount_mismatch as default catch-all", async () => {
-      const { determineUnmatchedDetail } = await import(
-        "../reconciliation-pipeline"
-      );
+      const { determineUnmatchedDetail } =
+        await import("../reconciliation-pipeline");
       const result = determineUnmatchedDetail(
         [{ journalEntryId: "je-1", amount: 1000, totalScore: 0.7 }],
         false,
@@ -1985,9 +1973,8 @@ describe("Pipeline 3: Autonomous Bank Reconciliation Pipeline", () => {
     it("should return default threshold when no DB entry found", async () => {
       db.query.confidenceThresholds.findFirst.mockResolvedValue(null);
 
-      const { getReconciliationConfidenceThreshold } = await import(
-        "../reconciliation-pipeline"
-      );
+      const { getReconciliationConfidenceThreshold } =
+        await import("../reconciliation-pipeline");
       const result = await getReconciliationConfidenceThreshold(
         "entity-1",
         500,
@@ -2005,9 +1992,8 @@ describe("Pipeline 3: Autonomous Bank Reconciliation Pipeline", () => {
         amountBand: "100-1000",
       });
 
-      const { getReconciliationConfidenceThreshold } = await import(
-        "../reconciliation-pipeline"
-      );
+      const { getReconciliationConfidenceThreshold } =
+        await import("../reconciliation-pipeline");
       const result = await getReconciliationConfidenceThreshold(
         "entity-1",
         500,
@@ -2025,9 +2011,8 @@ describe("Pipeline 3: Autonomous Bank Reconciliation Pipeline", () => {
         amountBand: "<100",
       });
 
-      const { getReconciliationConfidenceThreshold } = await import(
-        "../reconciliation-pipeline"
-      );
+      const { getReconciliationConfidenceThreshold } =
+        await import("../reconciliation-pipeline");
       const result = await getReconciliationConfidenceThreshold("entity-1", 50);
 
       expect(result.threshold).toBe(0.9);
@@ -2045,9 +2030,8 @@ describe("Pipeline 3: Autonomous Bank Reconciliation Pipeline", () => {
         status: "review_pending",
       });
 
-      const { reviewReconciliationSession } = await import(
-        "../reconciliation-pipeline"
-      );
+      const { reviewReconciliationSession } =
+        await import("../reconciliation-pipeline");
       const result = await reviewReconciliationSession(
         "session-1",
         "treasury-agent",
@@ -2065,9 +2049,8 @@ describe("Pipeline 3: Autonomous Bank Reconciliation Pipeline", () => {
         status: "review_pending",
       });
 
-      const { reviewReconciliationSession } = await import(
-        "../reconciliation-pipeline"
-      );
+      const { reviewReconciliationSession } =
+        await import("../reconciliation-pipeline");
       const result = await reviewReconciliationSession(
         "session-1",
         "treasury-agent",
@@ -2085,9 +2068,8 @@ describe("Pipeline 3: Autonomous Bank Reconciliation Pipeline", () => {
         status: "review_pending",
       });
 
-      const { reviewReconciliationSession } = await import(
-        "../reconciliation-pipeline"
-      );
+      const { reviewReconciliationSession } =
+        await import("../reconciliation-pipeline");
       const result = await reviewReconciliationSession(
         "session-1",
         "treasury-agent",
@@ -2101,9 +2083,8 @@ describe("Pipeline 3: Autonomous Bank Reconciliation Pipeline", () => {
     it("should throw on non-existent session", async () => {
       db.query.reconciliationSessions.findFirst.mockResolvedValue(null);
 
-      const { reviewReconciliationSession } = await import(
-        "../reconciliation-pipeline"
-      );
+      const { reviewReconciliationSession } =
+        await import("../reconciliation-pipeline");
       await expect(
         reviewReconciliationSession("nonexistent", "treasury-agent", true),
       ).rejects.toThrow("not found");
@@ -2116,9 +2097,8 @@ describe("Pipeline 3: Autonomous Bank Reconciliation Pipeline", () => {
     it("should return empty array when no journal entries found", async () => {
       db.query.journalEntries.findMany.mockResolvedValue([]);
 
-      const { retrieveLedgerCandidates } = await import(
-        "../reconciliation-pipeline"
-      );
+      const { retrieveLedgerCandidates } =
+        await import("../reconciliation-pipeline");
       const result = await retrieveLedgerCandidates(
         "entity-1",
         "2026-07-15",
@@ -2150,9 +2130,8 @@ describe("Pipeline 3: Autonomous Bank Reconciliation Pipeline", () => {
         },
       ]);
 
-      const { retrieveLedgerCandidates } = await import(
-        "../reconciliation-pipeline"
-      );
+      const { retrieveLedgerCandidates } =
+        await import("../reconciliation-pipeline");
       const result = await retrieveLedgerCandidates(
         "entity-1",
         "2026-07-15",
@@ -2169,9 +2148,8 @@ describe("Pipeline 3: Autonomous Bank Reconciliation Pipeline", () => {
 
   describe("normalizeStatementLine", () => {
     it("should insert a new statement line", async () => {
-      const { normalizeStatementLine } = await import(
-        "../reconciliation-pipeline"
-      );
+      const { normalizeStatementLine } =
+        await import("../reconciliation-pipeline");
       const result = await normalizeStatementLine({
         entityId: "entity-1",
         bankAccountId: "ba-1",
@@ -2195,9 +2173,8 @@ describe("Pipeline 3: Autonomous Bank Reconciliation Pipeline", () => {
     it("should return empty result when no accounts exist", async () => {
       db.query.bankAccounts.findMany.mockResolvedValue([]);
 
-      const { runReconciliationPipeline } = await import(
-        "../reconciliation-pipeline"
-      );
+      const { runReconciliationPipeline } =
+        await import("../reconciliation-pipeline");
       const result = await runReconciliationPipeline("entity-1");
 
       expect(result.success).toBe(true);
@@ -2206,9 +2183,8 @@ describe("Pipeline 3: Autonomous Bank Reconciliation Pipeline", () => {
     });
 
     it("should run for all active accounts by default", async () => {
-      const { runReconciliationPipeline } = await import(
-        "../reconciliation-pipeline"
-      );
+      const { runReconciliationPipeline } =
+        await import("../reconciliation-pipeline");
       const result = await runReconciliationPipeline("entity-1");
 
       expect(result.results).toHaveLength(2); // ba-1, ba-2
@@ -2216,9 +2192,8 @@ describe("Pipeline 3: Autonomous Bank Reconciliation Pipeline", () => {
     });
 
     it("should filter to specific accounts when requested", async () => {
-      const { runReconciliationPipeline } = await import(
-        "../reconciliation-pipeline"
-      );
+      const { runReconciliationPipeline } =
+        await import("../reconciliation-pipeline");
       const result = await runReconciliationPipeline("entity-1", ["ba-1"]);
 
       expect(result.results).toHaveLength(1);
@@ -2237,9 +2212,8 @@ describe("Pipeline 3: Autonomous Bank Reconciliation Pipeline", () => {
         },
       ]);
 
-      const { runReconciliationPipeline } = await import(
-        "../reconciliation-pipeline"
-      );
+      const { runReconciliationPipeline } =
+        await import("../reconciliation-pipeline");
       const result = await runReconciliationPipeline("entity-1");
 
       expect(result.success).toBe(true);
@@ -2247,9 +2221,8 @@ describe("Pipeline 3: Autonomous Bank Reconciliation Pipeline", () => {
     });
 
     it("should return pipeline metadata", async () => {
-      const { runReconciliationPipeline } = await import(
-        "../reconciliation-pipeline"
-      );
+      const { runReconciliationPipeline } =
+        await import("../reconciliation-pipeline");
       const result = await runReconciliationPipeline("entity-1");
 
       expect(result.auditEntries).toBeDefined();
@@ -2262,9 +2235,8 @@ describe("Pipeline 3: Autonomous Bank Reconciliation Pipeline", () => {
         new Error("Database timeout"),
       );
 
-      const { runReconciliationPipeline } = await import(
-        "../reconciliation-pipeline"
-      );
+      const { runReconciliationPipeline } =
+        await import("../reconciliation-pipeline");
       const result = await runReconciliationPipeline("entity-1");
 
       expect(result.success).toBe(false);
@@ -2276,9 +2248,8 @@ describe("Pipeline 3: Autonomous Bank Reconciliation Pipeline", () => {
 
   describe("getReconciliationStatus", () => {
     it("should return per-account status", async () => {
-      const { getReconciliationStatus } = await import(
-        "../reconciliation-pipeline"
-      );
+      const { getReconciliationStatus } =
+        await import("../reconciliation-pipeline");
       const result = await getReconciliationStatus("entity-1");
 
       expect(Array.isArray(result)).toBe(true);
@@ -2298,9 +2269,8 @@ describe("Pipeline 3: Autonomous Bank Reconciliation Pipeline", () => {
         createdAt: new Date(),
       });
 
-      const { getReconciliationStatus } = await import(
-        "../reconciliation-pipeline"
-      );
+      const { getReconciliationStatus } =
+        await import("../reconciliation-pipeline");
       const result = await getReconciliationStatus("entity-1");
 
       const ba1Status = result.find((r) => r.accountId === "ba-1");
@@ -2317,9 +2287,8 @@ describe("Pipeline 3: Autonomous Bank Reconciliation Pipeline", () => {
       db.query.journalEntries.findMany.mockResolvedValue([]);
       db.query.journalEntryLines.findMany.mockResolvedValue([]);
 
-      const { runReconciliationPipeline } = await import(
-        "../reconciliation-pipeline"
-      );
+      const { runReconciliationPipeline } =
+        await import("../reconciliation-pipeline");
       const result = await runReconciliationPipeline("entity-1");
 
       // ba-1 has 2 unmatched transactions → hard rule prevents close
@@ -2333,9 +2302,8 @@ describe("Pipeline 3: Autonomous Bank Reconciliation Pipeline", () => {
       db.query.journalEntries.findMany.mockResolvedValue([]);
       db.query.journalEntryLines.findMany.mockResolvedValue([]);
 
-      const { runReconciliationPipeline } = await import(
-        "../reconciliation-pipeline"
-      );
+      const { runReconciliationPipeline } =
+        await import("../reconciliation-pipeline");
       const result = await runReconciliationPipeline("entity-1");
 
       const ba1Result = result.results.find((r) => r.accountId === "ba-1");
@@ -2346,9 +2314,8 @@ describe("Pipeline 3: Autonomous Bank Reconciliation Pipeline", () => {
       db.query.journalEntries.findMany.mockResolvedValue([]);
       db.query.journalEntryLines.findMany.mockResolvedValue([]);
 
-      const { runReconciliationPipeline } = await import(
-        "../reconciliation-pipeline"
-      );
+      const { runReconciliationPipeline } =
+        await import("../reconciliation-pipeline");
       const result = await runReconciliationPipeline("entity-1");
 
       const ba1Result = result.results.find((r) => r.accountId === "ba-1");
@@ -2362,9 +2329,8 @@ describe("Pipeline 3: Autonomous Bank Reconciliation Pipeline", () => {
 
   describe("Multi-Account Aggregation", () => {
     it("should aggregate results across all accounts", async () => {
-      const { runReconciliationPipeline } = await import(
-        "../reconciliation-pipeline"
-      );
+      const { runReconciliationPipeline } =
+        await import("../reconciliation-pipeline");
       const result = await runReconciliationPipeline("entity-1");
 
       expect(result.results.length).toBeGreaterThan(0);
@@ -2938,9 +2904,8 @@ describe("Pipeline 6: Autonomous Onboarding Pipeline", () => {
     it("should create a new session when none exists", async () => {
       db.query.onboardingSessions.findFirst.mockResolvedValue(null);
 
-      const { createOnboardingSession } = await import(
-        "../onboarding-pipeline"
-      );
+      const { createOnboardingSession } =
+        await import("../onboarding-pipeline");
       const result = await createOnboardingSession("org-1");
 
       expect(result.sessionId).toBe("mock-id-1");
@@ -2955,9 +2920,8 @@ describe("Pipeline 6: Autonomous Onboarding Pipeline", () => {
         status: "in_progress",
       });
 
-      const { createOnboardingSession } = await import(
-        "../onboarding-pipeline"
-      );
+      const { createOnboardingSession } =
+        await import("../onboarding-pipeline");
       const result = await createOnboardingSession("org-1");
 
       expect(result.sessionId).toBe("existing-session-id");
@@ -3104,18 +3068,16 @@ describe("Pipeline 6: Autonomous Onboarding Pipeline", () => {
 
   describe("updateDataConnectionStatus", () => {
     it("should update connection status to connected", async () => {
-      const { updateDataConnectionStatus } = await import(
-        "../onboarding-pipeline"
-      );
+      const { updateDataConnectionStatus } =
+        await import("../onboarding-pipeline");
       await expect(
         updateDataConnectionStatus("conn-1", "connected"),
       ).resolves.not.toThrow();
     });
 
     it("should update with failure reason and fallback", async () => {
-      const { updateDataConnectionStatus } = await import(
-        "../onboarding-pipeline"
-      );
+      const { updateDataConnectionStatus } =
+        await import("../onboarding-pipeline");
       await expect(
         updateDataConnectionStatus("conn-1", "failed", {
           failureReason: "API timeout",
@@ -3125,9 +3087,8 @@ describe("Pipeline 6: Autonomous Onboarding Pipeline", () => {
     });
 
     it("should track records processed", async () => {
-      const { updateDataConnectionStatus } = await import(
-        "../onboarding-pipeline"
-      );
+      const { updateDataConnectionStatus } =
+        await import("../onboarding-pipeline");
       await expect(
         updateDataConnectionStatus("conn-1", "processing", {
           recordsProcessed: 847,
@@ -3203,9 +3164,8 @@ describe("Pipeline 6: Autonomous Onboarding Pipeline", () => {
 
   describe("requestHistoricalPullPermission", () => {
     it("should set permission requested timestamp", async () => {
-      const { requestHistoricalPullPermission } = await import(
-        "../onboarding-pipeline"
-      );
+      const { requestHistoricalPullPermission } =
+        await import("../onboarding-pipeline");
       await expect(
         requestHistoricalPullPermission("job-1"),
       ).resolves.not.toThrow();
@@ -3336,9 +3296,8 @@ describe("Pipeline 6: Autonomous Onboarding Pipeline", () => {
         completedSteps: ["signup", "routing", "entity_setup"],
       });
 
-      const { markDataConnectionsStepComplete } = await import(
-        "../onboarding-pipeline"
-      );
+      const { markDataConnectionsStepComplete } =
+        await import("../onboarding-pipeline");
       await expect(
         markDataConnectionsStepComplete("session-1"),
       ).resolves.not.toThrow();
@@ -3347,9 +3306,8 @@ describe("Pipeline 6: Autonomous Onboarding Pipeline", () => {
     it("should handle missing session gracefully", async () => {
       db.query.onboardingSessions.findFirst.mockResolvedValue(null);
 
-      const { markDataConnectionsStepComplete } = await import(
-        "../onboarding-pipeline"
-      );
+      const { markDataConnectionsStepComplete } =
+        await import("../onboarding-pipeline");
       await expect(
         markDataConnectionsStepComplete("nonexistent"),
       ).resolves.not.toThrow();

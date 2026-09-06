@@ -32,7 +32,7 @@ const SECRET_PATTERNS: Array<{
   },
   {
     name: "aws_secret_key",
-    pattern: /aws[_\-]?secret[_\-]?access[_\-]?key["\s:=]+[a-zA-Z0-9/+=]{40}/gi,
+    pattern: /aws[_-]?secret[_-]?access[_-]?key["\s:=]+[a-zA-Z0-9/+=]{40}/gi,
     severity: "block",
   },
   {
@@ -43,7 +43,7 @@ const SECRET_PATTERNS: Array<{
   {
     name: "generic_api_key",
     pattern:
-      /(api[_\-]?key|apikey|secret[_\-]?key|auth[_\-]?token|bearer)["\s:=]+["']?[a-zA-Z0-9_\-]{20,}/gi,
+      /(api[_-]?key|apikey|secret[_-]?key|auth[_-]?token|bearer)["\s:=]+["']?[a-zA-Z0-9_-]{20,}/gi,
     severity: "warn",
   },
   {
@@ -208,6 +208,7 @@ export function sanitizeInput(input: string): SanitizeResult {
 
   // Limit control characters (keep newlines and tabs)
   const beforeControl = sanitized;
+  // eslint-disable-next-line no-control-regex -- intentional: stripping control chars
   sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
   if (sanitized !== beforeControl) {
     modifications.push("Removed control characters");

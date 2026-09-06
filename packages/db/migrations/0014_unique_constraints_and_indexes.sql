@@ -60,9 +60,9 @@ CREATE INDEX IF NOT EXISTS "idx_invoices_ap_entity_status_due"
 CREATE INDEX IF NOT EXISTS "idx_sales_invoices_entity_status_due"
   ON "sales_invoices" ("entity_id", "status", "due_date");
 
--- bank_transactions: date-range queries
+-- bank_transactions: date-range queries (column is transaction_date)
 CREATE INDEX IF NOT EXISTS "idx_bank_transactions_entity_date"
-  ON "bank_transactions" ("entity_id", "date");
+  ON "bank_transactions" ("entity_id", "transaction_date");
 
 -- audit_log: entity-scoped time-range queries
 CREATE INDEX IF NOT EXISTS "idx_audit_log_entity_created"

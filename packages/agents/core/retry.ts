@@ -297,12 +297,8 @@ export async function withConcurrencyLimit<T>(
     const currentIndex = index++;
     const task = tasks[currentIndex];
 
-    try {
-      const result = await task();
-      results[currentIndex] = result;
-    } catch (error) {
-      throw error;
-    }
+    const result = await task();
+    results[currentIndex] = result;
   }
 
   // Start initial batch
