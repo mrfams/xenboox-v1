@@ -803,7 +803,7 @@ export const tasksRouter = router({
           title,
           summary,
           rationale:
-            (outputData.recommendation as string) ?? summary || undefined,
+            (outputData.recommendation as string) ?? (summary || undefined),
           createdAt: a.createdAt ?? undefined,
           evidence: inputData,
         });
