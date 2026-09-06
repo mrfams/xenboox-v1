@@ -1,5 +1,7 @@
 import { db } from "@xenboox/db";
 import { journalEntries } from "@xenboox/db/schema/accounting";
+import { bankTransactions } from "@xenboox/db/schema/treasury";
+import { bankAccounts } from "@xenboox/db/schema/treasury";
 import { documents, auditLog, agentActivity } from "@xenboox/db/schema";
 import { eq, and, sql } from "drizzle-orm";
 import type {
@@ -263,6 +265,23 @@ export async function executePosting(
         state.proposedJournal,
         decision.confidence,
       );
+
+      // Batch 3 / N30 — bank statements: materialize the extracted
+      // transactions into bankTransactions so they surface in Banking and
+      // can be reconciled against invoices/bills. The GL entry alone is not
+      // enough for statement-based markets (no API rails — PDF upload IS
+      // the rail). Failure here must never fake-fail the posting.
+      if (state.classification.category === "bank_statement") {
+        try {
+          await materializeStatementTransactions(state);
+        } catch (err) {
+          // eslint-disable-next-line no-console
+          console.error(
+            "[posting-engine] statement transaction materialization failed (GL entry stands)",
+            err,
+          );
+        }
+      }
 
       // Update document status — go to 'persisted' after successful GL write
       await db
@@ -545,4 +564,140 @@ async function logIngestionFailure(
     },
     confidence: String(decision.confidence),
   });
+}
+
+// ─── Statement transaction materialization (Batch 3 / N30) ─────────────────
+//
+// Writes the statement's extracted transactions into bankTransactions so the
+// Banking surface can reconcile them. Deterministic: every row comes from the
+// TrustGuard-verified extraction (balance equation already enforced), never
+// from an LLM's free-form summary.
+//
+// Idempotent: rows carry metadata.documentId — a retried pipeline finds them
+// and skips instead of duplicating money.
+//
+// Bank account resolution: match the statement's account number to the
+// entity's accounts; fall back to bank name; create an account when none
+// matches (statement upload is the account's first appearance).
+
+type StatementTx = {
+  date: string;
+  description: string;
+  amount: number;
+  type: "credit" | "debit";
+  balance?: number;
+  reference?: string;
+};
+
+export async function materializeStatementTransactions(
+  state: IngestionState,
+): Promise<{ inserted: number; bankAccountId: string }> {
+  const data = (state.extraction?.data ?? {}) as Record<string, unknown>;
+  const transactions = (data.transactions ?? []) as StatementTx[];
+  if (transactions.length === 0) {
+    return { inserted: 0, bankAccountId: "" };
+  }
+
+  // Idempotency — rows for this document already exist?
+  const existing = await db
+    .select({ id: bankTransactions.id })
+    .from(bankTransactions)
+    .where(
+      sql`metadata->>'documentId' = ${state.documentId} LIMIT 1`,
+    );
+  if (existing.length > 0) {
+    const [first] = await db
+      .select({ bankAccountId: bankTransactions.bankAccountId })
+      .from(bankTransactions)
+      .where(sql`metadata->>'documentId' = ${state.documentId} LIMIT 1`);
+    return { inserted: 0, bankAccountId: first?.bankAccountId ?? "" };
+  }
+
+  // Bank account resolution
+  const accountNumber =
+    typeof data.accountNumber === "string" ? data.accountNumber : null;
+  const bankName =
+    typeof data.bankName === "string" ? data.bankName : null;
+
+  let bankAccount = accountNumber
+    ? await db.query.bankAccounts.findFirst({
+        where: and(
+          eq(bankAccounts.entityId, state.entityId),
+          eq(bankAccounts.accountNumber, accountNumber),
+        ),
+      })
+    : undefined;
+
+  if (!bankAccount && bankName) {
+    bankAccount = await db.query.bankAccounts.findFirst({
+      where: and(
+        eq(bankAccounts.entityId, state.entityId),
+        eq(bankAccounts.bankName, bankName),
+      ),
+    });
+  }
+
+  if (!bankAccount) {
+    const [created] = await db
+      .insert(bankAccounts)
+      .values({
+        entityId: state.entityId,
+        name: bankName
+          ? bankName
+          : `Imported statement — ${state.documentId.slice(0, 8)}`,
+        bankName: bankName ?? "Unknown bank",
+        accountNumber: accountNumber ?? "STATEMENT",
+        currency:
+          typeof (state.extraction?.data as Record<string, unknown>)
+            ?.currency === "string"
+            ? ((state.extraction?.data as Record<string, unknown>)
+                .currency as string)
+            : "USD",
+        isActive: true,
+      })
+      .returning();
+    if (!created) throw new Error("Failed to create bank account for statement");
+    bankAccount = created;
+  }
+
+  // Deterministic rows from the verified extraction
+  const rows = transactions
+    .filter(
+      (t) =>
+        typeof t.date === "string" &&
+        typeof t.amount === "number" &&
+        Number.isFinite(t.amount) &&
+        t.amount > 0,
+    )
+    .map((t) => ({
+      entityId: state.entityId,
+      bankAccountId: bankAccount.id,
+      transactionDate: t.date,
+      type: (t.type === "credit" ? "deposit" : "withdrawal") as
+        | "deposit"
+        | "withdrawal",
+      amount: t.amount.toFixed(2),
+      description: t.description || t.reference || "Statement transaction",
+      reference: t.reference ?? null,
+      isReconciled: false,
+      source: "bank_import",
+      metadata: {
+        documentId: state.documentId,
+        statement: true,
+        statementBalance: t.balance ?? null,
+      },
+    }));
+
+  if (rows.length === 0) {
+    return { inserted: 0, bankAccountId: bankAccount.id };
+  }
+
+  await db.insert(bankTransactions).values(rows);
+  // eslint-disable-next-line no-console
+  console.info(
+    "[posting-engine] statement transactions materialized:",
+    state.documentId,
+    rows.length,
+  );
+  return { inserted: rows.length, bankAccountId: bankAccount.id };
 }

@@ -1580,10 +1580,44 @@ n   * mutation, logging to the audit trail.
           "create_journal_entry",
         ]),
         parsedData: z.record(z.unknown()),
+        // Batch 3 / N29 — when the creation came from an uploaded document,
+        // the suggestion must TALLY with the document's deterministically
+        // extracted totals before anything posts. An LLM suggestion that
+        // doesn't match its source is a hallucination — it is refused, never
+        // silently reconciled, never posted 'close enough'.
+        sourceDocumentId: z.string().uuid().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
       const entityId = ctx.entityId!;
+
+      const verifyAgainstSource = async (suggestedTotal: number): Promise<void> => {
+        if (!input.sourceDocumentId) return;
+        const doc = await db.query.documents.findFirst({
+          where: and(
+            eq(documents.id, input.sourceDocumentId),
+            eq(documents.entityId, entityId),
+          ),
+          columns: { id: true, name: true, metadata: true },
+        });
+        if (!doc) return;
+        const extraction = ((doc.metadata as Record<string, unknown> | null)?.extraction ?? {}) as { data?: Record<string, unknown> };
+        const data = extraction.data ?? {};
+        const docTotal =
+          typeof data.totalAmount === "number"
+            ? data.totalAmount
+            : typeof data.subtotal === "number"
+              ? data.subtotal
+              : null;
+        if (docTotal === null) return;
+        const diff = Math.abs(suggestedTotal - docTotal);
+        if (diff > 0.05) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: `This creation doesn't tally with the uploaded document "${doc.name}": you're about to record ${suggestedTotal.toFixed(2)} but the document says ${docTotal.toFixed(2)} (difference ${diff.toFixed(2)}). Check the line items — some may have been missed or misread — and correct them before confirming.`,
+          });
+        }
+      };
 
       switch (input.creationType) {
         case "create_invoice": {
@@ -1631,6 +1665,8 @@ n   * mutation, logging to the audit trail.
             (sum, l) => sum + l.quantity * l.unitPrice,
             0,
           );
+          // N29 — refuse creations that don't tally with the source document.
+          await verifyAgainstSource(totalAmount);
           const today = new Date().toISOString().slice(0, 10);
           const dueDate = new Date(
             Date.now() + data.dueInDays * 24 * 60 * 60 * 1000,
@@ -1788,6 +1824,24 @@ n   * mutation, logging to the audit trail.
               accountId: account.id,
               debit: line.debit,
               credit: line.credit,
+            });
+          }
+
+          // N29 — deterministic balance gate. An AI-suggested journal entry
+          // that doesn't balance is refused AT CREATION with the exact
+          // imbalance, never stored as a draft that fails later.
+          const totalDebit = resolvedLines.reduce(
+            (sum, l) => sum + (Number(l.debit) || 0),
+            0,
+          );
+          const totalCredit = resolvedLines.reduce(
+            (sum, l) => sum + (Number(l.credit) || 0),
+            0,
+          );
+          if (Math.abs(totalDebit - totalCredit) > 0.01) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: `This journal entry doesn't balance: debits ${totalDebit.toFixed(2)} vs credits ${totalCredit.toFixed(2)} (difference ${Math.abs(totalDebit - totalCredit).toFixed(2)}). Fix the line amounts before confirming.`,
             });
           }
 

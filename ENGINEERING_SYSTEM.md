@@ -84,6 +84,9 @@ Every money/auth/concurrency node ships stress-case designs even when not execut
 | N24 | SCIM constant-time token compare | app/api/scim/v2/route.ts | Batch 1 | closed-deferred |
 | N26 | Posting hygiene: in-tx document linking, cleanupJournal deleted, one-tx reversals | journal-posting-core.ts, ar-posting.ts, ap-posting.ts | Batch 2 | closed-deferred |
 | N27 | statusCode column integer + safe-cast migration 0040 | packages/db/schema/idempotency.ts, migrations/0040 | Batch 1 | closed-deferred |
+| N29 | Deterministic verification: tally gate + JE balance gate (chat path); ingestion enforcement verified | server/routers/chat.ts, packages/ingestion/engine/posting-engine.ts | Batch 2 | passed (Run Phase) |
+| N30 | Statement transactions materialize into bankTransactions (idempotent, account-resolving) | packages/ingestion/engine/posting-engine.ts | Batch 2 | passed (Run Phase) |
+| N25 | Device/session management (backend landed under pre-built UI; revocation kills JWT in 1 request) | server/routers/auth.ts, components/settings/sessions-section.tsx | Batch 1 | passed (Run Phase) |
 | N15 | Converge month-end job onto pipeline semantics | packages/jobs/month-end-close.ts | Batch 1 | closed-deferred |
 | N14 | Wire durable closeSessions into executing close + DB idempotency | packages/agents/core/close-pipeline.ts | N15 | closed-deferred |
 

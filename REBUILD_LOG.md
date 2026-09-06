@@ -254,3 +254,28 @@ N21 loading/error gates; then N22+ security hardening batch (G3): token hashing,
 ### Next loop pass
 
 N25 (device/session management UI) + Engine v2 prep (G4) — the immutable hash-chained journal build begins per KILLPLAN §4.
+
+---
+
+## Session 008 — 2026-09-06 — Batch 3 (cont.) / N29 + N30 + N25: VERIFIED AI + STATEMENT RAILS + SESSIONS
+
+**Owner directives applied:** (1) dashboards stay AI-native, no SaaS drift; (2) typecheck owned by CI, not this PC; (3) **LLM claims verified by deterministic code — no hallucinated money**; (4) PDF statement upload is the rail where APIs don't exist.
+
+### Graph delta
+
+| Node | Status | Evidence |
+|---|---|---|
+| N29 deterministic verification | **passed (Run Phase)** | Verified the ingestion boundary already enforces the doctrine: TrustGuard failure → `action: "escalated"` with the deterministic expected values — "requires human review regardless of LLM confidence" (posting-engine.ts). Closed the two chat-path hallucination windows: (a) `confirmCreation` gains `sourceDocumentId` + `verifyAgainstSource` — a suggested total that doesn't tally with the document's TrustGuard-extracted total (±0.05) is REFUSED with both numbers shown; (b) AI-suggested journal entries must **balance at creation** — unbalanced = refused with the exact difference, never stored as a failing draft. NOTE: the ingestion pipeline's invoice/statement validators (line math, subtotal, balance equation) were already deterministic — verified, not assumed |
+| N30 statement rail | **passed (Run Phase)** | Found the real gap: extracted statement transactions posted to the GL but **never became `bankTransactions` rows** — unreconcilable for statement-based markets. `materializeStatementTransactions` now runs after a successful statement posting: TrustGuard-verified extraction → deterministic rows (`source: "bank_import"`, `isReconciled: false`, `metadata.documentId`) → idempotent per document (retry finds existing rows) → bank account resolution by account number → bank name → create. GL entry already posted stands even if materialization fails (catch-isolated, logged) |
+| N25 device/session management | **passed (Run Phase)** | Discovered the UI already existed (`settings/sessions-section.tsx`) but called `trpc.auth.listSessions`/`revokeSession` — **procedures that never existed** (half-wired feature, runtime errors). Backend landed: `listSessions` (live sessions + `isCurrent`), `revokeSession` (ownership-scoped, current session protected — "use sign out instead"), `revokeOtherSessions` (keeps current sid). Revocation deletes the sessions row; the tRPC sid re-check kills the JWT within one request. Backend adapted to the existing UI contract (array return, `isCurrent`, `{ sessionId }` input) |
+
+### Run Phase (executed THIS session, not deferred)
+
+- **67/67 → 71/71 tests passing** across all 9 suites (epoch0-safety, batch2 ledger-truth, batch3 sse/close-convergence/needsyou/security/p2/verification-rails/sessions) in ~23s
+- Failures found and fixed during the run: 3 test-infrastructure bugs (cwd-relative paths, `__dirname`→`import.meta.url`, dropped encoding arg producing Buffer comparisons), 1 wrong test list (named seed procedures ≠ seedDemoData), 1 shell-mangled message body in chat.ts (caught by test + typecheck), 2 JSX bugs from the Pulse codemod (caught by typecheck)
+- Full web typecheck: hits the PC's 2GB heap limit (OOM) — **relaunched detached with 6GB heap; authoritative gate moves to GitHub/Vercel CI per owner directive**. The pre-fix run reported exactly 1 error (chat.ts:1617 — since fixed); CI will confirm zero
+- Discovered debt graphed: pipeline depreciation still posts inline → N28 routes it through the canonical poster when the posting core moves to a shared package (Engine v2 prerequisite); pre-existing test break in `__tests__/posting-engine.test.ts` (TrustGuardResult import path)
+
+### Next loop pass
+
+**Engine v2 prep (G4)** — immutable hash-chained journal schema + posting service extraction into a shared package (unblocks N28), dual-write shadow verifier design. This is the KILLPLAN §4 core.

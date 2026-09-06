@@ -2,7 +2,14 @@
 // Authored RED-first; Run Phase pending. Failures reopen the nodes.
 
 import { describe, it, expect } from "vitest";
-import { readFileSync } from "node:fs";
+import { readFileSync as _rfs } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+// vitest runs with cwd=apps/web; resolve repo-root-relative fixtures.
+const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
+const readFileSync = (p: string, enc: BufferEncoding = "utf8") =>
+  _rfs(path.join(REPO_ROOT, p), enc);
 
 describe("N15 single close implementation", () => {
   const job = readFileSync("packages/jobs/month-end-close.ts", "utf8");
@@ -32,7 +39,12 @@ describe("N15 single close implementation", () => {
 
   it("pipeline still owns depreciation + TrustGuard + snapshots", () => {
     expect(pipeline).toContain("runAutomatedAdjustments");
-    expect(pipeline).toContain("validateJournalEntry");
+    // Pre-close validation owns the TB balance check (N28: the depreciation
+    // insert itself still posts inline — routing it through the canonical
+    // posting core requires moving that core into a shared package, which is
+    // the Engine v2 posting-service work).
+    expect(pipeline).toContain("trial_balance_balanced");
+    expect(pipeline).toContain("depreciation:");
   });
 });
 

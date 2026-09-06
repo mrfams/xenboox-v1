@@ -637,7 +637,7 @@ function OverviewPanel({
       <section
         aria-label="Key metrics"
         className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4"
-      >>
+      >
         {pulseMetricsError ? (
           <div className="rounded-xl border border-error-clay/30 bg-card p-4 sm:col-span-2 lg:col-span-4">
             <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Key metrics</p>
@@ -654,6 +654,7 @@ function OverviewPanel({
             ))}
           </>
         ) : (
+        <>
         <div className="rounded-xl border border-border/50 bg-card p-4">
           <MetricNarrative
             label="Revenue"
@@ -774,8 +775,9 @@ function OverviewPanel({
             Ask why →
           </button>
         </div>
-)}
-            </section>
+          </>
+        )}
+      </section>
 
       {/* Exchange rates + Daily close status strip */}
       <div className="grid gap-3 sm:grid-cols-2">

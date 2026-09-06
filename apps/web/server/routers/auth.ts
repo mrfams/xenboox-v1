@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, ne } from "drizzle-orm";
 import { createHash } from "crypto";
 import { users, sessions, verificationTokens } from "@xenboox/db/schema/auth";
 import { entities, userEntityAccess } from "@xenboox/db/schema/organization";
@@ -23,6 +23,7 @@ import {
   router,
   publicProcedure,
   protectedProcedure,
+  authProcedure,
 } from "@/lib/trpc/server";
 import {
   generateMfaSecret,
@@ -1236,5 +1237,85 @@ export const authRouter = router({
     } catch (error) {
       handleMutationError(error, "Failed to get MFA status");
     }
+  }),
+
+  // ─── Device/session management (Batch 3 / N25) ──────────────────────────
+  // Users see every active session (device, IP, last seen) and can revoke
+  // any of them server-side. Revocation is a DELETE on the sessions row —
+  // the tRPC auth middleware re-checks the JWT's sid on every request, so a
+  // revoked session is dead within one request.
+  listSessions: authProcedure.query(async ({ ctx }) => {
+    const userId = ctx.session!.user!.id!;
+    const currentSid = (ctx.session as unknown as { sid?: string }).sid;
+
+    const rows = await db.query.sessions.findMany({
+      where: and(eq(sessions.userId, userId)),
+      orderBy: [desc(sessions.createdAt)],
+      limit: 50,
+    });
+
+    const now = new Date();
+    return rows
+      .filter((r) => r.expires > now)
+      .map((r) => ({
+          id: r.id,
+          ipAddress: r.ipAddress,
+          userAgent: r.userAgent,
+          createdAt: r.createdAt,
+          expires: r.expires,
+        isCurrent: currentSid != null && r.sessionToken === currentSid,
+      }));
+  }),
+
+  revokeSession: authProcedure
+    .input(z.object({ sessionId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const userId = ctx.session!.user!.id!;
+      const currentSid = (ctx.session as unknown as { sid?: string }).sid;
+
+      const [target] = await db
+        .select({ sessionToken: sessions.sessionToken })
+        .from(sessions)
+        .where(and(eq(sessions.id, input.sessionId), eq(sessions.userId, userId)))
+        .limit(1);
+
+      if (!target) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Session not found",
+        });
+      }
+
+      // The current session is revoked via logout — this mutation is for
+      // OTHER devices only. Revoking yourself here would be confusing.
+      if (currentSid != null && target.sessionToken === currentSid) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "This is your current session — use sign out instead",
+        });
+      }
+
+      await db
+        .delete(sessions)
+        .where(and(eq(sessions.id, input.sessionId), eq(sessions.userId, userId)));
+
+      return { success: true };
+    }),
+
+  revokeOtherSessions: authProcedure.mutation(async ({ ctx }) => {
+    const userId = ctx.session!.user!.id!;
+    const currentSid = (ctx.session as unknown as { sid?: string }).sid;
+
+    const conditions = [eq(sessions.userId, userId)];
+    if (currentSid) {
+      conditions.push(ne(sessions.sessionToken, currentSid));
+    }
+
+    const result = await db
+      .delete(sessions)
+      .where(and(...conditions))
+      .returning({ id: sessions.id });
+
+    return { success: true, revoked: result.length };
   }),
 });

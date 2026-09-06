@@ -2,7 +2,14 @@
 // Authored RED-first; Run Phase pending.
 
 import { describe, it, expect } from "vitest";
-import { readFileSync } from "node:fs";
+import { readFileSync as _rfs } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+// vitest runs with cwd=apps/web; resolve repo-root-relative fixtures.
+const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
+const readFileSync = (p: string, enc: BufferEncoding = "utf8") =>
+  _rfs(path.join(REPO_ROOT, p), enc);
 
 describe("N26 no post-then-cleanup in the posting paths", () => {
   const core = readFileSync("apps/web/server/journal-posting-core.ts", "utf8");
