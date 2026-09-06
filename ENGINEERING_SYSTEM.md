@@ -96,6 +96,8 @@ Every money/auth/concurrency node ships stress-case designs even when not execut
 | N38 | AP bill + payment cut-overs behind LEDGER_PRIMARY_AP (engine first, mirror derived, shared link helpers) | apps/web/server/ap-posting.ts | N37 | passed (Run Phase) |
 | N39 | Expense claim reimbursement cut-over behind LEDGER_PRIMARY_EXPENSES | apps/web/server/routers/expenses.ts | N38 | passed (Run Phase) |
 | N28 | Close depreciation routes through the ledger engine (LEDGER_PRIMARY_CLOSE) — CLOSES | packages/agents/core/close-pipeline.ts | N34 | passed (Run Phase) |
+| N40 | Payroll posting cut-over behind LEDGER_PRIMARY_PAYROLL (exact-balance enforcement, honest unbalanced reporting) | packages/agents/core/payroll-pipeline.ts | N34 | passed (Run Phase) |
+| N41 | AR payment cut-over behind LEDGER_PRIMARY_AR | apps/web/server/ar-posting.ts | N37 | passed (Run Phase) |
 | N15 | Converge month-end job onto pipeline semantics | packages/jobs/month-end-close.ts | Batch 1 | closed-deferred |
 | N14 | Wire durable closeSessions into executing close + DB idempotency | packages/agents/core/close-pipeline.ts | N15 | closed-deferred |
 

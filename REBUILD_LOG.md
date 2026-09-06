@@ -437,3 +437,29 @@ Expenses posting cut-over + close-pipeline depreciation routing (N28 closes) →
 ### G4 remaining
 
 Payroll posting cut-over + any remaining posting sites → legacy freeze → **G4 COMPLETE**.
+
+---
+
+## Session 015 — 2026-09-06 — G4: PAYROLL + AR PAYMENT CUT-OVERS (N40, N41)
+
+### Graph delta
+
+| Node | Status | Evidence |
+|---|---|---|
+| N40 payroll cut-over | **passed (Run Phase)** | `payroll-pipeline.ts` `postPayrollJournal` branches on `LEDGER_PRIMARY_PAYROLL=true`: engine posts with `payroll-run-<id>` idempotency key, system actor, all five credit components (net pay, PAYE, SS employee+employer, withholding) converted via `majorToMinor`. **The engine demands exact integer balance** — a payroll whose components convert to a 1-cent mismatch is reported `balanced: false` honestly (same shape the legacy path returned) instead of posted crooked. Legacy mirror after the engine commit is failure-isolated (parity verifier reconciles). Note: the legacy inline insert was non-transactional (header then lines — a latent atomicity gap); the engine path is atomic by construction |
+| N41 AR payment cut-over | **passed (Run Phase)** | `postArPaymentToLedger` branches on `LEDGER_PRIMARY_AR=true` (same module flag as the invoice): engine-first with `ar-pay-<id>` key and the payment's own currency, legacy mirror after, shared `linkPayment` helper serving both branches. Declaration-order bug (jeLines used before declaration) caught and fixed before commit |
+
+### Run Phase (executed this session)
+
+- **99/99 dashboard tests (14 suites) + 19/19 ledger tests = 118 passing**, ledger tsc clean
+- New suites: `epoch0-batch3-payroll-cutover.test.ts` (9 cases covering both cut-overs)
+- Failures found and fixed en route: jeLines declaration-order bug in ar-posting (TDZ when flag on), test assertion typo
+
+### Residual risks
+
+- Remaining legacy-primary posting sites (final tail, N42): FX revaluation (`currency.ts`), banking categorization posting (`banking.ts postToLedger` procedure — name collision with the engine call is safe, different modules), plus any bulk import paths. Each flips with the same one-flag pattern.
+- Payroll unbalanced-tolerance change: orgs whose payroll components historically differ by ≤1 cent will now see an honest unbalanced report instead of a crooked posting — behavior change is intentional and is the product's correctness stance.
+
+### Next loop pass
+
+N42 (FX revaluation + banking posting cut-overs) → **G4 COMPLETE** → legacy freeze declaration + staging shadow-run checklist for deployment.

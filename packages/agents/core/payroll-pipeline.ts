@@ -23,6 +23,7 @@
 // unqueryable. Payroll Worker Agent never posts to the ledger directly.
 
 import { db } from "@xenboox/db";
+import { postToLedger, majorToMinor, LedgerValidationError } from "@xenboox/ledger";
 import { eq, and, desc, sql, inArray, max } from "drizzle-orm";
 import {
   employees,
@@ -43,6 +44,7 @@ import {
   journalEntryLines,
   fiscalPeriods,
 } from "@xenboox/db/schema/accounting";
+import { entities } from "@xenboox/db/schema/organization";
 import { langfuse } from "./langfuse";
 import { createAuditEntry } from "./state";
 import type { AuditEntry } from "./state";
@@ -1873,6 +1875,134 @@ async function postPayrollJournal(
         totalCredit: totalCredits,
         balanced: false,
       };
+    }
+
+    // ── N40 — engine-primary behind LEDGER_PRIMARY_PAYROLL ──────────────
+    // The engine demands EXACT integer balance: if the major-unit components
+    // convert to a 1-cent mismatch (legacy tolerated ±0.01), the payroll is
+    // reported unbalanced honestly rather than posted crooked.
+    if (process.env.LEDGER_PRIMARY_PAYROLL === "true") {
+      const [entityRow] = await db.query.entities.findMany({
+        where: eq(entities.id, entityId),
+        columns: { currency: true },
+        limit: 1,
+      });
+      const engineCurrency = entityRow?.currency ?? "USD";
+
+      const engineLines = [
+        {
+          accountId: payrollExpenseAccount.id,
+          accountCode: payrollExpenseAccount.code,
+          debitMinor: majorToMinor(totalEmployerCost),
+          creditMinor: 0,
+          description: `Gross pay + employer SS for ${period}`,
+        },
+        {
+          accountId: salaryPayableAccount.id,
+          accountCode: salaryPayableAccount.code,
+          debitMinor: 0,
+          creditMinor: majorToMinor(totalNetPay),
+          description: `Net pay to employees for ${period}`,
+        },
+      ];
+      if (totalPaye > 0 && taxPayableAccount) {
+        engineLines.push({
+          accountId: taxPayableAccount.id,
+          accountCode: taxPayableAccount.code,
+          debitMinor: 0,
+          creditMinor: majorToMinor(totalPaye),
+          description: `PAYE tax withheld for ${period}`,
+        });
+      }
+      if (totalSSEmployee + totalSSEmployer > 0 && ssnitPayableAccount) {
+        engineLines.push({
+          accountId: ssnitPayableAccount.id,
+          accountCode: ssnitPayableAccount.code,
+          debitMinor: 0,
+          creditMinor: majorToMinor(totalSSEmployee + totalSSEmployer),
+          description: `Social security payable for ${period}`,
+        });
+      }
+      if (totalWHT > 0 && taxPayableAccount) {
+        engineLines.push({
+          accountId: taxPayableAccount.id,
+          accountCode: taxPayableAccount.code,
+          debitMinor: 0,
+          creditMinor: majorToMinor(totalWHT),
+          description: `Withholding tax payable for ${period}`,
+        });
+      }
+
+      try {
+        const engine = await postToLedger(db, {
+          entityId,
+          actorType: "system",
+          actorId: "payroll-pipeline",
+          source: "automatic_payroll",
+          effectiveDate: today,
+          currency: engineCurrency,
+          idempotencyKey: `payroll-run-${payrollRunId}`,
+          lines: engineLines,
+          metadata: { payrollRunId, period },
+        });
+
+        // Legacy mirror (derived) — legacy readers stay consistent.
+        try {
+          const maxEntry = await db
+            .select({ maxNum: max(journalEntries.entryNumber) })
+            .from(journalEntries)
+            .where(eq(journalEntries.entityId, entityId));
+          const nextEntryNumber = (maxEntry[0]?.maxNum ?? 0) + 1;
+          const [entry] = await db
+            .insert(journalEntries)
+            .values({
+              entityId,
+              entryNumber: nextEntryNumber,
+              description: `Payroll for ${period}`,
+              date: today,
+              periodId: matchedPeriod.id,
+              status: "posted",
+              postedBy: userId,
+              postedAt: new Date(),
+              source: "automatic_payroll",
+            })
+            .returning({ id: journalEntries.id });
+          if (entry) {
+            const mirrorLines = engineLines.map((l) => ({
+              journalEntryId: entry.id,
+              accountId: l.accountId,
+              debit: (l.debitMinor / 100).toFixed(2),
+              credit: (l.creditMinor / 100).toFixed(2),
+              description: l.description,
+            }));
+            await db.insert(journalEntryLines).values(mirrorLines);
+          }
+        } catch (mirrorErr) {
+          console.error(
+            "[payroll-pipeline] legacy mirror failed after engine commit — parity verifier will reconcile",
+            mirrorErr,
+          );
+        }
+
+        return {
+          success: true,
+          journalEntryId: engine.eventId,
+          totalDebit: totalEmployerCost,
+          totalCredit: totalCredits,
+          balanced: true,
+        };
+      } catch (err) {
+        if (err instanceof LedgerValidationError && err.code === "UNBALANCED") {
+          // Honest unbalanced report — same shape the legacy path returned.
+          return {
+            success: false,
+            totalDebit: totalEmployerCost,
+            totalCredit: totalCredits,
+            balanced: false,
+          };
+        }
+        throw err;
+      }
     }
 
     // Sequential entryNumber — avoid random collision on unique index

@@ -257,6 +257,7 @@ export async function postArPaymentToLedger(
       paymentDate: true,
       method: true,
       journalEntryId: true,
+      currency: true,
     },
   });
   if (!payment) throw new Error("Payment not found");
@@ -314,6 +315,76 @@ export async function postArPaymentToLedger(
     cents,
     `Payment ${payment.method} — invoice ${invoice.invoiceNumber}`,
   );
+  const linkPayment = async (tx: Parameters<Parameters<typeof db.transaction>[0]>[0], jeIdToLink: string) => {
+    await tx
+      .update(paymentsAr)
+      .set({ journalEntryId: jeIdToLink })
+      .where(
+        and(eq(paymentsAr.id, payment.id), eq(paymentsAr.entityId, entityId)),
+      );
+
+    await tx.insert(auditLog).values({
+      entityId,
+      userId,
+      action: "ar.postPayment",
+      entityType: "payment_ar",
+      entityIdRef: payment.id,
+      newValues: { journalEntryId: jeIdToLink, reference },
+    });
+  };
+
+  // ── N41 cut-over flag — engine authoritative when enabled ─────────────
+  if (process.env.LEDGER_PRIMARY_AR === "true") {
+    let engineEventId: string | null = null;
+    try {
+      const engine = await postToLedger(db, {
+        entityId,
+        actorType: "user",
+        actorId: userId,
+        source: "ar_payment",
+        effectiveDate: payment.paymentDate,
+        currency: payment.currency,
+        idempotencyKey: reference,
+        lines: toLedgerLines(jeLines),
+        metadata: { invoiceId: payment.salesInvoiceId },
+      });
+      engineEventId = engine.eventId;
+    } catch (err) {
+      logger.error(
+        { err, paymentId: payment.id, reference },
+        "[ar-posting] engine posting failed (LEDGER_PRIMARY_AR)",
+      );
+      throw new Error(
+        "Payment could not be posted — the payment date's accounting period is closed or the entry failed validation",
+      );
+    }
+
+    let mirrorJeId: string | null = null;
+    try {
+      mirrorJeId = await createPostedJournal({
+        entityId,
+        userId,
+        date: payment.paymentDate,
+        description: `Payment on invoice ${invoice.invoiceNumber}`,
+        reference,
+        source: "ar_payment",
+        lines: jeLines,
+        logPrefix: "[ar-posting][mirror]",
+        linkInsideTx: async (tx, createdId) => {
+          await linkPayment(tx, createdId);
+        },
+      });
+    } catch (mirrorErr) {
+      logger.error(
+        { mirrorErr, paymentId: payment.id, reference, engineEventId },
+        "[ar-posting] legacy mirror failed after engine commit — parity verifier will reconcile",
+      );
+    }
+
+    return mirrorJeId ?? engineEventId ?? "";
+  }
+
+  // Legacy-primary path (default until cut-over completes).
   const jeId = await createPostedJournal({
     entityId,
     userId,
@@ -324,21 +395,7 @@ export async function postArPaymentToLedger(
     lines: jeLines,
     logPrefix: "[ar-posting]",
     linkInsideTx: async (tx, createdId) => {
-      await tx
-        .update(paymentsAr)
-        .set({ journalEntryId: createdId })
-        .where(
-          and(eq(paymentsAr.id, payment.id), eq(paymentsAr.entityId, entityId)),
-        );
-
-      await tx.insert(auditLog).values({
-        entityId,
-        userId,
-        action: "ar.postPayment",
-        entityType: "payment_ar",
-        entityIdRef: payment.id,
-        newValues: { journalEntryId: createdId, reference },
-      });
+      await linkPayment(tx, createdId);
     },
   });
   if (!jeId) {
