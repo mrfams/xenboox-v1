@@ -103,6 +103,7 @@ Every money/auth/concurrency node ships stress-case designs even when not execut
 | N45 | Unknown-tax escalation: entity rates loaded into pipeline, invoice_tax_unknown warning → human review + admin self-serve add | packages/ingestion, engine/trust-guard.ts | N44-verified | passed (Run Phase) |
 | N46 | CI restructured: blocking (ledger+web typecheck, epoch0 guard) / non-blocking (debt visibility) | .github/workflows/ci.yml | — | passed |
 | N47 | DEPLOYMENT.md runbook: flag matrix, parity gate (14 clean nights), flip/rollback, production gates, legacy freeze sequence | DEPLOYMENT.md | N46 | passed |
+| N48 | Design-system primitives: Money (entity-correct, tabular, skeleton-vs-zero) + AsyncBlock (honest async states) | apps/web/components/ui/ledger-primitives.tsx | — | passed (Run Phase) |
 | N15 | Converge month-end job onto pipeline semantics | packages/jobs/month-end-close.ts | Batch 1 | closed-deferred |
 | N14 | Wire durable closeSessions into executing close + DB idempotency | packages/agents/core/close-pipeline.ts | N15 | closed-deferred |
 

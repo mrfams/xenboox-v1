@@ -586,3 +586,23 @@ Staging deployment: run migrations + enable LEDGER_SHADOW → parity evidence �
 1. Push `feat/epoch0-safety` → CI runs (first authoritative typecheck + full-suite visibility)
 2. Staging deploy per DEPLOYMENT.md §2 → parity evidence window
 3. N43-follow-on: banking mirror deep-scan during staging; then per-module flips
+
+---
+
+## Session 020 — 2026-09-06 — DESIGN SYSTEM FOUNDATION (N48): LEDGER PRIMITIVES
+
+### Graph delta
+
+| Node | Status | Evidence |
+|---|---|---|
+| N48 design-system primitives | **passed (Run Phase)** | `components/ui/ledger-primitives.tsx`: **`Money`** — entity-correct currency formatting (wraps `useFormatCurrency`, not a local formatter), tabular numerals, semantic sign tone (positive green / negative clay), and the §6.3 rule as a component: undefined → skeleton, a real 0 renders as a real 0. **`AsyncBlock`** — the honest async state machine (loading skeleton with aria-busy → error with role=alert + the no-placeholder promise + Retry → empty state → children), so surfaces stop hand-rolling per-block branches. Token layer (ledger-ink/paper/balanced-green/attention-amber/error-clay/signal-indigo) verified as already present in the Tailwind config — the gap was primitives, now filled |
+
+### Run Phase (executed this session)
+
+- **10/10 primitive render tests** (happy-dom + testing-library): formatting, skeleton-vs-zero, tone classes, non-finite dash, all four AsyncBlock states
+- **109/109 dashboard suites still green** — primitives introduced zero regressions
+- Discovered: `useFormatCurrency` + the semantic token layer already existed — the primitives wrap the entity-correct path instead of inventing a parallel one (the right call: one money-formatting truth)
+
+### Next loop pass
+
+Exemplar wiring: migrate Financial Pulse's KPI strip + Tasks rail + Operations money blocks onto Money/AsyncBlock (mechanical, per-surface), then the DataGrid primitive — the §6.1 build-out continues per surface.
