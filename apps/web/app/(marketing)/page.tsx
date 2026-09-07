@@ -13,6 +13,7 @@ import {
 import { Security } from "@/components/marketing/security";
 // import { StatBar } from "@/components/marketing/stat-bar";
 import { Testimonials } from "@/components/marketing/testimonials";
+import { TrustSection } from "@/components/marketing/trust-section";
 
 export const metadata: Metadata = {
   title: "AI-Native Accounting Platform — AI Agents, Zero Data Entry",
@@ -38,6 +39,7 @@ export default function HomePage() {
       <Features />
       <DemoVideo />
       <Security />
+      <TrustSection />
       <Cta />
     </>
   );
