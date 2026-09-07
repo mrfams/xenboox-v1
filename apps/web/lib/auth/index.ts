@@ -188,6 +188,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           return null;
         }
 
+        // Must have both email and password
+        if (!credentials?.email || !credentials?.password) return null;
+
         if (!credentials?.email || !credentials?.password) return null;
 
         const user = await db.query.users.findFirst({
@@ -278,8 +281,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           id: user.id,
           email: user.email,
           name: user.name,
-          image: user.image,
+          image: user.image ?? null,
           sid,
+          emailVerified: !!user.emailVerified,
         };
       },
     }),
