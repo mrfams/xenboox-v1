@@ -32695,7 +32695,7 @@
         },
         "organization_id": {
           "name": "organization_id",
-          "type": "varchar(255)",
+          "type": "uuid",
           "primaryKey": false,
           "notNull": false
         },
@@ -32828,7 +32828,7 @@
         },
         "organization_id": {
           "name": "organization_id",
-          "type": "varchar(255)",
+          "type": "uuid",
           "primaryKey": false,
           "notNull": false
         },
@@ -33222,7 +33222,7 @@
         },
         "organization_id": {
           "name": "organization_id",
-          "type": "varchar(255)",
+          "type": "uuid",
           "primaryKey": false,
           "notNull": false
         },
@@ -34378,7 +34378,7 @@
         },
         "flag_id": {
           "name": "flag_id",
-          "type": "varchar(255)",
+          "type": "uuid",
           "primaryKey": false,
           "notNull": true
         },
@@ -34464,7 +34464,7 @@
         },
         "flag_id": {
           "name": "flag_id",
-          "type": "varchar(255)",
+          "type": "uuid",
           "primaryKey": false,
           "notNull": true
         },
@@ -34872,7 +34872,7 @@
         },
         "source_id": {
           "name": "source_id",
-          "type": "varchar(255)",
+          "type": "uuid",
           "primaryKey": false,
           "notNull": false
         },
@@ -35241,19 +35241,19 @@
         },
         "workflow_id": {
           "name": "workflow_id",
-          "type": "varchar(255)",
+          "type": "uuid",
           "primaryKey": false,
           "notNull": true
         },
         "source_node_id": {
           "name": "source_node_id",
-          "type": "varchar(255)",
+          "type": "uuid",
           "primaryKey": false,
           "notNull": true
         },
         "target_node_id": {
           "name": "target_node_id",
-          "type": "varchar(255)",
+          "type": "uuid",
           "primaryKey": false,
           "notNull": true
         },
@@ -35333,7 +35333,7 @@
         },
         "workflow_id": {
           "name": "workflow_id",
-          "type": "varchar(255)",
+          "type": "uuid",
           "primaryKey": false,
           "notNull": true
         },
@@ -35476,7 +35476,7 @@
         },
         "workflow_id": {
           "name": "workflow_id",
-          "type": "varchar(255)",
+          "type": "uuid",
           "primaryKey": false,
           "notNull": true
         },
@@ -35673,7 +35673,7 @@
         },
         "workflow_id": {
           "name": "workflow_id",
-          "type": "varchar(255)",
+          "type": "uuid",
           "primaryKey": false,
           "notNull": true
         },
@@ -35873,7 +35873,7 @@
         },
         "automation_id": {
           "name": "automation_id",
-          "type": "varchar(255)",
+          "type": "uuid",
           "primaryKey": false,
           "notNull": false
         },
@@ -36137,7 +36137,7 @@
         },
         "automation_id": {
           "name": "automation_id",
-          "type": "varchar(255)",
+          "type": "uuid",
           "primaryKey": false,
           "notNull": false
         },
