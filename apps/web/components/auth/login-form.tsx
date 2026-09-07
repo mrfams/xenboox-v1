@@ -102,7 +102,7 @@ export function LoginForm({
           }
 
           if (!signInResult || (!signInResult.ok && !signInResult.url)) {
-            setError("Too many requests. Please wait a minute and try again.");
+            setError("Failed to establish session. Please try again.");
             return;
           }
 
