@@ -1008,8 +1008,8 @@ CREATE TABLE "workflow_edges" (
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp DEFAULT now() NOT NULL,
 	"workflow_id" uuid NOT NULL,
-	"source_node_id" varchar(255) NOT NULL,
-	"target_node_id" varchar(255) NOT NULL,
+	"source_node_id" uuid NOT NULL,
+	"target_node_id" uuid NOT NULL,
 	"label" varchar(100),
 	"condition" text
 );
