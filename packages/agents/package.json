@@ -14,13 +14,13 @@
     "lint": "eslint . --ext .ts"
   },
   "dependencies": {
-    "@aws-sdk/client-bedrock-runtime": "^3.600.0",
+    "@aws-sdk/client-bedrock-runtime": "^3.1127.0",
     "@composio/client": "0.1.0-alpha.76",
-    "@google/generative-ai": "^0.21.0",
+    "@google/generative-ai": "^0.24.1",
     "@langchain/anthropic": "^0.3.0",
     "@langchain/core": "^0.3.0",
-    "@langchain/langgraph": "^0.2.0",
-    "@langchain/openai": "^0.3.0",
+    "@langchain/langgraph": "^0.4.10",
+    "@langchain/openai": "^0.6.17",
     "@xenboox/db": "workspace:*",
     "@xenboox/jobs": "workspace:*",
     "@xenboox/ledger": "workspace:*",
