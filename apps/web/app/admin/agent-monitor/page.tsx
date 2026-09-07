@@ -265,11 +265,20 @@ export default function AgentMonitorPage() {
     });
   })();
 
-  // Compute delta text from real data
-  const activeAgentsDelta = summary?.activeAgentsDelta ?? null;
-  const tasksRunningDelta = summary?.tasksRunningDelta ?? null;
-  const tasksCompletedDelta = summary?.tasksCompletedDelta ?? null;
-  const humanReviewDelta = summary?.humanReviewDelta ?? null;
+  // Compute delta text from real data. The summary payload does not carry
+  // day-over-day deltas yet — they stay null (rendered as neutral "0 vs
+  // yesterday") until the agent-monitor router computes them from history.
+  type SummaryDeltas = {
+    activeAgentsDelta?: number;
+    tasksRunningDelta?: number;
+    tasksCompletedDelta?: number;
+    humanReviewDelta?: number;
+  };
+  const deltas = (summary ?? {}) as SummaryDeltas;
+  const activeAgentsDelta = deltas.activeAgentsDelta ?? null;
+  const tasksRunningDelta = deltas.tasksRunningDelta ?? null;
+  const tasksCompletedDelta = deltas.tasksCompletedDelta ?? null;
+  const humanReviewDelta = deltas.humanReviewDelta ?? null;
 
   // Preselect the first agent once real data arrives.
   useEffect(() => {
