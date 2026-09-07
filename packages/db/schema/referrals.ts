@@ -19,10 +19,10 @@ import { entities } from "./organization";
 
 export const referralCodes = pgTable("referral_codes", {
   id: uuid("id").primaryKey().defaultRandom(),
-  userId: text("user_id")
+  userId: uuid("user_id")
     .notNull()
     .references(() => users.id),
-  entityId: text("entity_id").references(() => entities.id),
+  entityId: uuid("entity_id").references(() => entities.id),
   code: text("code").notNull().unique(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
@@ -30,14 +30,14 @@ export const referralCodes = pgTable("referral_codes", {
 
 export const referralSignups = pgTable("referral_signups", {
   id: uuid("id").primaryKey().defaultRandom(),
-  referralCodeId: text("referral_code_id")
+  referralCodeId: uuid("referral_code_id")
     .notNull()
     .references(() => referralCodes.id),
-  referrerUserId: text("referrer_user_id")
+  referrerUserId: uuid("referrer_user_id")
     .notNull()
     .references(() => users.id),
   refereeEmail: text("referee_email").notNull(),
-  refereeUserId: text("referee_user_id").references(() => users.id),
+  refereeUserId: uuid("referee_user_id").references(() => users.id),
   status: text("status").notNull().default("pending"), // pending | activated | rewarded
   rewardGranted: boolean("reward_granted").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
@@ -47,10 +47,10 @@ export const referralSignups = pgTable("referral_signups", {
 
 export const referralRewards = pgTable("referral_rewards", {
   id: uuid("id").primaryKey().defaultRandom(),
-  referralSignupId: text("referral_signup_id")
+  referralSignupId: uuid("referral_signup_id")
     .notNull()
     .references(() => referralSignups.id),
-  userId: text("user_id")
+  userId: uuid("user_id")
     .notNull()
     .references(() => users.id),
   type: text("type").notNull(), // free_month | discount | credit

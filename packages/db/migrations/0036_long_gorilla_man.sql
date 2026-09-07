@@ -11,7 +11,7 @@ CREATE TABLE "announcements" (
 --> statement-breakpoint
 CREATE TABLE "daily_close_runs" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"entity_id" text NOT NULL,
+	"entity_id" uuid NOT NULL,
 	"close_date" text NOT NULL,
 	"status" "daily_close_status" DEFAULT 'pending' NOT NULL,
 	"bank_reconciliation_status" text,
@@ -47,8 +47,8 @@ CREATE TABLE "donor_portal_tokens" (
 --> statement-breakpoint
 CREATE TABLE "referral_codes" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"user_id" text NOT NULL,
-	"entity_id" text,
+	"user_id" uuid NOT NULL,
+	"entity_id" uuid,
 	"code" text NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp DEFAULT now() NOT NULL,
@@ -57,8 +57,8 @@ CREATE TABLE "referral_codes" (
 --> statement-breakpoint
 CREATE TABLE "referral_rewards" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"referral_signup_id" text NOT NULL,
-	"user_id" text NOT NULL,
+	"referral_signup_id" uuid NOT NULL,
+	"user_id" uuid NOT NULL,
 	"type" text NOT NULL,
 	"amount" integer,
 	"description" text NOT NULL,
@@ -67,10 +67,10 @@ CREATE TABLE "referral_rewards" (
 --> statement-breakpoint
 CREATE TABLE "referral_signups" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"referral_code_id" text NOT NULL,
-	"referrer_user_id" text NOT NULL,
+	"referral_code_id" uuid NOT NULL,
+	"referrer_user_id" uuid NOT NULL,
 	"referee_email" text NOT NULL,
-	"referee_user_id" text,
+	"referee_user_id" uuid,
 	"status" text DEFAULT 'pending' NOT NULL,
 	"reward_granted" boolean DEFAULT false NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,

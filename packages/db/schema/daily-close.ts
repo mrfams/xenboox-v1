@@ -34,7 +34,7 @@ export const dailyCloseRuns = pgTable(
   "daily_close_runs",
   {
     id: uuid("id").defaultRandom().primaryKey(),
-    entityId: text("entity_id")
+    entityId: uuid("entity_id")
       .notNull()
       .references(() => entities.id, { onDelete: "cascade" }),
     closeDate: text("close_date").notNull(), // YYYY-MM-DD

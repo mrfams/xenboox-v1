@@ -17,6 +17,7 @@ import {
   timestamp,
   index,
   jsonb,
+  uuid,
 } from "drizzle-orm/pg-core";
 import { uuidId, entityId, timestamps } from "./helpers";
 import { entities } from "./organization";
@@ -30,7 +31,7 @@ export const retentionPolicies = pgTable(
     ...timestamps,
 
     // Entity scoping — each entity has its own retention config
-    entityId: text("entity_id")
+    entityId: uuid("entity_id")
       .notNull()
       .references(() => entities.id, { onDelete: "cascade" }),
 

@@ -96,7 +96,7 @@ CREATE TABLE "retention_policies" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp DEFAULT now() NOT NULL,
-	"entity_id" text NOT NULL,
+	"entity_id" uuid NOT NULL,
 	"table_name" varchar(255) NOT NULL,
 	"retention_days" integer DEFAULT 90 NOT NULL,
 	"legal_hold" boolean DEFAULT false NOT NULL,
