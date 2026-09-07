@@ -42,7 +42,7 @@ jobs:
       - name: Upload SARIF on failure
         if: failure()
         continue-on-error: true # fork/PR runs lack the security-events scope
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: results.sarif
 
@@ -95,7 +95,7 @@ jobs:
       - name: Upload SARIF to GitHub Security
         if: always()
         continue-on-error: true # fork/PR runs lack the security-events scope
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: semgrep-results.sarif
           category: semgrep
@@ -163,13 +163,13 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
+        uses: github/codeql-action/init@v4
         with:
           languages: ${{ matrix.language }}
           queries: +security-and-quality
 
       - name: Autobuild
-        uses: github/codeql-action/autobuild@v3
+        uses: github/codeql-action/autobuild@v4
 
       - name: Perform CodeQL Analysis
         # Private repo without GitHub Advanced Security: result upload
@@ -177,7 +177,7 @@ jobs:
         # integration"). Scanning still runs and logs locally; the upload
         # becomes blocking if/when code scanning is enabled.
         continue-on-error: true
-        uses: github/codeql-action/analyze@v3
+        uses: github/codeql-action/analyze@v4
         with:
           category: "/language:${{ matrix.language }}"
           output: sarif-results
@@ -208,7 +208,7 @@ jobs:
         # be enabled, so this upload always 403s. Non-blocking — the checkov
         # scan itself above IS blocking.
         continue-on-error: true
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: checkov-results.sarif
           category: checkov
@@ -312,7 +312,7 @@ jobs:
       - name: Upload SARIF
         # Private repo without code scanning enabled — upload 403s. Non-blocking.
         continue-on-error: true
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: results.sarif
 
