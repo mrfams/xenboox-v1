@@ -97,8 +97,16 @@ export default auth(async (req) => {
   // its own inline <script>/<style> tags. The Next 14 x-nonce convention is
   // ignored. Setting the CSP only on the response headers leaves
   // <script nonce=""> tags, which the strict production CSP then blocks.
+  // Build a dynamic CSP that always includes the current deployment's own
+  // domain so API calls (tRPC, auth callbacks) are never blocked regardless of
+  // whether this is production, preview, or local dev.
+  const deployDomain =
+    process.env.VERCEL_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? "";
+  const selfDomain = deployDomain ? `https://${deployDomain}` : undefined;
   const csp =
-    process.env.NODE_ENV === "development" ? buildDevCSP() : buildCSP(nonce);
+    process.env.NODE_ENV === "development"
+      ? buildDevCSP()
+      : buildCSP(nonce, selfDomain);
   const requestHeaders = new Headers(req.headers);
   requestHeaders.set("content-security-policy", csp);
   requestHeaders.set("x-nonce", nonce);
@@ -237,7 +245,10 @@ export default auth(async (req) => {
   if (!isLoggedIn && !isPublic) {
     const callbackUrl = req.nextUrl.pathname + req.nextUrl.search;
     return NextResponse.redirect(
-      new URL(`/login?callbackUrl=${encodeURIComponent(callbackUrl)}`, req.nextUrl),
+      new URL(
+        `/login?callbackUrl=${encodeURIComponent(callbackUrl)}`,
+        req.nextUrl,
+      ),
     );
   }
 

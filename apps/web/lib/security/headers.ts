@@ -78,26 +78,21 @@ export function generateCSP(config: CSPConfig): string {
   return directives.join("; ");
 }
 
-export function buildCSP(nonce: string): string {
+export function buildCSP(nonce: string, selfDomain?: string): string {
+  const connectSources = [
+    "'self'",
+    "https://api.anthropic.com",
+    "https://api.openai.com",
+  ];
+  if (selfDomain) connectSources.push(selfDomain);
+
   return generateCSP({
     nonce,
     defaultSrc: ["'self'"],
-    scriptSrc: [
-      "'self'",
-      "https://cdn.jsdelivr.net",
-      "https://vercel.live",
-      "https://vercel.jp",
-    ],
+    scriptSrc: ["'self'", "https://cdn.jsdelivr.net", "https://vercel.live"],
     styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
     imgSrc: ["'self'", "data:", "https:", "blob:"],
-    connectSrc: [
-      "'self'",
-      "https://api.anthropic.com",
-      "https://api.openai.com",
-      "https://*.vercel.app",
-      "https://*.vercel-js.com",
-      "https://api.vercel.com",
-    ],
+    connectSrc: connectSources,
     fontSrc: ["'self'", "https://fonts.gstatic.com"],
     objectSrc: ["'none'"],
     mediaSrc: ["'self'", "blob:"],
