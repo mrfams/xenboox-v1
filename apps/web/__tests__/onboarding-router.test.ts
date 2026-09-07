@@ -23,6 +23,7 @@ vi.mock("@/lib/db", () => ({
       orgRoles: { findFirst: vi.fn() },
       sessions: { findFirst: vi.fn().mockResolvedValue({ id: "session-1" }) },
       onboardingSessions: { findFirst: vi.fn() },
+      userSettings: { findFirst: vi.fn() },
     },
   },
 }));
@@ -408,6 +409,28 @@ describe("Onboarding Router — five-category flow", () => {
       expect(pipelineComplete).toHaveBeenCalledWith("session-1");
       // First message must NOT imply records were found for Category E
       expect(result.firstMessage).toContain("opening balance");
+      // Gate mirror: completion must be persisted to user_settings so the
+      // client wizard gate (settings.get) actually closes.
+      expect(db.query.userSettings.findFirst).toHaveBeenCalled();
+      expect(db.insert).toHaveBeenCalled();
+    });
+  });
+
+  describe("completeFlow — no session (legacy accounts)", () => {
+    it("succeeds and closes the settings gate instead of throwing NOT_FOUND", async () => {
+      // Legacy account: org exists but no onboarding_sessions row.
+      vi.mocked(db.query.onboardingSessions.findFirst).mockResolvedValue(
+        null as any,
+      );
+      vi.mocked(db.query.userSettings.findFirst).mockResolvedValue(null as any);
+
+      const caller = makeCaller();
+      const result = await caller.onboarding.completeFlow();
+
+      expect(result.success).toBe(true);
+      expect(pipelineComplete).not.toHaveBeenCalled();
+      // The client gate is closed server-side via the user_settings upsert.
+      expect(db.insert).toHaveBeenCalled();
     });
   });
 });

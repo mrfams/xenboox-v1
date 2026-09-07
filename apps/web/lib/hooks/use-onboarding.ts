@@ -4,9 +4,6 @@ import { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { trpc } from "@/lib/trpc/client";
 
-const ONBOARDING_KEY = "xenboox_onboarding_completed";
-const ONBOARDING_STEP_KEY = "xenboox_onboarding_step";
-
 export type OnboardingStep =
   | "welcome"
   | "chart-of-accounts"
@@ -27,48 +24,52 @@ const STEPS: OnboardingStep[] = [
 ];
 
 /**
- * Server-backed onboarding hook.
- * Reads from server on mount (cross-device), writes to both localStorage
- * (instant UI) and server (persistence). Falls back to localStorage when
- * server is unavailable (offline).
+ * Server-authoritative onboarding hook.
+ *
+ * The gate, current step, completion and reset ALL live in the database
+ * (`user_settings.settings.onboarding` via tRPC `settings.get`/`settings.set`).
+ * Nothing is persisted in the browser: onboarding state must be identical on
+ * every device and browser.
+ *
+ * Failure policy: if the server cannot be reached, we never show the wizard
+ * (fail-safe). Gating a returning user's dashboard behind a modal we could
+ * not confirm is worse than a missed first-run wizard; the next load retries.
  */
 export function useOnboarding() {
   const { data: session } = useSession();
+  const utils = trpc.useUtils();
   const [isFirstTime, setIsFirstTime] = useState(false);
   const [currentStep, setCurrentStep] = useState<OnboardingStep>("welcome");
   const [isLoaded, setIsLoaded] = useState(false);
 
-  // Server-side settings query (onboarding state)
   const getSettings = trpc.settings.get.useQuery(undefined, {
     enabled: !!session?.user?.id,
     staleTime: 5 * 60 * 1000,
   });
 
-  // Server-side settings mutation
   const setSettings = trpc.settings.set.useMutation();
 
   useEffect(() => {
     if (isLoaded) return;
 
-    // Try server first (cross-device persistence)
+    // Wait for auth + the server response — never flash the wizard.
+    if (!session?.user?.id) return;
+    if (getSettings.isLoading) return;
+
     if (getSettings.data) {
-      const serverSettings = getSettings.data as Record<string, unknown>;
-      const onboarding = serverSettings.onboarding as
-        | {
-            completed?: boolean;
-            currentStep?: string | null;
-          }
-        | undefined;
+      const onboarding = (
+        getSettings.data as { settings?: Record<string, unknown> }
+      ).settings?.onboarding as
+        { completed?: boolean; currentStep?: string | null } | undefined;
 
       if (onboarding?.completed) {
         setIsFirstTime(false);
-        // Sync localStorage for offline fallback
-        localStorage.setItem(ONBOARDING_KEY, "true");
-        localStorage.removeItem(ONBOARDING_STEP_KEY);
       } else {
+        // Server is the single source of truth: an explicit in-progress
+        // flag OR no flag at all (brand-new account) → first-time.
         setIsFirstTime(true);
-        const step = (onboarding?.currentStep ??
-          localStorage.getItem(ONBOARDING_STEP_KEY)) as OnboardingStep | null;
+        const step = onboarding?.currentStep as
+          OnboardingStep | null | undefined;
         if (step && STEPS.includes(step)) {
           setCurrentStep(step);
         }
@@ -77,50 +78,43 @@ export function useOnboarding() {
       return;
     }
 
-    // Fallback to localStorage while server loads
-    // DON'T set isFirstTime=true yet — wait for server to confirm
-    if (getSettings.isLoading) {
-      const completed = localStorage.getItem(ONBOARDING_KEY);
-      if (completed !== "true") {
-        const savedStep = localStorage.getItem(
-          ONBOARDING_STEP_KEY,
-        ) as OnboardingStep | null;
-        if (savedStep && STEPS.includes(savedStep)) {
-          setCurrentStep(savedStep);
-        }
-      }
-      // Don't set isLoaded yet — wait for server
-      return;
-    }
-
-    // Server unavailable — use localStorage
-    const completed = localStorage.getItem(ONBOARDING_KEY);
-    if (completed !== "true") {
-      setIsFirstTime(true);
-      const savedStep = localStorage.getItem(
-        ONBOARDING_STEP_KEY,
-      ) as OnboardingStep | null;
-      if (savedStep && STEPS.includes(savedStep)) {
-        setCurrentStep(savedStep);
-      }
-    }
+    // Query settled without data (network/server error): fail safe — do not
+    // gate the dashboard. The next load retries.
+    setIsFirstTime(false);
     setIsLoaded(true);
-  }, [getSettings.data, getSettings.isLoading, isLoaded]);
+  }, [getSettings.data, getSettings.isLoading, session?.user?.id, isLoaded]);
 
-  // Save step to both localStorage (instant) and server (cross-device)
+  /**
+   * Persist an onboarding patch to the server (durable, cross-device) and
+   * update the tRPC cache with the confirmed result so every consumer
+   * reflects it immediately. On failure, invalidate so the next read shows
+   * server truth instead of a stale cache.
+   */
+  const persistOnboarding = useCallback(
+    (onboarding: { completed: boolean; currentStep: string | null }) => {
+      if (!session?.user?.id) return;
+      setSettings.mutate(
+        { settings: { onboarding } },
+        {
+          onSuccess: (data) => {
+            utils.settings.get.setData(undefined, data);
+          },
+          onError: () => {
+            void utils.settings.get.invalidate();
+          },
+        },
+      );
+    },
+    [session?.user?.id, setSettings, utils],
+  );
+
+  // Save step to the server (cross-device persistence)
   const saveStep = useCallback(
     (step: OnboardingStep) => {
       setCurrentStep(step);
-      localStorage.setItem(ONBOARDING_STEP_KEY, step);
-
-      // Persist to server (non-blocking)
-      if (session?.user?.id) {
-        setSettings.mutate({
-          settings: { onboarding: { completed: false, currentStep: step } },
-        });
-      }
+      persistOnboarding({ completed: false, currentStep: step });
     },
-    [session, setSettings],
+    [persistOnboarding],
   );
 
   const nextStep = useCallback(() => {
@@ -138,31 +132,15 @@ export function useOnboarding() {
   }, [currentStep, saveStep]);
 
   const completeOnboarding = useCallback(() => {
-    localStorage.setItem(ONBOARDING_KEY, "true");
-    localStorage.removeItem(ONBOARDING_STEP_KEY);
     setIsFirstTime(false);
-
-    // Persist to server (non-blocking)
-    if (session?.user?.id) {
-      setSettings.mutate({
-        settings: { onboarding: { completed: true, currentStep: null } },
-      });
-    }
-  }, [session, setSettings]);
+    persistOnboarding({ completed: true, currentStep: null });
+  }, [persistOnboarding]);
 
   const resetOnboarding = useCallback(() => {
-    localStorage.removeItem(ONBOARDING_KEY);
-    localStorage.removeItem(ONBOARDING_STEP_KEY);
     setIsFirstTime(true);
     setCurrentStep("welcome");
-
-    // Persist to server (non-blocking)
-    if (session?.user?.id) {
-      setSettings.mutate({
-        settings: { onboarding: { completed: false, currentStep: "welcome" } },
-      });
-    }
-  }, [session, setSettings]);
+    persistOnboarding({ completed: false, currentStep: "welcome" });
+  }, [persistOnboarding]);
 
   const stepIndex = STEPS.indexOf(currentStep);
 

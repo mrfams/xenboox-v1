@@ -44,7 +44,7 @@ export type AnalyticsEvent =
     }
   | {
       event: "onboarding_skipped";
-      properties: { entityId: string; lastStep: number };
+      properties: { entityId: string; lastStep: string };
     }
   | { event: "product_tour_started"; properties: { entityId: string } }
   | { event: "product_tour_completed"; properties: { entityId: string } }

@@ -4,6 +4,63 @@
 
 ---
 
+## 2026-09-07 — PIVOT: server-authoritative onboarding + settings (zero localStorage)
+
+**Scope:** Follow-up to the gate/skip fix. Decision: the browser is not a source of truth on an accounting platform. Removed localStorage from the entire onboarding + settings path; every consumer now reads/writes the database (`user_settings.settings` via tRPC).
+
+### What shipped
+
+| File                                                   | Change                                                                                                                                                                                                                                                                                                                               |
+| ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `apps/web/lib/hooks/use-onboarding.ts`                 | Full rewrite. Gate/step/completion/reset all server-driven. Loading → wait; server error → fail-safe (never trap the dashboard behind an unconfirmed wizard). Writes update the tRPC cache on success, invalidate on failure                                                                                                         |
+| `apps/web/lib/hooks/use-settings-sync.ts`              | Full rewrite. DB is the single source of truth; working copy in React state; debounced server sync; multi-device conflicts via the server's 409 (`baseUpdatedAt`) instead of localStorage snapshots; `resetSettings` now calls `settings.replace` (cross-device) instead of deleting browser keys; SSE/polling feeds the query cache |
+| `apps/web/components/onboarding/onboarding-wizard.tsx` | Removed ~900 lines of unreachable dead 7-step components (incl. the localStorage-only AI-preferences step). Wizard now renders `<AiOnboarding />` only                                                                                                                                                                               |
+| `apps/web/lib/hooks/use-onboarding-v2.ts`              | Deleted — dead file, zero importers, broken types                                                                                                                                                                                                                                                                                    |
+| `apps/web/lib/analytics/events.ts`                     | `onboarding_skipped.lastStep` type corrected number → string                                                                                                                                                                                                                                                                         |
+| `apps/web/e2e/onboarding-aha.spec.ts`                  | Rewritten: no localStorage seeding. Registers a fresh account → wizard appears → Skip → gate stays closed across reload; returning (set-up) account never sees the wizard                                                                                                                                                            |
+| `apps/web/__tests__/onboarding-persistence.test.ts`    | Re-anchored to server-authoritative behavior, incl. hard assertions: **zero `localStorage` in both hooks**, reset via `settings.replace`, cache setData/invalidate, fail-safe on error                                                                                                                                               |
+
+### Verification
+
+- 10 affected suites: **188/188 pass** (onboarding persistence/router/wizard, settings-sync, conflict-resolution, export-import, reset, strategy)
+- `tsc --noEmit`: 433 errors, **all pre-existing**; zero in touched files (down 3 from baseline: v2 file deleted, analytics type fixed)
+
+### Deliberately deferred (needs product decisions)
+
+- AI onboarding dialogue is scripted (`getAIResponse`) — actions are real mutations; real-LLM conversation is a separate build
+- Remaining repo-wide typecheck debt (433) and self-contained test simulations of old localStorage behavior
+
+## 2026-09-07 — OPS: prod DB restored + onboarding gate/skip fix
+
+**Scope:** Two production incidents fixed. (1) Vercel `DATABASE_URL` (prod+preview) had been clobbered 15h prior with an 11-char junk value — production only kept working because the then-running deployment had the old Neon URL baked in. Restored the old-DB URL via Vercel CLI (backed up prior env to `.env.db-backup-prod`, gitignored), redeployed production. Verified old DB: 14 users, 12 orgs, 19 entities, 6 blog posts. (2) Post-restore, the AI onboarding wizard popped up for existing accounts and Skip didn't work.
+
+### Root cause (onboarding)
+
+| Symptom                                  | Cause                                                                                                                                                                                                                                                                   |
+| ---------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Wizard shows for already-set-up accounts | Gate reads `settings.get` → `user_settings.onboarding.completed`; old DB had **0 rows** in `user_settings`, and the hook ignored the localStorage completed flag whenever the server responded                                                                          |
+| Skip doesn't work                        | `onboarding.completeFlow` throws `NOT_FOUND` when no `onboarding_sessions` row exists (old DB had 0 rows); error swallowed → redirect → wizard reappears. Even on success it updated `onboarding_sessions`, never `user_settings.onboarding` — the field the gate reads |
+
+### What shipped
+
+| File                                                | Change                                                                                                                                                         |
+| --------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `apps/web/lib/hooks/use-onboarding.ts`              | When server has no onboarding data, fall back to the localStorage completed flag — existing users stay hidden, only flagless accounts get the wizard           |
+| `apps/web/components/onboarding/ai-onboarding.tsx`  | Skip + Go-to-Dashboard close the gate for real: hook `completeOnboarding()` (localStorage + `settings.set`) before best-effort `completeFlow`                  |
+| `apps/web/server/routers/onboarding.ts`             | `completeFlow` with no session → idempotent success + `markSettingsOnboarded()` upsert (new helper); success path also mirrors completion into `user_settings` |
+| `packages/db/seed/mark-existing-users-onboarded.ts` | New idempotent backfill (`--dry-run` supported): marks users with entity access or org ownership as onboarded                                                  |
+
+### Verification
+
+- `pnpm vitest run` onboarding suites: **30/30 pass** (persistence + router, incl. new no-session success test)
+- `tsc --noEmit`: zero new errors from these changes (repo has 1,076 pre-existing documented in `findings/ci-typecheck-errors.txt`)
+- Backfill run against old DB: 12 set-up users marked onboarded; re-run skipped all 12 (idempotent); 2 flagless users correctly still get onboarding
+
+### Next steps
+
+- Redeploy production to pick up the client/router fixes (env already fixed)
+- Find what clobbered `DATABASE_URL` 15h ago (likely shell-quoting bug, cf. `findings/fix-vercel-env-quoting.sh`)
+
 ## 2026-09-05 — MARKETING: launch-grade redesign pass
 
 **Scope:** Marketing site studied against Stripe/Linear/Ramp patterns, then
@@ -12,22 +69,22 @@ isn't true.
 
 ### What shipped
 
-| Area | Change |
-| ---- | ------ |
-| **Hero demo** | Rebuilt to match the shipped product: Tasks (not Activity Hub), Thought lines, inline approval card, zero agent names/confidence |
-| **Hero** | Activity bar shows work ("Chasing 4 overdue invoices"), subline drops confidence-scored |
-| **Proof** | Fabricated testimonials → honest capability proof + early-cohort invitation (home, features) |
-| **Case studies** | Fabricated companies/metrics → early-access page (URL kept): who it's for, what early teams get |
-| **Careers** | Anonymous employee quotes → operating principles |
-| **For-accountants** | Fake firm quote → firm proof panel |
-| **Compare** | Fake switcher stories + stars → switch reasons; CTA drops agent-count/migration claims |
-| **Demo video** | Fake player (placeholder ID, fake duration/transcript) → honest product visual + signup CTA |
-| **Copy purge** | "99.7% auto-post" removed; "confidence-scored" → outcome language across 12 conversion files |
-| **Pricing** | Agent-count tiers → job-based; "SOC 2 compliance" → audit-ready exports (SOC 2 is roadmap) |
-| **One-pager** | Fake logos/stats/SOC 2 → sectors + honest stats |
-| **About** | Fake press/investor/customer logos removed; timeline de-fabricated; SOC 2 → security wording |
-| **Shell** | Footer Press Kit → /press; announcement bar → early-access framing |
-| **SEO** | Server metadata+OG layouts for 7 client routes; sitemap covers conversion routes |
+| Area                | Change                                                                                                                           |
+| ------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| **Hero demo**       | Rebuilt to match the shipped product: Tasks (not Activity Hub), Thought lines, inline approval card, zero agent names/confidence |
+| **Hero**            | Activity bar shows work ("Chasing 4 overdue invoices"), subline drops confidence-scored                                          |
+| **Proof**           | Fabricated testimonials → honest capability proof + early-cohort invitation (home, features)                                     |
+| **Case studies**    | Fabricated companies/metrics → early-access page (URL kept): who it's for, what early teams get                                  |
+| **Careers**         | Anonymous employee quotes → operating principles                                                                                 |
+| **For-accountants** | Fake firm quote → firm proof panel                                                                                               |
+| **Compare**         | Fake switcher stories + stars → switch reasons; CTA drops agent-count/migration claims                                           |
+| **Demo video**      | Fake player (placeholder ID, fake duration/transcript) → honest product visual + signup CTA                                      |
+| **Copy purge**      | "99.7% auto-post" removed; "confidence-scored" → outcome language across 12 conversion files                                     |
+| **Pricing**         | Agent-count tiers → job-based; "SOC 2 compliance" → audit-ready exports (SOC 2 is roadmap)                                       |
+| **One-pager**       | Fake logos/stats/SOC 2 → sectors + honest stats                                                                                  |
+| **About**           | Fake press/investor/customer logos removed; timeline de-fabricated; SOC 2 → security wording                                     |
+| **Shell**           | Footer Press Kit → /press; announcement bar → early-access framing                                                               |
+| **SEO**             | Server metadata+OG layouts for 7 client routes; sitemap covers conversion routes                                                 |
 
 ### Deliberately kept
 
@@ -61,15 +118,15 @@ each job preserved where it now lives. Sidebar ends at 5 surfaces.
 
 ### What shipped
 
-| Deleted route       | Where its job lives now                                              |
-| ------------------- | -------------------------------------------------------------------- |
-| `auto-approve`      | Chat (existing engine) + Make-automatic button on every Tasks brief  |
-| `knowledge`         | Command Center attach + ask (citations already inline)               |
-| `help`              | Chat + `/docs` (all nav, palette, shortcuts, assistant point there)  |
-| `qbr`               | Financial Pulse artifact via chat (report cards already inline)      |
-| `donor-reporting`   | Financial Pulse artifact via chat; grant-tracking future logged      |
-| `people`            | Operations (money work); payroll/inventory/asset/budget views removed |
-| `referrals`         | Settings → Referrals tab (same ReferralDashboard, lazy chunk)        |
+| Deleted route     | Where its job lives now                                               |
+| ----------------- | --------------------------------------------------------------------- |
+| `auto-approve`    | Chat (existing engine) + Make-automatic button on every Tasks brief   |
+| `knowledge`       | Command Center attach + ask (citations already inline)                |
+| `help`            | Chat + `/docs` (all nav, palette, shortcuts, assistant point there)   |
+| `qbr`             | Financial Pulse artifact via chat (report cards already inline)       |
+| `donor-reporting` | Financial Pulse artifact via chat; grant-tracking future logged       |
+| `people`          | Operations (money work); payroll/inventory/asset/budget views removed |
+| `referrals`       | Settings → Referrals tab (same ReferralDashboard, lazy chunk)         |
 
 Also: `knowledge-graph` kept but unlinked from nav (ops/debug only, hidden
 inspector notes it); donor sub-nav removed; mobile bottom nav back to 5;
@@ -103,19 +160,19 @@ drops batch tracking for upload + review inbox.
 
 ### What shipped
 
-| Layer          | Change                                                                                |
-| -------------- | ------------------------------------------------------------------------------------- |
-| **Operations** | 7 tabs → cash hero + Money-needing-you + lazy expandable record sections              |
-| **Operations** | Expense claims approve/reject-with-note/reimburse inline (real `decideClaim` mutations) |
+| Layer          | Change                                                                                    |
+| -------------- | ----------------------------------------------------------------------------------------- |
+| **Operations** | 7 tabs → cash hero + Money-needing-you + lazy expandable record sections                  |
+| **Operations** | Expense claims approve/reject-with-note/reimburse inline (real `decideClaim` mutations)   |
 | **Operations** | Overdue bills → Draft-a-payment-plan drawer; invoices → per-row Send reminder + Chase-all |
-| **Operations** | Unreconciled bank lines → Review-in-Banking (expands section, no ejection)            |
-| **Operations** | Dead "Ask the AI…" text is a working button; "Agents are watching" copy purged        |
-| **Operations** | Legacy `?tab=` links open the matching section; record views mount only when opened   |
-| **Ingestion**  | Page is now Documents: upload → live progress → decisions land in Tasks               |
-| **Ingestion**  | Needs-review inbox from `listPendingReviews` + stripped review panel                  |
-| **Ingestion**  | Panel: no confidence header/badges, no robot icon, teaching reject note               |
-| **Ingestion**  | BatchProgress: no stages/seconds/pipeline viz — counts + status only                  |
-| **Tests**      | New `phase-b-operations-ingestion.test.ts` contract                                   |
+| **Operations** | Unreconciled bank lines → Review-in-Banking (expands section, no ejection)                |
+| **Operations** | Dead "Ask the AI…" text is a working button; "Agents are watching" copy purged            |
+| **Operations** | Legacy `?tab=` links open the matching section; record views mount only when opened       |
+| **Ingestion**  | Page is now Documents: upload → live progress → decisions land in Tasks                   |
+| **Ingestion**  | Needs-review inbox from `listPendingReviews` + stripped review panel                      |
+| **Ingestion**  | Panel: no confidence header/badges, no robot icon, teaching reject note                   |
+| **Ingestion**  | BatchProgress: no stages/seconds/pipeline viz — counts + status only                      |
+| **Tests**      | New `phase-b-operations-ingestion.test.ts` contract                                       |
 
 ### Verification
 
@@ -140,19 +197,19 @@ state to chat.
 
 ### What shipped
 
-| Layer        | Change                                                                                  |
-| ------------ | --------------------------------------------------------------------------------------- |
-| **New**      | `components/chat/ask-drawer.tsx` + `AskFn` — drawer thread, page+focus context, follow-ups |
-| **Pulse**    | All Ask opens the drawer (no `?prompt=` ejection); narrative Explain + What-should-I-do |
-| **Pulse**    | Dropped `Financial Analyst` badge + `% confidence` footer; error state has chat CTA      |
-| **Pulse**    | Net Profit + Cash cards gain Ask; anomalies carry record focus; budget nulls guide to chat |
-| **Pulse**    | Reports CommandBar weaves real figures instead of `formatCurrency(0)` placeholders       |
-| **Ledger**   | All `openWithFocus` ejections → drawer; per-row Ask on journal/COA/TB rows with focus   |
-| **Ledger**   | Copy purge: no agent mentions, no ProvenanceDot; footer reads "Recorded by Xenboox"      |
-| **Ledger**   | Pending entries get Request-changes (grounds correction in-thread); history ask inline   |
-| **Ledger**   | Every empty (journal/COA/TB/no-period) has an AI CTA button                              |
-| **Anomaly**  | Robot icons → Sparkles; "AI Analysis" → "Why this matters"                               |
-| **Tests**    | New `ask-drawer.test.tsx` (stream, focus context, follow-up convo, close) + `phase-a-pulse-ledger.test.ts` contract |
+| Layer       | Change                                                                                                              |
+| ----------- | ------------------------------------------------------------------------------------------------------------------- |
+| **New**     | `components/chat/ask-drawer.tsx` + `AskFn` — drawer thread, page+focus context, follow-ups                          |
+| **Pulse**   | All Ask opens the drawer (no `?prompt=` ejection); narrative Explain + What-should-I-do                             |
+| **Pulse**   | Dropped `Financial Analyst` badge + `% confidence` footer; error state has chat CTA                                 |
+| **Pulse**   | Net Profit + Cash cards gain Ask; anomalies carry record focus; budget nulls guide to chat                          |
+| **Pulse**   | Reports CommandBar weaves real figures instead of `formatCurrency(0)` placeholders                                  |
+| **Ledger**  | All `openWithFocus` ejections → drawer; per-row Ask on journal/COA/TB rows with focus                               |
+| **Ledger**  | Copy purge: no agent mentions, no ProvenanceDot; footer reads "Recorded by Xenboox"                                 |
+| **Ledger**  | Pending entries get Request-changes (grounds correction in-thread); history ask inline                              |
+| **Ledger**  | Every empty (journal/COA/TB/no-period) has an AI CTA button                                                         |
+| **Anomaly** | Robot icons → Sparkles; "AI Analysis" → "Why this matters"                                                          |
+| **Tests**   | New `ask-drawer.test.tsx` (stream, focus context, follow-up convo, close) + `phase-a-pulse-ledger.test.ts` contract |
 
 ### Verification
 
@@ -178,19 +235,19 @@ review queue at /dashboard/tasks, pipeline thinking becomes human sentences.
 
 ### What shipped
 
-| Layer      | Change                                                                                       |
-| ---------- | -------------------------------------------------------------------------------------------- |
-| **Schema** | `conversation_id` + index on `ops_live_runs`, `close_tasks`, `daily_close_runs` (mig 0039)  |
-| **Agents** | `orchestrate()` threads `conversationId` into `persistAgentRun` (column + metadata fallback) |
-| **Agents** | Pipeline `emitStep` notes rewritten to user-safe first-person sentences; telemetry untouched |
-| **API**    | Stream route forwards only `thinking.text` (cap 4); no agent/activity/delegation events      |
-| **Tasks**  | `UnifiedTask` gains `conversationId` + `needsDecision`; `get` returns artifacts + escalations |
-| **Chat**   | Thought collapsed by default, sentences not labels, zero timings; tool cards hide raw JSON   |
-| **Chat**   | `StreamingMessage` drops agent block + confidence readout; GMD hardcode removed from summaries |
-| **Dashboard** | 3-tab rail → one `TasksRailPanel` (Needs you/Running/Done); click loads thread + drawer   |
-| **Tasks**  | New `/dashboard/tasks` page (Needs you + All tasks); `/dashboard/activity-hub` redirects    |
-| **Nav**    | Sidebar, mobile nav, shortcuts, notifications, help-assist all point at `/dashboard/tasks`   |
-| **Tests**  | New `unified-tasks-ux.test.tsx`; thinking/a11y/stream/rail tests updated to new contract     |
+| Layer         | Change                                                                                         |
+| ------------- | ---------------------------------------------------------------------------------------------- |
+| **Schema**    | `conversation_id` + index on `ops_live_runs`, `close_tasks`, `daily_close_runs` (mig 0039)     |
+| **Agents**    | `orchestrate()` threads `conversationId` into `persistAgentRun` (column + metadata fallback)   |
+| **Agents**    | Pipeline `emitStep` notes rewritten to user-safe first-person sentences; telemetry untouched   |
+| **API**       | Stream route forwards only `thinking.text` (cap 4); no agent/activity/delegation events        |
+| **Tasks**     | `UnifiedTask` gains `conversationId` + `needsDecision`; `get` returns artifacts + escalations  |
+| **Chat**      | Thought collapsed by default, sentences not labels, zero timings; tool cards hide raw JSON     |
+| **Chat**      | `StreamingMessage` drops agent block + confidence readout; GMD hardcode removed from summaries |
+| **Dashboard** | 3-tab rail → one `TasksRailPanel` (Needs you/Running/Done); click loads thread + drawer        |
+| **Tasks**     | New `/dashboard/tasks` page (Needs you + All tasks); `/dashboard/activity-hub` redirects       |
+| **Nav**       | Sidebar, mobile nav, shortcuts, notifications, help-assist all point at `/dashboard/tasks`     |
+| **Tests**     | New `unified-tasks-ux.test.tsx`; thinking/a11y/stream/rail tests updated to new contract       |
 
 ### Design decisions
 

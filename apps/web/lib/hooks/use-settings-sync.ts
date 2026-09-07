@@ -15,7 +15,6 @@ import {
 import {
   type SettingsOperation,
   generateOperationId,
-  wouldConflict,
 } from "@/lib/operational-transform";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -64,97 +63,28 @@ type ConflictState = {
 
 type SettingsSyncState = {
   settings: Settings;
-  isLoaded: boolean;
   isSyncing: boolean;
   lastSyncedAt: string | null;
   error: string | null;
   conflict: ConflictState;
 };
 
-// ─── localStorage Keys ────────────────────────────────────────────────────────
-
-const LOCAL_KEYS = {
-  aiPreferences: "xenboox_ai_preferences",
-  onboardingCompleted: "xenboox_onboarding_completed",
-  onboardingStep: "xenboox_onboarding_step",
-  usageStats: "xenboox_ai_usage_stats",
-  notificationPrefs: "xenboox_notification_preferences",
-  lastSyncedAt: "xenboox_last_synced_at",
-  lastLocalEditAt: "xenboox_last_local_edit_at",
-  syncPreferences: "xenboox_sync_preferences",
-} as const;
-
-// ─── Read from localStorage ───────────────────────────────────────────────────
-
-function readLocal<T>(key: string): T | null {
-  try {
-    const stored = localStorage.getItem(key);
-    return stored ? JSON.parse(stored) : null;
-  } catch {
-    return null;
-  }
-}
-
-function writeLocal(key: string, value: unknown) {
-  localStorage.setItem(key, JSON.stringify(value));
-}
-
-function removeLocal(key: string) {
-  localStorage.removeItem(key);
-}
-
-// ─── Build settings from localStorage ─────────────────────────────────────────
-
-function buildLocalSettings(): Settings {
-  return {
-    aiPreferences: readLocal(LOCAL_KEYS.aiPreferences) || undefined,
-    onboarding: {
-      completed:
-        localStorage.getItem(LOCAL_KEYS.onboardingCompleted) === "true",
-      currentStep: localStorage.getItem(LOCAL_KEYS.onboardingStep),
-    },
-    notifications: readLocal(LOCAL_KEYS.notificationPrefs) || undefined,
-    usage: readLocal(LOCAL_KEYS.usageStats) || undefined,
-    syncPreferences: readLocal(LOCAL_KEYS.syncPreferences) || undefined,
-  };
-}
-
-// ─── Apply settings to localStorage ───────────────────────────────────────────
-
-function applyToLocal(settings: Settings) {
-  if (settings.aiPreferences) {
-    writeLocal(LOCAL_KEYS.aiPreferences, settings.aiPreferences);
-  }
-  if (settings.onboarding) {
-    if (settings.onboarding.completed) {
-      writeLocal(LOCAL_KEYS.onboardingCompleted, "true");
-    } else {
-      removeLocal(LOCAL_KEYS.onboardingCompleted);
-    }
-    if (settings.onboarding.currentStep) {
-      writeLocal(LOCAL_KEYS.onboardingStep, settings.onboarding.currentStep);
-    } else {
-      removeLocal(LOCAL_KEYS.onboardingStep);
-    }
-  }
-  if (settings.notifications) {
-    writeLocal(LOCAL_KEYS.notificationPrefs, settings.notifications);
-  }
-  if (settings.usage) {
-    writeLocal(LOCAL_KEYS.usageStats, settings.usage);
-  }
-  if (settings.syncPreferences) {
-    writeLocal(LOCAL_KEYS.syncPreferences, settings.syncPreferences);
-  }
-}
-
-// ─── Hook ─────────────────────────────────────────────────────────────────────
-
+/**
+ * Server-first settings sync.
+ *
+ * The database (`user_settings.settings` via tRPC `settings.get`/`set`/
+ * `replace`) is the single source of truth. Nothing is persisted in the
+ * browser: the working copy lives in React state (per tab), optimistic edits
+ * are synced to the server with a debounce, and cross-device changes arrive
+ * via the SSE stream (or a query refetch). Because there is no persisted
+ * local copy, "local" in conflict resolution means this tab's un-persisted
+ * edits.
+ */
 export function useSettingsSync() {
   const { data: session } = useSession();
+  const utils = trpc.useUtils();
   const [state, setState] = useState<SettingsSyncState>({
     settings: {},
-    isLoaded: false,
     isSyncing: false,
     lastSyncedAt: null,
     error: null,
@@ -164,10 +94,7 @@ export function useSettingsSync() {
       localUpdatedAt: null,
       remoteUpdatedAt: null,
       remoteSettings: null,
-      mergeStrategy:
-        readLocal<{ defaultMergeStrategy?: MergeStrategy }>(
-          LOCAL_KEYS.syncPreferences,
-        )?.defaultMergeStrategy || "deep-merge",
+      mergeStrategy: "deep-merge",
       isResolving: false,
     },
   });
@@ -177,6 +104,8 @@ export function useSettingsSync() {
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const lastSyncedAtRef = useRef<string | null>(null);
   const lastLocalEditRef = useRef<string | null>(null);
+  // Working copy of settings for this tab (un-persisted edits included).
+  const workingSettingsRef = useRef<Settings>({});
   const pendingOpsRef = useRef<SettingsOperation[]>([]); // Pending operations queue
   const clientIdRef = useRef<string>(generateOperationId()); // Unique ID for this tab
   const sseRef = useRef<EventSource | null>(null); // SSE connection
@@ -188,12 +117,141 @@ export function useSettingsSync() {
   });
 
   const setSettings = trpc.settings.set.useMutation();
+  const replaceSettings = trpc.settings.replace.useMutation();
   const logConflictResolution =
     trpc.settings.logConflictResolution.useMutation();
 
-  // ── Real-time SSE connection (replaces polling) ──
+  const isCloudEnabled = !!session?.user?.id;
+  // Server data has settled (arrived or failed) — the UI can render real state.
+  const isLoaded = isCloudEnabled && !getSettings.isLoading;
+
+  // ── Mirror server truth into state (covers loads, refetches, invalidations) ──
+
+  useEffect(() => {
+    if (!isCloudEnabled) return;
+    if (getSettings.isLoading) return;
+
+    if (getSettings.data) {
+      const serverSettings = (getSettings.data.settings ?? {}) as Settings;
+      const serverTime = getSettings.data.updatedAt;
+      lastSyncedAtRef.current = serverTime;
+      workingSettingsRef.current = serverSettings;
+      setState((prev) => ({
+        ...prev,
+        settings: serverSettings,
+        lastSyncedAt: serverTime,
+        error: null,
+      }));
+      return;
+    }
+
+    // Query settled with an error — surface it honestly.
+    setState((prev) => ({
+      ...prev,
+      error: getSettings.error?.message ?? "Failed to load settings",
+    }));
+  }, [
+    getSettings.data,
+    getSettings.error,
+    getSettings.isLoading,
+    isCloudEnabled,
+  ]);
+
+  // ── Server save (shared by debounced updates and forceSync) ──
+
+  const saveToServer = useCallback(
+    async (settings: Settings) => {
+      if (!session?.user?.id || isSyncingRef.current) return;
+      isSyncingRef.current = true;
+      setState((prev) => ({ ...prev, isSyncing: true }));
+
+      try {
+        const data = await setSettings.mutateAsync({
+          settings: settings as Record<string, unknown>,
+          baseVersion: 0,
+          baseUpdatedAt: lastSyncedAtRef.current || undefined,
+        });
+        lastSyncedAtRef.current = data.updatedAt;
+        utils.settings.get.setData(undefined, data);
+        pendingOpsRef.current = []; // Clear pending ops on success
+        setState((prev) => ({
+          ...prev,
+          isSyncing: false,
+          lastSyncedAt: data.updatedAt,
+          error: null,
+        }));
+      } catch (err) {
+        const code = (err as { data?: { code?: string } })?.data?.code;
+        if (code === "CONFLICT") {
+          // Another device won the race — pull remote truth and surface the
+          // conflict between it and this tab's un-persisted edits.
+          const fresh = await utils.settings.get.fetch();
+          const remoteSettings = (fresh?.settings ?? {}) as Settings;
+          const remoteUpdatedAt = fresh?.updatedAt ?? null;
+
+          const localSnapshot: SettingsSnapshot = {
+            settings: settings as Record<string, unknown>,
+            updatedAt: lastLocalEditRef.current,
+          };
+          const remoteSnapshot: SettingsSnapshot = {
+            settings: remoteSettings as Record<string, unknown>,
+            updatedAt: remoteUpdatedAt,
+          };
+          const conflicts = detectConflicts(
+            localSnapshot,
+            remoteSnapshot,
+            lastSyncedAtRef.current,
+          );
+
+          setState((prev) => ({
+            ...prev,
+            isSyncing: false,
+            conflict: {
+              hasConflict: conflicts.length > 0,
+              conflicts,
+              localUpdatedAt: lastLocalEditRef.current,
+              remoteUpdatedAt,
+              remoteSettings,
+              mergeStrategy: prev.conflict.mergeStrategy,
+              isResolving: false,
+            },
+          }));
+        } else {
+          // Keep pending ops — they retry on the next update/forceSync.
+          setState((prev) => ({
+            ...prev,
+            isSyncing: false,
+            error:
+              err instanceof Error
+                ? err.message
+                : "Failed to sync settings. Will retry.",
+          }));
+        }
+      } finally {
+        isSyncingRef.current = false;
+      }
+    },
+    [session?.user?.id, setSettings, utils],
+  );
+
+  // ── Real-time SSE connection (server → this tab) ──
+
   useEffect(() => {
     if (!session?.user?.id) return;
+
+    const acceptRemote = (serverSettings: Settings, serverTime: string) => {
+      lastSyncedAtRef.current = serverTime;
+      workingSettingsRef.current = serverSettings;
+      utils.settings.get.setData(undefined, {
+        settings: serverSettings as Record<string, unknown>,
+        updatedAt: serverTime,
+      });
+      setState((prev) => ({
+        ...prev,
+        settings: serverSettings,
+        lastSyncedAt: serverTime,
+      }));
+    };
 
     const connectSSE = () => {
       try {
@@ -206,16 +264,16 @@ export function useSettingsSync() {
 
             if (data.type === "settings_changed" && data.settings) {
               const serverSettings = data.settings as Settings;
-              const serverTime = data.timestamp;
+              const serverTime = data.timestamp as string;
 
-              // Check for conflicts with pending operations
-              const localSettings = buildLocalSettings();
-              const hasPendingChanges = pendingOpsRef.current.length > 0;
-
-              if (hasPendingChanges) {
-                // We have pending changes — check for conflicts
+              // Pending un-persisted edits? Check for conflicts against the
+              // incoming remote state before accepting it.
+              if (pendingOpsRef.current.length > 0) {
                 const localSnapshot: SettingsSnapshot = {
-                  settings: localSettings as Record<string, unknown>,
+                  settings: workingSettingsRef.current as Record<
+                    string,
+                    unknown
+                  >,
                   updatedAt: lastLocalEditRef.current,
                 };
                 const remoteSnapshot: SettingsSnapshot = {
@@ -242,30 +300,12 @@ export function useSettingsSync() {
                       isResolving: false,
                     },
                   }));
-                } else {
-                  // No conflict — transform pending ops and apply remote
-                  applyToLocal(serverSettings);
-                  lastSyncedAtRef.current = serverTime;
-                  writeLocal(LOCAL_KEYS.lastSyncedAt, serverTime);
-
-                  setState((prev) => ({
-                    ...prev,
-                    settings: serverSettings,
-                    lastSyncedAt: serverTime,
-                  }));
+                  return;
                 }
-              } else {
-                // No pending changes — accept remote immediately
-                applyToLocal(serverSettings);
-                lastSyncedAtRef.current = serverTime;
-                writeLocal(LOCAL_KEYS.lastSyncedAt, serverTime);
-
-                setState((prev) => ({
-                  ...prev,
-                  settings: serverSettings,
-                  lastSyncedAt: serverTime,
-                }));
               }
+
+              // No pending changes (or no conflicts) — accept remote.
+              acceptRemote(serverSettings, serverTime);
             }
           } catch {
             // Parse errors are silent
@@ -278,43 +318,12 @@ export function useSettingsSync() {
           setTimeout(connectSSE, 5_000);
         };
       } catch {
-        // SSE not available, fall back to polling
-        startPolling();
+        // SSE not available, fall back to polling via query invalidation —
+        // the server-mirror effect picks up each refetch.
+        pollIntervalRef.current = setInterval(() => {
+          void utils.settings.get.invalidate();
+        }, 10_000);
       }
-    };
-
-    const startPolling = () => {
-      const poll = async () => {
-        try {
-          const response = await fetch("/api/trpc/settings.get", {
-            headers: { "Content-Type": "application/json" },
-          });
-          const data = await response.json();
-          const serverTime = data?.result?.data?.updatedAt;
-
-          if (
-            serverTime &&
-            lastSyncedAtRef.current &&
-            serverTime !== lastSyncedAtRef.current
-          ) {
-            const serverSettings = data?.result?.data?.settings as Settings;
-            if (serverSettings) {
-              applyToLocal(serverSettings);
-              lastSyncedAtRef.current = serverTime;
-
-              setState((prev) => ({
-                ...prev,
-                settings: serverSettings,
-                lastSyncedAt: serverTime,
-              }));
-            }
-          }
-        } catch {
-          // Polling failures are silent
-        }
-      };
-
-      pollIntervalRef.current = setInterval(poll, 10_000); // 10s fallback
     };
 
     connectSSE();
@@ -327,91 +336,21 @@ export function useSettingsSync() {
         clearInterval(pollIntervalRef.current);
       }
     };
-  }, [session?.user?.id]);
+  }, [session?.user?.id, utils]);
 
-  // ── Load settings on mount ──
-
-  useEffect(() => {
-    const localSettings = buildLocalSettings();
-    const storedLastSynced = localStorage.getItem(LOCAL_KEYS.lastSyncedAt);
-
-    setState((prev) => ({
-      ...prev,
-      settings: localSettings,
-      isLoaded: true,
-      lastSyncedAt: storedLastSynced,
-    }));
-
-    lastSyncedAtRef.current = storedLastSynced;
-
-    if (getSettings.data) {
-      const serverSettings = getSettings.data.settings as Settings;
-      const serverTime = getSettings.data.updatedAt;
-
-      // Check for conflicts on initial load
-      const localSnapshot: SettingsSnapshot = {
-        settings: localSettings as Record<string, unknown>,
-        updatedAt: lastLocalEditRef.current,
-      };
-      const remoteSnapshot: SettingsSnapshot = {
-        settings: serverSettings as Record<string, unknown>,
-        updatedAt: serverTime,
-      };
-
-      const conflicts = detectConflicts(
-        localSnapshot,
-        remoteSnapshot,
-        storedLastSynced,
-      );
-
-      if (conflicts.length > 0) {
-        setState((prev) => ({
-          ...prev,
-          conflict: {
-            hasConflict: true,
-            conflicts,
-            localUpdatedAt: lastLocalEditRef.current,
-            remoteUpdatedAt: serverTime,
-            remoteSettings: serverSettings,
-            mergeStrategy: prev.conflict.mergeStrategy,
-            isResolving: false,
-          },
-        }));
-      } else {
-        // No conflict — merge normally (remote wins)
-        const merged = applyMergeStrategy(
-          localSettings as Record<string, unknown>,
-          serverSettings as Record<string, unknown>,
-          "remote-wins",
-        );
-
-        applyToLocal(merged.merged as Settings);
-        lastSyncedAtRef.current = serverTime;
-        writeLocal(LOCAL_KEYS.lastSyncedAt, serverTime);
-
-        setState((prev) => ({
-          ...prev,
-          settings: merged.merged as Settings,
-          lastSyncedAt: serverTime,
-        }));
-      }
-    }
-  }, [getSettings.data, session?.user?.id]);
-
-  // ── Update settings (local + debounced cloud sync) ──
+  // ── Update settings (optimistic in-memory + debounced server sync) ──
 
   const updateSettings = useCallback(
     (path: string, value: unknown) => {
       const now = new Date().toISOString();
       lastLocalEditRef.current = now;
 
-      setState((prev) => {
-        const newSettings = { ...prev.settings };
+      const nextSettings = (() => {
+        const newSettings = {
+          ...workingSettingsRef.current,
+        } as Record<string, unknown>;
         const keys = path.split(".");
-        let current: Record<string, unknown> = newSettings as Record<
-          string,
-          unknown
-        >;
+        let current = newSettings;
 
         for (let i = 0; i < keys.length - 1; i++) {
           if (!current[keys[i]] || typeof current[keys[i]] !== "object") {
@@ -421,11 +360,11 @@ export function useSettingsSync() {
         }
 
         current[keys[keys.length - 1]] = value;
+        return newSettings as Settings;
+      })();
 
-        applyToLocal(newSettings);
-
-        return { ...prev, settings: newSettings };
-      });
+      workingSettingsRef.current = nextSettings;
+      setState((prev) => ({ ...prev, settings: nextSettings }));
 
       // Create operation for this change
       const operation: SettingsOperation = {
@@ -439,96 +378,25 @@ export function useSettingsSync() {
         timestamp: now,
       };
 
-      // Check if this operation conflicts with pending operations
-      const conflictCheck = wouldConflict(operation, pendingOpsRef.current);
-      if (conflictCheck.wouldConflict) {
-        // Transform the operation to account for the pending change
-        // For now, just add to queue — SSE will handle real-time sync
-      }
-
       // Add to pending operations queue
       pendingOpsRef.current.push(operation);
 
-      // Debounced cloud sync (500ms — faster with OT)
+      // Debounced cloud sync (500ms)
       if (syncTimeoutRef.current) {
         clearTimeout(syncTimeoutRef.current);
       }
       syncTimeoutRef.current = setTimeout(() => {
-        if (session?.user?.id && !isSyncingRef.current) {
-          isSyncingRef.current = true;
-          setState((prev) => ({ ...prev, isSyncing: true }));
-
-          const localSettings = buildLocalSettings();
-          setSettings.mutate(
-            {
-              settings: localSettings as Record<string, unknown>,
-              baseVersion: 0,
-              baseUpdatedAt: lastSyncedAtRef.current || undefined,
-            },
-            {
-              onSuccess: (data) => {
-                lastSyncedAtRef.current = data.updatedAt;
-                writeLocal(LOCAL_KEYS.lastSyncedAt, data.updatedAt);
-                pendingOpsRef.current = []; // Clear pending ops on success
-                setState((prev) => ({
-                  ...prev,
-                  isSyncing: false,
-                  lastSyncedAt: data.updatedAt,
-                  error: null,
-                }));
-                isSyncingRef.current = false;
-              },
-              onError: (err) => {
-                setState((prev) => ({
-                  ...prev,
-                  isSyncing: false,
-                  error: err.message,
-                }));
-                isSyncingRef.current = false;
-                // Don't clear pending ops on error — retry later
-              },
-            },
-          );
-        }
-      }, 500); // 500ms debounce (faster with real-time sync)
+        void saveToServer(nextSettings);
+      }, 500);
     },
-    [session?.user?.id, setSettings],
+    [saveToServer],
   );
 
   // ── Force sync (for immediate save) ──
 
   const forceSync = useCallback(() => {
-    if (session?.user?.id && !isSyncingRef.current) {
-      isSyncingRef.current = true;
-      setState((prev) => ({ ...prev, isSyncing: true }));
-
-      const localSettings = buildLocalSettings();
-      setSettings.mutate(
-        { settings: localSettings as Record<string, unknown> },
-        {
-          onSuccess: (data) => {
-            lastSyncedAtRef.current = data.updatedAt;
-            writeLocal(LOCAL_KEYS.lastSyncedAt, data.updatedAt);
-            setState((prev) => ({
-              ...prev,
-              isSyncing: false,
-              lastSyncedAt: data.updatedAt,
-              error: null,
-            }));
-            isSyncingRef.current = false;
-          },
-          onError: (err) => {
-            setState((prev) => ({
-              ...prev,
-              isSyncing: false,
-              error: err.message,
-            }));
-            isSyncingRef.current = false;
-          },
-        },
-      );
-    }
-  }, [session?.user?.id, setSettings]);
+    void saveToServer(workingSettingsRef.current);
+  }, [saveToServer]);
 
   // ── Resolve conflict ──
 
@@ -537,7 +405,7 @@ export function useSettingsSync() {
       setState((prev) => {
         if (!prev.conflict.remoteSettings) return prev;
 
-        const localSettings = buildLocalSettings();
+        const localSettings = workingSettingsRef.current;
 
         let result;
         if (strategy === "manual" && resolutions) {
@@ -555,7 +423,7 @@ export function useSettingsSync() {
           );
         }
 
-        applyToLocal(result.merged as Settings);
+        const merged = result.merged as Settings;
 
         // Log the conflict resolution
         logConflictResolution.mutate({
@@ -575,26 +443,35 @@ export function useSettingsSync() {
           remoteUpdatedAt: prev.conflict.remoteUpdatedAt,
         });
 
-        // Sync resolved settings to server
+        // Persist the resolution (server is the single source of truth)
         if (session?.user?.id) {
-          setSettings.mutate(
-            { settings: result.merged as Record<string, unknown> },
-            {
-              onSuccess: (data) => {
-                lastSyncedAtRef.current = data.updatedAt;
-                writeLocal(LOCAL_KEYS.lastSyncedAt, data.updatedAt);
-                setState((prev) => ({
-                  ...prev,
-                  lastSyncedAt: data.updatedAt,
-                }));
-              },
-            },
-          );
+          void setSettings
+            .mutateAsync({
+              settings: merged as Record<string, unknown>,
+              baseVersion: 0,
+              baseUpdatedAt: prev.conflict.remoteUpdatedAt || undefined,
+            })
+            .then((data) => {
+              lastSyncedAtRef.current = data.updatedAt;
+              utils.settings.get.setData(undefined, data);
+              pendingOpsRef.current = [];
+              workingSettingsRef.current = merged;
+              setState((latest) => ({
+                ...latest,
+                lastSyncedAt: data.updatedAt,
+              }));
+            })
+            .catch(() => {
+              setState((latest) => ({
+                ...latest,
+                error: "Failed to save resolved settings. Will retry.",
+              }));
+            });
         }
 
         return {
           ...prev,
-          settings: result.merged as Settings,
+          settings: merged,
           conflict: {
             hasConflict: false,
             conflicts: [],
@@ -607,7 +484,7 @@ export function useSettingsSync() {
         };
       });
     },
-    [session?.user?.id, setSettings, logConflictResolution],
+    [session?.user?.id, setSettings, logConflictResolution, utils],
   );
 
   // ── Set merge strategy ──
@@ -646,11 +523,17 @@ export function useSettingsSync() {
       defaultMergeStrategy?: MergeStrategy;
       autoResolve?: boolean;
     }) => {
-      writeLocal(LOCAL_KEYS.syncPreferences, prefs);
-
-      // Also update the current conflict state's merge strategy
+      const nextSettings = {
+        ...workingSettingsRef.current,
+        syncPreferences: {
+          ...workingSettingsRef.current.syncPreferences,
+          ...prefs,
+        },
+      };
+      workingSettingsRef.current = nextSettings;
       setState((prev) => ({
         ...prev,
+        settings: nextSettings,
         conflict: {
           ...prev.conflict,
           mergeStrategy:
@@ -658,51 +541,72 @@ export function useSettingsSync() {
         },
       }));
 
-      // Sync to cloud
+      // Persist to the server (cross-device)
       if (session?.user?.id) {
-        const localSettings = buildLocalSettings();
-        setSettings.mutate({
-          settings: localSettings as Record<string, unknown>,
-        });
+        void saveToServer(nextSettings);
       }
     },
-    [session?.user?.id, setSettings],
+    [session?.user?.id, saveToServer],
   );
 
-  // ── Reset settings ──
+  // ── Reset settings (server-side replace — cross-device) ──
 
   const resetSettings = useCallback(() => {
-    removeLocal(LOCAL_KEYS.aiPreferences);
-    removeLocal(LOCAL_KEYS.onboardingCompleted);
-    removeLocal(LOCAL_KEYS.onboardingStep);
-    removeLocal(LOCAL_KEYS.notificationPrefs);
-    removeLocal(LOCAL_KEYS.usageStats);
-    removeLocal(LOCAL_KEYS.lastSyncedAt);
-    removeLocal(LOCAL_KEYS.lastLocalEditAt);
-    removeLocal(LOCAL_KEYS.syncPreferences);
-
-    if (session?.user?.id) {
-      setSettings.mutate({ settings: {} });
+    if (!session?.user?.id) {
+      setState((prev) => ({
+        ...prev,
+        settings: {},
+        lastSyncedAt: null,
+        conflict: {
+          hasConflict: false,
+          conflicts: [],
+          localUpdatedAt: null,
+          remoteUpdatedAt: null,
+          remoteSettings: null,
+          mergeStrategy: prev.conflict.mergeStrategy,
+          isResolving: false,
+        },
+      }));
+      workingSettingsRef.current = {};
+      pendingOpsRef.current = [];
+      return;
     }
 
-    setState((prev) => ({
-      ...prev,
-      settings: {},
-      lastSyncedAt: null,
-      conflict: {
-        hasConflict: false,
-        conflicts: [],
-        localUpdatedAt: null,
-        remoteUpdatedAt: null,
-        remoteSettings: null,
-        mergeStrategy: prev.conflict.mergeStrategy,
-        isResolving: false,
-      },
-    }));
-  }, [session?.user?.id, setSettings]);
+    void replaceSettings
+      .mutateAsync({ settings: {} })
+      .then((data) => {
+        lastSyncedAtRef.current = data.updatedAt;
+        utils.settings.get.setData(undefined, data);
+        workingSettingsRef.current = {};
+        pendingOpsRef.current = [];
+        setState((prev) => ({
+          ...prev,
+          settings: {},
+          lastSyncedAt: data.updatedAt,
+          error: null,
+          conflict: {
+            hasConflict: false,
+            conflicts: [],
+            localUpdatedAt: null,
+            remoteUpdatedAt: null,
+            remoteSettings: null,
+            mergeStrategy: prev.conflict.mergeStrategy,
+            isResolving: false,
+          },
+        }));
+      })
+      .catch((err: unknown) => {
+        setState((prev) => ({
+          ...prev,
+          error:
+            err instanceof Error ? err.message : "Failed to reset settings",
+        }));
+      });
+  }, [session?.user?.id, replaceSettings, utils]);
 
   return {
     ...state,
+    isLoaded,
     updateSettings,
     forceSync,
     resetSettings,
@@ -710,7 +614,7 @@ export function useSettingsSync() {
     setMergeStrategy,
     dismissConflict,
     updateSyncPreferences,
-    isCloudEnabled: !!session?.user?.id,
+    isCloudEnabled,
     pendingOpsCount: pendingOpsRef.current.length, // Expose pending ops count
     clientId: clientIdRef.current, // Expose client ID
   };

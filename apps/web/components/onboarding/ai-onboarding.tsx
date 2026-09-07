@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "@/components/ui";
 import { Input } from "@/components/ui";
 import { useEntity } from "@/lib/entity-context";
+import { useOnboarding } from "@/lib/hooks/use-onboarding";
 import { trpc } from "@/lib/trpc/client";
 import {
   Sparkles,
@@ -35,11 +36,7 @@ type Message = {
 };
 
 type OnboardingPhase =
-  | "greeting"
-  | "collecting"
-  | "setting-up"
-  | "preview"
-  | "complete";
+  "greeting" | "collecting" | "setting-up" | "preview" | "complete";
 
 type BusinessInfo = {
   name: string;
@@ -349,7 +346,11 @@ export function AiOnboarding() {
   const listOrgsQuery = trpc.organization.list.useQuery(undefined, {
     enabled: false,
   });
-  const completeOnboarding = trpc.onboarding.completeFlow.useMutation();
+  const completeFlowMutation = trpc.onboarding.completeFlow.useMutation();
+  // Closes the client-side wizard gate: sets the localStorage flag AND
+  // persists settings.onboarding.completed via settings.set. The
+  // completeFlow session update alone does not clear the settings.get gate.
+  const { completeOnboarding: markOnboardingComplete } = useOnboarding();
 
   const setStep = (index: number, state: SetupStepState) =>
     setStepStates((prev) => prev.map((s, i) => (i === index ? state : s)));
@@ -547,8 +548,11 @@ export function AiOnboarding() {
 
   // Handle go to dashboard
   const handleGoToDashboard = useCallback(async () => {
+    // Close the wizard gate first (localStorage + server settings), then
+    // best-effort update the onboarding session/pipeline.
+    markOnboardingComplete();
     try {
-      await completeOnboarding.mutateAsync();
+      await completeFlowMutation.mutateAsync();
       track("onboarding_completed", {
         entityId: localStorage.getItem("currentEntityId") ?? "",
         duration_seconds: 0,
@@ -560,24 +564,28 @@ export function AiOnboarding() {
         entityId: localStorage.getItem("currentEntityId") ?? "",
       });
     } catch {
-      // Non-blocking
+      // Non-blocking — gate is already closed
     }
     window.location.href = "/dashboard";
-  }, [completeOnboarding]);
+  }, [completeFlowMutation, markOnboardingComplete]);
 
   // Handle skip
   const handleSkip = useCallback(async () => {
+    // Close the gate FIRST — previously skip only updated onboarding_sessions
+    // (which doesn't exist for legacy accounts), so the wizard reappeared on
+    // every login even after skipping.
+    markOnboardingComplete();
     try {
-      await completeOnboarding.mutateAsync();
+      await completeFlowMutation.mutateAsync();
       track("onboarding_skipped", {
         entityId: localStorage.getItem("currentEntityId") ?? "",
         lastStep: phase,
       });
     } catch {
-      // Non-blocking
+      // Non-blocking — gate is already closed above
     }
     window.location.href = "/dashboard";
-  }, [completeOnboarding, phase]);
+  }, [completeFlowMutation, markOnboardingComplete, phase]);
 
   const showInput = phase === "greeting" || phase === "collecting";
   const showSetup = phase === "setting-up";

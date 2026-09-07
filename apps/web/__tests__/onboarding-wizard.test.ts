@@ -236,22 +236,6 @@ describe("Onboarding Wizard", () => {
     });
   });
 
-  describe("Completion screen links", () => {
-    it("provides 4 quick links after completion", () => {
-      const links = [
-        { href: "/dashboard/coa", title: "Chart of Accounts" },
-        { href: "/dashboard/treasury", title: "Bank Accounts" },
-        { href: "/dashboard/settings", title: "Team Settings" },
-        { href: "/dashboard", title: "AI Assistant" },
-      ];
-      expect(links).toHaveLength(4);
-      links.forEach((link) => {
-        expect(link.href).toMatch(/^\/dashboard\//);
-        expect(link.title).toBeTruthy();
-      });
-    });
-  });
-
   describe("Wizard accessibility", () => {
     it("has dialog role and aria-modal", () => {
       // The wizard uses role="dialog" and aria-modal="true"

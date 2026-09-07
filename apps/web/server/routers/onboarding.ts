@@ -3,6 +3,7 @@ import { TRPCError } from "@trpc/server";
 import { eq } from "drizzle-orm";
 import { organizations, entities } from "@xenboox/db/schema/organization";
 import { onboardingSessions } from "@xenboox/db/schema/onboarding";
+import { userSettings } from "@xenboox/db/schema/user-settings";
 import { chartOfAccounts, fiscalPeriods } from "@xenboox/db/schema/accounting";
 import { getTaxPresetsForCountry } from "@xenboox/agents";
 import {
@@ -61,6 +62,36 @@ async function getUserOrgId(userId: string): Promise<string | null> {
     columns: { id: true },
   });
   return org?.id ?? null;
+}
+
+/**
+ * Mirror onboarding completion into user_settings.onboarding — the field the
+ * client wizard gate (settings.get) actually reads. Without this, completing
+ * or skipping AI onboarding only updates onboarding_sessions and the wizard
+ * reappears on every login.
+ */
+async function markSettingsOnboarded(userId: string): Promise<void> {
+  const existing = await db.query.userSettings.findFirst({
+    where: eq(userSettings.userId, userId),
+  });
+  const current =
+    (existing?.settings as Record<string, unknown> | undefined) ?? {};
+  const merged = {
+    ...current,
+    onboarding: {
+      ...(current.onboarding as Record<string, unknown> | undefined),
+      completed: true,
+      currentStep: null,
+    },
+  };
+  if (existing) {
+    await db
+      .update(userSettings)
+      .set({ settings: merged, updatedAt: new Date() })
+      .where(eq(userSettings.userId, userId));
+  } else {
+    await db.insert(userSettings).values({ userId, settings: merged });
+  }
 }
 
 export const onboardingRouter = router({
@@ -373,9 +404,8 @@ export const onboardingRouter = router({
       };
     }
     try {
-      const { dataConnections, historicalPullJobs } = await import(
-        "@xenboox/db/schema/onboarding"
-      );
+      const { dataConnections, historicalPullJobs } =
+        await import("@xenboox/db/schema/onboarding");
       const { eq } = await import("drizzle-orm");
       const { db } = await import("@/lib/db");
 
@@ -478,11 +508,19 @@ export const onboardingRouter = router({
       const session = await db.query.onboardingSessions.findFirst({
         where: eq(onboardingSessions.orgId, orgId),
       });
-      if (!session)
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "No onboarding session found",
-        });
+      if (!session) {
+        // Idempotent: no session row (e.g. legacy accounts that onboarded
+        // before sessions existed, or a fresh skip). Close the client gate
+        // instead of failing — skip must never bounce the user back into
+        // the wizard.
+        await markSettingsOnboarded(ctx.session!.user!.id!);
+        return {
+          success: true,
+          timeToFirstValueSeconds: 0,
+          sourceType: null,
+          firstMessage: null,
+        };
+      }
 
       // Resolve the five-category source (new column, else legacy mapping).
       const sourceType: OnboardingSourceType | null =
@@ -516,6 +554,9 @@ export const onboardingRouter = router({
       }
 
       const result = await completeOnboarding(session.id);
+
+      // Mirror completion into user_settings so the client gate closes.
+      await markSettingsOnboarded(ctx.session!.user!.id!);
 
       // Run the backend pipeline to seed CoA and fiscal periods if not done
       // (Category A included — it seeds CoA/periods but never a pull job).
