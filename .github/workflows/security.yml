@@ -62,12 +62,23 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Run Semgrep
-        # Registry rulesets (p/*) occasionally fail to download; that is a
-        # Semgrep-registry availability problem, not a code problem — do not
-        # fail the run for it (--error would escalate findings + fetch errors
-        # to exit code 7). Metrics are off: telemetry calls in restricted
-        # container networks have also produced silent non-zero exits.
+      - name: Run Semgrep (local rules — blocking)
+        # Local rules only: the Semgrep registry (p/* rulesets) is unreachable
+        # from the CI container and silently exits 7 with zero output. The
+        # local ruleset is the auditable, blocking scan.
+        run: |
+          semgrep scan \
+            --config .semgrep/xenboox-security.yml \
+            --metrics=off \
+            --sarif --output semgrep-results.sarif \
+            --jobs 4
+        env:
+          SEMGREP_SEND_METRICS: "off"
+
+      - name: Run Semgrep (registry rules — best-effort)
+        # Registry rulesets add breadth but depend on external availability;
+        # failures here are infra noise, not a code-security signal.
+        continue-on-error: true
         run: |
           semgrep scan \
             --config "p/default" \
@@ -75,18 +86,11 @@ jobs:
             --config "p/node" \
             --config "p/nextjs" \
             --config "p/security-audit" \
-            --config .semgrep/xenboox-security.yml \
             --metrics=off \
-            --sarif --output semgrep-results.sarif \
+            --sarif --output semgrep-registry-results.sarif \
             --jobs 4
         env:
           SEMGREP_SEND_METRICS: "off"
-          SEMGREP_RULES: >-
-            p/default
-            p/typescript
-            p/node
-            p/nextjs
-            p/security-audit
 
       - name: Upload SARIF to GitHub Security
         if: always()
