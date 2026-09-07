@@ -42,7 +42,19 @@ export const dbDriver: DbDriver = resolveDriver();
 
 let _db: DbClient;
 if (dbDriver === "pool") {
-  neonConfig.webSocketConstructor = ws as unknown as typeof WebSocket;
+  // WebSocket constructor for the Pool driver. Node >= 22 ships a native
+  // global WebSocket — prefer it. The `ws` package broke on newer runtimes
+  // (its optional native `bufferutil` provides `mask`; a stale build makes
+  // every pooled send throw "b.mask is not a function" and KILLS the
+  // serverless process mid-login). `ws` remains only a fallback for runtimes
+  // without a global WebSocket.
+  const GlobalWebSocket = (globalThis as { WebSocket?: typeof WebSocket })
+    .WebSocket;
+  neonConfig.webSocketConstructor = (GlobalWebSocket ??
+    ws) as unknown as typeof WebSocket;
+  if (!GlobalWebSocket) {
+    console.warn("[db] no native WebSocket — falling back to ws package");
+  }
   const pool = new Pool({
     connectionString: process.env.DATABASE_URL!,
     max: Number(process.env.DB_POOL_MAX ?? 10),
