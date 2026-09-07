@@ -82,13 +82,21 @@ export function buildCSP(nonce: string): string {
   return generateCSP({
     nonce,
     defaultSrc: ["'self'"],
-    scriptSrc: ["'self'", "https://cdn.jsdelivr.net"],
+    scriptSrc: [
+      "'self'",
+      "https://cdn.jsdelivr.net",
+      "https://vercel.live",
+      "https://vercel.jp",
+    ],
     styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
     imgSrc: ["'self'", "data:", "https:", "blob:"],
     connectSrc: [
       "'self'",
       "https://api.anthropic.com",
       "https://api.openai.com",
+      "https://*.vercel.app",
+      "https://*.vercel-js.com",
+      "https://api.vercel.com",
     ],
     fontSrc: ["'self'", "https://fonts.gstatic.com"],
     objectSrc: ["'none'"],

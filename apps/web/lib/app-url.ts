@@ -9,9 +9,14 @@
  * a hardcoded value WILL break.
  */
 export function getAppUrl(): string {
+  // Vercel injects VERCEL_URL automatically — use it as the source of truth
+  // so preview deployments always get the correct URL without manual env config.
+  const vercelUrl = process.env.VERCEL_URL;
+  if (vercelUrl) {
+    return `https://${vercelUrl}`;
+  }
   const url = process.env.NEXT_PUBLIC_APP_URL;
   if (url) {
-    // Strip trailing slash for consistency
     return url.replace(/\/+$/, "");
   }
   if (process.env.NODE_ENV === "production") {
@@ -27,6 +32,10 @@ export function getAppUrl(): string {
  * Use in server components, API routes, and tRPC context.
  */
 export function getServerAppUrl(): string {
+  const vercelUrl = process.env.VERCEL_URL;
+  if (vercelUrl) {
+    return `https://${vercelUrl}`;
+  }
   const url = process.env.NEXT_PUBLIC_APP_URL ?? process.env.NEXTAUTH_URL;
   if (url) {
     return url.replace(/\/+$/, "");
