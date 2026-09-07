@@ -1,5 +1,5 @@
 # ─── Stage 1: Dependencies ────────────────────────────────────────────────
-FROM node:20-alpine AS deps
+FROM node:26-alpine AS deps
 
 # Install pnpm
 RUN corepack enable && corepack prepare pnpm@9.12.0 --activate
@@ -30,7 +30,7 @@ RUN cd packages/db && pnpm drizzle-kit generate 2>/dev/null || true
 RUN pnpm build --filter=@xenboox/web
 
 # ─── Stage 3: Production ─────────────────────────────────────────────────
-FROM node:20-alpine AS runner
+FROM node:26-alpine AS runner
 
 WORKDIR /app
 
