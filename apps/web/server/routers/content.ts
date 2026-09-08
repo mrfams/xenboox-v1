@@ -1,3 +1,4 @@
+import { devOnly } from "@/server/lib/dev-only";
 import { z } from "zod";
 import { eq, and, desc, count, sql } from "drizzle-orm";
 import { blogPosts, jobPostings } from "@xenboox/db/schema";
@@ -606,6 +607,8 @@ export const contentRouter = router({
   // ── Admin: Seed demo content ────────────────────────────────────────────
 
   seedDemoContent: adminProtectedProcedure.mutation(async () => {
+    // Dev-only: demo content must never seed in production (Batch 1 rule).
+    devOnly("content.seedDemoContent");
     const [existing] = await db.select({ count: count() }).from(blogPosts);
     if ((existing?.count ?? 0) > 0) {
       return { seeded: false, reason: "Content already exists" };

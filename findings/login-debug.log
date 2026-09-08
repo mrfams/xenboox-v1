@@ -1,0 +1,17 @@
+STEP: goto https://xenboox.vercel.app/login
+URL after load: https://xenboox.vercel.app/login
+STEP: filling credentials
+[console.error] Failed to load resource: the server responded with a status of 404 ()
+STEP: submitted — waiting for navigation…
+[requestfailed] GET https://xenboox.vercel.app/?_rsc=iKnYMpwRDMxan1zE — net::ERR_ABORTED
+[requestfailed] GET https://xenboox.vercel.app/dashboard?_rsc=Xu68eHM3_39n_gpR — net::ERR_ABORTED
+SUCCESS: navigated to https://xenboox.vercel.app/dashboard
+VISIBLE ERRORS: Home | Xenboox
+Keeping browser open 45s for inspection…
+[requestfailed] GET https://xenboox.vercel.app/dashboard/operations?_rsc=JSPWlhLC_u4jTVcV — net::ERR_ABORTED
+[requestfailed] GET https://xenboox.vercel.app/dashboard/settings?_rsc=JSPWlhLC_u4jTVcV — net::ERR_ABORTED
+[http 500] GET https://xenboox.vercel.app/api/trpc/dashboard.getAiBriefing,dashboard.getDashboardData?batch=1&input=%7B%221%22%3A%7B%7D%7D
+[console.error] Failed to load resource: the server responded with a status of 500 ()
+[http 404] POST https://xenboox.vercel.app/api/trpc/onboarding.completeFlow?batch=1
+[console.error] Failed to load resource: the server responded with a status of 404 ()
+[pageerror] Error: Minified React error #418; visit https://react.dev/errors/418?args[]=HTML&args[]= for the full message or use the non-minified dev environment for full errors and additional helpful warnings.

@@ -1,0 +1,20 @@
+
+<--- Last few GCs --->
+
+[3348:000001A1717E3000]  1125626 ms: Scavenge (during sweeping) 1929.8 (1949.9) -> 1923.0 (1950.2) MB, pooled: 0.0 MB, 120.45 / 0.00 ms (average mu = 0.244, current mu = 0.160) allocation failure; 
+[3348:000001A1717E3000]  1136317 ms: Incremental Mark-Compact (reduce) 1938.0 (1958.4) -> 1930.4 (1943.2) MB, pooled: 0.0 MB, 6402.89 / 0.00 ms (+ 1528.3 ms in 238 steps since start of marking, biggest step 23.6 ms, walltime since start of marking 8136 ms
+FATAL ERROR: Ineffective mark-compacts near heap limit Allocation failed - JavaScript heap out of memory
+----- Native stack trace -----
+
+ 1: 00007FF7B9DC65AD node::OnFatalError+1325
+ 2: 00007FF7BAB91141 v8::Function::NewInstance+577
+ 3: 00007FF7BA975417 SSL_CTX_set_stateless_cookie_verify_cb+504087
+ 4: 00007FF7BA972FDD SSL_CTX_set_stateless_cookie_verify_cb+494813
+ 5: 00007FF7BA98FA0A v8::internal::StrongRootAllocatorBase::deallocate_impl+45626
+ 6: 00007FF7BA990EA3 v8::internal::StrongRootAllocatorBase::deallocate_impl+50899
+ 7: 00007FF7BA990AB3 v8::internal::StrongRootAllocatorBase::deallocate_impl+49891
+ 8: 00007FF7BA9A23F0 v8::internal::StrongRootAllocatorBase::deallocate_impl+121888
+ 9: 00007FF7BA528232 v8::String::Value::~Value+166770
+10: 00007FF7BC13963A v8::platform::DelayedTaskQueue::Terminate+9752026
+11: 00007FF7BC08B2B8 v8::platform::DelayedTaskQueue::Terminate+9038424
+12: 000001A10006EAE6 
