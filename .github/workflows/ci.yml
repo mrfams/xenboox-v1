@@ -121,7 +121,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter=@xenboox/web test:coverage
       - run: pnpm --filter=@xenboox/agents test:coverage
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: coverage-reports
           path: |
@@ -211,7 +211,7 @@ jobs:
         run: pnpm --filter=@xenboox/web test:e2e --project=anon-chromium
       - name: Run Playwright (authenticated dashboard flows)
         run: pnpm --filter=@xenboox/web test:e2e --project=chromium
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: playwright-report
