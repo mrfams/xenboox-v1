@@ -12,7 +12,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@trpc/server": "^11.0.0",
+    "@trpc/server": "^11.19.0",
     "@xenboox/db": "workspace:*",
     "zod": "^3.23.0"
   },
